@@ -48,6 +48,7 @@ specialpurpose/pos/build/
 specialpurpose/projectmgr/build/
 specialpurpose/webpos/build/
 specialpurpose/shark/build/
+specialpurpose/greentea/build/
 ofbiz.jar
 changelog
 runtime/svninfo.ftl

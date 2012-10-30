@@ -1,0 +1,23 @@
+<site-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/site-conf.xsd">
+        
+    <request-map uri="FindCategory">
+      <security https="true" auth="true"/>
+      <response name="success" type="view" value="FindCategory"/>
+    </request-map>  
+    
+    <request-map uri="FindProduct">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="FindProduct"/>
+    </request-map>
+   <request-map uri="EditProduct">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="EditProduct"/>
+    </request-map>
+    
+    <view-map name="FindCategory" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#FindCategory"/>
+
+	<view-map name="FindProduct" type="screen" page="component://product/widget/catalog/ProductScreens.xml#FindProduct"/>
+    <view-map name="EditProduct" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditProduct"/>
+    
+</site-conf>        

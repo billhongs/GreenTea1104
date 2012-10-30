@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<entitymodel xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/entitymodel.xsd">
+  <!-- ========================================================= -->
+  <!-- ======================== Defaults ======================= -->
+  <!-- ========================================================= -->
+    <title>Entity of an Open For Business Project Component</title>
+    <description>None</description>
+    <version>1.0</version>
+
+    <!-- ========================================================= -->
+    <!-- ======================== Data Model ===================== -->
+    <!-- The modules in this file are as follows:                  -->
+    <!--  - org.ofbiz.product.product -->
+    <!-- ========================================================= -->
+
+
+  <!-- ========================================================= -->
+  <!-- org.wuyuan.product.order -->
+  <!-- ========================================================= -->
+
+    <entity entity-name="ProductFlex"
+            package-name="org.ofbiz.product.product"
+            never-cache="true"
+            title="Product Flex Entity">
+      <description></description>
+      <field name="productId" type="id-ne"></field>
+      <field name="attribute1" type="description"></field>
+      <field name="attribute2" type="description"></field>
+      <field name="attribute3" type="description"></field>
+      <field name="attribute4" type="description"></field>
+      <field name="attribute5" type="description"></field>
+      <field name="attribute6" type="description"></field>
+      <field name="attribute7" type="description"></field>
+      <field name="attribute8" type="description"></field>
+      <field name="attribute9" type="description"></field>
+      <field name="attribute10" type="description"></field>
+      <field name="attribute11" type="description"></field>
+      <field name="attribute12" type="description"></field>
+      <field name="attribute13" type="description"></field>
+      <field name="attribute14" type="description"></field>
+      <field name="attribute15" type="description"></field>
+      <field name="attribute16" type="description"></field>
+      <field name="attribute17" type="description"></field>
+      <field name="attribute18" type="description"></field>
+      <field name="attribute19" type="description"></field>
+      <field name="attribute20" type="description"></field>
+      <field name="attribute21" type="description"></field>
+      <field name="attribute22" type="description"></field>
+      <field name="attribute23" type="description"></field>
+      <field name="attribute24" type="description"></field>
+      <field name="attribute25" type="description"></field>
+      <field name="attribute26" type="description"></field>
+      <field name="attribute27" type="description"></field>
+      <field name="attribute28" type="description"></field>
+      <field name="attribute29" type="description"></field>
+      <field name="attribute30" type="description"></field>
+     <prim-key field="productId"/>
+    </entity>
+
+	<entity entity-name="EbizmgrMenu"
+            package-name="org.ofbiz.common.ui"
+            never-cache="true"
+            title="Menu Entity">
+      <description>导航菜单</description>
+      <field name="menuId" type="id-ne"></field>
+      <field name="parentMenuId" type="id"></field>
+      <field name="menuTitle" type="name"></field>
+      <field name="menuUrl" type="url"></field>
+      <field name="menuDescription" type="description"></field>
+      <field name="permissionId" type="id-long"></field>
+      <prim-key field="productId"/>
+   	</entity>
+</entitymodel>

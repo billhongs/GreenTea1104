@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<screens xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/widget-screen.xsd">
+    <screen name="ebizMain-decorator">
+        <section>
+            <actions>
+                <!-- base/top/specific map first, then more common map added for shared labels -->
+                <property-map resource="ProductUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="CommonUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="WorkEffortUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="PartyUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="AccountingUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="GreenteaUiLabels" map-name="uiLabelMap" global="true"/>
+
+                <set field="layoutSettings.companyName" from-field="uiLabelMap.ProductCatalogCompanyName" global="true"/>
+                <set field="layoutSettings.companySubtitle" from-field="uiLabelMap.ProductCompanySubtitle" global="true"/>
+
+                <set field="activeApp" value="ebizmgr" global="true"/>
+                <set field="applicationMenuName" value="CatalogAppBar" global="true"/>
+                <set field="applicationMenuLocation" value="component://product/widget/catalog/CatalogMenus.xml" global="true"/>
+                <set field="applicationTitle" value="${uiLabelMap.ProductCatalogManagerApplication}" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/development-bundle/external/jquery.cookie.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/jsTree/jquery.jstree.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-1.5.2.min.js" global="true"/>
+            </actions>
+            <widgets>
+                <!-- render header -->
+                <platform-specific><html><html-template location="component://greentea/webapp/ebizmgr/includes/header.ftl"/></html></platform-specific>
+            	<!-- render body -->
+            	<decorator-section-include name="body"/>
+            	<!-- render footer -->
+            	<platform-specific><html><html-template location="component://greentea/webapp/ebizmgr/includes/footer.ftl"/></html></platform-specific>
+            </widgets>
+        </section>
+    </screen>
+
+
+
+    
+    
+    <screen name="main">
+        <section>
+            <actions>
+                
+            </actions>
+            <widgets>
+                        <platform-specific>
+                            <html><html-template location="component://greentea/webapp/ebizmgr/main.ftl"/></html>
+                        </platform-specific>
+            </widgets>
+        </section>
+     </screen>
+     
+     
+     <screen name="main-decorator">
+        <section>
+            <actions>
+                <!-- base/top/specific map first, then more common map added for shared labels -->
+                <property-map resource="ProductUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="CommonUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="WorkEffortUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="PartyUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="AccountingUiLabels" map-name="uiLabelMap" global="true"/>
+
+                <set field="layoutSettings.companyName" from-field="uiLabelMap.ProductCatalogCompanyName" global="true"/>
+                <set field="layoutSettings.companySubtitle" from-field="uiLabelMap.ProductCompanySubtitle" global="true"/>
+                <!-- layoutSettings.headerImageUrl can be used to specify an application specific logo; if not set,
+                     then the global layoutSettings.commonHeaderImageUrl (specified in GlobalDecorator) will be used. -->
+                <!--<set field="layoutSettings.headerImageUrl" value="/images/ofbiz_logo.gif" global="true"/>-->
+                <!-- <set field="layoutSettings.headerMiddleBackgroundUrl" value="" global="true"/> -->
+                <!-- <set field="layoutSettings.headerRightBackgroundUrl" value="" global="true"/> -->
+                <set field="activeApp" value="catalogmgr" global="true"/>
+                <set field="applicationMenuName" value="CatalogAppBar" global="true"/>
+                <set field="applicationMenuLocation" value="component://product/widget/catalog/CatalogMenus.xml" global="true"/>
+                <set field="applicationTitle" value="${uiLabelMap.ProductCatalogManagerApplication}" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/development-bundle/external/jquery.cookie.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/jsTree/jquery.jstree.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-1.5.2.min.js" global="true"/>
+            </actions>
+            <widgets>
+                <include-screen name="ApplicationDecorator"/>
+            </widgets>
+        </section>
+    </screen>
+
+	<screen name="ApplicationDecorator">
+        <section>
+            <actions>
+                <property-map resource="CommonExtUiLabels" map-name="uiLabelMap" global="true"/>
+                <entity-one entity-name="PartyNameView" value-field="partyNameView">
+                    <field-map field-name="partyId" from-field="userLogin.partyId"/>
+                </entity-one>
+                <set field="line.text" value="${uiLabelMap.CommonWelcome} ${person.firstName} ${person.middleName} ${person.lastName}"/>
+                <set field="line.urlText" value="[${userLogin.userLoginId}]"/>
+                <set field="line.url" value="/partymgr/control/viewprofile?partyId=${userLogin.partyId}"/>
+                <set field="layoutSettings.topLines[]" from-field="line" global="true"/>
+                <script location="component://commonext/webapp/ofbizsetup/organization/changeOrgPartyId.groovy"/><!-- to see ofbizsetup needs to be displayed -->
+                <!-- system info notes -->
+                <service service-name="getLastSystemInfoNote" result-map="resultNote"/>
+                <set field="linkStart" value="/myportal/control/showPortletMainDecorator?portalPortletId="/>
+                <set field="layoutSettings.middleTopHeader" value="---------- ${uiLabelMap.CommonLastSytemNotes} ----------"/>
+                <set field="layoutSettings.middleTopMessage1" value="${groovy:resultNote.lastSystemInfoNote1!=null?resultNote.lastSystemInfoNote1.noteDateTime.toString().substring(0,16) + &quot; &quot; + resultNote.lastSystemInfoNote1.noteInfo:&quot;&quot;}"/>
+                <set field="layoutSettings.middleTopLink1" value="${linkStart}${resultNote.lastSystemInfoNote1.moreInfoPortletId}&amp;amp;id=${resultNote.lastSystemInfoNote1.moreInfoItemId}"/>
+                <set field="layoutSettings.middleTopMessage2" value="${groovy:resultNote.lastSystemInfoNote2!=null?resultNote.lastSystemInfoNote2.noteDateTime.toString().substring(0,16) + &quot; &quot; + resultNote.lastSystemInfoNote2.noteInfo:&quot;&quot;}"/>
+                <set field="layoutSettings.middleTopLink2" value="${linkStart}${resultNote.lastSystemInfoNote2.moreInfoPortletId}&amp;amp;id=${resultNote.lastSystemInfoNote2.moreInfoItemId}"/>
+                <set field="layoutSettings.middleTopMessage3" value="${groovy:resultNote.lastSystemInfoNote3!=null?resultNote.lastSystemInfoNote3.noteDateTime.toString().substring(0,16) + &quot; &quot; + resultNote.lastSystemInfoNote3.noteInfo:&quot;&quot;}"/>
+                <set field="layoutSettings.middleTopLink3" value="${linkStart}${resultNote.lastSystemInfoNote3.moreInfoPortletId}&amp;amp;id=${resultNote.lastSystemInfoNote3.moreInfoItemId}"/>
+                <!-- Help link actions -->
+                <set field="helpTopic" value="${groovy: webSiteId + '_' + requestAttributes._CURRENT_VIEW_}"/>
+                <entity-and list="pageAvail" entity-name="ContentAssoc">
+                    <field-map field-name="mapKey" from-field="helpTopic"/>
+                </entity-and>
+            </actions>
+            <widgets>
+                <section>
+                    <condition><not><if-empty field="PartyAcctgPrefAndGroupList"/></not></condition><!-- produced by  changeOrgPartyId.groovy-->
+                    <actions>
+                        <set field="defaultOrganizationPartyId" value="${userPreferences.ORGANIZATION_PARTY}" global="true"/>
+                        <property-to-field resource="general" property="currency.uom.id.default" field="defaultCurrencyUomId"/>
+                        <entity-one entity-name="PartyAcctgPrefAndGroup" value-field="orgParty">
+                            <field-map field-name="partyId" from-field="defaultOrganizationPartyId"/>
+                        </entity-one>
+                        <set field="defaultOrganizationPartyCurrencyUomId" from-field="orgParty.baseCurrencyUomId" default-value="${defaultCurrencyUomId}" global="true"/>
+                        <set field="defaultOrganizationPartyGroupName" from-field="orgParty.groupName" global="true"/>
+                        <set field="dropdown.hiddenFieldList" from-field="hiddenFields" global="true"/>
+                        <set field="dropdown.action" value="setUserPreference"/>
+                        <set field="dropdown.textBegin" value="${uiLabelMap.CommonDefaultOrganizationPartyId} :"/>
+                        <set field="dropdown.dropDownList" from-field="PartyAcctgPrefAndGroupList"/>
+                        <set field="dropdown.selectionName" value="userPrefValue"/>
+                        <set field="dropdown.selectedKey" value="${defaultOrganizationPartyId}"/>
+                        <set field="dropdown.textEnd" value="[${defaultOrganizationPartyId}]"/>
+                        <set field="layoutSettings.topLines[]" from-field="dropdown" global="true"/>
+                    </actions>
+                    <widgets/>
+                </section>
+                <section>
+                    <condition><if-empty field="PartyAcctgPrefAndGroupList"/></condition>
+                    <actions>
+                       <set field="layoutSettings.suppressTab" value=""/><!-- enable ofbiz setup -->
+                    </actions>
+                    <widgets/>
+                </section>
+                <include-screen name="GlobalDecorator"/>
+            </widgets>
+        </section>
+    </screen>
+    
+    <!-- Global decorator for General Screens/Pages -->
+    <screen name="GlobalDecorator">
+        <section>
+            <actions>
+                <!-- The default (global) java scripts -->
+                    <!-- jQuery part -->
+                <!-- Load available JS Language Files -->
+                <set field="initialLocaleComplete" type="String" value="${groovy:parameters?.userLogin?.lastLocale}" default-value="${groovy:locale.toString()}"/>
+                <set field="layoutSettings.javaScripts[+0]" value="${groovy: org.ofbiz.common.JsLanguageFilesMapping.datejs.getFilePath(initialLocaleComplete)}" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="${groovy: org.ofbiz.common.JsLanguageFilesMapping.jquery.getFilePath(initialLocaleComplete)}" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="${groovy: org.ofbiz.common.JsLanguageFilesMapping.validation.getFilePath(initialLocaleComplete)}" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="${groovy: org.ofbiz.common.JsLanguageFilesMapping.dateTime.getFilePath(initialLocaleComplete)}" global="true"/>
+
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/asmselect/jquery.asmselect-1.0.4a-beta.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/datetimepicker/jquery-ui-timepicker-addon-0.9.6.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/jquery.maskedinput-1.2.2.min.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/js/jquery-ui-1.8.11.custom.min.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/jeditable/jquery.jeditable.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/validate/jquery.validate.min.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/fjTimer/jquerytimer-min.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/development-bundle/ui/jquery.ui.datepicker.js" global="true"/>
+
+                <!-- Load available JS Language Files -->
+                <set field="initialLocaleComplete" type="String" value="${groovy:parameters?.userLogin?.lastLocale}" default-value="${groovy:locale.toString()}"/>
+                <set field="layoutSettings.javaScripts[+0]" value="${groovy: org.ofbiz.common.JsLanguageFilesMapping.datejs.getFilePath(initialLocaleComplete)}" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="${groovy: org.ofbiz.common.JsLanguageFilesMapping.jquery.getFilePath(initialLocaleComplete)}" global="true"/>
+
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-1.5.2.min.js" global="true"/>
+                    <!-- jQuery CSSs -->
+                <set field="layoutSettings.styleSheets[+0]" value="/images/jquery/plugins/asmselect/jquery.asmselect-1.0.4a-beta.css" global="true"/>
+                <set field="layoutSettings.styleSheets[+0]" value="/images/jquery/plugins/datetimepicker/jquery-ui-timepicker-addon-0.9.6.css" global="true"/>
+
+                <set field="layoutSettings.javaScripts[]" value="/images/selectall.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/images/fieldlookup.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/images/GooglemapMarkers.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/images/getDependentDropdownValues.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/images/selectMultipleRelatedValues.js" global="true"/>
+
+                <set field="layoutSettings.commonHeaderImageLinkUrl" from-field="layoutSettings.commonHeaderImageLinkUrl" default-value="main" global="true"/>
+                <set field="visualThemeId" from-field="userPreferences.VISUAL_THEME" global="true"/>
+                <service service-name="getVisualThemeResources">
+                    <field-map field-name="visualThemeId"/>
+                    <field-map field-name="themeResources" from-field="layoutSettings"/>
+                </service>
+                <set field="layoutSettings" from-field="themeResources" default-value="${layoutSettings}" global="true"/>
+                <set field="iconsLocation" from-field="layoutSettings.VT_ICONS_LOC[0]" default-value="/images/icons/famfamfam" global="true"/>
+                <set field="headerTemplateLocation" from-field="layoutSettings.VT_HDR_TMPLT_LOC[0]"/>
+                <set field="footerTemplateLocation" from-field="layoutSettings.VT_FTR_TMPLT_LOC[0]"/>
+                <set field="appbarTemplateLocation" from-field="layoutSettings.VT_NAV_TMPLT_LOC[0]"/>
+                <set field="appbarOpenTemplateLocation" from-field="layoutSettings.VT_NAV_OPEN_TMPLT[0]"/>
+                <set field="appbarCloseTemplateLocation" from-field="layoutSettings.VT_NAV_CLOSE_TMPLT[0]"/>
+                <set field="messagesTemplateLocation" from-field="layoutSettings.VT_MSG_TMPLT_LOC[0]"/>
+                <set field="layoutSettings.suppressTab" value="ofbizsetup"/><!-- diseable ofbiz setup by default -->                        
+            </actions>
+            <widgets>
+                <!-- render header -->
+                <platform-specific><html><html-template location="${headerTemplateLocation}"/></html></platform-specific>
+
+
+                <!-- render messages -->
+                <platform-specific><html><html-template location="${messagesTemplateLocation}"/></html></platform-specific>
+
+                <!-- render content area -->
+                <container style="contentarea">
+                    <decorator-section-include name="pre-body"/>
+                    <container id="column-container">
+                        <section>
+                            <widgets>
+                                <container id="content-main-section">
+                                    <decorator-section-include name="body"/>
+                                </container>
+                            </widgets>
+                        </section>
+                        <container style="clear"></container>
+                    </container>
+                </container>
+
+            </widgets>
+        </section>
+    </screen>
+</screens>
