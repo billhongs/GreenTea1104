@@ -173,6 +173,8 @@
 	<classpathentry kind="lib" path="specialpurpose/ebaystore/lib/ebaysdkcore.jar"/>
 	<classpathentry kind="lib" path="specialpurpose/ebaystore/lib/helper.jar"/>
 	<classpathentry excluding="org/ofbiz/accounting/thirdparty/cybersource/**|org/ofbiz/accounting/thirdparty/verisign/**|org/ofbiz/accounting/thirdparty/worldpay/**|org/ofbiz/accounting/thirdparty/paypal/PayPalServices.java|org/ofbiz/accounting/thirdparty/orbital/**|org/ofbiz/accounting/thirdparty/securepay/**|org/ofbiz/accounting/thirdparty/ideal/**" kind="src" path="applications/accounting/src"/>
+	<classpathentry kind="src" path="specialpurpose/greentea/src"/>
+	<classpathentry kind="src" path="specialpurpose/recommender/src"/>
 	<classpathentry excluding="org/ofbiz/content/openoffice/|org/ofbiz/content/report/" kind="src" path="applications/content/src"/>
 	<classpathentry kind="src" path="applications/manufacturing/src"/>
 	<classpathentry kind="src" path="applications/marketing/src"/>
@@ -219,5 +221,16 @@
 	<classpathentry excluding="org/enhydra/|org/ofbiz/" kind="src" path="specialpurpose/shark/src"/>
 	<classpathentry kind="src" path="specialpurpose/workflow/src"/>
 	<classpathentry exported="true" kind="con" path="GROOVY_DSL_SUPPORT"/>
+	<classpathentry kind="lib" path="specialpurpose/greentea/lib/apache-solr-solrj-4.0.0.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/greentea/lib/apache-solr-velocity-4.0.0.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/greentea/lib/dom4j-1.6.1.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/mahout-core-0.7.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/mahout-integration-0.7.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/mahout-math-0.7.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/slf4j-api-1.6.1.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/slf4j-jcl-1.6.1.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/slf4j-log4j12-1.6.1.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/guava-r09.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/uncommons-maths-1.2.2.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
