@@ -232,5 +232,9 @@
 	<classpathentry kind="lib" path="specialpurpose/recommender/lib/slf4j-log4j12-1.6.1.jar"/>
 	<classpathentry kind="lib" path="specialpurpose/recommender/lib/guava-r09.jar"/>
 	<classpathentry kind="lib" path="specialpurpose/recommender/lib/uncommons-maths-1.2.2.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/hadoop-core-1.1.0.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/mahout-core-0.7-job.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/mahout-examples-0.7-job.jar"/>
+	<classpathentry kind="lib" path="specialpurpose/recommender/lib/mahout-examples-0.7.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -88,6 +88,6 @@ under the License.
       <field name="menuUrl" type="url"></field>
       <field name="menuDescription" type="description"></field>
       <field name="permissionId" type="id-long"></field>
-      <prim-key field="productId"/>
+      <prim-key field="menuId"/>
    	</entity>
 </entitymodel>
