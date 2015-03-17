@@ -63,12 +63,12 @@ function uploadTrackingCode(orderId, productStoreId) {
           <#assign alt_row = false>
           <#list orderList as orderHeader>
             <#assign orh = Static["org.ofbiz.order.order.OrderReadHelper"].getHelper(orderHeader)>
-            <#assign statusItem = orderHeader.getRelatedOne("StatusItem", true)>
-            <#assign orderType = orderHeader.getRelatedOne("OrderType", true)>
+            <#assign statusItem = orderHeader.getRelatedOneCache("StatusItem")>
+            <#assign orderType = orderHeader.getRelatedOneCache("OrderType")>
             <#if orderType.orderTypeId == "PURCHASE_ORDER">
-              <#assign displayParty = orh.getSupplierAgent()!>
+              <#assign displayParty = orh.getSupplierAgent()?if_exists>
             <#else>
-              <#assign displayParty = orh.getPlacingParty()!>
+              <#assign displayParty = orh.getPlacingParty()?if_exists>
             </#if>
             <#assign partyId = displayParty.partyId?default("_NA_")>
             <tr valign="middle"<#if alt_row> class="alternate-row"</#if>>
@@ -120,7 +120,7 @@ function uploadTrackingCode(orderId, productStoreId) {
             <td colspan='4'><h3>${uiLabelMap.EbayNoOrderImported}.</h3></td>
           </tr>
         </#if>
-        <#if lookupErrorMessage??>
+        <#if lookupErrorMessage?exists>
           <tr>
             <td colspan='4'><h3>${lookupErrorMessage}</h3></td>
           </tr>

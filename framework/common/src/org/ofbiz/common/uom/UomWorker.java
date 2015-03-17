@@ -21,8 +21,9 @@ package org.ofbiz.common.uom;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.util.LinkedHashMap;
 import java.util.Map;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.service.GenericServiceException;
@@ -37,8 +38,6 @@ import com.ibm.icu.util.Calendar;
 public class UomWorker {
 
     public static final String module = UomWorker.class.getName();
-
-    private UomWorker () {}
 
     public static int[] uomTimeToCalTime(String uomId) {
         if ("TF_ms".equals(uomId)) {
@@ -99,12 +98,12 @@ public class UomWorker {
         if (originalValue == null || uomId == null || uomIdTo == null) return null;
         if (uomId.equals(uomIdTo)) return originalValue;
 
-        Map<String, Object> svcInMap =  new LinkedHashMap<String, Object>();
+        Map<String, Object> svcInMap = FastMap.newInstance();
         svcInMap.put("originalValue", originalValue);
         svcInMap.put("uomId", uomId);
         svcInMap.put("uomIdTo", uomIdTo);
 
-        Map<String, Object> svcOutMap =  new LinkedHashMap<String, Object>();
+        Map<String, Object> svcOutMap = FastMap.newInstance();
         try {
             svcOutMap = dispatcher.runSync("convertUom", svcInMap);
         } catch (GenericServiceException ex) {

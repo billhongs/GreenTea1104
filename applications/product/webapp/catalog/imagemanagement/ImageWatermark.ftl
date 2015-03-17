@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<script language="javascript" type="text/javascript" src="<@ofbizContentUrl>/images/imagemanagement/sizzle.min.js</@ofbizContentUrl>"></script>
+<script src="/catalog/imagemanagement/js/jquery.min.js"></script>
 <script type="text/javascript">
     jQuery.noConflict();
     var host = document.location.host;
@@ -90,7 +90,7 @@ under the License.
            jQuery('#ImageWatermarking_previewCount').attr('value', next);
        });
     }
-    function setImageDimension() {
+    function setImageDimention() {
        var productId = jQuery('#ImageWatermarking_productId').val();
        var imageName = jQuery('#ImageWatermarking_imageName').val();
        var positionX = jQuery('#ImageWatermarking_positionX').val();

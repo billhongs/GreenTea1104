@@ -17,15 +17,16 @@
  * under the License.
  */
 
-import java.util.*;
+ 
 import org.ofbiz.entity.util.*;
 
-boolean isCalOwner = false;
-List partyAssignments = EntityUtil.filterByDate(delegator.findByAnd("WorkEffortPartyAssignment", ["workEffortId" : parameters.workEffortId, "partyId" : parameters.userLogin.partyId], null, false));
-for (partyAssign in partyAssignments) {
-    if ("CAL_OWNER".equals(partyAssign.roleTypeId) || "CAL_DELEGATE".equals(partyAssign.roleTypeId)) {
-        isCalOwner = true;
-        break;
+ 
+partyAssign = EntityUtil.filterByDate(delegator.findByAnd("WorkEffortPartyAssignment", ["workEffortId" : parameters.workEffortId, "partyId" : parameters.userLogin.partyId]));
+
+if (partyAssign) {
+    if (partyAssign.get(0).roleTypeId.equals("CAL_OWNER")) {
+        context.isCalOwner = new Boolean(true);
+    } else{
+        context.isCalOwner = new Boolean(false);
     }
 }
-context.isCalOwner = isCalOwner;

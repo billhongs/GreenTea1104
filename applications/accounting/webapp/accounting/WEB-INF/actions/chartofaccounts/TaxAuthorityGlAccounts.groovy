@@ -20,8 +20,12 @@
 import org.ofbiz.base.util.UtilMisc;
 import javolution.util.FastList;
 
-taxAuthorities = from('TaxAuthority').orderBy("taxAuthGeoId", "taxAuthPartyId").queryList();
-
-context.taxAuthorityHavingNoGlAccountList = taxAuthorities.findAll { taxAuthority ->
-    !taxAuthority.getRelated('TaxAuthorityGlAccount', [organizationPartyId : organizationPartyId], null, false)
+taxAuthorityHavingNoGlAccountList = FastList.newInstance();
+taxAuthorities = delegator.findList("TaxAuthority", null, null, ["taxAuthGeoId", "taxAuthPartyId"], null, false);
+taxAuthorities.each { taxAuthority ->
+    taxAuthorityGlAccount = delegator.findByPrimaryKey("TaxAuthorityGlAccount", [taxAuthGeoId : taxAuthority.taxAuthGeoId, taxAuthPartyId : taxAuthority.taxAuthPartyId, organizationPartyId : organizationPartyId]);
+    if (!taxAuthorityGlAccount) {
+        taxAuthorityHavingNoGlAccountList.add(taxAuthority);
+    }
 }
+context.taxAuthorityHavingNoGlAccountList = taxAuthorityHavingNoGlAccountList;

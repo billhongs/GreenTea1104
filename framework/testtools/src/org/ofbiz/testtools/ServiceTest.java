@@ -39,9 +39,7 @@ public class ServiceTest extends OFBizTestCase {
     protected String serviceName;
 
     /**
-     * Tests of Service
-     * @param caseName test case name
-     * @param mainElement DOM main element 
+     * @param modelTestSuite
      */
     public ServiceTest(String caseName, Element mainElement) {
         super(caseName);

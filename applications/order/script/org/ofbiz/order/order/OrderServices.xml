@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
     <simple-method method-name="getOrderedSummaryInformation" short-description="Get Summary Information About Orders for a Customer">
         <!-- The permission checking is commented out to make this service work also when triggered from ecommerce -->
         <!--if>
@@ -483,7 +483,8 @@ under the License.
         <if-not-empty field="partyAcctgPreference">
            <get-related-one relation-name="OrderCustomMethod" value-field="partyAcctgPreference" to-value-field="customMethod"/>
            <else>
-               <log level="warning" message="Acctg preference not defined for partyId [${parameters.partyId}]"/>
+               <property-to-field field="errorPartyPerf" resource="AccountingErrorUiLabels" property="AccountingPartyAcctgPreferenceNotDefine"/>  
+               <log level="warning" message="errorPartyPerf" />
            </else>
         </if-not-empty>
 
@@ -491,7 +492,7 @@ under the License.
             <set field="customMethodName" from-field="customMethod.customMethodName"/>
             <else><!-- retreive service from deprecated enumeration -->
                 <if-compare operator="equals" value="ODRSQ_ENF_SEQ" field="partyAcctgPreference.oldOrderSequenceEnumId">
-                    <set field="customMethodName" value="orderSequence_enforced"/>
+                    <set field="customMethodName" value="orderSequence-enforced"/>
                 </if-compare>
             </else>
         </if-not-empty>
@@ -526,7 +527,7 @@ under the License.
         <field-to-result field="orderId" result-name="orderId"/>
     </simple-method>
 
-    <simple-method method-name="orderSequence_enforced" short-description="Enforced Sequence (no gaps, per organization)">
+    <simple-method method-name="orderSequence-enforced" short-description="Enforced Sequence (no gaps, per organization)">
         <log level="info" message="In getNextOrderId sequence enum Enforced"/> 
         <set field="partyAcctgPreference" from-field="parameters.partyAcctgPreference"/>
         <!-- this is sequential sequencing, we can't skip a number, also it must be a unique sequence per partyIdFrom -->
@@ -681,7 +682,7 @@ under the License.
         <iterate list="adjustments" entry="adjustment">
             <if>
                 <condition>
-                    <not><if-empty field="adjustment.productPromoId"/></not>
+                    <not><if-empty field="orderAdjustment.productPromoId"/></not>
                 </condition>
                 <then>
                     <calculate field="newOrderAdjustmentTotal" decimal-scale="3">
@@ -1459,49 +1460,4 @@ under the License.
             <call-service service-name="createPaymentApplication" in-map-name="createCtx"/>
         </if-not-empty>
     </simple-method>
-    
-    <simple-method method-name="MoveItemBetweenShipGroups" short-description="Move order items between ship groups">
-        <entity-one entity-name="OrderItemShipGroupAssoc" value-field="orderItemShipGroupAssoc">
-            <field-map field-name="orderId" from-field="parameters.orderId"/>
-            <field-map field-name="orderItemSeqId" from-field="parameters.orderItemSeqId"/>
-            <field-map field-name="shipGroupSeqId" from-field="parameters.toGroupIndex"/>
-        </entity-one>
-        <if-empty field="orderItemShipGroupAssoc">
-            <set-service-fields service-name="addOrderItemShipGroupAssoc" map="parameters" to-map="map"/>
-            <set field="map.quantity" value="0" type="BigDecimal"/>
-            <set field="map.shipGroupSeqId" from="parameters.toGroupIndex"/>
-            <call-service service-name="addOrderItemShipGroupAssoc" in-map-name="map"/>
-            <entity-one entity-name="OrderItemShipGroupAssoc" value-field="orderItemShipGroupAssoc">
-                <field-map field-name="orderId" from-field="parameters.orderId"/>
-                <field-map field-name="orderItemSeqId" from-field="parameters.orderItemSeqId"/>
-                <field-map field-name="shipGroupSeqId" from-field="parameters.toGroupIndex"/>
-            </entity-one>
-        </if-empty>
-        <clear-field field="map"/>
-        <set field="map.orderId" from-field="parameters.orderId"/>
-        <set field="map.orderItemSeqId" from-field="parameters.orderItemSeqId"/>
-        <set field="map.shipGroupSeqId" from-field="parameters.toGroupIndex"/>
-        <set field="map.quantity" value="${orderItemShipGroupAssoc.quantity + parameters.quantity}" type="BigDecimal"/>
-        <call-service service-name="updateOrderItemShipGroupAssoc" in-map-name="map"/>
-        
-        <entity-one entity-name="OrderItemShipGroupAssoc" value-field="orderItemShipGroupAssoc">
-            <field-map field-name="orderId" from-field="parameters.orderId"/>
-            <field-map field-name="orderItemSeqId" from-field="parameters.orderItemSeqId"/>
-            <field-map field-name="shipGroupSeqId" from-field="parameters.fromGroupIndex"/>
-        </entity-one>
-        <if-empty field="orderItemShipGroupAssoc">
-            <add-error>
-                <fail-message message="The orderItemShipGroupAssoc qualified by orderId=${parameters.orderId} orderItemSeqId=${parameters.orderItemSeqId} shipGroupSeqId=${parameters.fromGroupIndex} does not exist"/>
-            </add-error>
-        </if-empty>
-        <check-errors/>
-        
-        <clear-field field="map"/>
-        <set field="map.orderId" from-field="parameters.orderId"/>
-        <set field="map.orderItemSeqId" from-field="parameters.orderItemSeqId"/>
-        <set field="map.shipGroupSeqId" from-field="parameters.fromGroupIndex"/>
-        <set field="map.quantity" value="${orderItemShipGroupAssoc.quantity - parameters.quantity}" type="BigDecimal"/>
-        <call-service service-name="updateOrderItemShipGroupAssoc" in-map-name="map"/>
-    </simple-method>
-    
 </simple-methods>

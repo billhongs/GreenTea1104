@@ -32,10 +32,10 @@ if (!request.getParameterValues("additionalRoleTypeId")) {
     additionalPartyId = request.getParameter("additionalPartyId");
     context.additionalPartyId = additionalPartyId;
 
-    roles = from("PartyRole").where("partyId", additionalPartyId).queryList();
+    roles = delegator.findByAnd("PartyRole", [partyId : additionalPartyId]);
     roleData = [];
     roles.each { role ->
-        roleData.add(role.getRelatedOne("RoleType", false));
+        roleData.add(role.getRelatedOne("RoleType"));
     }
     context.roles = roleData;
 }

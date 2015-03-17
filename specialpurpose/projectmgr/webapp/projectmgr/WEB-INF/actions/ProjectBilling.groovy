@@ -32,15 +32,9 @@ entryExprs =
         ], EntityOperator.AND);
 orderBy = ["-fromDate"];
 // check if latest invoice generated is still in process so allow re-generation to correct errors
-entryIterator = from("ProjectPhaseTaskAndTimeEntryTimeSheet")
-                    .where(EntityCondition.makeCondition([
-                                EntityCondition.makeCondition("projectId", EntityOperator.EQUALS, projectId),
-                                EntityCondition.makeCondition("invoiceId", EntityOperator.NOT_EQUAL, null),
-                            ], EntityOperator.AND))
-                    .orderBy("-fromDate")
-                    .queryIterator();
+entryIterator = delegator.find("ProjectPhaseTaskAndTimeEntryTimeSheet", entryExprs, null, null, orderBy, null);
 while (entryItem = entryIterator.next()) {
-    invoice = entryItem.getRelatedOne("Invoice", false);
+    invoice = entryItem.getRelatedOne("Invoice");
     if (invoice.getString("statusId").equals("INVOICE_IN_PROCESS")) {
         context.partyIdFrom = invoice.partyIdFrom;
         context.partyId = invoice.partyId;

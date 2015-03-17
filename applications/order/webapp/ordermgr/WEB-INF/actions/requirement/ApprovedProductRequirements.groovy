@@ -17,9 +17,9 @@
  * under the License.
  */
 
-prepare = runService('prepareFind', [inputFields : parameters, entityName : "Requirement"]);
+prepare = dispatcher.runSync("prepareFind", [inputFields : parameters, entityName : "Requirement"]);
 if (prepare.entityConditionList) {
-    results = runService('getRequirementsForSupplier', [requirementConditions : prepare.entityConditionList, partyId : parameters.partyId]);
+    results = dispatcher.runSync("getRequirementsForSupplier", [requirementConditions : prepare.entityConditionList, partyId : parameters.partyId]);
     context.requirementsForSupplier = results.requirementsForSupplier;
     context.quantityReport = [distinctProductCount : results.distinctProductCount, quantityTotal : results.quantityTotal, amountTotal : results.amountTotal];
 }

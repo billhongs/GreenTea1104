@@ -85,12 +85,12 @@ under the License.
         <field name="ruleOperator"><display/></field>
         <field name="fromDate"><display/></field>
         <field name="thruDate"><display/></field>
-        <field name="updateLink" title=" " widget-style="buttontext">
+        <field name="updateLink" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext">
             <hyperlink target="EditProductManufacturingRules" description="${uiLabelMap.CommonSelect}" >
                 <parameter param-name="ruleId"/>
             </hyperlink>
         </field>
-        <field name="deleteLink" title=" " widget-style="buttontext">
+        <field name="deleteLink" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext">
             <hyperlink target="DeleteProductManufacturingRule" description="${uiLabelMap.CommonDelete}" also-hidden="false">
                 <parameter param-name="ruleId"/>
             </hyperlink>
@@ -150,6 +150,22 @@ under the License.
         <field name="internalName" title="${uiLabelMap.ProductProductName}"><display/></field>
         <field name="productAssocTypeId" title="${uiLabelMap.ManufacturingBomType}">
             <display-entity entity-name="ProductAssocType" key-field-name="productAssocTypeId" description="${description}"/>
+        </field>
+    </form>
+    <form name="CreateProductBom" target="createProductBom" title="" type="single"
+        header-row-style="header-row" default-table-style="basic-table">
+        <field name="productId" title="${uiLabelMap.ProductProductId}"><lookup target-form-name="LookupProduct" size="16"/></field>
+        <field name="productIdTo" title="${uiLabelMap.ProductProductIdTo}"><lookup target-form-name="LookupProduct" size="16"/></field>
+        <field name="productAssocTypeId" title="${uiLabelMap.ManufacturingBomType}">
+            <drop-down>
+                <option key="MANUF_COMPONENT" description="${uiLabelMap.ManufacturingBillOfMaterials}"/>
+                <option key="ENGINEER_COMPONENT" description="${uiLabelMap.ManufacturingEngineeringBillOfMaterials}"/>
+            </drop-down>
+        </field>
+        <field name="quantity" title="${uiLabelMap.ManufacturingQuantity}"><text size="6"/></field>
+        <field name="fromDate" title="${uiLabelMap.CommonFromDate}"><date-time/></field>
+        <field name="submitButton" title="${uiLabelMap.CommonSubmit}">
+            <submit button-type="button"/>
         </field>
     </form>
 </forms>

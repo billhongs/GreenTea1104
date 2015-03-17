@@ -42,9 +42,7 @@ import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.product.product.ProductWorker;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
@@ -59,7 +57,7 @@ public class OagisInventoryServices {
     public static final String resource = "OagisUiLabels";
     public static final Double doubleZero = new Double(0.0);
     public static final Double doubleOne = new Double(1.0);
-    
+    public static final String syncInventoryFacilityId = UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.SyncInventoryFacilityId");
 
     public static Map<String, Object> oagisReceiveSyncInventory(DispatchContext ctx, Map<String, Object> context) {
         Document doc = (Document) context.get("document");
@@ -69,10 +67,10 @@ public class OagisInventoryServices {
         Locale locale = (Locale) context.get("locale");
         List<Map<String, String>> errorMapList = FastList.newInstance();
         List<Map<String, Object>> inventoryMapList = FastList.newInstance();
-        final String syncInventoryFacilityId = EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.SyncInventoryFacilityId", delegator);
+
         GenericValue userLogin = null;
         try {
-            userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
+            userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
         } catch (GenericEntityException e) {
             String errMsg = "Error Getting UserLogin: " + e.toString();
             Debug.logError(e, errMsg, module);
@@ -154,7 +152,7 @@ public class OagisInventoryServices {
                     String itemStatus = UtilXml.childElementValue(inventoryElement, "of:ITEMSTATUS");
 
                     // make sure productId is valid
-                    GenericValue product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
+                    GenericValue product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
                     if (product == null) {
                         String errMsg = "Product with ID [" + productId + "] not found (invalid Product ID).";
                         errorMapList.add(UtilMisc.<String, String>toMap("reasonCode", "ProductIdNotValid", "description", errMsg));
@@ -183,7 +181,7 @@ public class OagisInventoryServices {
                                 EntityCondition.makeCondition("productId", EntityOperator.EQUALS, productId),
                                 EntityCondition.makeCondition("inventoryItemTypeId", EntityOperator.EQUALS, "NON_SERIAL_INV_ITEM"),
                                 EntityCondition.makeCondition("facilityId", EntityOperator.EQUALS, syncInventoryFacilityId)), EntityOperator.AND);
-                        List<GenericValue> invItemAndDetails = EntityQuery.use(delegator).select("quantityOnHandSum").from("InventoryItemDetailForSum").where(condition).queryList();
+                        List<GenericValue> invItemAndDetails = delegator.findList("InventoryItemDetailForSum", condition, UtilMisc.toSet("quantityOnHandSum"), null, null, false);
                         for (GenericValue inventoryItemDetailForSum : invItemAndDetails) {
                             quantityOnHandTotal += inventoryItemDetailForSum.getDouble("quantityOnHandSum").doubleValue();
                         }
@@ -197,7 +195,7 @@ public class OagisInventoryServices {
                             EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, statusId),
                             EntityCondition.makeCondition("inventoryItemTypeId", EntityOperator.EQUALS, "SERIALIZED_INV_ITEM"),
                             EntityCondition.makeCondition("facilityId", EntityOperator.EQUALS, syncInventoryFacilityId)), EntityOperator.AND);
-                    long invItemQuantCount = EntityQuery.use(delegator).from("InventoryItemStatusForCount").where(serInvCondition).queryCount();
+                    long invItemQuantCount = delegator.findCountByCondition("InventoryItemStatusForCount", serInvCondition, null, null);
                     quantityOnHandTotal += invItemQuantCount;
 
                     // check for mismatch in quantity
@@ -220,14 +218,14 @@ public class OagisInventoryServices {
                 // prepare information to send mail
                 Map<String, Object> sendMap = FastMap.newInstance();
 
-                String sendToEmail = EntityUtilProperties.getPropertyValue("oagis.properties", "oagis.notification.email.sendTo", delegator);
+                String sendToEmail = UtilProperties.getPropertyValue("oagis.properties", "oagis.notification.email.sendTo");
 
                 /* DEJ20070802 changed to get email address from properties file, should be way easier to manage
                 // get facility email address
                 List facilityContactMechs = null;
                 GenericValue contactMech = null;
                 try {
-                    facilityContactMechs = delegator.findByAnd("FacilityContactMech", UtilMisc.toMap("facilityId", facilityId), null, false);
+                    facilityContactMechs = delegator.findByAnd("FacilityContactMech", UtilMisc.toMap("facilityId", facilityId));
                 } catch (GenericEntityException e) {
                     String errMsg = "Error Getting FacilityContactMech: " + e.toString();
                     errorMapList.add(UtilMisc.<String, String>toMap("reasonCode", "GenericEntityException", "description", errMsg));
@@ -239,7 +237,7 @@ public class OagisInventoryServices {
                     GenericValue facilityContactMech = (GenericValue) fcmIter.next();
                     String contactMechId = facilityContactMech.getString("contactMechId");
                     try {
-                        contactMech = EntityQuery.use(delegator).from("ContactMech").where("contactMechId", contactMechId).queryOne();
+                        contactMech = delegator.findByPrimaryKey("ContactMech", UtilMisc.toMap("contactMechId", contactMechId));
                     } catch (GenericEntityException e) {
                         String errMsg = "Error Getting ContactMech: " + e.toString();
                         errorMapList.add(UtilMisc.<String, String>toMap("reasonCode", "GenericEntityException", "description", errMsg));
@@ -254,8 +252,8 @@ public class OagisInventoryServices {
                 */
 
                 if (UtilValidate.isNotEmpty(sendToEmail)) {
-                    String productStoreId = EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.SyncInventoryProductStoreId", delegator);
-                    GenericValue productStoreEmail = EntityQuery.use(delegator).from("ProductStoreEmailSetting").where("productStoreId", productStoreId, "emailType", "PRDS_OAGIS_CONFIRM").queryOne();
+                    String productStoreId = UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.SyncInventoryProductStoreId");
+                    GenericValue productStoreEmail = delegator.findByPrimaryKey("ProductStoreEmailSetting", UtilMisc.toMap("productStoreId", productStoreId, "emailType", "PRDS_OAGIS_CONFIRM"));
                     if (productStoreEmail != null) {
                         String bodyScreenLocation = productStoreEmail.getString("bodyScreenLocation");
                         sendMap.put("bodyScreenUri", bodyScreenLocation);
@@ -364,7 +362,7 @@ public class OagisInventoryServices {
 
         GenericValue userLogin = null;
         try {
-            userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
+            userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
         } catch (GenericEntityException e) {
             String errMsg = "Error Getting UserLogin: " + e.toString();
             Debug.logError(e, errMsg, module);
@@ -401,7 +399,7 @@ public class OagisInventoryServices {
         // before getting into this check to see if we've tried once and had an error, if so set isErrorRetry even if it wasn't passed in
         GenericValue previousOagisMessageInfo = null;
         try {
-            previousOagisMessageInfo = EntityQuery.use(delegator).from("OagisMessageInfo").where(omiPkMap).queryOne();
+            previousOagisMessageInfo = delegator.findByPrimaryKey("OagisMessageInfo", omiPkMap);
         } catch (GenericEntityException e) {
             String errMsg = "Error getting OagisMessageInfo from database for message ID [" + omiPkMap + "]: " + e.toString();
             Debug.logInfo(e, errMsg, module);
@@ -452,7 +450,7 @@ public class OagisInventoryServices {
         Element dataAreaElement = UtilXml.firstChildElement(receivePoElement, "ns:DATAAREA");
         Element acknowledgeDeliveryElement = UtilXml.firstChildElement(dataAreaElement, "ns:ACKNOWLEDGE_DELIVERY");
 
-        String facilityId = EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.PoReceiptFacilityId", delegator);
+        String facilityId = UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.PoReceiptFacilityId");
         String orderId = null;
         // get RECEIPTLN elements from message
         List<? extends Element> acknowledgeElementList = UtilXml.childElementList(acknowledgeDeliveryElement, "ns:RECEIPTLN");
@@ -469,7 +467,7 @@ public class OagisInventoryServices {
                     String productId = UtilXml.childElementValue(receiptLnElement, "of:ITEM");
 
                     // make sure productId is valid
-                    GenericValue product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
+                    GenericValue product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
                     if (product == null) {
                         String errMsg = "Product with ID [" + productId + "] not found (invalid Product ID).";
                         errorMapList.add(UtilMisc.<String, String>toMap("reasonCode", "ProductIdNotValid", "description", errMsg));
@@ -491,7 +489,7 @@ public class OagisInventoryServices {
                     GenericValue orderHeader = null;
                     if (orderId != null) {
                         List<GenericValue> toStore = FastList.newInstance();
-                        orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
+                        orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
                         if (orderHeader != null) {
                             // Case : update the record
                             ripCtx.put("orderId", orderId);
@@ -504,7 +502,7 @@ public class OagisInventoryServices {
                             // Case : New record entry when PO not exists in the Database
                             orderHeader =  delegator.makeValue("OrderHeader", UtilMisc.toMap("orderId", orderId, "orderTypeId",orderTypeId ,
                                     "orderDate", timestampItemReceived, "statusId", "ORDER_CREATED", "entryDate", UtilDateTime.nowTimestamp(),
-                                    "productStoreId", EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.SyncInventoryProductStoreId","9001", delegator)));
+                                    "productStoreId", UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.SyncInventoryProductStoreId","9001")));
                             toStore.add(orderHeader);
                             GenericValue orderItem = delegator.makeValue("OrderItem", UtilMisc.toMap("orderId", orderId,
                                     "orderItemSeqId", UtilFormatOut.formatPaddedNumber(1L, 5),
@@ -653,7 +651,7 @@ public class OagisInventoryServices {
 
         GenericValue userLogin = null;
         try {
-            userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
+            userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error Getting UserLogin: " + e.toString(), module);
         }
@@ -687,8 +685,8 @@ public class OagisInventoryServices {
         Element firstDocRefElement = UtilXml.firstChildElement(firstReceiptlnElement, "os:DOCUMNTREF");
         String firstReturnId = UtilXml.childElementValue(firstDocRefElement, "of:DOCUMENTID");
 
-        String facilityId = EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.PoReceiptFacilityId", delegator);
-        String locationSeqId = EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.ReturnReceiptLocationSeqId", delegator);
+        String facilityId = UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.PoReceiptFacilityId");
+        String locationSeqId = UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.ReturnReceiptLocationSeqId");
 
         Timestamp timestamp = UtilDateTime.nowTimestamp();
         Map<String, Object> comiCtx = FastMap.newInstance();
@@ -701,7 +699,7 @@ public class OagisInventoryServices {
         // before getting into this check to see if we've tried once and had an error, if so set isErrorRetry even if it wasn't passed in
         GenericValue previousOagisMessageInfo = null;
         try {
-            previousOagisMessageInfo = EntityQuery.use(delegator).from("OagisMessageInfo").where(omiPkMap).queryOne();
+            previousOagisMessageInfo = delegator.findByPrimaryKey("OagisMessageInfo", omiPkMap);
         } catch (GenericEntityException e) {
             String errMsg = "Error getting OagisMessageInfo from database for message ID [" + omiPkMap + "]: " + e.toString();
             Debug.logInfo(e, errMsg, module);
@@ -774,7 +772,7 @@ public class OagisInventoryServices {
                         Debug.logError(errMsg, module);
                     }
                     // make sure productId is valid
-                    GenericValue product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
+                    GenericValue product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
                     if (product == null) {
                         String errMsg = "Product with ID [" + productId + "] not found (invalid Product ID).";
                         errorMapList.add(UtilMisc.<String, String>toMap("reasonCode", "ProductIdNotValid", "description", errMsg));
@@ -795,7 +793,7 @@ public class OagisInventoryServices {
                     String returnItemSeqId = UtilXml.childElementValue(documentRefElement, "of:LINENUM");
                     if (UtilValidate.isNotEmpty(returnItemSeqId)) {
                         // if there is a LINENUM/returnItemSeqId make sure it is valid
-                        GenericValue returnItem = EntityQuery.use(delegator).from("ReturnItem").where("returnId", returnId, "returnItemSeqId", returnItemSeqId).cache().queryOne();
+                        GenericValue returnItem = delegator.findByPrimaryKeyCache("ReturnItem", UtilMisc.toMap("returnId", returnId, "returnItemSeqId", returnItemSeqId));
                         if (returnItem == null) {
                             String errMsg = "Return Item with ID [" + returnId + ":" + returnItemSeqId + "] not found (invalid Return/Item ID Combination).";
                             errorMapList.add(UtilMisc.<String, String>toMap("reasonCode", "ReturnAndItemIdNotValid", "description", errMsg));
@@ -830,7 +828,7 @@ public class OagisInventoryServices {
                     Timestamp timestampItemReceived = OagisServices.parseIsoDateString(datetimeReceived, errorMapList);
                     ripCtx.put("datetimeReceived", timestampItemReceived);
 
-                    GenericValue returnHeader = EntityQuery.use(delegator).from("ReturnHeader").where("returnId", returnId).queryOne();
+                    GenericValue returnHeader = delegator.findByPrimaryKey("ReturnHeader", UtilMisc.toMap("returnId", returnId));
 
                     if (returnHeader != null) {
                         //getting ReturnHeader status
@@ -856,7 +854,7 @@ public class OagisInventoryServices {
                              // this is a Serialized Inventory Item. If the productId from the message is not valid then lets read it from InventoryItem in Ofbiz database.
                              if (productId == null || "".equals(productId)) {
                              try {
-                                 GenericValue inventoryItem = EntityUtil.getFirst(delegator.findByAnd("InventoryItem", UtilMisc.toMap("serialNumber", serialNumber), null, false));
+                                 GenericValue inventoryItem = EntityUtil.getFirst(delegator.findByAnd("InventoryItem", UtilMisc.toMap("serialNumber", serialNumber)));
                                  if (inventoryItem !=null) {
                                      productId = inventoryItem.getString("productId");
                                  }
@@ -899,8 +897,9 @@ public class OagisInventoryServices {
                                     Set<String> productIdSet = ProductWorker.getRefurbishedProductIdSet(productId, delegator);
                                     productIdSet.add(productId);
 
-                                    List<GenericValue> inventoryItemsBySerialNumber = EntityQuery.use(delegator).from("InventoryItem").where(EntityCondition.makeCondition(EntityCondition.makeCondition("serialNumber", EntityOperator.EQUALS, serialNum),
-                                            EntityOperator.AND, EntityCondition.makeCondition("productId", EntityOperator.IN, productIdSet))).queryList();
+                                    EntityCondition bySerialNumberCondition = EntityCondition.makeCondition(EntityCondition.makeCondition("serialNumber", EntityOperator.EQUALS, serialNum),
+                                            EntityOperator.AND, EntityCondition.makeCondition("productId", EntityOperator.IN, productIdSet));
+                                    List<GenericValue> inventoryItemsBySerialNumber = delegator.findList("InventoryItem", bySerialNumberCondition, null, null, null, false);
 
                                     if (OagisServices.requireSerialNumberExist != null) {
                                         // according to requireSerialNumberExist make sure serialNumber does or does not exist in database, add an error message as needed
@@ -1011,7 +1010,7 @@ public class OagisInventoryServices {
 
                         // loop through ReturnItem records, get totals for each productId
                         Map<String, Double> returnQuantityByProductIdMap = FastMap.newInstance();
-                        List<GenericValue> returnItemList = delegator.findByAnd("ReturnItem", UtilMisc.toMap("returnId", returnId), null, false);
+                        List<GenericValue> returnItemList = delegator.findByAnd("ReturnItem", UtilMisc.toMap("returnId", returnId));
                         for (GenericValue returnItem : returnItemList) {
                             String productId = returnItem.getString("productId");
                             Double returnQuantityDbl = returnItem.getDouble("returnQuantity");
@@ -1033,7 +1032,7 @@ public class OagisInventoryServices {
 
                             double receivedQuantity = 0;
                             // note no facilityId because we don't really care where the return items were received
-                            List<GenericValue> shipmentReceiptList = delegator.findByAnd("ShipmentReceipt", UtilMisc.toMap("productId", productId, "returnId", returnId), null, false);
+                            List<GenericValue> shipmentReceiptList = delegator.findByAnd("ShipmentReceipt", UtilMisc.toMap("productId", productId, "returnId", returnId));
                             // NOTE only consider those with a quantityOnHandDiff > 0 so we just look at how many have been received, not what was actually done with them
                             for (GenericValue shipmentReceipt : shipmentReceiptList) {
                                 Double quantityAccepted = shipmentReceipt.getDouble("quantityAccepted");
@@ -1167,7 +1166,7 @@ public class OagisInventoryServices {
 
         GenericValue userLogin = null;
         try {
-            userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
+            userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
         } catch (GenericEntityException e) {
             String errMsg = "Error Getting UserLogin: " + e.toString();
             Debug.logError(e, errMsg, module);
@@ -1197,8 +1196,8 @@ public class OagisInventoryServices {
         Element dataAreaElement = UtilXml.firstChildElement(receiveStatusElement, "ns:DATAAREA");
         Element acknowledgeDeliveryElement = UtilXml.firstChildElement(dataAreaElement, "ns:ACKNOWLEDGE_DELIVERY");
 
-        String facilityId = EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.PoReceiptFacilityId", delegator);
-        String locationSeqId = EntityUtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.ReturnReceiptLocationSeqId", delegator);
+        String facilityId = UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.PoReceiptFacilityId");
+        String locationSeqId = UtilProperties.getPropertyValue("oagis.properties", "Oagis.Warehouse.ReturnReceiptLocationSeqId");
 
         Timestamp timestamp = UtilDateTime.nowTimestamp();
         Map<String, Object> comiCtx = FastMap.newInstance();
@@ -1211,7 +1210,7 @@ public class OagisInventoryServices {
         // before getting into this check to see if we've tried once and had an error, if so set isErrorRetry even if it wasn't passed in
         GenericValue previousOagisMessageInfo = null;
         try {
-            previousOagisMessageInfo = delegator.findOne("OagisMessageInfo", omiPkMap, false);
+            previousOagisMessageInfo = delegator.findByPrimaryKey("OagisMessageInfo", omiPkMap);
         } catch (GenericEntityException e) {
             String errMsg = "Error getting OagisMessageInfo from database for message ID [" + omiPkMap + "]: " + e.toString();
             Debug.logInfo(e, errMsg, module);
@@ -1279,7 +1278,7 @@ public class OagisInventoryServices {
                         Debug.logError(errMsg, module);
                     }
                     // make sure productId is valid
-                    GenericValue product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
+                    GenericValue product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
                     if (product == null) {
                         String errMsg = "Product with ID [" + productId + "] not found (invalid Product ID).";
                         errorMapList.add(UtilMisc.<String, String>toMap("reasonCode", "ProductIdNotValid", "description", errMsg));
@@ -1354,8 +1353,9 @@ public class OagisInventoryServices {
                             Set<String> productIdSet = ProductWorker.getRefurbishedProductIdSet(productId, delegator);
                             productIdSet.add(productId);
 
-                            List<GenericValue> inventoryItemsBySerialNumber = EntityQuery.use(delegator).from("InventoryItem").where(EntityCondition.makeCondition(EntityCondition.makeCondition("serialNumber", EntityOperator.EQUALS, serialNum),
-                                    EntityOperator.AND, EntityCondition.makeCondition("productId", EntityOperator.IN, productIdSet))).queryList();
+                            EntityCondition bySerialNumberCondition = EntityCondition.makeCondition(EntityCondition.makeCondition("serialNumber", EntityOperator.EQUALS, serialNum),
+                                    EntityOperator.AND, EntityCondition.makeCondition("productId", EntityOperator.IN, productIdSet));
+                            List<GenericValue> inventoryItemsBySerialNumber = delegator.findList("InventoryItem", bySerialNumberCondition, null, null, null, false);
 
                             // this is a status update, so referenced serial number MUST already exist
                             if (inventoryItemsBySerialNumber.size() == 0) {

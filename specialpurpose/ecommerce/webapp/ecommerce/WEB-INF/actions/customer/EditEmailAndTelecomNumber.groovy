@@ -21,7 +21,7 @@ import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.party.contact.ContactHelper;
 
 if (userLogin) {
-    party = userLogin.getRelatedOne("Party", false);
+    party = userLogin.getRelatedOne("Party");
 
     contactMech = EntityUtil.getFirst(ContactHelper.getContactMech(party, "PRIMARY_EMAIL", "EMAIL_ADDRESS", false));
     if (contactMech) {
@@ -31,9 +31,9 @@ if (userLogin) {
 
     contactMech = EntityUtil.getFirst(ContactHelper.getContactMech(party, "PRIMARY_PHONE", "TELECOM_NUMBER", false));
     if (contactMech) {
-        partyContactMech = from("PartyContactMech").where("partyId", party.partyId, "contactMechId", contactMech.contactMechId).filterByDate().queryFirst();
+        partyContactMech = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("PartyContactMech", [partyId : party.partyId, contactMechId : contactMech.contactMechId])));
         if (partyContactMech) {
-            telecomNumber = partyContactMech.getRelatedOne("TelecomNumber", false);
+            telecomNumber = partyContactMech.getRelatedOne("TelecomNumber");
             context.phoneContactMechId = telecomNumber.contactMechId;
             context.countryCode = telecomNumber.countryCode;
             context.areaCode = telecomNumber.areaCode;

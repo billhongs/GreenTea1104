@@ -31,7 +31,7 @@
             </hyperlink>
         </field>
         <field name="wellKnownText" title="${uiLabelMap.CommonGeoWellKnownText}"><display/></field>
-        <field name="deleteLink" title=" " widget-style="buttontext">
+        <field name="deleteLink" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext">
             <hyperlink target="deleteGeo" description="${uiLabelMap.CommonRemove}">
                 <parameter param-name="geoId"/>
                 <parameter param-name="noConditionFind" value="Y"/>
@@ -59,9 +59,11 @@
         <field name="submitButton" title="${uiLabelMap.CommonSubmit}" widget-style="smallSubmit"><submit button-type="button"/></field>
     </form>
     <form name="ListLookupGeo" extends="ListGeos">
-        <field name="geoId" title="${uiLabelMap.CommonGeoId}" widget-style="buttontext">
-            <hyperlink also-hidden="false" target-type="plain" description="${geoId}" target="javascript:set_value('${geoId}')"/>
-        </field>        
+        <field name="geoId"  widget-style="buttontext" title="${uiLabelMap.CommonGeoId}">
+            <hyperlink also-hidden="false" target-type="plain" description="${geoId}"  target="EditGeo">
+                <parameter param-name="geoId"/>
+            </hyperlink>
+        </field>
         <field name="deleteLink"><ignored/></field>        
     </form>
     
@@ -75,7 +77,7 @@
                 </entity-options>
             </drop-down>
         </field>        
-        <field name="dummy" title=" "><display/></field>
+        <field name="dummy" title="${uiLabelMap.CommonEmptyHeader}"><display/></field>
         <field name="geoAssocTypeId" title="${uiLabelMap.CommonGeoAssocTypeId}"
             event="onChange" 
             action="typeValue = jQuery('#${asm_typeField}').val(); selectMultipleRelatedValues('${asm_requestName}', '${asm_paramKey}', '${asm_relatedField}', '${asm_multipleSelect}', '${asm_type}', typeValue, '${asm_responseName}');">

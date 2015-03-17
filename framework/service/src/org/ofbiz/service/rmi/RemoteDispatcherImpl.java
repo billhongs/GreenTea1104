@@ -25,8 +25,6 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
 
 import org.ofbiz.base.util.UtilProperties;
-import org.ofbiz.entity.Delegator;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.GenericRequester;
 import org.ofbiz.service.GenericResultWaiter;
 import org.ofbiz.service.GenericServiceException;
@@ -47,8 +45,7 @@ public class RemoteDispatcherImpl extends UnicastRemoteObject implements RemoteD
     public RemoteDispatcherImpl(LocalDispatcher dispatcher, RMIClientSocketFactory csf, RMIServerSocketFactory ssf) throws RemoteException {
         super(0, csf, ssf);
         this.dispatcher = dispatcher;
-        Delegator delegator = dispatcher.getDelegator();
-        exportAll = "true".equals(EntityUtilProperties.getPropertyValue("service", "remotedispatcher.exportall", "false", delegator));
+        exportAll = "true".equals(UtilProperties.getPropertyValue("service", "remotedispatcher.exportall", "false"));
     }
 
     // RemoteDispatcher methods

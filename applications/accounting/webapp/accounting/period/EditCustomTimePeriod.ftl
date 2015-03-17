@@ -28,9 +28,9 @@ under the License.
          <br class="clear"/>
      </div>
      <form method="post" action="<@ofbizUrl>EditCustomTimePeriod</@ofbizUrl>" name="setOrganizationPartyIdForm">
-         <input type="hidden" name="currentCustomTimePeriodId" value="${currentCustomTimePeriodId!}" />
+         <input type="hidden" name="currentCustomTimePeriodId" value="${currentCustomTimePeriodId?if_exists}" />
          <span class="label">${uiLabelMap.AccountingShowOnlyPeriodsWithOrganization}</span>
-         <input type="text" size="20" name="findOrganizationPartyId" value="${findOrganizationPartyId!}" />
+         <input type="text" size="20" name="findOrganizationPartyId" value="${findOrganizationPartyId?if_exists}" />
          <input type="submit" value='${uiLabelMap.CommonUpdate}' />
      </form>
    </div>
@@ -40,7 +40,7 @@ under the License.
       <#if currentCustomTimePeriod?has_content>
         <ul>
           <li class="h3">${uiLabelMap.AccountingCurrentCustomTimePeriod}</li>
-          <li><a href="<@ofbizUrl>EditCustomTimePeriod?findOrganizationPartyId=${findOrganizationPartyId!}</@ofbizUrl>">${uiLabelMap.CommonClearCurrent}</a></li>
+          <li><a href="<@ofbizUrl>EditCustomTimePeriod?findOrganizationPartyId=${findOrganizationPartyId?if_exists}</@ofbizUrl>">${uiLabelMap.CommonClearCurrent}</a></li>
         </ul>
       <#else>
         <h3>${uiLabelMap.AccountingCurrentCustomTimePeriod}</h3>
@@ -48,8 +48,8 @@ under the License.
     </div>
     <#if currentCustomTimePeriod?has_content>
         <form method="post" action="<@ofbizUrl>updateCustomTimePeriod</@ofbizUrl>" name="updateCustomTimePeriodForm">
-          <input type="hidden" name="findOrganizationPartyId" value="${findOrganizationPartyId!}" />
-          <input type="hidden" name="customTimePeriodId" value="${currentCustomTimePeriodId!}" />
+          <input type="hidden" name="findOrganizationPartyId" value="${findOrganizationPartyId?if_exists}" />
+          <input type="hidden" name="customTimePeriodId" value="${currentCustomTimePeriodId?if_exists}" />
       <table class="basic-table" cellspacing="0">
         <tr class="header-row">
           <td>${uiLabelMap.CommonId}</td>
@@ -68,32 +68,32 @@ under the License.
               <select name="parentPeriodId">
                 <option value=''>&nbsp;</option>
                 <#list allCustomTimePeriods as allCustomTimePeriod>
-                  <#assign allPeriodType = allCustomTimePeriod.getRelatedOne("PeriodType", true)>
+                  <#assign allPeriodType = allCustomTimePeriod.getRelatedOneCache("PeriodType")>
                   <#assign isDefault = false>
-                  <#if (currentCustomTimePeriod.parentPeriodId)??>
+                  <#if (currentCustomTimePeriod.parentPeriodId)?exists>
                     <#if currentCustomTimePeriod.customTimePeriodId = allCustomTimePeriod.customTimePeriodId>
                       <#assign isDefault = true>
                     </#if>
                   </#if>
                   <option value='${allCustomTimePeriod.customTimePeriodId}'<#if isDefault> selected="selected"</#if>>
                     ${allCustomTimePeriod.organizationPartyId}
-                    <#if allPeriodType??>${allPeriodType.description}:</#if>
-                    ${allCustomTimePeriod.periodNum!}
+                    <#if allPeriodType != null>${allPeriodType.description}:</#if>
+                    ${allCustomTimePeriod.periodNum}
                     [${allCustomTimePeriod.customTimePeriodId}]
                   </option>
                 </#list>
               </select>
-              <#if (currentCustomTimePeriod.parentPeriodId)??>
-                <a href='<@ofbizUrl>EditCustomTimePeriod?currentCustomTimePeriodId=${currentCustomTimePeriod.parentPeriodId}&amp;findOrganizationPartyId=${findOrganizationPartyId!}</@ofbizUrl>'>
+              <#if (currentCustomTimePeriod.parentPeriodId)?exists>
+                <a href='<@ofbizUrl>EditCustomTimePeriod?currentCustomTimePeriodId=${currentCustomTimePeriod.parentPeriodId}&amp;findOrganizationPartyId=${findOrganizationPartyId?if_exists}</@ofbizUrl>'>
                 ${uiLabelMap.CommonSetAsCurrent}</a>
               </#if>
             </td>
-            <td><input type="text" size='12' name="currentCustomTimePeriod" value="${currentCustomTimePeriod.organizationPartyId!}" /></td>
+            <td><input type="text" size='12' name="currentCustomTimePeriod" value="${currentCustomTimePeriod.organizationPartyId?if_exists}" /></td>
             <td>
               <select name="periodTypeId">
                 <#list periodTypes as periodType>
                   <#assign isDefault = false>
-                  <#if (currentCustomTimePeriod.periodTypeId)??>
+                  <#if (currentCustomTimePeriod.periodTypeId)?exists>
                     <#if currentCustomTimePeriod.periodTypeId = periodType.periodTypeId>
                       <#assign isDefault = true>
                     </#if>
@@ -104,8 +104,8 @@ under the License.
                 </#list>
               </select>
             </td>
-            <td><input type="text" size='4' name="periodNum" value="${currentCustomTimePeriod.periodNum!}" /></td>
-            <td><input type="text" size='10' name="periodName" value="${currentCustomTimePeriod.periodName!}" /></td>
+            <td><input type="text" size='4' name="periodNum" value="${currentCustomTimePeriod.periodNum?if_exists}" /></td>
+            <td><input type="text" size='10' name="periodName" value="${currentCustomTimePeriod.periodName?if_exists}" /></td>
             <td>
               <#assign hasntStarted = false>
               <#assign compareDate = currentCustomTimePeriod.getDate("fromDate")>
@@ -157,37 +157,39 @@ under the License.
         <#assign line = 0>
         <#list customTimePeriods as customTimePeriod>
           <#assign line = line + 1>
-          <#assign periodType = customTimePeriod.getRelatedOne("PeriodType", true)>
+          <#assign periodType = customTimePeriod.getRelatedOneCache("PeriodType")>
           <tr>
             <form method="post" action='<@ofbizUrl>updateCustomTimePeriod</@ofbizUrl>' name='lineForm${line}'>
-              <input type="hidden" name="customTimePeriodId" value="${customTimePeriod.customTimePeriodId!}" />
+              <input type="hidden" name="findOrganizationPartyId" value="${findOrganizationPartyId?if_exists}" />
+              <input type="hidden" name="currentCustomTimePeriodId" value="${currentCustomTimePeriodId?if_exists}" />
+              <input type="hidden" name="customTimePeriodId" value="${customTimePeriodId?if_exists}" />
             <td>${customTimePeriod.customTimePeriodId}</td>
             <td>
               <select name="parentPeriodId">
                 <option value=''>&nbsp;</option>
                 <#list allCustomTimePeriods as allCustomTimePeriod>
-                  <#assign allPeriodType = allCustomTimePeriod.getRelatedOne("PeriodType", true)>
+                  <#assign allPeriodType = allCustomTimePeriod.getRelatedOneCache("PeriodType")>
                   <#assign isDefault = false>
-                  <#if (currentCustomTimePeriod.parentPeriodId)??>
+                  <#if (currentCustomTimePeriod.parentPeriodId)?exists>
                     <#if currentCustomTimePeriod.customTimePeriodId = allCustomTimePeriod.customTimePeriodId>
                       <#assign isDefault = true>
                     </#if>
                   </#if>
                   <option value='${allCustomTimePeriod.customTimePeriodId}'<#if isDefault> selected="selected"</#if>>
                     ${allCustomTimePeriod.organizationPartyId}
-                    <#if allPeriodType??> ${allPeriodType.description}: </#if>
-                    ${allCustomTimePeriod.periodNum!}
+                    <#if allPeriodType != null> ${allPeriodType.description}: </#if>
+                    ${allCustomTimePeriod.periodNum}
                     [${allCustomTimePeriod.customTimePeriodId}]
                   </option>
                 </#list>
               </select>
             </td>
-            <td><input type="text" size='12' name="organizationPartyId" value="${customTimePeriod.organizationPartyId!}" /></td>
+            <td><input type="text" size='12' name="organizationPartyId" value="${customTimePeriod.organizationPartyId?if_exists}" /></td>
             <td>
               <select name="periodTypeId">
                 <#list periodTypes as periodType>
                   <#assign isDefault = false>
-                  <#if (customTimePeriod.periodTypeId)??>
+                  <#if (customTimePeriod.periodTypeId)?exists>
                     <#if customTimePeriod.periodTypeId = periodType.periodTypeId>
                      <#assign isDefault = true>
                     </#if>
@@ -196,15 +198,15 @@ under the License.
                 </#list>
               </select>
             </td>
-            <td><input type="text" size='4' name="periodNum" value="${customTimePeriod.periodNum!}" /></td>
-            <td><input type="text" size='10' name="periodName" value="${customTimePeriod.periodName!}" /></td>
+            <td><input type="text" size='4' name="periodNum" value="${customTimePeriod.periodNum?if_exists}" /></td>
+            <td><input type="text" size='10' name="periodName" value="${customTimePeriod.periodName?if_exists}" /></td>
             <td>
               <#assign hasntStarted = false>
               <#assign compareDate = customTimePeriod.getDate("fromDate")>
               <#if compareDate?has_content>
                 <#if nowTimestamp.before(compareDate)><#assign hasntStarted = true></#if>
               </#if>
-              <input type="text" size='13' name="fromDate" value="${customTimePeriod.fromDate?string("yyyy-MM-dd")}"<#if hasntStarted> class="alert"</#if> />
+              <input type="text" size='13' name="fromDate" value="${customTimePeriod.fromDate?if_exists}"<#if hasntStarted> class="alert"</#if> />
             </td>
             <td>
               <#assign hasExpired = false>
@@ -212,13 +214,13 @@ under the License.
               <#if compareDate?has_content>
                 <#if nowTimestamp.after(compareDate)><#assign hasExpired = true></#if>
               </#if>
-              <input type="text" size='13' name="thruDate" value="${customTimePeriod.thruDate?string("yyyy-MM-dd")}"<#if hasExpired> class="alert"</#if> />
+              <input type="text" size='13' name="thruDate" value="${customTimePeriod.thruDate?if_exists}"<#if hasExpired> class="alert"</#if> />
              </td>
              <td class="button-col">
               <input type="submit" value='${uiLabelMap.CommonUpdate}'/>
-              <a href='<@ofbizUrl>deleteCustomTimePeriod?customTimePeriodId=${customTimePeriod.customTimePeriodId!}&amp;currentCustomTimePeriodId=${currentCustomTimePeriodId!}&amp;findOrganizationPartyId=${findOrganizationPartyId!}</@ofbizUrl>'>
+              <a href='<@ofbizUrl>deleteCustomTimePeriod?customTimePeriodId=${customTimePeriod.customTimePeriodId?if_exists}&amp;currentCustomTimePeriodId=${currentCustomTimePeriodId?if_exists}&amp;findOrganizationPartyId=${findOrganizationPartyId?if_exists}</@ofbizUrl>'>
               ${uiLabelMap.CommonDelete}</a>
-              <a href='<@ofbizUrl>EditCustomTimePeriod?currentCustomTimePeriodId=${customTimePeriod.customTimePeriodId!}&amp;findOrganizationPartyId=${findOrganizationPartyId!}</@ofbizUrl>'>
+              <a href='<@ofbizUrl>EditCustomTimePeriod?currentCustomTimePeriodId=${customTimePeriod.customTimePeriodId?if_exists}&amp;findOrganizationPartyId=${findOrganizationPartyId?if_exists}</@ofbizUrl>'>
               ${uiLabelMap.CommonSetAsCurrent}</a>
             </td>
             </form>
@@ -238,26 +240,26 @@ under the License.
     </div>
     <div class="screenlet-body">
       <form method="post" action="<@ofbizUrl>createCustomTimePeriod</@ofbizUrl>" name="createCustomTimePeriodForm">
-        <input type="hidden" name="findOrganizationPartyId" value="${findOrganizationPartyId!}" />
-        <input type="hidden" name="currentCustomTimePeriodId" value="${currentCustomTimePeriodId!}" />
+        <input type="hidden" name="findOrganizationPartyId" value="${findOrganizationPartyId?if_exists}" />
+        <input type="hidden" name="currentCustomTimePeriodId" value="${currentCustomTimePeriodId?if_exists}" />
         <input type="hidden" name="useValues" value="true" />
         <div>
           <span class="label">${uiLabelMap.CommonParent}</span>
           <select name="parentPeriodId">
             <option value=''>&nbsp;</option>
             <#list allCustomTimePeriods as allCustomTimePeriod>
-                <#assign allPeriodType = allCustomTimePeriod.getRelatedOne("PeriodType", true)>
+                <#assign allPeriodType = allCustomTimePeriod.getRelatedOneCache("PeriodType")>
               <#assign isDefault = false>
-              <#if currentCustomTimePeriod??>
+              <#if currentCustomTimePeriod?exists>
                 <#if currentCustomTimePeriod.customTimePeriodId = allCustomTimePeriod.customTimePeriodId>
                   <#assign isDefault = true>
                 </#if>
               </#if>
               <option value="${allCustomTimePeriod.customTimePeriodId}"<#if isDefault> selected="selected"</#if>>
                 ${allCustomTimePeriod.organizationPartyId}
-                <#if (allCustomTimePeriod.parentPeriodId)??>Par:${allCustomTimePeriod.parentPeriodId}</#if>
-                <#if allPeriodType??> ${allPeriodType.description}:</#if>
-                ${allCustomTimePeriod.periodNum!}
+                <#if (allCustomTimePeriod.parentPeriodId)?exists>Par:${allCustomTimePeriod.parentPeriodId}</#if>
+                <#if allPeriodType != null> ${allPeriodType.description}:</#if>
+                ${allCustomTimePeriod.periodNum}
                 [${allCustomTimePeriod.customTimePeriodId}]
               </option>
             </#list>
@@ -270,7 +272,7 @@ under the License.
           <select name="periodTypeId">
             <#list periodTypes as periodType>
               <#assign isDefault = false>
-              <#if newPeriodTypeId??>
+              <#if newPeriodTypeId?exists>
                 <#if newPeriodTypeId = periodType.periodTypeId>
                   <#assign isDefault = true>
                 </#if>

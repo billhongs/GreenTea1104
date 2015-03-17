@@ -20,41 +20,38 @@
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.base.util.UtilHttp;
 import org.ofbiz.product.catalog.CatalogWorker;
-import org.ofbiz.webapp.website.WebSiteWorker;
-import org.ofbiz.entity.util.EntityUtilProperties;
-
 
 prodCatalogId = CatalogWorker.getCurrentCatalogId(request);
-webSiteId = WebSiteWorker.getWebSiteId(request);
+webSiteId = CatalogWorker.getWebSiteId(request);
 
 currencyUomId = parameters.currencyUomId ?: UtilHttp.getCurrencyUom(request);
 context.currencyUomId = currencyUomId;
 
 partyId = parameters.partyId ?:request.getAttribute("partyId");
 
-party = from("Party").where("partyId", partyId).queryOne();
+party = delegator.findByPrimaryKey("Party", [partyId : partyId]);
 context.party = party;
 if (party) {
-    context.lookupPerson = party.getRelatedOne("Person", false);
-    context.lookupGroup = party.getRelatedOne("PartyGroup", false);
+    context.lookupPerson = party.getRelatedOne("Person");
+    context.lookupGroup = party.getRelatedOne("PartyGroup");
 }
 
 shoppingListId = parameters.shoppingListId ?: request.getAttribute("shoppingListId");
 
 //get the party for listid if it exists
 if (!partyId && shoppingListId) {
-    partyId = from("ShoppingList").where("shoppingListId", shoppingListId).queryOne().partyId;
+    partyId = delegator.findByPrimaryKey("ShoppingList", [shoppingListId : shoppingListId]).partyId;
 }
 context.partyId = partyId;
 
 // get the top level shopping lists for the party
-allShoppingLists = from("ShoppingList").where("partyId", partyId).queryList();
+allShoppingLists = delegator.findByAnd("ShoppingList", [partyId : partyId], ["listName"]);
 shoppingLists = EntityUtil.filterByAnd(allShoppingLists, [parentShoppingListId : null]);
 context.allShoppingLists = allShoppingLists;
 context.shoppingLists = shoppingLists;
 
 // get all shoppingListTypes
-shoppingListTypes = from("ShoppingListType").orderBy("description").cache(true).queryList();
+shoppingListTypes = delegator.findList("ShoppingListType", null, null, ["description"], null, true);
 context.shoppingListTypes = shoppingListTypes;
 
 // no passed shopping list id default to first list
@@ -67,30 +64,30 @@ if (!shoppingListId) {
 
 // if we passed a shoppingListId get the shopping list info
 if (shoppingListId) {
-    shoppingList = from("ShoppingList").where("shoppingListId", shoppingListId).queryOne();
+    shoppingList = delegator.findByPrimaryKey("ShoppingList", [shoppingListId : shoppingListId]);
     context.shoppingList = shoppingList;
-    context.shoppingListId = shoppingListId;
 
     if (shoppingList) {
         shoppingListItemTotal = 0.0;
         shoppingListChildTotal = 0.0;
 
-        shoppingListItems = shoppingList.getRelated("ShoppingListItem", null, null, true);
+        shoppingListItems = shoppingList.getRelatedCache("ShoppingListItem");
         if (shoppingListItems) {
             shoppingListItemDatas = new ArrayList(shoppingListItems.size());
             shoppingListItems.each { shoppingListItem ->
                 shoppingListItemData = [:];
-                product = shoppingListItem.getRelatedOne("Product", true);
+                product = shoppingListItem.getRelatedOneCache("Product");
 
                 // DEJ20050704 not sure about calculating price here, will have some bogus data when not in a store webapp
-                calcPriceOutMap = runService('calculateProductPrice', [product : product, quantity : shoppingListItem.quantity , currencyUomId : currencyUomId, userLogin : userLogin, productStoreId : shoppingList.productStoreId]);
+                calcPriceInMap = [product : product, quantity : shoppingListItem.quantity , currencyUomId : currencyUomId, userLogin : userLogin, productStoreId : shoppingList.productStoreId];
+                calcPriceOutMap = dispatcher.runSync("calculateProductPrice", calcPriceInMap);
                 price = calcPriceOutMap.price;
                 totalPrice = price * shoppingListItem.getDouble("quantity");
                 shoppingListItemTotal += totalPrice;
 
                 productVariantAssocs = null;
                 if ("Y".equals(product.isVirtual)) {
-                    productVariantAssocs = product.getRelated("MainProductAssoc", [productAssocTypeId : "PRODUCT_VARIANT"], ["sequenceNum"], true);
+                    productVariantAssocs = product.getRelatedCache("MainProductAssoc", [productAssocTypeId : "PRODUCT_VARIANT"], ["sequenceNum"]);
                     productVariantAssocs = EntityUtil.filterByDate(productVariantAssocs);
                 }
 
@@ -102,28 +99,13 @@ if (shoppingListId) {
                 shoppingListItemDatas.add(shoppingListItemData);
             }
             context.shoppingListItemDatas = shoppingListItemDatas;
-            // pagination for the shopping list
-            viewIndex = Integer.valueOf(parameters.VIEW_INDEX  ?: 0);
-            viewSize = Integer.valueOf(parameters.VIEW_SIZE ?: EntityUtilProperties.getPropertyValue("widget", "widget.form.defaultViewSize", "20", delegator));
-            listSize = shoppingListItemDatas ? shoppingListItemDatas.size() : 0;
-
-            lowIndex = (viewIndex * viewSize) + 1;
-            highIndex = (viewIndex + 1) * viewSize;
-            highIndex = highIndex > listSize ? listSize : highIndex;
-            lowIndex = lowIndex > highIndex ? highIndex : lowIndex; 
-
-            context.viewIndex = viewIndex;
-            context.viewSize = viewSize;
-            context.listSize = listSize;
-            context.lowIndex = lowIndex;
-            context.highIndex = highIndex;
         }
 
-        shoppingListType = shoppingList.getRelatedOne("ShoppingListType", false);
+        shoppingListType = shoppingList.getRelatedOne("ShoppingListType");
         context.shoppingListType = shoppingListType;
 
         // get the child shopping lists of the current list for the logged in user
-        childShoppingLists = from("ShoppingList").where("partyId", partyId, "parentShoppingListId", shoppingListId).orderBy("listName").cache(true).queryList();
+        childShoppingLists = delegator.findByAndCache("ShoppingList", [partyId : partyId, parentShoppingListId : shoppingListId], ["listName"]);
         // now get prices for each child shopping list...
         if (childShoppingLists) {
             childShoppingListDatas = new ArrayList(childShoppingLists.size());
@@ -137,7 +119,7 @@ if (shoppingListId) {
         }
 
         // get the parent shopping list if there is one
-        parentShoppingList = shoppingList.getRelatedOne("ParentShoppingList", false);
+        parentShoppingList = shoppingList.getRelatedOne("ParentShoppingList");
         context.parentShoppingList = parentShoppingList;
     }
 }

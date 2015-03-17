@@ -30,33 +30,9 @@ under the License.
       <a href="javascript:document.paysetupform.submit()" class="buttontext">${uiLabelMap.CommonSave}</a>
 
       <form method="post" action="<@ofbizUrl>receiveOfflinePayments/${donePage}</@ofbizUrl>" name="paysetupform">
-        <#if requestParameters.workEffortId??>
+        <#if requestParameters.workEffortId?exists>
             <input type="hidden" name="workEffortId" value="${requestParameters.workEffortId}" />
         </#if>
-        <input type="hidden" name="partyId" value="${orderRoles[0].partyId}" />
-
-        <#if paymentMethods?has_content>
-        <table class="basic-table" cellspacing='0'>
-          <tr class="header-row">
-            <td width="30%" align="right">${uiLabelMap.PaymentMethod}</td>
-            <td width="1">&nbsp;&nbsp;&nbsp;</td>
-            <td width="1">${uiLabelMap.OrderAmount}</td>
-            <td width="1">&nbsp;&nbsp;&nbsp;</td>
-            <td width="70%">${uiLabelMap.OrderReference}</td>
-          </tr>
-          <#list paymentMethods as payMethod>
-          <tr>
-            <td width="30%" align="right">${payMethod.get("description",locale)?default(payMethod.paymentMethodId)}</td>
-            <td width="1">&nbsp;&nbsp;&nbsp;</td>
-            <td width="1"><input type="text" size="7" name="${payMethod.paymentMethodId}_amount" /></td>
-            <td width="1">&nbsp;&nbsp;&nbsp;</td>
-            <td width="70%"><input type="text" size="15" name="${payMethod.paymentMethodId}_reference" /></td>
-          </tr>
-          </#list>
-        </table>
-        </#if>
-        <br /> <br />
-        <#if paymentMethodTypes?has_content>
         <table class="basic-table" cellspacing='0'>
           <tr class="header-row">
             <td width="30%" align="right">${uiLabelMap.OrderPaymentType}</td>
@@ -75,7 +51,6 @@ under the License.
           </tr>
           </#list>
         </table>
-        </#if>
       </form>
 
       <a href="<@ofbizUrl>authview/${donePage}</@ofbizUrl>" class="buttontext">${uiLabelMap.CommonBack}</a>

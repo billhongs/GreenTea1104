@@ -32,7 +32,7 @@ import org.ofbiz.entity.condition.EntityOperator;
 import java.math.*;
 
 invoiceId = parameters.invoiceId;
-invoice = from("Invoice").where(invoiceId : invoiceId).queryOne();
+invoice = delegator.findByPrimaryKey("Invoice", [invoiceId : invoiceId]);
 
 decimals = UtilNumber.getBigDecimalScale("invoice.decimals");
 rounding = UtilNumber.getBigDecimalRoundingMode("invoice.rounding");
@@ -40,7 +40,7 @@ rounding = UtilNumber.getBigDecimalRoundingMode("invoice.rounding");
 exprBldr = new EntityConditionBuilder();
 preCurrencyCond = exprBldr.AND() {
     EQUALS(partyIdTo: invoice.partyIdFrom)
-    EQUALS(partyIdFrom: invoice.partyId)
+    EQUALS(partyIdFrom: invoice.partyIdTo)
     IN(statusId: ["PMNT_NOT_PAID", "PMNT_RECEIVED", "PMNT_SENT"])
 }
 
@@ -52,9 +52,9 @@ topCondActual = exprBldr.AND(preCurrencyCond) {
     EQUALS(actualCurrencyUomId: invoice.currencyUomId)
 }
 
-payments = from("Payment").where(topCond).orderBy("effectiveDate").queryList();
+payments = delegator.findList("Payment", topCond, null, ["effectiveDate"], null, false);
 context.payments = getPayments(payments, false);
-payments = from("Payment").where(topCondActual).orderBy("effectiveDate").queryList();
+payments = delegator.findList("Payment", topCondActual, null, ["effectiveDate"], null, false);
 context.paymentsActualCurrency = getPayments(payments, true);
 
 List getPayments(List payments, boolean actual) {

@@ -19,10 +19,11 @@
 package org.ofbiz.entity.finder;
 
 import java.sql.ResultSet;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javolution.util.FastList;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralException;
@@ -89,7 +90,7 @@ public abstract class ListFinder extends Finder {
         // process order-by
         List<? extends Element> orderByElementList = UtilXml.childElementList(element, "order-by");
         if (orderByElementList.size() > 0) {
-            orderByExpanderList = new ArrayList<FlexibleStringExpander>(orderByElementList.size());
+            orderByExpanderList = FastList.newInstance();
             for (Element orderByElement: orderByElementList) {
                 orderByExpanderList.add(FlexibleStringExpander.getInstance(orderByElement.getAttribute("field-name")));
             }

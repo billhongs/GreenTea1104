@@ -63,7 +63,7 @@ under the License.
         <description>Create a new note record</description>
         <attribute name="partyId" type="String" mode="INOUT" optional="true"/>
         <attribute name="noteName" type="String" mode="IN" optional="true"/>
-        <attribute name="note" type="String" mode="IN" allow-html="any"/>
+        <attribute name="note" type="String" mode="IN" allow-html="safe"/>
         <attribute name="noteId" type="String" mode="OUT"/>
     </service>
     
@@ -72,7 +72,7 @@ under the License.
         <description>Update a note record</description>
         <auto-attributes include="pk" mode="INOUT" optional="false"/>
         <auto-attributes include="nonpk" mode="IN" optional="true"/>
-        <override name="noteInfo" allow-html="any"/>
+        <override name="noteInfo" allow-html="safe"/>
     </service>
     
     <service name="adjustDebugLevels" engine="java"
@@ -85,6 +85,13 @@ under the License.
         <attribute name="info" type="String" mode="IN" optional="true"/>
         <attribute name="timing" type="String" mode="IN" optional="true"/>
         <attribute name="verbose" type="String" mode="IN" optional="true"/>
+    </service>
+    <service name="addOrUpdateLogger" engine="java"
+             location="org.ofbiz.common.CommonServices" invoke="addOrUpdateLogger" auth="true">
+        <description>Add/Update logger in logging system</description>
+        <attribute name="name" type="String" mode="IN" optional="false"/>
+        <attribute name="level" type="String" mode="IN" optional="false"/>
+        <attribute name="additivity" type="String" mode="IN" optional="true"/>
     </service>
 
     <service name="displayXaDebugInfo" engine="java"
@@ -102,7 +109,7 @@ under the License.
         <auto-attributes include="pk" mode="OUT" optional="false"/>
         <auto-attributes include="nonpk" mode="IN" optional="true"/>
         <override name="enumTypeId" optional="false"/>
-        <override name="description" optional="false" allow-html="any"/>
+        <override name="description" optional="false" allow-html="safe"/>
     </service>
     <service name="updateEnumeration" default-entity-name="Enumeration" engine="simple"
         location="component://common/script/org/ofbiz/common/EnumerationServices.xml" invoke="updateEnumeration" auth="true">
@@ -111,7 +118,7 @@ under the License.
         <auto-attributes include="pk" mode="IN" optional="false"/>
         <auto-attributes include="nonpk" mode="IN" optional="true"/>
         <override name="enumTypeId" optional="false"/>
-        <override name="description" optional="false" allow-html="any"/>
+        <override name="description" optional="false" allow-html="safe"/>
     </service>
     <service name="deleteEnumeration" default-entity-name="Enumeration" engine="entity-auto" invoke="delete" auth="true">
         <description>Delete a Enumeration</description>
@@ -174,9 +181,9 @@ under the License.
         <description>Create a CustomTimePeriod record</description>
         <auto-attributes mode="OUT" include="pk" optional="false"/>
         <auto-attributes mode="IN" include="nonpk" optional="true"/>
-        <attribute name="organizationPartyId" type="String" mode="IN" optional="false"/><!-- FIXME: Framework dependency on Party component -->
         <override name="fromDate" optional="false"/>
         <override name="thruDate" optional="false"/>
+        <override name="organizationPartyId" optional="false"/>
         <override name="periodTypeId" optional="false"/>
     </service>
     <service name="updateCustomTimePeriod" default-entity-name="CustomTimePeriod" engine="simple"
@@ -317,8 +324,6 @@ under the License.
         <attribute name="conversionParameters" mode="IN" type="Map" optional="true"/>
         <attribute name="purposeEnumId" mode="IN" type="String" optional="true"/>
         <attribute name="convertedValue" mode="OUT" type="BigDecimal" optional="true"/>
-        <attribute name="defaultDecimalScale" mode="IN" type="Long" optional="true"/>
-        <attribute name="defaultRoundingMode" mode="IN" type="String" optional="true"/>
     </service>
     <service name="convertUomCustom" default-entity-name="UomConversion" engine="simple"
             location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="convertUomCustom" auth="false">
@@ -329,24 +334,6 @@ under the License.
         <attribute name="conversionParameters" mode="IN" type="Map" optional="true"/>
         <attribute name="convertedValue" mode="OUT" type="BigDecimal" optional="true"/>
     </service>
-    
-    <service name="checkUomConversion" engine="simple" default-entity-name="UomConversion"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="checkUomConversion">
-        <description>Returns true if an UomConversion record exists</description>
-        <permission-service service-name="commonGenericPermission" main-action="VIEW"/>
-        <auto-attributes include="pk" mode="IN"/>
-        <attribute name="exist" mode="OUT" type="Boolean"/>
-    </service>
-    
-    <service name="checkUomConversionDated" engine="simple" default-entity-name="UomConversionDated"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="checkUomConversionDated">
-        <description>Returns true if an UomConversionDated record exists</description>
-        <permission-service service-name="commonGenericPermission" main-action="VIEW"/>
-        <auto-attributes include="pk" mode="IN"/>
-        <attribute name="exist" mode="OUT" type="Boolean"/>
-    </service>
-    
-    
     <service name="getFileUploadProgressStatus" engine="simple" location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getFileUploadProgressStatus" auth="false">
         <description>Look up progress made in File Upload process</description>
         <attribute name="uploadProgressListener" mode="IN" type="org.ofbiz.webapp.event.FileUploadProgressListener" optional="true"/>
@@ -365,7 +352,6 @@ under the License.
         <attribute name="remoteFilename" type="String" mode="IN" optional="false"/>
         <attribute name="binaryTransfer" type="Boolean" mode="IN" optional="true"/>
         <attribute name="passiveMode" type="Boolean" mode="IN" optional="true"/>
-        <attribute name="defaultTimeout" type="Integer" mode="IN" optional="true"/>
     </service>
     <service name="ftpPutFile" engine="java" use-transaction="false"
         location="org.ofbiz.common.FtpServices" invoke="putFile">
@@ -721,8 +707,10 @@ under the License.
     <service name="updateGeo" default-entity-name="Geo" engine="entity-auto" invoke="update" auth="true">
         <description>Update a Geo</description>
         <permission-service service-name="commonGenericPermission" main-action="UPDATE"/>
-        <auto-attributes include="pk" mode="IN" optional="false"/>
+        <auto-attributes include="pk" mode="IN"/>
         <auto-attributes include="nonpk" mode="IN" optional="true"/>
+        <override name="geoName" optional="false"/>
+        <override name="geoTypeId" optional="false"/>        
     </service>
     <service name="deleteGeo" default-entity-name="Geo" engine="entity-auto" invoke="delete" auth="true">
         <description>Delete a Geo</description>
@@ -736,23 +724,6 @@ under the License.
         <attribute name="geoIds" type="List" mode="IN" optional="true"/>
         <attribute name="geoId" type="String" mode="IN"/>
         <attribute name="geoAssocTypeId" type="String" mode="IN"/>
-    </service>
-    <service name="getRelatedGeos" engine="simple" auth="false"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getRelatedGeos">
-        <attribute name="geoId" mode="IN" type="String"/>
-        <attribute name="geoAssocTypeId" mode="IN" type="String"/>        
-        <attribute name="geoList" mode="OUT" type="java.util.List"/>
-    </service>
-    <service name="getCountryList" engine="simple" auth="false"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getCountryList">
-        <description>Get a list of country and associated states from Geo</description>
-        <attribute name="countryList" mode="OUT" type="java.util.List"/>
-    </service>
-    <service name="getAssociatedStateList" engine="simple" auth="false"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getAssociatedStateList">
-        <attribute name="countryGeoId" mode="IN" type="String" optional="false"/>
-        <attribute name="listOrderBy" mode="IN" type="String" optional="true"/>
-        <attribute name="stateList" mode="OUT" type="java.util.List"/>
     </service>
     
     <!-- GeoPoint services -->
@@ -780,41 +751,38 @@ under the License.
         <auto-attributes include="pk" mode="IN" optional="false"/>
     </service>
     
-    <service name="getServerTimestamp" engine="simple" auth="false"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getServerTimestamp">
-        <attribute name="serverTimestamp" mode="OUT" type="TimeStamp"/>
+    <!-- Get a list of country and associated states from Geo -->
+    <service name="getCountryList" engine="simple" auth="false"
+        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getCountryList">
+        <attribute name="countryList" mode="OUT" type="java.util.List"/>
     </service>
     
-    <service name="getServerTimeZone" engine="simple" auth="false"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getServerTimeZone">
-        <attribute name="serverTimeZone" mode="OUT" type="String"/>
+    <service name="getAssociatedStateList" engine="simple" auth="false"
+        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getAssociatedStateList">
+        <attribute name="countryGeoId" mode="IN" type="String" optional="false"/>
+        <attribute name="listOrderBy" mode="IN" type="String" optional="true"/>
+        <attribute name="stateList" mode="OUT" type="java.util.List"/>
     </service>
     
-    <service name="getServerTimestampAsLong" engine="simple" auth="false"
-        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getServerTimestampAsLong">
-        <attribute name="serverTimestamp" mode="OUT" type="Long"/>
-    </service>
+    <service name="checkUomConversion" engine="simple" default-entity-name="UomConversion"
+        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="checkUomConversion">
+        <description>Returns true if an UomConversion exists</description>
+        <permission-service service-name="commonGenericPermission" main-action="VIEW"/>
+        <auto-attributes include="pk" mode="IN"/>
+        <attribute name="exist" mode="OUT" type="Boolean"/>
+    </service>    
     
+    <service name="getRelatedGeos" engine="simple" auth="false"
+        location="component://common/script/org/ofbiz/common/CommonServices.xml" invoke="getRelatedGeos">
+        <attribute name="geoId" mode="IN" type="String"/>
+        <attribute name="geoAssocTypeId" mode="IN" type="String"/>        
+        <attribute name="geoList" mode="OUT" type="java.util.List"/>
+    </service>
+
     <service name="createJsLanguageFileMapping" engine="java" auth="false" use-transaction="false"
         location="org.ofbiz.common.JsLanguageFileMappingCreator" invoke="createJsLanguageFileMapping">
         <description>Create or update the JsLanguageFilesMapping.java. You still need to compile thereafter</description>
         <attribute name="encoding" mode="IN" type="String" optional="true" default-value="UTF-8"></attribute>
-    </service>
-
-    <!-- Metrics services -->
-    <service name="getAllMetrics" auth="true" use-transaction="false"
-            engine="java" location="org.ofbiz.common.CommonServices" invoke="getAllMetrics">
-        <description>
-            Get all metrics. Returns a List of Maps - one Map per metric. Each Map includes the following keys:
-            name, serviceRate, threshold, totalEvents. See org.ofbiz.base.metrics.Metrics.
-        </description>
-        <attribute name="metricsList" mode="OUT" type="java.util.List" optional="false" />
-    </service>
-
-    <service name="resetMetric" auth="true" use-transaction="false"
-         engine="java" location="org.ofbiz.common.CommonServices" invoke="resetMetric">
-        <description>Resets a metric. See org.ofbiz.base.metrics.Metrics.</description>
-        <attribute name="name" mode="IN" type="String" optional="false"/>
     </service>
 
 </services>

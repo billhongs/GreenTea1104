@@ -37,9 +37,10 @@ import org.ofbiz.base.component.ComponentConfig.ClasspathInfo;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.FileUtil;
 import org.ofbiz.base.util.GeneralException;
-import org.ofbiz.base.util.UtilCodec;
+import org.ofbiz.base.util.StringUtil;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.UtilXml;
+import org.owasp.esapi.errors.EncodingException;
 import org.w3c.dom.Comment;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -59,7 +60,7 @@ public class LabelManagerFactory {
     protected Set<String> localesFound = new TreeSet<String>();
     protected List<LabelInfo> duplicatedLocalesLabelsList = FastList.newInstance();
 
-    public static synchronized LabelManagerFactory getInstance() throws IOException {
+    public static synchronized LabelManagerFactory getInstance() throws GeneralException, IOException {
         if (componentNamesFound == null) {
             loadComponentNames();
         }
@@ -78,6 +79,7 @@ public class LabelManagerFactory {
         for (ComponentConfig componentConfig : componentConfigs) {
             componentNamesFound.add(componentConfig.getComponentName());
         }
+        componentNamesFound.add("shark");
     }
 
     protected static void loadLabelFiles() throws IOException {
@@ -100,9 +102,13 @@ public class LabelManagerFactory {
                 }
             }
         }
+        List<File> resourceFiles = FileUtil.findXmlFiles(System.getProperty("ofbiz.home") + "/specialpurpose/shark/config", null, "resource", null);
+        for (File resourceFile : resourceFiles) {
+            filesFound.put(resourceFile.getName(), new LabelFile(resourceFile, "shark"));
+        }
     }
 
-    public void findMatchingLabels(String component, String fileName, String key, String locale) throws MalformedURLException, SAXException, ParserConfigurationException, IOException, GeneralException {
+    public void findMatchingLabels(String component, String fileName, String key, String locale) throws MalformedURLException, SAXException, ParserConfigurationException, IOException, EncodingException, GeneralException {
         if (UtilValidate.isEmpty(component) && UtilValidate.isEmpty(fileName) && UtilValidate.isEmpty(key) && UtilValidate.isEmpty(locale)) {
             // Important! Don't allow unparameterized queries - doing so will result in loading the entire project into memory
             return;
@@ -114,27 +120,20 @@ public class LabelManagerFactory {
             if (UtilValidate.isNotEmpty(fileName) && !fileName.equals(fileInfo.getFileName())) {
                 continue;
             }
-            if (Debug.infoOn()) {
-                Debug.logInfo("Current file : " + fileInfo.getFileName(), module);
-            }
+            Debug.logInfo("Current file : " + fileInfo.getFileName(), module);
             Document resourceDocument = UtilXml.readXmlDocument(fileInfo.file.toURI().toURL(), false);
             Element resourceElem = resourceDocument.getDocumentElement();
             String labelKeyComment = "";
             for (Node propertyNode : UtilXml.childNodeList(resourceElem.getFirstChild())) {
                 if (propertyNode instanceof Element) {
                     Element propertyElem = (Element) propertyNode;
-                    String labelKey = UtilCodec.canonicalize(propertyElem.getAttribute("key"));
+                    String labelKey = StringUtil.defaultWebEncoder.canonicalize(propertyElem.getAttribute("key"));
                     String labelComment = "";
                     for (Node valueNode : UtilXml.childNodeList(propertyElem.getFirstChild())) {
                         if (valueNode instanceof Element) {
                             Element valueElem = (Element) valueNode;
-                            // Support old way of specifying xml:lang value.
-                            // Old way: en_AU, new way: en-AU
                             String localeName = valueElem.getAttribute("xml:lang");
-                            if( localeName.contains("_")) {
-                                localeName = localeName.replace('_', '-');
-                            }
-                            String labelValue = UtilCodec.canonicalize(UtilXml.nodeValue(valueElem.getFirstChild()));
+                            String labelValue = StringUtil.defaultWebEncoder.canonicalize(UtilXml.nodeValue(valueElem.getFirstChild()));
                             LabelInfo label = labels.get(labelKey + keySeparator + fileInfo.getFileName());
 
                             if (UtilValidate.isEmpty(label)) {
@@ -148,12 +147,12 @@ public class LabelManagerFactory {
                             localesFound.add(localeName);
                             labelComment = "";
                         } else if (valueNode instanceof Comment) {
-                            labelComment = labelComment + UtilCodec.canonicalize(valueNode.getNodeValue());
+                            labelComment = labelComment + StringUtil.defaultWebEncoder.canonicalize(valueNode.getNodeValue());
                         }
                     }
                     labelKeyComment = "";
                 } else if (propertyNode instanceof Comment) {
-                    labelKeyComment = labelKeyComment + UtilCodec.canonicalize(propertyNode.getNodeValue());
+                    labelKeyComment = labelKeyComment + StringUtil.defaultWebEncoder.canonicalize(propertyNode.getNodeValue());
                 }
             }
         }
@@ -209,10 +208,8 @@ public class LabelManagerFactory {
                 } else {
                     label.setLabelKeyComment(keyComment);
                 }
-                if (label != null) {
-                    label.setLabelValue(localeName, localeValue, localeComment, true);
-                    notEmptyLabels++;
-                }
+                label.setLabelValue(localeName, localeValue, localeComment, true);
+                notEmptyLabels++;
             }
         }
         return notEmptyLabels;

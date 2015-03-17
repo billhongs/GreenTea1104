@@ -18,10 +18,11 @@
  */
 package org.ofbiz.service.test;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import javolution.util.FastList;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilMisc;
@@ -30,7 +31,6 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericResultWaiter;
 import org.ofbiz.service.GenericServiceException;
@@ -52,7 +52,7 @@ public class ServiceEngineTestServices {
             // make sure to wait for these to both finish to make sure results aren't checked until they are done
             Map<String, Object> threadAResult = threadAWaiter.waitForResult();
             Map<String, Object> threadBResult = threadBWaiter.waitForResult();
-            List<Object> errorList = new LinkedList<Object>();
+            List<Object> errorList = FastList.newInstance();
             if (ServiceUtil.isError(threadAResult)) {
                 errorList.add(UtilProperties.getMessage(resource, "ServiceTestDeadLockThreadA", UtilMisc.toMap("errorString", ServiceUtil.getErrorMessage(threadAResult)), locale));
             }
@@ -75,7 +75,7 @@ public class ServiceEngineTestServices {
         Locale locale = (Locale) context.get("locale");
         try {
             // grab entity SVCLRT_A by changing, then wait, then find and change SVCLRT_B
-            GenericValue testingTypeA = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLRT_A").queryOne();
+            GenericValue testingTypeA = delegator.findOne("TestingType", false, "testingTypeId", "SVCLRT_A");
             testingTypeA.set("description", "New description for SVCLRT_A");
             testingTypeA.store();
 
@@ -84,12 +84,12 @@ public class ServiceEngineTestServices {
             Thread.sleep(100);
 
             Debug.logInfo("In testServiceDeadLockRetryThreadA done with wait, updating SVCLRT_B", module);
-            GenericValue testingTypeB = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLRT_B").queryOne();
+            GenericValue testingTypeB = delegator.findOne("TestingType", false, "testingTypeId", "SVCLRT_B");
             testingTypeB.set("description", "New description for SVCLRT_B");
             testingTypeB.store();
 
             Debug.logInfo("In testServiceDeadLockRetryThreadA done with updating SVCLRT_B, updating SVCLRT_AONLY", module);
-            GenericValue testingTypeAOnly = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLRT_AONLY").queryOne();
+            GenericValue testingTypeAOnly = delegator.findOne("TestingType", false, "testingTypeId", "SVCLRT_AONLY");
             testingTypeAOnly.set("description", "New description for SVCLRT_AONLY; this is only changed by thread A so if it doesn't match something happened to thread A!");
             testingTypeAOnly.store();
         } catch (GenericEntityException e) {
@@ -107,7 +107,7 @@ public class ServiceEngineTestServices {
         Locale locale = (Locale) context.get("locale");
         try {
             // grab entity SVCLRT_B by changing, then wait, then change SVCLRT_A
-            GenericValue testingTypeB = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLRT_B").queryOne();
+            GenericValue testingTypeB = delegator.findOne("TestingType", false, "testingTypeId", "SVCLRT_B");
             testingTypeB.set("description", "New description for SVCLRT_B");
             testingTypeB.store();
 
@@ -116,12 +116,12 @@ public class ServiceEngineTestServices {
             Thread.sleep(100);
 
             Debug.logInfo("In testServiceDeadLockRetryThreadB done with wait, updating SVCLRT_A", module);
-            GenericValue testingTypeA = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLRT_A").queryOne();
+            GenericValue testingTypeA = delegator.findOne("TestingType", false, "testingTypeId", "SVCLRT_A");
             testingTypeA.set("description", "New description for SVCLRT_A");
             testingTypeA.store();
 
             Debug.logInfo("In testServiceDeadLockRetryThreadA done with updating SVCLRT_A, updating SVCLRT_BONLY", module);
-            GenericValue testingTypeAOnly = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLRT_BONLY").queryOne();
+            GenericValue testingTypeAOnly = delegator.findOne("TestingType", false, "testingTypeId", "SVCLRT_BONLY");
             testingTypeAOnly.set("description", "New description for SVCLRT_BONLY; this is only changed by thread B so if it doesn't match something happened to thread B!");
             testingTypeAOnly.store();
         } catch (GenericEntityException e) {
@@ -147,7 +147,7 @@ public class ServiceEngineTestServices {
             // make sure to wait for these to both finish to make sure results aren't checked until they are done
             Map<String, Object> grabberResult = grabberWaiter.waitForResult();
             Map<String, Object> waiterResult = waiterWaiter.waitForResult();
-            List<Object> errorList = new LinkedList<Object>();
+            List<Object> errorList = FastList.newInstance();
             if (ServiceUtil.isError(grabberResult)) {
                 errorList.add("Error running testServiceLockWaitTimeoutRetryGrabber: " + ServiceUtil.getErrorMessage(grabberResult));
             }
@@ -169,7 +169,7 @@ public class ServiceEngineTestServices {
         Locale locale = (Locale) context.get("locale");
         try {
             // grab entity SVCLWTRT by changing, then wait a LONG time, ie more than the wait timeout
-            GenericValue testingType = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLWTRT").queryOne();
+            GenericValue testingType = delegator.findOne("TestingType", false, "testingTypeId", "SVCLWTRT");
             testingType.set("description", "New description for SVCLWTRT from the GRABBER service, this should be replaced by Waiter service in the service engine auto-retry");
             testingType.store();
 
@@ -198,7 +198,7 @@ public class ServiceEngineTestServices {
             Debug.logInfo("In testServiceLockWaitTimeoutRetryWaiter about to update SVCLWTRT, wait starts here", module);
 
             // TRY grab entity SVCLWTRT by looking up and changing, should get a lock wait timeout exception because of the Grabber thread
-            GenericValue testingType = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLWTRT").queryOne();
+            GenericValue testingType = delegator.findOne("TestingType", false, "testingTypeId", "SVCLWTRT");
             testingType.set("description", "New description for SVCLWTRT from Waiter service, this is the value that should be there.");
             testingType.store();
 
@@ -228,9 +228,9 @@ public class ServiceEngineTestServices {
      * current service run is complete, and AFTER it has committed or rolled back its transaction; if a service finds
      * it has a lock wait timeout, add itself to the list for its parent service (somehow...) and off we go!
      *
-     * @param dctx the dispatch context
-     * @param context the context
-     * @return returns the results of the service execution
+     * @param dctx
+     * @param context
+     * @return
      */
     public static Map<String, Object> testServiceLockWaitTimeoutRetryCantRecover(DispatchContext dctx, Map<String, ? extends Object> context) {
         Delegator delegator = dctx.getDelegator();
@@ -238,7 +238,7 @@ public class ServiceEngineTestServices {
         Locale locale = (Locale) context.get("locale");
         try {
             // grab entity SVCLWTRTCR by changing, then wait a LONG time, ie more than the wait timeout
-            GenericValue testingType = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLWTRTCR").queryOne();
+            GenericValue testingType = delegator.findOne("TestingType", false, "testingTypeId", "SVCLWTRTCR");
             testingType.set("description", "New description for SVCLWTRTCR from Lock Wait Timeout Lock GRABBER, this should be replaced by the one in the Waiter service.");
             testingType.store();
 
@@ -267,7 +267,7 @@ public class ServiceEngineTestServices {
             Debug.logInfo("In testServiceLockWaitTimeoutRetryCantRecoverWaiter updating SVCLWTRTCR", module);
 
             // TRY grab entity SVCLWTRTCR by looking up and changing, should get a lock wait timeout exception because of the Grabber thread
-            GenericValue testingType = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVCLWTRTCR").queryOne();
+            GenericValue testingType = delegator.findOne("TestingType", false, "testingTypeId", "SVCLWTRTCR");
             testingType.set("description", "New description for SVCLWTRTCR from Lock Wait Timeout Lock Waiter, this is the value that should be there.");
             testingType.store();
 
@@ -303,7 +303,7 @@ public class ServiceEngineTestServices {
         Locale locale = (Locale) context.get("locale");
         try {
             // change the SVC_SRBO value first to test that the rollback really does revert/reset
-            GenericValue testingType = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVC_SRBO").queryOne();
+            GenericValue testingType = delegator.findOne("TestingType", false, "testingTypeId", "SVC_SRBO");
             testingType.set("description", "New description for SVC_SRBO; this should be reset on the rollback, if this is in the db then the test failed");
             testingType.store();
 
@@ -346,7 +346,7 @@ public class ServiceEngineTestServices {
         Delegator delegator = dctx.getDelegator();
         Locale locale = (Locale) context.get("locale");
         try {
-            GenericValue testingType = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVC_SECAGC").queryOne();
+            GenericValue testingType = delegator.findOne("TestingType", false, "testingTypeId", "SVC_SECAGC");
             testingType.set("description", "New description for SVC_SECAGC, what it should be after the global-commit test");
             testingType.store();
         } catch (GenericEntityException e) {
@@ -365,7 +365,7 @@ public class ServiceEngineTestServices {
         Delegator delegator = dctx.getDelegator();
         Locale locale = (Locale) context.get("locale");
         try {
-            GenericValue testingType = EntityQuery.use(delegator).from("TestingType").where("testingTypeId", "SVC_SECAGR").queryOne();
+            GenericValue testingType = delegator.findOne("TestingType", false, "testingTypeId", "SVC_SECAGR");
             testingType.set("description", "New description for SVC_SECAGR, what it should be after the global-rollback test");
             testingType.store();
         } catch (GenericEntityException e) {

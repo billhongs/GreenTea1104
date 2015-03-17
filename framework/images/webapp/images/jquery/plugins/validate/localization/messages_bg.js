@@ -1,6 +1,6 @@
 /*
  * Translated default messages for the jQuery validation plugin.
- * Locale: BG (Bulgarian; български език)
+ * Locale: BG
  */
 jQuery.extend(jQuery.validator.messages, {
 		 required: "Полето е задължително.",

@@ -64,12 +64,13 @@ if ('PURCHASE_ORDER'.equals(shoppingCart.getOrderType())) {
 
 }
 
-agreements = from("Agreement").where(agreementCondition).filterByDate().cache(true).queryList();
+agreements = delegator.findList('Agreement', agreementCondition, null, null, null, true);
+agreements = EntityUtil.filterByDate(agreements);
 if (agreements) {
     context.agreements = agreements;
 }
 
-agreementRoles = from("AgreementRole").where(agreementRoleCondition).cache(true).queryList();
+agreementRoles = delegator.findList('AgreementRole', agreementRoleCondition, null, null, null, true);
 if (agreementRoles) {
     context.agreementRoles = agreementRoles;
 }
@@ -91,5 +92,5 @@ if (catalogCol) {
 }
 
 // currencies and shopping cart currency
-context.currencies = from("Uom").where("uomTypeId", "CURRENCY_MEASURE").cache(true).queryList();
+context.currencies = delegator.findByAndCache('Uom', [uomTypeId: 'CURRENCY_MEASURE']);
 context.currencyUomId = shoppingCart.getCurrency();

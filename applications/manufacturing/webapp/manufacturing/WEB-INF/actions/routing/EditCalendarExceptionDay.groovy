@@ -21,7 +21,7 @@
 import java.util.*;
 import org.ofbiz.base.util.*;
 import org.ofbiz.entity.*;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
 
 if (security.hasEntityPermission("MANUFACTURING", "_VIEW", session)) {
     context.hasPermission = Boolean.TRUE;
@@ -33,10 +33,10 @@ calendarExceptionDays = [];
 
 calendarId = parameters.calendarId ?: request.getAttribute("calendarId");
 if (calendarId) {
-    techDataCalendar = from("TechDataCalendar").where("calendarId", calendarId).queryOne();
+    techDataCalendar = delegator.findByPrimaryKey("TechDataCalendar", [calendarId : calendarId]);
 }
 if (techDataCalendar) {
-    calendarExceptionDays = techDataCalendar.getRelated("TechDataCalendarExcDay", null, null, false);
+    calendarExceptionDays = techDataCalendar.getRelated("TechDataCalendarExcDay");
 }
 HtmlFormWrapper listCalendarExceptionDayWrapper = new HtmlFormWrapper("component://manufacturing/widget/manufacturing/CalendarForms.xml", "ListCalendarExceptionDay", request, response);
 listCalendarExceptionDayWrapper.putInContext("calendarExceptionDays", calendarExceptionDays);
@@ -52,7 +52,7 @@ exceptionDateStartTime = parameters.exceptionDateStartTime ?: request.getAttribu
 exceptionDateStartTime = ObjectType.simpleTypeConvert(exceptionDateStartTime, "Timestamp", null, null);
 
 if (exceptionDateStartTime) {
-    calendarExceptionDay = from("TechDataCalendarExcDay").where("calendarId", calendarId , "exceptionDateStartTime", exceptionDateStartTime)
+    calendarExceptionDay = delegator.findByPrimaryKey("TechDataCalendarExcDay", [calendarId : calendarId , exceptionDateStartTime : exceptionDateStartTime]);
     if (calendarExceptionDay) {
         HtmlFormWrapper updateCalendarExceptionDayWrapper = new HtmlFormWrapper("component://manufacturing/widget/manufacturing/CalendarForms.xml", "UpdateCalendarExceptionDay", request, response);
         updateCalendarExceptionDayWrapper.putInContext("calendarExceptionDay", calendarExceptionDay);

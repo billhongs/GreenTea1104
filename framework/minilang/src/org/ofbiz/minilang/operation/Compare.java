@@ -18,11 +18,8 @@
  *******************************************************************************/
 package org.ofbiz.minilang.operation;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import org.w3c.dom.Element;
+import java.util.*;
+import org.w3c.dom.*;
 
 /**
  * Compares an in-field to the specified value
@@ -39,6 +36,7 @@ public class Compare extends BaseCompare {
     @Override
     public void exec(Map<String, Object> inMap, Map<String, Object> results, List<Object> messages, Locale locale, ClassLoader loader) {
         Object fieldValue = inMap.get(fieldName);
+
         doCompare(fieldValue, value, messages, locale, loader, true);
     }
 }

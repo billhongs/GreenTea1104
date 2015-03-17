@@ -22,12 +22,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.io.StringWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -43,7 +44,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.ModelService;
@@ -137,9 +137,9 @@ public class DataServices {
         // get first statusId  for content out of the statusItem table if not provided
         if (UtilValidate.isEmpty(dataResource.get("statusId"))) {
             try {
-                GenericValue statusItem = EntityQuery.use(delegator).from("StatusItem").where("statusTypeId", "CONTENT_STATUS").orderBy("sequenceId").queryFirst();
-                if (statusItem != null) {
-                    dataResource.put("statusId",  statusItem.get("statusId"));
+                List<GenericValue> statusItems = delegator.findByAnd("StatusItem",UtilMisc.toMap("statusTypeId", "CONTENT_STATUS"), UtilMisc.toList("sequenceId"));
+                if (!UtilValidate.isEmpty(statusItems)) {
+                    dataResource.put("statusId",  statusItems.get(0).getString("statusId"));
                 }
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
@@ -312,7 +312,7 @@ public class DataServices {
         // If textData exists, then create DataResource and return dataResourceId
         String dataResourceId = (String) context.get("dataResourceId");
         try {
-            dataResource = EntityQuery.use(delegator).from("DataResource").where("dataResourceId", dataResourceId).queryOne();
+            dataResource = delegator.findByPrimaryKey("DataResource", UtilMisc.toMap("dataResourceId", dataResourceId));
         } catch (GenericEntityException e) {
             Debug.logWarning(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ContentDataResourceNotFound", UtilMisc.toMap("parameters.dataResourceId", dataResourceId), locale));
@@ -344,9 +344,9 @@ public class DataServices {
     /**
      * Because sometimes a DataResource will exist, but no ElectronicText has been created,
      * this method will create an ElectronicText if it does not exist.
-     * @param dctx the dispatch context
-     * @param context the context
-     * @return update the ElectronicText
+     * @param dctx
+     * @param context
+     * @return
      */
     public static Map<String, Object> updateElectronicTextMethod(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();
@@ -366,7 +366,7 @@ public class DataServices {
             Debug.logVerbose("in updateElectronicText, textData:" + textData, module);
         }
         try {
-            electronicText = EntityQuery.use(delegator).from("ElectronicText").where("dataResourceId", dataResourceId).queryOne();
+            electronicText = delegator.findByPrimaryKey("ElectronicText", UtilMisc.toMap("dataResourceId", dataResourceId));
             if (electronicText != null) {
                 electronicText.put("textData", textData);
                 electronicText.store();
@@ -414,6 +414,9 @@ public class DataServices {
             if (UtilValidate.isEmpty(dataResourceTypeId) || dataResourceTypeId.startsWith("LOCAL_FILE")) {
                 fileName = prefix + sep + objectInfo;
                 file = new File(fileName);
+                if (file == null) {
+                    throw new GenericServiceException("File: " + fileName + " is null.");
+                }
                 if (!file.isAbsolute()) {
                     throw new GenericServiceException("File: " + fileName + " is not absolute.");
                 }
@@ -521,7 +524,7 @@ public class DataServices {
         if (byteBuffer != null) {
             byte[] imageBytes = byteBuffer.array();
             try {
-                GenericValue imageDataResource = EntityQuery.use(delegator).from("ImageDataResource").where("dataResourceId", dataResourceId).queryOne();
+                GenericValue imageDataResource = delegator.findByPrimaryKey("ImageDataResource", UtilMisc.toMap("dataResourceId", dataResourceId));
                 if (Debug.infoOn()) {
                     Debug.logInfo("imageDataResource(U):" + imageDataResource, module);
                     Debug.logInfo("imageBytes(U):" + imageBytes, module);

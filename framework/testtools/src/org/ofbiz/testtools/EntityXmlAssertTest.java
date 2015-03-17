@@ -19,9 +19,9 @@
 package org.ofbiz.testtools;
 
 import java.net.URL;
-import java.util.LinkedList;
 import java.util.List;
 
+import javolution.util.FastList;
 import junit.framework.AssertionFailedError;
 import junit.framework.TestResult;
 
@@ -42,9 +42,7 @@ public class EntityXmlAssertTest extends OFBizTestCase {
     protected String action;
 
     /**
-     * Tests of entity xml
-     * @param caseName test case name
-     * @param mainElement DOM main element 
+     * @param modelTestSuite
      */
     public EntityXmlAssertTest(String caseName, Element mainElement) {
         super(caseName);
@@ -58,8 +56,8 @@ public class EntityXmlAssertTest extends OFBizTestCase {
         int testCaseCount = 0;
         try {
             URL entityXmlURL = FlexibleLocation.resolveLocation(entityXmlUrlString);
-            EntitySaxReader reader = new EntitySaxReader(delegator);
-            testCaseCount += reader.parse(entityXmlURL);
+            List<GenericValue> checkValueList = delegator.readXmlDocument(entityXmlURL);
+            testCaseCount = checkValueList.size();
         } catch (Exception e) {
             Debug.logError(e, "Error getting test case count", module);
         }
@@ -72,7 +70,7 @@ public class EntityXmlAssertTest extends OFBizTestCase {
 
         try {
             URL entityXmlURL = FlexibleLocation.resolveLocation(entityXmlUrlString);
-            List<Object> errorMessages = new LinkedList<Object>();
+            List<Object> errorMessages = FastList.newInstance();
 
             if ("assert".equals(this.action)) {
                 EntityDataAssert.assertData(entityXmlURL, delegator, errorMessages);

@@ -21,13 +21,13 @@ under the License.
 <head>
 </head>
 <body>
-  <div>${uiLabelMap.SecurityExtThisEmailIsInResponseToYourRequestToHave} <#if useEncryption>${uiLabelMap.SecurityExtANew}<#else>${uiLabelMap.SecurityExtYour}</#if> ${uiLabelMap.SecurityExtPasswordSentToYou}.</div>
+  <div>${uiLabelMap.EcommerceThisEmailIsInResponseToYourRequestToHave} <#if useEncryption>${uiLabelMap.EcommerceANew}<#else>${uiLabelMap.EcommerceYour}</#if> ${uiLabelMap.EcommercePasswordSentToYou}.</div>
   <br />
   <div>
       <#if useEncryption>
-          ${uiLabelMap.SecurityExtNewPasswordMssgEncryptionOn}
+          ${uiLabelMap.EcommerceNewPasswordMssgEncryptionOn}
       <#else>
-          ${uiLabelMap.SecurityExtNewPasswordMssgEncryptionOff}
+          ${uiLabelMap.EcommerceNewPasswordMssgEncryptionOff}
       </#if>
       "${password}"
   </div>

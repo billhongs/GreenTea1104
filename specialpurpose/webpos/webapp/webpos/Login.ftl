@@ -17,11 +17,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#if requestAttributes.uiLabelMap??>
+<#if requestAttributes.uiLabelMap?exists>
   <#assign uiLabelMap = requestAttributes.uiLabelMap>
 </#if>
 
-<#assign previousParams = sessionAttributes._PREVIOUS_PARAMS_!>
+<#assign previousParams = sessionAttributes._PREVIOUS_PARAMS_?if_exists>
 <#if previousParams?has_content>
   <#assign previousParams = "?" + previousParams>
 </#if>
@@ -38,7 +38,7 @@ under the License.
       <h3>${uiLabelMap.CommonRegistered}</h3>
     </div>
     <div class="screenlet-body">
-      <form method="post" action="<@ofbizUrl>Login${previousParams!}</@ofbizUrl>" name="loginform">
+      <form method="post" action="<@ofbizUrl>Login${previousParams?if_exists}</@ofbizUrl>" name="loginform">
         <table class="basic-table" cellspacing="0">
           <tr>
             <td class="label">${uiLabelMap.CommonUsername}</td>
@@ -65,8 +65,6 @@ under the License.
           </tr>
         </table>
         <input type="hidden" name="JavaScriptEnabled" value="N"/>
-        <br/>
-        <a href="<@ofbizUrl>forgotPassword</@ofbizUrl>">${uiLabelMap.CommonForgotYourPassword}?</a>
       </form>
     </div>
   </div>

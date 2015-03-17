@@ -27,16 +27,16 @@ returnId = request.getParameter("returnId");
 
 facility = null;
 if (facilityId) {
-    facility = from("Facility").where("facilityId", facilityId).queryOne();
+    facility = delegator.findOne("Facility", [facilityId : facilityId], false);
 }
 
 returnHeader = null;
 returnItems = null;
 if (returnId) {
-    returnHeader = from("ReturnHeader").where("returnId", returnId).queryOne();
+    returnHeader = delegator.findOne("ReturnHeader", [returnId : returnId], false);
     if (returnHeader) {
         if ("RETURN_ACCEPTED".equals(returnHeader.statusId)) {
-            returnItems = returnHeader.getRelated("ReturnItem", null, null, false);
+            returnItems = returnHeader.getRelated("ReturnItem");
         } else if ("RETURN_REQUESTED".equals(returnHeader.statusId)) {
             uiLabelMap = UtilProperties.getResourceBundleMap("ProductErrorUiLabels", locale);
             ProductReturnRequestedOK = uiLabelMap.ProductReturnRequestedOK;
@@ -55,7 +55,7 @@ if (returnItems) {
     context.returnItemsSize = returnItems.size();
     returnItems.each { thisItem ->
         totalReceived = 0.0;
-        receipts = thisItem.getRelated("ShipmentReceipt", null, null, false);
+        receipts = thisItem.getRelated("ShipmentReceipt");
         if (receipts) {
             receipts.each { rec ->
                 accepted = rec.getDouble("quantityAccepted");
@@ -71,14 +71,14 @@ if (returnItems) {
 }
 
 if (returnHeader) {
-    context.receivedItems = from("ShipmentReceipt").where("returnId", returnId).queryList();
+    context.receivedItems = delegator.findList("ShipmentReceipt", EntityCondition.makeCondition("returnId", returnId), null, null, null, false);
 }
 
 // facilities
-facilities = from("Facility").queryList();
+facilities = delegator.findList("Facility", null, null, null, null, false);
 
 //all possible inventory item types
-inventoryItemTypes = from("InventoryItemType").orderBy("description").cache(true).queryList();
+inventoryItemTypes = delegator.findList("InventoryItemType", null, null, ['description'], null, true);
 
 context.facilityId = facilityId;
 context.facility = facility;

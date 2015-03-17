@@ -18,90 +18,80 @@
  *******************************************************************************/
 package org.ofbiz.minilang.method.entityops;
 
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
-import org.ofbiz.entity.Delegator;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangValidate;
+import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
+import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;sequenced-id&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Csequencedid%3E}}">Mini-language Reference</a>
+ * Gets a sequenced ID from the delegator and puts it in the env
  */
-public final class SequencedIdToEnv extends EntityOperation {
-
-    private final FlexibleMapAccessor<Object> fieldFma;
-    private final boolean getLongOnly;
-    private final FlexibleStringExpander sequenceNameFse;
-    private final long staggerMax;
-
-    public SequencedIdToEnv(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-        super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "sequence-name", "field", "get-long-only", "stagger-max", "delegator-name");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "sequence-name", "field");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "field", "delegator-name");
-            MiniLangValidate.noChildElements(simpleMethod, element);
+public class SequencedIdToEnv extends MethodOperation {
+    public static final class SequencedIdToEnvFactory implements Factory<SequencedIdToEnv> {
+        public SequencedIdToEnv createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new SequencedIdToEnv(element, simpleMethod);
         }
-        sequenceNameFse = FlexibleStringExpander.getInstance(element.getAttribute("sequence-name"));
-        fieldFma = FlexibleMapAccessor.getInstance(element.getAttribute("field"));
+
+        public String getName() {
+            return "sequenced-id-to-env";
+        }
+    }
+    public static final class SequencedIdFactory implements Factory<SequencedIdToEnv> {
+        public SequencedIdToEnv createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new SequencedIdToEnv(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "sequenced-id";
+        }
+    }
+
+
+    String seqName;
+    ContextAccessor<Object> envAcsr;
+    boolean getLongOnly;
+    long staggerMax = 1;
+
+    public SequencedIdToEnv(Element element, SimpleMethod simpleMethod) {
+        super(element, simpleMethod);
+        seqName = element.getAttribute("sequence-name");
+        envAcsr = new ContextAccessor<Object>(element.getAttribute("field"), element.getAttribute("env-name"));
+        // default false, anything but true is false
         getLongOnly = "true".equals(element.getAttribute("get-long-only"));
-        long staggerMax = 1;
-        String staggerMaxAttribute = element.getAttribute("stagger-max");
-        if (!staggerMaxAttribute.isEmpty()) {
+        String staggerMaxStr = element.getAttribute("stagger-max");
+        if (UtilValidate.isNotEmpty(staggerMaxStr)) {
             try {
-                staggerMax = Long.parseLong(staggerMaxAttribute);
-                if (staggerMax < 1) {
-                    staggerMax = 1;
+                this.staggerMax = Long.parseLong(staggerMaxStr);
+                if (this.staggerMax < 1) {
+                    this.staggerMax = 1;
                 }
             } catch (NumberFormatException e) {
-                MiniLangValidate.handleError("Invalid stagger-max attribute value: " + e.getMessage(), simpleMethod, element);
+                this.staggerMax = 1;
             }
         }
-        this.staggerMax = staggerMax;
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        String seqName = sequenceNameFse.expandString(methodContext.getEnvMap());
-        Delegator delegator = getDelegator(methodContext);
+    public boolean exec(MethodContext methodContext) {
+        String seqName = methodContext.expandString(this.seqName);
         if (getLongOnly) {
-            fieldFma.put(methodContext.getEnvMap(), delegator.getNextSeqIdLong(seqName, staggerMax));
+            envAcsr.put(methodContext, methodContext.getDelegator().getNextSeqIdLong(seqName, staggerMax));
         } else {
-            fieldFma.put(methodContext.getEnvMap(), delegator.getNextSeqId(seqName, staggerMax));
+            envAcsr.put(methodContext, methodContext.getDelegator().getNextSeqId(seqName, staggerMax));
         }
         return true;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<sequenced-id ");
-        sb.append("sequence-name=\"").append(this.sequenceNameFse).append("\" ");
-        sb.append("field=\"").append(this.fieldFma).append("\" ");
-        sb.append("stagger-max=\"").append(this.staggerMax).append("\" ");
-        if (this.getLongOnly) {
-            sb.append("get-long-only=\"true\" ");
-        }
-        sb.append("/>");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<sequenced-id-to-env/>";
     }
-
-    /**
-     * A factory for the &lt;sequenced-id&gt; element.
-     */
-    public static final class SequencedIdFactory implements Factory<SequencedIdToEnv> {
-        @Override
-        public SequencedIdToEnv createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new SequencedIdToEnv(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "sequenced-id";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

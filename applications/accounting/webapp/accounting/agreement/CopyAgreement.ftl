@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#if agreement??>
+<#if agreement?exists>
 <div class="screenlet">
   <div class="screenlet-title-bar">
     <ul>
@@ -32,7 +32,6 @@ under the License.
             ${uiLabelMap.AccountingAgreementTerms}&nbsp;<input type="checkbox" name="copyAgreementTerms" value="Y" checked="checked" />
             ${uiLabelMap.ProductProducts}&nbsp;<input type="checkbox" name="copyAgreementProducts" value="Y" checked="checked" />
             ${uiLabelMap.Party}&nbsp;<input type="checkbox" name="copyAgreementParties" value="Y" checked="checked" />
-            ${uiLabelMap.ProductFacilities}&nbsp;<input type="checkbox" name="copyAgreementFacilities" value="Y" checked="checked" />
         </div>
         <div class="button-bar">
             <input type="submit" value="${uiLabelMap.CommonCopy}"/>

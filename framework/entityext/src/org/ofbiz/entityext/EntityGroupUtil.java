@@ -18,11 +18,12 @@
  *******************************************************************************/
 package org.ofbiz.entityext;
 
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+
+import javolution.util.FastList;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.Delegator;
@@ -30,7 +31,6 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelViewEntity;
-import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * EntityEcaUtil
@@ -40,9 +40,10 @@ public class EntityGroupUtil {
     public static final String module = EntityGroupUtil.class.getName();
 
     public static Set<String> getEntityNamesByGroup(String entityGroupId, Delegator delegator, boolean requireStampFields) throws GenericEntityException {
-        Set<String> entityNames = new HashSet<String>();
+        Set<String> entityNames = FastSet.newInstance();
 
-        List<GenericValue> entitySyncGroupIncludes = EntityQuery.use(delegator).from("EntityGroupEntry").where("entityGroupId", entityGroupId).queryList();
+        List<GenericValue> entitySyncGroupIncludes = delegator.findByAnd("EntityGroupEntry", UtilMisc.toMap("entityGroupId", entityGroupId));
+
         List<ModelEntity> modelEntities = getModelEntitiesFromRecords(entitySyncGroupIncludes, delegator, requireStampFields);
         for (ModelEntity modelEntity: modelEntities) {
             entityNames.add(modelEntity.getEntityName());
@@ -52,7 +53,7 @@ public class EntityGroupUtil {
     }
 
     public static List<ModelEntity> getModelEntitiesFromRecords(List<GenericValue> entityGroupEntryValues, Delegator delegator, boolean requireStampFields) throws GenericEntityException {
-        List<ModelEntity> entityModelToUseList = new LinkedList<ModelEntity>();
+        List<ModelEntity> entityModelToUseList = FastList.newInstance();
 
         for (String entityName: delegator.getModelReader().getEntityNames()) {
             ModelEntity modelEntity = delegator.getModelEntity(entityName);

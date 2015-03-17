@@ -18,18 +18,19 @@
  */
 
 import org.ofbiz.base.util.*;
-import org.ofbiz.base.util.template.FreeMarkerWorker;
 import org.ofbiz.entity.*;
 import org.ofbiz.security.*;
 import org.ofbiz.service.*;
 import org.ofbiz.entity.model.*;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
+import org.ofbiz.widget.form.*;
 import org.ofbiz.content.data.DataResourceWorker;
 import org.ofbiz.webapp.ftl.FreeMarkerViewHandler;
 import org.ofbiz.content.content.ContentWorker;
 import org.ofbiz.content.ContentManagementWorker;
 
 import java.io.StringWriter;
+import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.SimpleHash;
 import freemarker.template.WrappingTemplateModel;
 
@@ -60,7 +61,7 @@ if (!contentId && currentValue) {
     contentId = currentValue.contentId;
 }
 if (contentId && !currentValue) {
-    currentValue = from("Content").where("contentId", contentId).cache(true).queryOne();
+    currentValue = delegator.findByPrimaryKeyCache("Content", [contentId : contentId]);
 }
 //Debug.logInfo("in contentprep, currentValue(1):" + currentValue, "");
 //Debug.logInfo("in contentprep, contentId(4):" + contentId, "");
@@ -74,7 +75,7 @@ if (currentValue) {
 
     mimeTypeId =  currentValue.mimeTypeId;
     rootDir = request.getSession().getServletContext().getRealPath("/");
-    wrapper = FreeMarkerWorker.getDefaultOfbizWrapper();
+    wrapper = BeansWrapper.getDefaultInstance();
     WrappingTemplateModel.setDefaultObjectWrapper(wrapper);
     //templateRoot = new SimpleHash(wrapper);
     templateRoot = [:];

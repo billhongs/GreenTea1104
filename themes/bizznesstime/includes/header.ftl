@@ -16,8 +16,8 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#if (requestAttributes.person)??><#assign person = requestAttributes.person></#if>
-<#if (requestAttributes.partyGroup)??><#assign partyGroup = requestAttributes.partyGroup></#if>
+<#if (requestAttributes.person)?exists><#assign person = requestAttributes.person></#if>
+<#if (requestAttributes.partyGroup)?exists><#assign partyGroup = requestAttributes.partyGroup></#if>
 <#assign docLangAttr = locale.toString()?replace("_", "-")>
 <#assign langDir = "ltr">
 <#if "ar.iw"?contains(docLangAttr?substring(0, 2))>
@@ -34,7 +34,7 @@ under the License.
     <meta http-equiv="expires" content="0" />
     <meta http-equiv="imagetoolbar" content="false" />
 
-    <title>${layoutSettings.companyName}: <#if (page.titleProperty)?has_content>${uiLabelMap[page.titleProperty]}<#else>${(page.title)!}</#if></title>
+    <title>${layoutSettings.companyName}: <#if (page.titleProperty)?has_content>${uiLabelMap[page.titleProperty]}<#else>${(page.title)?if_exists}</#if></title>
 
     <meta name="robots" content="index, follow" />
     <meta name="googlebot" content="index,follow" />
@@ -78,7 +78,7 @@ under the License.
             <link rel="stylesheet" href="<@ofbizContentUrl>${StringUtil.wrapString(styleSheet)}</@ofbizContentUrl>" media="screen,projection" type="text/css" charset="UTF-8"/>
         </#list>
     </#if>
-    ${layoutSettings.extraHead!}
+    ${layoutSettings.extraHead?if_exists}
     <#if layoutSettings.VT_EXTRA_HEAD?has_content>
         <#list layoutSettings.VT_EXTRA_HEAD as extraHead>
             ${extraHead}
@@ -99,31 +99,14 @@ under the License.
             <script src="<@ofbizContentUrl>${StringUtil.wrapString(javaScript)}</@ofbizContentUrl>" type="text/javascript"></script>
         </#list>
     </#if>
-    <#if layoutSettings.WEB_ANALYTICS?has_content>
-      <script language="JavaScript" type="text/javascript">
-        <#list layoutSettings.WEB_ANALYTICS as webAnalyticsConfig>
-          ${StringUtil.wrapString(webAnalyticsConfig.webAnalyticsCode!)}
-        </#list>
-      </script>
-    </#if>
 </head>
-<#if layoutSettings.headerImageLinkUrl??>
-  <#assign logoLinkURL = "${layoutSettings.headerImageLinkUrl}">
-<#else>
-  <#assign logoLinkURL = "${layoutSettings.commonHeaderImageLinkUrl}">
-</#if>
-<#assign organizationLogoLinkURL = "${layoutSettings.organizationLogoLinkUrl!}">
 <body>
 <div id="wrap">
   <div id="wait-spinner" style="display:none">
     <div id="wait-spinner-image"></div>
   </div>
   <div id="header">
-    <#if organizationLogoLinkURL?has_content>
-        <div id="org-logo-area"><a href="<@ofbizUrl>${logoLinkURL}</@ofbizUrl>"><img alt="${layoutSettings.companyName}" src="<@ofbizContentUrl>${StringUtil.wrapString(organizationLogoLinkURL)}</@ofbizContentUrl>" height="43px"></a></div>
-        <#else>
-        <div id="logo"></div>
-    </#if>
+    <div id="logo"></div>
     <div id="shelf"></div>
     <div id="controls">
             <span id="prefBtn">
@@ -136,26 +119,24 @@ under the License.
             </span>
             <span>
             <#if person?has_content>
-              ${uiLabelMap.CommonWelcome},  ${person.firstName!} ${person.lastName!} ( ${userLogin.userLoginId} )
+              ${uiLabelMap.CommonWelcome},  ${person.firstName?if_exists} ${person.lastName?if_exists} ( ${userLogin.userLoginId} )
             <#elseif partyGroup?has_content>
-              ${uiLabelMap.CommonWelcome},  ${partyGroup.groupName!} ( ${userLogin.userLoginId} )
+              ${uiLabelMap.CommonWelcome},  ${partyGroup.groupName?if_exists} ( ${userLogin.userLoginId} )
             <#else>
               ${uiLabelMap.CommonWelcome}
             </#if>
             </span>
             <span><a href="<@ofbizUrl>logout</@ofbizUrl>">${uiLabelMap.CommonLogout}</a></span>
-            
-            <#--if webSiteId?? && requestAttributes._CURRENT_VIEW_?? && helpTopic??-->
-            <#if parameters.componentName?? && requestAttributes._CURRENT_VIEW_?? && helpTopic??>
+            <#if webSiteId?exists && requestAttributes._CURRENT_VIEW_?exists && helpTopic?exists>
               <#include "component://common/webcommon/includes/helplink.ftl" />
-              <span><a href="javascript:lookup_popup1('showHelp?helpTopic=${helpTopic}&amp;portalPageId=${parameters.portalPageId!}','help' ,500,500);">${uiLabelMap.CommonHelp}</a></span>
+              <span><a href="javascript:lookup_popup2('showHelp?helpTopic=${helpTopic}&amp;portalPageId=${parameters.portalPageId?if_exists}','help' ,500,500);">${uiLabelMap.CommonHelp}</a></span>
            </#if>
            <#if layoutSettings.middleTopMessage1?has_content && layoutSettings.middleTopMessage1 != " ">
              <span id="last-system-msg">
-               <center>${layoutSettings.middleTopHeader!}</center>
-               <a href="${layoutSettings.middleTopLink1!}">${layoutSettings.middleTopMessage1!}</a><br/>
-               <a href="${layoutSettings.middleTopLink2!}">${layoutSettings.middleTopMessage2!}</a><br/>
-               <a href="${layoutSettings.middleTopLink3!}">${layoutSettings.middleTopMessage3!}</a>
+               <center>${layoutSettings.middleTopHeader?if_exists}</center>
+               <a href="${layoutSettings.middleTopLink1?if_exists}">${layoutSettings.middleTopMessage1?if_exists}</a><br/>
+               <a href="${layoutSettings.middleTopLink2?if_exists}">${layoutSettings.middleTopMessage2?if_exists}</a><br/>
+               <a href="${layoutSettings.middleTopLink3?if_exists}">${layoutSettings.middleTopMessage3?if_exists}</a>
              </span>
            </#if>
     </div>

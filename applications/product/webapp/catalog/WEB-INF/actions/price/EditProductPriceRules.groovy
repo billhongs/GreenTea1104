@@ -21,9 +21,9 @@ import org.ofbiz.entity.condition.*
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.base.util.UtilMisc;
 
-context.inputParamEnums = from("Enumeration").where("enumTypeId", "PROD_PRICE_IN_PARAM").orderBy("sequenceId").cache(true).queryList();
-context.condOperEnums = from("Enumeration").where("enumTypeId", "PROD_PRICE_COND").orderBy("sequenceId").cache(true).queryList();
-context.productPriceActionTypes = from("ProductPriceActionType").orderBy("description").cache(true).queryList();
+context.inputParamEnums = delegator.findList("Enumeration", EntityCondition.makeCondition([enumTypeId : 'PROD_PRICE_IN_PARAM']), null, ['sequenceId'], null, true);
+context.condOperEnums = delegator.findList("Enumeration", EntityCondition.makeCondition([enumTypeId : 'PROD_PRICE_COND']), null, ['sequenceId'], null, true);
+context.productPriceActionTypes = delegator.findList("ProductPriceActionType", null, null, ['description'], null, true);
 
 String priceRuleId = request.getParameter("productPriceRuleId");
 
@@ -33,9 +33,11 @@ if (!priceRuleId) {
 
 if (priceRuleId) {
     productPriceRules = [];
-    productPriceRules.add(from("ProductPriceRule").where("productPriceRuleId", priceRuleId).queryOne());
-    productPriceConds = productPriceRules[0].getRelated("ProductPriceCond", null, ["productPriceCondSeqId"], true);
-    productPriceActions = productPriceRules[0].getRelated("ProductPriceAction", null, ["productPriceActionSeqId"], true);
+    productPriceRules.add(delegator.findOne("ProductPriceRule", [productPriceRuleId : priceRuleId], false));
+    productPriceConds = productPriceRules[0].getRelatedCache("ProductPriceCond");
+    productPriceConds = EntityUtil.orderBy(productPriceConds, UtilMisc.toList("productPriceCondSeqId"));
+    productPriceActions = productPriceRules[0].getRelatedCache("ProductPriceAction");
+    productPriceActions = EntityUtil.orderBy(productPriceActions, UtilMisc.toList("productPriceActionSeqId"));
     
     productPriceCondAdd = [];
     productPriceCondAdd.add(delegator.makeValue("ProductPriceCond"));

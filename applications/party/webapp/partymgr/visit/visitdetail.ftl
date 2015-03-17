@@ -29,7 +29,7 @@ under the License.
       <table class="basic-table" cellspacing="0">
         <tr>
           <td class="label">${uiLabelMap.PartyVisitIDSessionID}</td>
-          <td>${visit.visitId!} / ${visit.sessionId!}</td>
+          <td>${visit.visitId?if_exists} / ${visit.sessionId?if_exists}</td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyVisitorId}</td>
@@ -37,51 +37,51 @@ under the License.
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyPartyIDUserLoginID}</td>
-          <td><a href="<@ofbizUrl>viewprofile?partyId=${visit.partyId!}</@ofbizUrl>">${visit.partyId!}</a> / <a href="<@ofbizUrl>viewprofile?partyId=${visit.partyId!}</@ofbizUrl>">${visit.userLoginId!}</a></td>
+          <td><a href="<@ofbizUrl>viewprofile?partyId=${visit.partyId?if_exists}</@ofbizUrl>">${visit.partyId?if_exists}</a> / <a href="<@ofbizUrl>viewprofile?partyId=${visit.partyId?if_exists}</@ofbizUrl>">${visit.userLoginId?if_exists}</a></td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyUserCreated}</td>
-          <td>${visit.userCreated!}</td>
+          <td>${visit.userCreated?if_exists}</td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyWebApp}</td>
-          <td>${visit.webappName!}</td>
+          <td>${visit.webappName?if_exists}</td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyServer}</td>
-          <td><a href="http://uptime.netcraft.com/up/graph/?site=${visit.serverIpAddress!}" target="_blank">${visit.serverIpAddress!}</a> / <a href="http://uptime.netcraft.com/up/graph/?site=${visit.serverIpAddress!}" target="_blank">${visit.serverHostName!}</a></td>
+          <td><a href="http://uptime.netcraft.com/up/graph/?site=${visit.serverIpAddress?if_exists}" target="_blank">${visit.serverIpAddress?if_exists}</a> / <a href="http://uptime.netcraft.com/up/graph/?site=${visit.serverIpAddress?if_exists}" target="_blank">${visit.serverHostName?if_exists}</a></td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyClient}</td>
-          <td><a href="http://ws.arin.net/cgi-bin/whois.pl?queryinput=${visit.clientIpAddress!}" target="_blank">${visit.clientIpAddress!}</a> / <a href="http://www.networksolutions.com/cgi-bin/whois/whois?STRING=${visit.clientHostName!}&amp;SearchType=do" target="_blank">${visit.clientHostName!}</a></td>
+          <td><a href="http://ws.arin.net/cgi-bin/whois.pl?queryinput=${visit.clientIpAddress?if_exists}" target="_blank">${visit.clientIpAddress?if_exists}</a> / <a href="http://www.networksolutions.com/cgi-bin/whois/whois?STRING=${visit.clientHostName?if_exists}&amp;SearchType=do" target="_blank">${visit.clientHostName?if_exists}</a></td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyClientUser}</td>
-          <td>${visit.clientUser!}</td>
+          <td>${visit.clientUser?if_exists}</td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyInitialLocale}</td>
-          <td>${visit.initialLocale!}</td>
+          <td>${visit.initialLocale?if_exists}</td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyInitialRequest}</td>
-          <td><a href="${visit.initialRequest!}" >${visit.initialRequest!}</a></td>
+          <td><a href="${visit.initialRequest?if_exists}" >${visit.initialRequest?if_exists}</a></td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyInitialReferer}</td>
-          <td><a href="${visit.initialReferrer!}" >${visit.initialReferrer!}</a></td>
+          <td><a href="${visit.initialReferrer?if_exists}" >${visit.initialReferrer?if_exists}</a></td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyInitialUserAgent}</td>
-          <td>${visit.initialUserAgent!}</td>
+          <td>${visit.initialUserAgent?if_exists}</td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyCookie}</td>
-          <td>${visit.cookie!}</td>
+          <td>${visit.cookie?if_exists}</td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.CommonFromDateThruDate}</td>
-          <td>${(visit.fromDate?string)!} / ${(visit.thruDate?string)?default(uiLabelMap.PartyStillActive)}</td>
+          <td>${(visit.fromDate?string)?if_exists} / ${(visit.thruDate?string)?default(uiLabelMap.PartyStillActive)}</td>
         </tr>
       </table>
   </div>
@@ -123,22 +123,22 @@ under the License.
         <#assign alt_row = false>
         <#if serverHits?has_content>
         <#list serverHits[lowIndex..highIndex-1] as hit>
-          <#assign serverHitType = hit.getRelatedOne("ServerHitType", false)!>
+          <#assign serverHitType = hit.getRelatedOne("ServerHitType")?if_exists>
           <tr<#if alt_row> class="alternate-row"</#if>>
-            <td>${hit.contentId!}</td>
-            <td>${serverHitType.get("description",locale)!}</td>
+            <td>${hit.contentId?if_exists}</td>
+            <td>${serverHitType.get("description",locale)?if_exists}</td>
             <td>&nbsp;&nbsp;${hit.numOfBytes?default("?")}</td>
-            <td>${hit.hitStartDateTime?string!}</td>
-            <td>${hit.runningTimeMillis!}</td>
+            <td>${hit.hitStartDateTime?string?if_exists}</td>
+            <td>${hit.runningTimeMillis?if_exists}</td>
             <td>
-              <#assign url = (hit.requestUrl)!>
-              <#if url??>
+              <#assign url = (hit.requestUrl)?if_exists>
+              <#if url?exists>
                 <#assign len = url?length>
                 <#if 45 < len>
                   <#assign url = url[0..45] + "...">
                 </#if>
               </#if>
-              <a href="${hit.requestUrl!}" target="_blank">${url}</a>
+              <a href="${hit.requestUrl?if_exists}" target="_blank">${url}</a>
             </td>
           </tr>
           <#-- toggle the row color -->
@@ -168,19 +168,13 @@ under the License.
       </#if>
   </div>
 </div>
-
-<!--
-*******************************************************************************
-JIRA OFBIZ-4488: BEGIN
-https://issues.apache.org/jira/browse/OFBIZ-4488
-*******************************************************************************
 <div class="screenlet">
   <div class="screenlet-title-bar">
     <ul>
       <li class="h3">${uiLabelMap.PartyPagePushFollowing}</li>
     </ul>
     <br class="clear"/>
-  </div>  
+  </div>
   <div class="screenlet-body">
       <#if security.hasPermission("SEND_CONTROL_APPLET", session)>
         <table class="basic-table" cellspacing="0">
@@ -213,8 +207,3 @@ https://issues.apache.org/jira/browse/OFBIZ-4488
       </#if>
   </div>
 </div>
-*******************************************************************************
-JIRA OFBIZ-4488: END
-*******************************************************************************
--->
-

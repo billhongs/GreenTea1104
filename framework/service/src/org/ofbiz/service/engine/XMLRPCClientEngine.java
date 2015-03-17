@@ -20,14 +20,14 @@ package org.ofbiz.service.engine;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javolution.util.FastMap;
 
 import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 import org.ofbiz.base.config.GenericConfigException;
-import org.ofbiz.base.start.Start;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilMisc;
@@ -90,12 +90,6 @@ public class XMLRPCClientEngine extends GenericAsyncEngine {
         String keyAlias  = null;
         try {
             url = ServiceConfigUtil.getEngineParameter(engine, "url");
-            if (Start.getInstance().getConfig().portOffset != 0) {
-                String s = url.substring(url.lastIndexOf(":") + 1);
-                Integer rpcPort = Integer.valueOf(s.substring(0, s.indexOf("/")));
-                Integer port = rpcPort + Start.getInstance().getConfig().portOffset;
-                url = url.replace(rpcPort.toString(), port.toString());
-            }
             login = ServiceConfigUtil.getEngineParameter(engine, "login");
             password = ServiceConfigUtil.getEngineParameter(engine, "password");
             keyStoreComponent = ServiceConfigUtil.getEngineParameter(engine, "keyStoreComponent");
@@ -127,7 +121,7 @@ public class XMLRPCClientEngine extends GenericAsyncEngine {
         }
 
         Map<String, Object> result = null;
-        Map<String, Object> params = new HashMap<String, Object>();
+        Map<String, Object> params = FastMap.newInstance();
         for (ModelParam modelParam: modelService.getModelParamList()) {
             // don't include OUT parameters in this list, only IN and INOUT
             if ("OUT".equals(modelParam.mode) || modelParam.internal) continue;

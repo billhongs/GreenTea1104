@@ -60,7 +60,6 @@ under the License.
     <eca service="changeOrderItemStatus" event="commit">
         <condition field-name="statusId" operator="equals" value="ITEM_CANCELLED"/>
         <action service="cancelOrderInventoryReservation" mode="sync"/>
-        <action service="cancleOrderItemGroupOrder" mode="sync"/>
         <action service="recalcShippingTotal" mode="sync"/>
         <action service="recalcTaxTotal" mode="sync"/>
         <action service="resetGrandTotal" mode="sync"/>
@@ -88,27 +87,15 @@ under the License.
         <action service="releaseOrderPayments" mode="sync"/>
         <action service="processRefundReturnForReplacement" mode="sync"/>
     </eca>
-    <eca service="changeOrderStatus" event="global-commit-post-run" run-on-error="false">
+    <eca service="changeOrderStatus" event="global-commit" run-on-error="false">
         <condition field-name="statusId" operator="equals" value="ORDER_COMPLETED"/>
         <condition-field field-name="statusId" operator="not-equals" to-field-name="oldStatusId"/>
-        <action service="createInvoiceFromOrder" mode="sync"/>
         <action service="resetGrandTotal" mode="sync"/>
         <action service="sendOrderCompleteNotification" mode="async" persist="true"/>
-        <action service="createReturnItemForRental" mode="sync"/>
     </eca>
-    
-    <!-- create payment from purchase order when approved (can be disabled by accountingConfig)-->
     <eca service="changeOrderStatus" event="commit" run-on-error="false">
         <condition field-name="orderTypeId" operator="equals" value="PURCHASE_ORDER"/>
         <condition field-name="statusId" operator="equals" value="ORDER_APPROVED"/>
-        <condition-field field-name="statusId" operator="not-equals" to-field-name="oldStatusId"/>
-        <action service="createPaymentFromOrder" mode="sync" persist="true"/>
-    </eca>
-
-    <!-- create payment from sales order when completed and not created yet (can be disabled by accountingConfig) -->
-    <eca service="changeOrderStatus" event="commit" run-on-error="false">
-        <condition field-name="orderTypeId" operator="equals" value="SALES_ORDER"/>
-        <condition field-name="statusId" operator="equals" value="ORDER_COMPLETED"/>
         <condition-field field-name="statusId" operator="not-equals" to-field-name="oldStatusId"/>
         <action service="createPaymentFromOrder" mode="sync" persist="true"/>
     </eca>
@@ -236,7 +223,7 @@ under the License.
         <action service="processCreditReturn" mode="sync"/>
         <action service="processRefundOnlyReturn" mode="sync"/>
     </eca>
-    <eca service="updateReturnStatusFromReceipt" event="global-commit-post-run">
+    <eca service="updateReturnStatusFromReceipt" event="global-commit">
         <condition field-name="returnHeaderStatus" operator="equals" value="RETURN_RECEIVED"/>
         <action service="addProductsBackToCategory" mode="sync"/>
         <action service="processWaitReplacementReturn" mode="sync"/>
@@ -325,17 +312,6 @@ under the License.
         <condition field-name="custRequestId" operator="is-not-empty"/>
         <action service="updateCommunicationEvent" mode="sync"/>
     </eca>
-    
-    <!-- send a system note to all Customer request participants (excluding the originator) 
-        when a note is added to a particular customer request.-->
-    <eca service="createCustRequestItemNote" event="commit">
-        <set field-name="noteParty" env-name="partyId"/>
-        <set field-name="noteInfo" value="A note has been added to customer request"/>
-        <set field-name="moreInfoItemName" value="custRequestId"/>
-        <set field-name="moreInfoItemId" env-name="custRequestId"/>
-        <set field-name="moreInfoUrl" value="/ordermgr/control/ViewRequest"/>
-        <action service="createSystemInfoNote" mode="sync"/>
-    </eca>
 
     <!-- Requirement / CustRequestItem association event -->
     <eca service="createRequirement" event="commit">
@@ -384,7 +360,6 @@ under the License.
         <condition field-name="oldStatusId" operator="not-equals" value="CRQ_ACCEPTED"/>
         <condition field-name="oldStatusId" operator="not-equals" value="CRQ_PENDING"/>
         <condition field-name="statusId" operator="equals" value="CRQ_ACCEPTED"/>
-        <condition field-name="webSiteId" operator="equals" value="OrderEntry"/>
         <set field-name="bodyParameters.custRequestId" env-name="custRequestId"/>
         <set field-name="bodyParameters.custRequestName" env-name="custRequestName"/>
         <set field-name="partyIdTo" env-name="fromPartyId"/>
@@ -395,7 +370,6 @@ under the License.
     <eca service="setCustRequestStatus" event="commit">
         <condition field-name="oldStatusId" operator="not-equals" value="CRQ_COMPLETED"/>
         <condition field-name="statusId" operator="equals" value="CRQ_COMPLETED"/>
-        <condition field-name="webSiteId" operator="equals" value="OrderEntry"/>
         <set field-name="bodyParameters.custRequestId" env-name="custRequestId"/>
         <set field-name="partyIdTo" env-name="fromPartyId"/>
         <set field-name="emailTemplateSettingId" value="CUST_REQ_COMPLETED"/>
@@ -436,19 +410,20 @@ under the License.
         <action service="createReturnStatus" mode="sync"/>
     </eca>
     
+    <!-- fact entities -->
+    <!-- Load data into the SalesOrderItemFact olap entity when a sales order is set to ready -->
+    <eca service="setOrderStatus" event="commit">
+        <condition field-name="statusId" operator="equals" value="ITEM_APPROVED"/>
+        <condition-field field-name="statusId" operator="not-equals" to-field-name="oldStatusId"/>
+        <action service="loadSalesOrderFact" mode="sync" run-as-user="system"/>
+    </eca>
     <eca service="createUpdateCustomerAndShippingAddress" event="invoke">
         <action service="setAnonUserLogin" mode="sync"/>
     </eca>
-
+    
     <!-- Use for link the payment and the invoice When Received Payment -->
     <eca service="createPaymentFromPreference" event="commit">
         <condition field-name="paymentId" operator="is-not-empty"/>
         <action service="createOrderPaymentApplication" mode="sync"/>
-    </eca>
-
-    <!-- Group Buying -->
-    <eca service="storeOrder" event="commit">
-        <condition field-name="orderTypeId" operator="equals" value="SALES_ORDER"/>
-        <action service="checkOrderItemForProductGroupOrder" mode="sync"/>
     </eca>
 </service-eca>

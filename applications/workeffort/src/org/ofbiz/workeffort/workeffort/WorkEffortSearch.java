@@ -40,6 +40,7 @@ import org.ofbiz.common.KeywordSearchUtil;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.condition.EntityComparisonOperator;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityConditionList;
 import org.ofbiz.entity.condition.EntityExpr;
@@ -51,8 +52,8 @@ import org.ofbiz.entity.model.ModelViewEntity.ComplexAlias;
 import org.ofbiz.entity.model.ModelViewEntity.ComplexAliasField;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
+import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 
 
@@ -101,7 +102,7 @@ public class WorkEffortSearch {
         // now find all sub-categories, filtered by effective dates, and call this routine for them
         try {
             // Find WorkEffortAssoc, workEffortAssocTypeId=WORK_EFF_BREAKDOWN
-            List<GenericValue> workEffortAssocList = EntityQuery.use(delegator).from("WorkEffortAssoc").where("workEffortIdFrom", workEffortId, "workEffortAssocTypeId", "WORK_EFF_BREAKDOWN").cache(true).queryList();
+            List<GenericValue> workEffortAssocList = delegator.findByAndCache("WorkEffortAssoc", UtilMisc.toMap("workEffortIdFrom", workEffortId, "workEffortAssocTypeId", "WORK_EFF_BREAKDOWN"));
             for (GenericValue workEffortAssoc: workEffortAssocList) {
                 String subWorkEffortId = workEffortAssoc.getString("workEffortIdTo");
                 if (workEffortIdSet.contains(subWorkEffortId)) {
@@ -116,7 +117,8 @@ public class WorkEffortSearch {
             }
 
             // Find WorkEffort where current workEffortId = workEffortParentId; only select minimal fields to keep the size low
-            List<GenericValue> childWorkEffortList = EntityQuery.use(delegator).select("workEffortId", "workEffortParentId").from("WorkEffort").where("workEffortParentId", workEffortId).cache(true).queryList();
+            List<GenericValue> childWorkEffortList = delegator.findList("WorkEffort", EntityCondition.makeCondition("workEffortParentId", EntityComparisonOperator.EQUALS, workEffortId),
+                    UtilMisc.toSet("workEffortId", "workEffortParentId"), null, null, true);
             for (GenericValue childWorkEffort: childWorkEffortList) {
                 String subWorkEffortId = childWorkEffort.getString("workEffortId");
                 if (workEffortIdSet.contains(subWorkEffortId)) {
@@ -303,23 +305,20 @@ public class WorkEffortSearch {
                 resultSortOrder.setSortOrder(this);
             }
             dynamicViewEntity.addAlias("WEFF", "workEffortId", null, null, null, Boolean.valueOf(workEffortIdGroupBy), null);
+            EntityCondition whereCondition = EntityCondition.makeCondition(entityConditionList, EntityOperator.AND);
 
             // Debug.logInfo("WorkEffortSearch, whereCondition = " + whereCondition.toString(), module);
 
+            EntityFindOptions efo = new EntityFindOptions();
+            efo.setDistinct(true);
+            efo.setResultSetType(EntityFindOptions.TYPE_SCROLL_INSENSITIVE);
+            if (maxResults != null) {
+                efo.setMaxRows(maxResults);
+            }
+
             EntityListIterator eli = null;
             try {
-                int maxRows = 0;
-                if (maxResults != null) {
-                    maxRows = maxResults;
-                }
-                eli = EntityQuery.use(delegator).select(UtilMisc.toSet(fieldsToSelect))
-                        .from(dynamicViewEntity)
-                        .where(entityConditionList)
-                        .orderBy(orderByList)
-                        .distinct()
-                        .cursorScrollInsensitive()
-                        .maxRows(maxRows)
-                        .queryIterator();
+                eli = delegator.findListIteratorByCondition(dynamicViewEntity, whereCondition, null, fieldsToSelect, orderByList, efo);
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Error in workEffort search", module);
                 return null;
@@ -484,7 +483,7 @@ public class WorkEffortSearch {
     // ======================================================================
 
     @SuppressWarnings("serial")
-    public static abstract class WorkEffortSearchConstraint implements java.io.Serializable {
+	public static abstract class WorkEffortSearchConstraint implements java.io.Serializable {
         public WorkEffortSearchConstraint() { }
 
         public abstract void addConstraint(WorkEffortSearchContext workEffortSearchContext);
@@ -494,7 +493,7 @@ public class WorkEffortSearch {
 
 
     @SuppressWarnings("serial")
-    public static class WorkEffortAssocConstraint extends WorkEffortSearchConstraint {
+	public static class WorkEffortAssocConstraint extends WorkEffortSearchConstraint {
         public static final String constraintName = "WorkEffortAssoc";
         protected String workEffortId;
         protected String workEffortAssocTypeId;
@@ -579,8 +578,8 @@ public class WorkEffortSearch {
             GenericValue workEffort = null;
             GenericValue workEffortAssocType = null;
             try {
-                workEffort = EntityQuery.use(delegator).from("WorkEffort").where("workEffortId", this.workEffortId).cache().queryOne();
-                workEffortAssocType = EntityQuery.use(delegator).from("WorkEffortAssocType").where("workEffortAssocTypeId", this.workEffortAssocTypeId).cache().queryOne();
+                workEffort = delegator.findByPrimaryKeyCache("WorkEffort", UtilMisc.toMap("workEffortId", this.workEffortId));
+                workEffortAssocType = delegator.findByPrimaryKeyCache("WorkEffortAssocType", UtilMisc.toMap("workEffortAssocTypeId", this.workEffortAssocTypeId));
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Error looking up WorkEffortAssocConstraint pretty print info: " + e.toString(), module);
             }
@@ -739,8 +738,8 @@ public class WorkEffortSearch {
             GenericValue partyNameView = null;
             GenericValue roleType = null;
             try {
-                partyNameView = EntityQuery.use(delegator).from("PartyNameView").where("partyId", partyId).cache().queryOne();
-                roleType = EntityQuery.use(delegator).from("RoleType").where("roleTypeId", roleTypeId).cache().queryOne();
+                partyNameView = delegator.findByPrimaryKeyCache("PartyNameView", UtilMisc.toMap("partyId", partyId));
+                roleType = delegator.findByPrimaryKeyCache("RoleType", UtilMisc.toMap("roleTypeId", roleTypeId));
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Error finding PartyAssignmentConstraint information for constraint pretty print", module);
             }
@@ -810,7 +809,7 @@ public class WorkEffortSearch {
     }
 
     @SuppressWarnings("serial")
-    public static class ProductSetConstraint extends WorkEffortSearchConstraint {
+	public static class ProductSetConstraint extends WorkEffortSearchConstraint {
         public static final String constraintName = "ProductSet";
         protected Set<String> productIdSet;
 
@@ -856,7 +855,7 @@ public class WorkEffortSearch {
                 Iterator<String> productIdIter = this.productIdSet.iterator();
                 while (productIdIter.hasNext()) {
                     String productId = productIdIter.next();
-                    GenericValue product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
+                    GenericValue product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
                     if (product == null) {
                         infoOut.append("[");
                         infoOut.append(productId);

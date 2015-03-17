@@ -17,6 +17,4 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#list logLines as logLine>
-  <div class="${logLine.type}">${logLine.line}</div>
-</#list>
+${logFileContent?if_exists}

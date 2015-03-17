@@ -17,6 +17,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#list forumMessages! as forumMessage>
+<#list forumMessages?if_exists as forumMessage>
     <#include "messageDisplay.ftl">
 </#list>

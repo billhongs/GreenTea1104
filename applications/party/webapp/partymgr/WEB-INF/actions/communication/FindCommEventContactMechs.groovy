@@ -32,10 +32,12 @@ partyIdTo = context.partyIdTo;
 
 if (parameters.communicationEventTypeId) {
    if ("EMAIL_COMMUNICATION".equals(parameters.communicationEventTypeId)) {
-      userEmailAddresses = from("PartyContactWithPurpose").where("contactMechTypeId", "EMAIL_ADDRESS" , "partyId", partyIdFrom).filterByDate(UtilDateTime.nowTimestamp(), "contactFromDate", "contactThruDate").queryList();
+      userEmailAddresses = delegator.findByAnd("PartyContactWithPurpose", [contactMechTypeId : "EMAIL_ADDRESS" , partyId : partyIdFrom]);
+      userEmailAddresses = EntityUtil.filterByDate(userEmailAddresses, UtilDateTime.nowTimestamp(), "contactFromDate", "contactThruDate", true);
       context.userEmailAddresses = userEmailAddresses;
 
-      targetEmailAddresses = from("PartyContactWithPurpose").where("contactMechTypeId", "EMAIL_ADDRESS", "partyId", partyIdTo).filterByDate(UtilDateTime.nowTimestamp(), "contactFromDate", "contactThruDate").queryList();
+      targetEmailAddresses = delegator.findByAnd("PartyContactWithPurpose", [contactMechTypeId : "EMAIL_ADDRESS", partyId : partyIdTo]);
+      targetEmailAddresses = EntityUtil.filterByDate(targetEmailAddresses, UtilDateTime.nowTimestamp(), "contactFromDate", "contactThruDate", true);
       context.targetEmailAddresses = targetEmailAddresses;
    }
 }

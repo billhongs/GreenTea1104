@@ -22,35 +22,26 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-import org.ofbiz.base.component.ComponentConfig;
+import javolution.util.FastList;
+
 import org.ofbiz.base.container.Container;
 import org.ofbiz.base.container.ContainerConfig;
 import org.ofbiz.base.container.ContainerException;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.StringUtil;
-import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilURL;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericEntityException;
-import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.condition.EntityExpr;
-import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.datasource.GenericHelperInfo;
 import org.ofbiz.entity.jdbc.DatabaseUtil;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.util.EntityDataLoader;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.service.ServiceDispatcher;
 
 
@@ -66,7 +57,7 @@ public class EntityDataLoadContainer implements Container {
     protected String configFile = null;
     protected String readers = null;
     protected String directory = null;
-    protected List<String> files = new LinkedList<String>();
+    protected List<String> files = FastList.newInstance();
     protected String component = null;
     protected boolean useDummyFks = false;
     protected boolean maintainTxs = false;
@@ -78,24 +69,22 @@ public class EntityDataLoadContainer implements Container {
     protected boolean createConstraints = false;
     protected int txTimeout = -1;
 
-    private String name;
-
     public EntityDataLoadContainer() {
         super();
     }
 
-    @Override
-    public void init(String[] args, String name, String configFile) throws ContainerException {
-        this.name = name;
+    /**
+     * @see org.ofbiz.base.container.Container#init(java.lang.String[], java.lang.String)
+     */
+    public void init(String[] args, String configFile) throws ContainerException {
         this.configFile = configFile;
         // disable job scheduler, JMS listener and startup services
-        // FIXME: This is not thread-safe.
         ServiceDispatcher.enableJM(false);
         ServiceDispatcher.enableJMS(false);
         ServiceDispatcher.enableSvcs(false);
 
         /*
-           load-data arguments:
+           install arguments:
            readers (none, all, seed, demo, ext, etc - configured in entityengine.xml and associated via ofbiz-component.xml)
            timeout (transaction timeout default 7200)
            delegator (overrides the delegator name configured for the container)
@@ -104,11 +93,8 @@ public class EntityDataLoadContainer implements Container {
            file (import a specific XML file)
 
            Example:
-           $ java -jar ofbiz.jar -load-data -readers=seed,demo,ext -timeout=7200 -delegator=default -group=org.ofbiz
-           $ java -jar ofbiz.jar -load-data -file=/tmp/dataload.xml
-           Currently no dashes before load-data, see OFBIZ-5872
-               $ java -jar ofbiz.jar load-data -readers=seed,demo,ext -timeout=7200 -delegator=default -group=org.ofbiz
-               $ java -jar ofbiz.jar load-data -file=/tmp/dataload.xml
+           $ java -jar ofbiz.jar -install -readers=seed,demo,ext -timeout=7200 -delegator=default -group=org.ofbiz
+           $ java -jar ofbiz.jar -install -file=/tmp/dataload.xml
         */
         if (args != null) {
             for (String argument: args) {
@@ -178,24 +164,22 @@ public class EntityDataLoadContainer implements Container {
                         createConstraints = true;
                     }
                 } else if ("help".equalsIgnoreCase(argumentName)) {
-                    //"java -jar ofbiz.jar -load-data [options]\n" +
-                    // Currently no dashes before load-data, see OFBIZ-5872
-                    String helpStr = "\n--------------------------------------\n" +
-                    "java -jar ofbiz.jar load-data [options]\n" +
-                    "-component=[name] .... only load from a specific component\n" +
-                    "-delegator=[name] .... use the defined delegator (default-no-eca)\n" +
-                    "-group=[name] ........ override the entity group (org.ofbiz)\n" +
-                    "-file=[path] ......... load a single file from location, several files separated by commas\n" +
-                    "-createfks ........... create dummy (placeholder) FKs\n" +
-                    "-maintainTxs ......... maintain timestamps in data file\n" +
-                    "-inserts ............. use mostly inserts option\n" +
-                    "-repair-columns ........... repair column sizes\n" +
-                    "-drop-pks ............ drop primary keys\n" +
-                    "-create-pks .......... create primary keys\n" +
-                    "-drop-constraints..... drop indexes and foreign keys before loading\n" +
-                    "-create-constraints... create indexes and foreign keys after loading (default is true w/ drop-constraints)\n" +
-                    "-help ................ display this information\n";
-                    throw new ContainerException(helpStr);
+                    Debug.logInfo("--------------------------------------", module);
+                    Debug.logInfo("java -jar ofbiz.jar -install [options]", module);
+                    Debug.logInfo("-component=[name] .... only load from a specific component", module);
+                    Debug.logInfo("-delegator=[name] .... use the defined delegator (default-no-eca", module);
+                    Debug.logInfo("-group=[name] ........ override the entity group (org.ofbiz)", module);
+                    Debug.logInfo("-file=[path] ......... load a single file from location, several files separated by commas.", module);
+                    Debug.logInfo("-createfks ........... create dummy (placeholder) FKs", module);
+                    Debug.logInfo("-maintainTxs ......... maintain timestamps in data file", module);
+                    Debug.logInfo("-inserts ............. use mostly inserts option", module);
+                    Debug.logInfo("-repair-columns ........... repair column sizes", module);
+                    Debug.logInfo("-drop-pks ............ drop primary keys", module);
+                    Debug.logInfo("-create-pks .......... create primary keys", module);
+                    Debug.logInfo("-drop-constraints..... drop indexes and foreign keys before loading", module);
+                    Debug.logInfo("-create-constraints... create indexes and foreign keys after loading (default is true w/ drop-constraints)", module);
+                    Debug.logInfo("-help ................ display this information", module);
+                    System.exit(1);
                 }
 
                 // special case
@@ -209,45 +193,8 @@ public class EntityDataLoadContainer implements Container {
     /**
      * @see org.ofbiz.base.container.Container#start()
      */
-    @Override
     public boolean start() throws ContainerException {
-        if("all-tenants".equals(this.overrideDelegator)) {
-            if (!EntityUtil.isMultiTenantEnabled()) {
-                Debug.logWarning("Multitenant is disabled. Please enable multitenant. (e.g. general.properties --> multitenant=Y)", module);
-                return true;
-            }
-            ContainerConfig.Container cfg = ContainerConfig.getContainer(name, configFile);
-            ContainerConfig.Container.Property delegatorNameProp = cfg.getProperty("delegator-name");
-            String delegatorName = null;
-            if (delegatorNameProp == null || UtilValidate.isEmpty(delegatorNameProp.value)) {
-                throw new ContainerException("Invalid delegator-name defined in container configuration");
-            } else {
-                delegatorName = delegatorNameProp.value;
-            }
-            Delegator delegator = DelegatorFactory.getDelegator(delegatorName);
-            if (delegator == null) {
-                throw new ContainerException("Invalid delegator name!");
-            }
-            List<EntityExpr> expr = new LinkedList<EntityExpr>();
-            expr.add(EntityCondition.makeCondition("disabled", EntityOperator.EQUALS, "N"));
-            expr.add(EntityCondition.makeCondition("disabled", EntityOperator.EQUALS, null));
-            List<GenericValue> tenantList;
-            try {
-                tenantList = EntityQuery.use(delegator).from("Tenant").where(expr, EntityOperator.OR).queryList();
-            } catch (GenericEntityException e) {
-                throw new ContainerException(e.getMessage());
-            }
-            for (GenericValue tenant : tenantList) {
-                this.overrideDelegator = delegator.getDelegatorName() + "#" + tenant.getString("tenantId");
-                loadContainer();
-            }
-        } else {
-            loadContainer();
-        }
-        return true;
-    }
-    private void loadContainer() throws ContainerException{
-        ContainerConfig.Container cfg = ContainerConfig.getContainer(name, configFile);
+        ContainerConfig.Container cfg = ContainerConfig.getContainer("dataload-container", configFile);
         ContainerConfig.Container.Property delegatorNameProp = cfg.getProperty("delegator-name");
         ContainerConfig.Container.Property entityGroupNameProp = cfg.getProperty("entity-group-name");
 
@@ -270,24 +217,18 @@ public class EntityDataLoadContainer implements Container {
         List<String> readerNames = null;
         if (this.readers != null && !"none".equalsIgnoreCase(this.readers)) {
             if (this.readers.indexOf(",") == -1) {
-                readerNames = new LinkedList<String>();
+                readerNames = FastList.newInstance();
                 readerNames.add(this.readers);
             } else {
                 readerNames = StringUtil.split(this.readers, ",");
             }
         }
+
         String delegatorNameToUse = overrideDelegator != null ? overrideDelegator : delegatorName;
         String groupNameToUse = overrideGroup != null ? overrideGroup : entityGroupName;
         Delegator delegator = DelegatorFactory.getDelegator(delegatorNameToUse);
-        Delegator baseDelegator = null;
         if (delegator == null) {
             throw new ContainerException("Invalid delegator name!");
-        }
-
-        if (delegator.getDelegatorTenantId() != null) {
-            baseDelegator = DelegatorFactory.getDelegator(delegator.getDelegatorBaseName());
-        } else {
-            baseDelegator = delegator;
         }
 
         GenericHelperInfo helperInfo = delegator.getGroupHelperInfo(groupNameToUse);
@@ -304,52 +245,10 @@ public class EntityDataLoadContainer implements Container {
             throw new ContainerException(e.getMessage(), e);
         }
         TreeSet<String> modelEntityNames = new TreeSet<String>(modelEntities.keySet());
-        // store all components
-        Collection<ComponentConfig> allComponents = ComponentConfig.getAllComponents();
-        for (ComponentConfig config : allComponents) {
-            //Debug.logInfo("- Stored component : " + config.getComponentName(), module);
-            GenericValue componentEntry = baseDelegator.makeValue("Component");
-            componentEntry.set("componentName", config.getComponentName());
-            componentEntry.set("rootLocation", config.getRootLocation());
-            try {
-                GenericValue componentCheck = EntityQuery.use(baseDelegator).from("Component").where("componentName", config.getComponentName()).queryOne();
-                if (UtilValidate.isEmpty(componentCheck)) {
-                    componentEntry.create();
-                } else {
-                    componentEntry.store();
-                }
-            } catch (GenericEntityException e) {
-                Debug.logError(e.getMessage(), module);
-            }
-        }
-        // load specify components
-        List<String> loadComponents = new LinkedList<String>();
-        if (UtilValidate.isNotEmpty(delegator.getDelegatorTenantId()) && EntityUtil.isMultiTenantEnabled()) {
-            try {
-                if (UtilValidate.isEmpty(this.component)) {
-                    for (ComponentConfig config : allComponents) {
-                        loadComponents.add(config.getComponentName());
-                    }
-                    List<GenericValue> tenantComponents = EntityQuery.use(baseDelegator).from("TenantComponent").where("tenantId", delegator.getDelegatorTenantId()).orderBy("sequenceNum").queryList();
-                    for (GenericValue tenantComponent : tenantComponents) {
-                        loadComponents.add(tenantComponent.getString("componentName"));
-                    }
-                    Debug.logInfo("Loaded components by tenantId : " + delegator.getDelegatorTenantId() + ", " + tenantComponents.size() + " components", module);
-                } else {
-                    List<GenericValue> tenantComponents = EntityQuery.use(baseDelegator).from("TenantComponent").where("tenantId", delegator.getDelegatorTenantId(), "componentName", this.component).orderBy("sequenceNum").queryList();
-                    for (GenericValue tenantComponent : tenantComponents) {
-                        loadComponents.add(tenantComponent.getString("componentName"));
-                    }
-                    Debug.logInfo("Loaded tenantId : " + delegator.getDelegatorTenantId() + " and component : " + this.component, module);
-                }
-                Debug.logInfo("Loaded : " + loadComponents.size() + " components", module);
-            } catch (GenericEntityException e) {
-                Debug.logError(e.getMessage(), module);
-            }
-        }
+
         // check for drop index/fks
         if (dropConstraints) {
-            List<String> messages = new LinkedList<String>();
+            List<String> messages = FastList.newInstance();
 
             Debug.logImportant("Dropping foreign key indcies...", module);
             for (String entityName : modelEntityNames) {
@@ -386,7 +285,7 @@ public class EntityDataLoadContainer implements Container {
 
         // drop pks
         if (dropPks) {
-            List<String> messages = new LinkedList<String>();
+            List<String> messages = FastList.newInstance();
             Debug.logImportant("Dropping primary keys...", module);
             for (String entityName : modelEntityNames) {
                 ModelEntity modelEntity = modelEntities.get(entityName);
@@ -406,11 +305,11 @@ public class EntityDataLoadContainer implements Container {
 
         // repair columns
         if (repairColumns) {
-            List<String> fieldsToRepair = new LinkedList<String>();
-            List<String> messages = new LinkedList<String>();
+            List<String> fieldsToRepair = FastList.newInstance();
+            List<String> messages = FastList.newInstance();
             dbUtil.checkDb(modelEntities, fieldsToRepair, messages, false, false, false, false);
             if (fieldsToRepair.size() > 0) {
-                messages = new LinkedList<String>();
+                messages = FastList.newInstance();
                 dbUtil.repairColumnSizeChanges(modelEntities, fieldsToRepair, messages);
                 if (messages.size() > 0) {
                     if (Debug.infoOn()) {
@@ -424,22 +323,15 @@ public class EntityDataLoadContainer implements Container {
 
         // get the reader name URLs first
         List<URL> urlList = null;
-        if (UtilValidate.isNotEmpty(loadComponents)) {
-            if (UtilValidate.isNotEmpty(readerNames)) {
-                urlList = EntityDataLoader.getUrlByComponentList(helperInfo.getHelperBaseName(), loadComponents, readerNames);
-            } else if (!"none".equalsIgnoreCase(this.readers)) {
-                urlList = EntityDataLoader.getUrlByComponentList(helperInfo.getHelperBaseName(), loadComponents);
-            }
-        } else {
-            if (UtilValidate.isNotEmpty(readerNames)) {
-                urlList = EntityDataLoader.getUrlList(helperInfo.getHelperBaseName(), component, readerNames);
-            } else if (!"none".equalsIgnoreCase(this.readers)) {
-                urlList = EntityDataLoader.getUrlList(helperInfo.getHelperBaseName(), component);
-            }
+        if (readerNames != null) {
+            urlList = EntityDataLoader.getUrlList(helperInfo.getHelperBaseName(), component, readerNames);
+        } else if (!"none".equalsIgnoreCase(this.readers)) {
+            urlList = EntityDataLoader.getUrlList(helperInfo.getHelperBaseName(), component);
         }
+
         // need a list if it is empty
         if (urlList == null) {
-            urlList = new LinkedList<URL>();
+            urlList = FastList.newInstance();
         }
 
         // add in the defined extra files
@@ -474,11 +366,11 @@ public class EntityDataLoadContainer implements Container {
         changedFormat.setMinimumIntegerDigits(5);
         changedFormat.setGroupingUsed(false);
 
-        List<Object> errorMessages = new LinkedList<Object>();
-        List<String> infoMessages = new LinkedList<String>();
+        List<Object> errorMessages = FastList.newInstance();
+        List<String> infoMessages = FastList.newInstance();
         int totalRowsChanged = 0;
         if (UtilValidate.isNotEmpty(urlList)) {
-            Debug.logImportant("=-=-=-=-=-=-= Doing a data load using delegator '" + delegator.getDelegatorName() + "' with the following files:", module);
+            Debug.logImportant("=-=-=-=-=-=-= Doing a data load with the following files:", module);
             for (URL dataUrl: urlList) {
                 Debug.logImportant(dataUrl.toExternalForm(), module);
             }
@@ -506,7 +398,7 @@ public class EntityDataLoadContainer implements Container {
         }
 
         if (errorMessages.size() > 0) {
-            Debug.logImportant("The following errors occurred in the data load:", module);
+            Debug.logImportant("The following errors occured in the data load:", module);
             for (Object message: errorMessages) {
               Debug.logImportant(message.toString(), module);
             }
@@ -516,7 +408,7 @@ public class EntityDataLoadContainer implements Container {
 
         // create primary keys
         if (createPks) {
-            List<String> messages = new LinkedList<String>();
+            List<String> messages = FastList.newInstance();
 
             Debug.logImportant("Creating primary keys...", module);
             for (String entityName : modelEntityNames) {
@@ -536,7 +428,7 @@ public class EntityDataLoadContainer implements Container {
 
         // create constraints
         if (createConstraints) {
-            List<String> messages = new LinkedList<String>();
+            List<String> messages = FastList.newInstance();
 
             Debug.logImportant("Creating foreign keys...", module);
             for (String entityName : modelEntityNames) {
@@ -570,16 +462,13 @@ public class EntityDataLoadContainer implements Container {
                 }
             }
         }
+
+        return true;
     }
+
     /**
      * @see org.ofbiz.base.container.Container#stop()
      */
-    @Override
     public void stop() throws ContainerException {
-    }
-
-    @Override
-    public String getName() {
-        return name;
     }
 }

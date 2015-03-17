@@ -16,12 +16,12 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#if description??>
-    <#if autocompleteOptions??>
+<#if description?exists>
+    <#if autocompleteOptions?exists>
         <#list autocompleteOptions as autocompleteOption>
             <#assign displayString = ""/>
             <#list displayFieldsSet as key>
-                <#assign field = autocompleteOption.get(key)!>
+                <#assign field = autocompleteOption.get(key)?if_exists>
                 <#if field?has_content>
                     <#if (key != context.returnField)>
                         <#assign displayString = displayString + field + " ">
@@ -33,22 +33,20 @@ under the License.
     </#if>
 <#else>
 <script type="text/javascript">
-var autocomp = [
-    <#if autocompleteOptions?has_content>
-        <#if !displayReturnField??>
-            <#assign displayReturnField = Static["org.ofbiz.base.util.UtilProperties"].getPropertyValue("widget.properties", "widget.autocompleter.displayReturnField")>
-        </#if>
+  var autocomp = [
+      <#if autocompleteOptions?has_content>
+        <#assign displayReturnField = Static["org.ofbiz.base.util.UtilProperties"].getPropertyValue("widget.properties", "widget.autocompleter.displayReturnField")>
         <#list autocompleteOptions as autocompleteOption>
             {
             <#assign displayString = ""/>
             <#assign returnField = ""/>
             <#list displayFieldsSet as key>
-              <#assign field = autocompleteOption.get(key)!>
+              <#assign field = autocompleteOption.get(key)?if_exists>
               <#if field?has_content>
                   <#if (key == context.returnField)>
                       <#assign returnField = field/>
                   <#else>
-                      <#assign displayString = displayString + StringUtil.wrapString(field?string) + " ">
+                      <#assign displayString = displayString + field + " ">
                   </#if>
               </#if>
             </#list>
@@ -67,6 +65,6 @@ var autocomp = [
          "value": ""
       }
     </#if>
-    ];
+];
 </script>
 </#if>

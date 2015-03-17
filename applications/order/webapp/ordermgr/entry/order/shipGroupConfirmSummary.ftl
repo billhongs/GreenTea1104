@@ -24,9 +24,9 @@ and similar information.  This is designed to be tacked on to the
 standard order confirmation page and to be re-usable by other screens.
 -->
 
-<#if !(cart??)><#assign cart = shoppingCart!/></#if>
+<#if !(cart?exists)><#assign cart = shoppingCart?if_exists/></#if>
 
-<#if cart??>
+<#if cart?exists>
 <div class="screenlet">
   <div class="screenlet-title-bar">
     <div class="h3">${uiLabelMap.OrderShippingInformation}</div>
@@ -63,34 +63,34 @@ standard order confirmation page and to be re-usable by other screens.
         <#-- address destination column (spans a number of rows = number of cart items in it) -->
 
         <td rowspan="${numberOfItems}">
-          <#assign contactMech = delegator.findOne("ContactMech", Static["org.ofbiz.base.util.UtilMisc"].toMap("contactMechId", cartShipInfo.contactMechId), false)! />
+          <#assign contactMech = delegator.findByPrimaryKey("ContactMech", Static["org.ofbiz.base.util.UtilMisc"].toMap("contactMechId", cartShipInfo.contactMechId))?if_exists />
           <#if contactMech?has_content>
-            <#assign address = contactMech.getRelatedOne("PostalAddress", false)! />
+            <#assign address = contactMech.getRelatedOne("PostalAddress")?if_exists />
           </#if>
 
-          <#if address??>
+          <#if address?exists>
             <#if address.toName?has_content><b>${uiLabelMap.CommonTo}:</b>&nbsp;${address.toName}<br /></#if>
             <#if address.attnName?has_content><b>${uiLabelMap.CommonAttn}:</b>&nbsp;${address.attnName}<br /></#if>
             <#if address.address1?has_content>${address.address1}<br /></#if>
             <#if address.address2?has_content>${address.address2}<br /></#if>
             <#if address.city?has_content>${address.city}</#if>
             <#if address.stateProvinceGeoId?has_content>&nbsp;${address.stateProvinceGeoId}</#if>
-            <#if address.postalCode?has_content>, ${address.postalCode!}</#if>
+            <#if address.postalCode?has_content>, ${address.postalCode?if_exists}</#if>
           </#if>
         </td>
 
         <#-- supplier id (for drop shipments) (also spans rows = number of items) -->
 
         <td rowspan="${numberOfItems}" valign="top">
-          <#assign supplier =  delegator.findOne("PartyGroup", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", cartShipInfo.getSupplierPartyId()), false)! />
+          <#assign supplier =  delegator.findByPrimaryKey("PartyGroup", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", cartShipInfo.getSupplierPartyId()))?if_exists />
           <#if supplier?has_content>${supplier.groupName?default(supplier.partyId)}</#if>
         </td>
 
         <#-- carrier column (also spans rows = number of items) -->
 
         <td rowspan="${numberOfItems}" valign="top">
-          <#assign carrier =  delegator.findOne("PartyGroup", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", cartShipInfo.getCarrierPartyId()), false)! />
-          <#assign method =  delegator.findOne("ShipmentMethodType", Static["org.ofbiz.base.util.UtilMisc"].toMap("shipmentMethodTypeId", cartShipInfo.getShipmentMethodTypeId()), false)! />
+          <#assign carrier =  delegator.findByPrimaryKey("PartyGroup", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", cartShipInfo.getCarrierPartyId()))?if_exists />
+          <#assign method =  delegator.findByPrimaryKey("ShipmentMethodType", Static["org.ofbiz.base.util.UtilMisc"].toMap("shipmentMethodTypeId", cartShipInfo.getShipmentMethodTypeId()))?if_exists />
           <#if carrier?has_content>${carrier.groupName?default(carrier.partyId)}</#if>
           <#if method?has_content>${method.description?default(method.shipmentMethodTypeId)}</#if>
         </td>

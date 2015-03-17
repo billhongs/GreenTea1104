@@ -20,47 +20,71 @@ package org.ofbiz.minilang.method.callops;
 
 import java.io.Serializable;
 
-import org.ofbiz.base.util.UtilProperties;
-import org.ofbiz.base.util.UtilXml;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
-import org.ofbiz.minilang.MiniLangValidate;
-import org.ofbiz.minilang.method.MethodContext;
-import org.w3c.dom.Element;
+import org.w3c.dom.*;
+import org.ofbiz.base.util.*;
+
+import org.ofbiz.minilang.method.*;
 
 /**
  * Simple class to wrap messages that come either from a straight string or a properties file
  */
 @SuppressWarnings("serial")
-public final class FlexibleMessage implements Serializable {
+public class FlexibleMessage implements Serializable {
 
-    private final FlexibleStringExpander messageFse;
-    private final String propertykey;
-    private final String propertyResource;
+    public static final String module = FlexibleMessage.class.getName();
+
+    String message = null;
+    String propertyResource = null;
+    boolean isProperty = false;
 
     public FlexibleMessage(Element element, String defaultProperty) {
+        String resAttr = null;
+        String propAttr = null;
+        String elVal = null;
+
         if (element != null) {
-            String message = UtilXml.elementValue(element);
-            if (message != null) {
-                messageFse = FlexibleStringExpander.getInstance(message);
-                propertykey = null;
-                propertyResource = null;
-            } else {
-                messageFse = null;
-                propertykey = MiniLangValidate.checkAttribute(element.getAttribute("property"), defaultProperty);
-                propertyResource = MiniLangValidate.checkAttribute(element.getAttribute("resource"), "DefaultMessages");
-            }
+            resAttr = element.getAttribute("resource");
+            propAttr = element.getAttribute("property");
+            elVal = UtilXml.elementValue(element);
+        }
+
+        if (UtilValidate.isNotEmpty(resAttr)) {
+            propertyResource = resAttr;
+            message = propAttr;
+            isProperty = true;
+        } else if (UtilValidate.isNotEmpty(elVal)) {
+            message = elVal;
+            isProperty = false;
         } else {
-            messageFse = null;
-            propertykey = defaultProperty;
+            // put in default property
             propertyResource = "DefaultMessages";
+            message = defaultProperty;
+            isProperty = true;
         }
     }
 
     public String getMessage(ClassLoader loader, MethodContext methodContext) {
-        if (messageFse != null) {
-            return messageFse.expandString(methodContext.getEnvMap());
+        String message = methodContext.expandString(this.message);
+        String propertyResource = methodContext.expandString(this.propertyResource);
+
+        // if (Debug.infoOn()) Debug.logInfo("[FlexibleMessage.getMessage] isProperty: " + isProperty + ", message: " + message + ", propertyResource: " + propertyResource, module);
+        if (!isProperty && message != null) {
+            // if (Debug.infoOn()) Debug.logInfo("[FlexibleMessage.getMessage] Adding message: " + message, module);
+            return message;
+        } else if (isProperty && propertyResource != null && message != null) {
+            // URL propertyURL = UtilURL.fromResource(propertyResource, loader);
+            //String propMsg = UtilProperties.getPropertyValue(propertyResource, message);
+            String propMsg = UtilProperties.getMessage(propertyResource, message, methodContext.getEnvMap(), methodContext.getLocale());
+
+            // if (Debug.infoOn()) Debug.logInfo("[FlexibleMessage.getMessage] Got property message: " + propMsg, module);
+            if (propMsg == null) {
+                return "In Simple Map Processing property message could not be found in resource [" + propertyResource + "] with name [" + message + "]. ";
+            } else {
+                return propMsg;
+            }
         } else {
-            return UtilProperties.getMessage(propertyResource, propertykey, methodContext.getEnvMap(), methodContext.getLocale());
+            Debug.logInfo("[FlexibleMessage.getMessage] No message found, returning empty string", module);
+            return "";
         }
     }
 }

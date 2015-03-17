@@ -36,6 +36,9 @@ under the License.
         <fileset dir="${lib.dir}/scripting" includes="*.jar"/>
         <fileset dir="../start/build/lib" includes="*.jar"/>
     </path>
+    <patternset id="src-dirs">
+        <include name="build/gen-src/javacc"/>
+    </patternset>
 
     <filelist id="test.classes" dir="${src.dir}">
         <file name="org/ofbiz/base/lang/test/ComparableRangeTests.java"/>
@@ -51,16 +54,14 @@ under the License.
         <file name="org/ofbiz/base/conversion/test/TestBooleanConverters.java"/>
         <file name="org/ofbiz/base/conversion/test/DateTimeTests.java"/>
         <file name="org/ofbiz/base/conversion/test/MiscTests.java"/>
-        <file name="org/ofbiz/base/conversion/test/TestJSONConverters.java"/>
         <file name="org/ofbiz/base/util/test/UtilIOTests.java"/>
         <file name="org/ofbiz/base/test/BaseUnitTests.java"/>
         <file name="org/ofbiz/base/util/collections/test/GenericMapTest.java"/>
+        <file name="org/ofbiz/base/concurrent/test/DependencyPoolTests.java"/>
+        <file name="org/ofbiz/base/concurrent/test/SyncTTLObjectTest.java"/>
+        <file name="org/ofbiz/base/concurrent/test/AsyncTTLObjectTest.java"/>
+        <file name="org/ofbiz/base/concurrent/test/TTLCachedObjectTest.java"/>
     </filelist>
-
-    <patternset id="cobertura-src-dirs">
-        <include name="build/gen-src"/>
-        <include name="src"/>
-    </patternset>
 
     <target name="init">
         <!-- make sure we have crypto packages available -->
@@ -71,7 +72,7 @@ under the License.
         </condition>
         <condition property="exclude.cobertura" value="org/ofbiz/base/config/Cobertura*.java">
             <not>
-                <available classname="net.sourceforge.cobertura.instrument.ClassInstrumenter" classpathref="cobertura.class.path"/>
+                <available classname="net.sourceforge.cobertura.instrument.ClassInstrumenter" classpathref="local.class.path"/>
             </not>
         </condition>
         <patternset id="src.exc.set">
@@ -79,6 +80,14 @@ under the License.
             <exclude name="${exclude.crypto}"/>
             <exclude name="org/ofbiz/base/util/OfbizJsBsfEngine.java"/>
         </patternset>
+    </target>
+
+    <target name="gen-src">
+        <ofbiz-javacc dir="org/ofbiz/base/json" file="JSON"/>
+    </target>
+
+    <target name="classes" depends="prepare,gen-src">
+        <javac16/>
     </target>
 
     <target name="jar" depends="classes">

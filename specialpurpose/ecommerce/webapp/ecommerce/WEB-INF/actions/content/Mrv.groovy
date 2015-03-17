@@ -32,7 +32,8 @@ import org.ofbiz.entity.*;
 import org.ofbiz.security.*;
 import org.ofbiz.service.*;
 import org.ofbiz.entity.model.*;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
+import org.ofbiz.widget.form.*;
 import org.ofbiz.base.util.collections.LifoSet;
 
 import javax.servlet.*;
@@ -58,14 +59,14 @@ mrvList = [];
 
 lifoSet.each { pk0 ->
     pk = pk0.getPrimaryKey();
-    gv = from(pk.getEntityName()).where(pk).cache(true).queryOne();
+    gv = delegator.findOne(pk.getEntityName(), pk, true);
     if (gv) {
         arr = [gv.contentId, gv.contentName] as String[];
         mrvList.add(arr);
     } else {
         // should handle errors in some other way; this does not provide any tracing; impossible to locat
-        // where the error actually occurred
-        //Debug.logError("findOne on " + pk + " returned null");
+        // where the error actually occured
+        //Debug.logError("findByPrimaryKey on " + pk + " returned null");
     }
 }
 context.put("mrvList", mrvList);

@@ -27,15 +27,15 @@ if (!shipmentId) {
 
 shipment = null;
 if (shipmentId) {
-    shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+    shipment = delegator.findOne("Shipment", [shipmentId : shipmentId], false);
 }
 
 if (shipment) {
-    shipmentItems = shipment.getRelated("ShipmentItem", null, ['shipmentItemSeqId'], false);
+    shipmentItems = shipment.getRelated("ShipmentItem", null, ['shipmentItemSeqId']);
     shipmentItemDatas = [] as LinkedList;
     if (shipmentItems) {
         shipmentItems.each { shipmentItem ->
-            shipmentPackageContents = shipmentItem.getRelated("ShipmentPackageContent", null, null, false);
+            shipmentPackageContents = shipmentItem.getRelated("ShipmentPackageContent");
             totalQuantityPackaged = 0;
             shipmentPackageContents.each { shipmentPackageContent ->
                 if (shipmentPackageContent.quantity) {
@@ -51,15 +51,15 @@ if (shipment) {
             shipmentItemData = [:];
             shipmentItemData.shipmentItem = shipmentItem;
             shipmentItemData.shipmentPackageContents = shipmentPackageContents;
-            shipmentItemData.itemIssuances = shipmentItem.getRelated("ItemIssuance", null, null, false);
-            shipmentItemData.orderShipments = shipmentItem.getRelated("OrderShipment", null, null, false);
-            shipmentItemData.product = shipmentItem.getRelatedOne("Product", false);
+            shipmentItemData.itemIssuances = shipmentItem.getRelated("ItemIssuance");
+            shipmentItemData.orderShipments = shipmentItem.getRelated("OrderShipment");
+            shipmentItemData.product = shipmentItem.getRelatedOne("Product");
             shipmentItemData.totalQuantityPackaged = totalQuantityPackaged;
             shipmentItemData.totalQuantityToPackage = totalQuantityToPackage;
             shipmentItemDatas.add(shipmentItemData);
         }
     }
-    shipmentPackages = shipment.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId'], false);
+    shipmentPackages = shipment.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId']);
 
     context.shipment = shipment;
     context.shipmentItemDatas = shipmentItemDatas;

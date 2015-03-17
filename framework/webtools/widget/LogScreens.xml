@@ -87,6 +87,12 @@ under the License.
                          <screenlet title="${uiLabelMap.WebtoolsDebuggingLevelFormDescription}">
                              <include-form name="LevelSwitch" location="component://webtools/widget/LogForms.xml"/>
                          </screenlet>
+                         <screenlet title="${uiLabelMap.WebtoolsAddLoggerFormDescription}">
+                             <include-form name="AddLogger" location="component://webtools/widget/LogForms.xml"/>
+                         </screenlet>
+                         <screenlet title="${uiLabelMap.WebtoolsLoggerListFormDescription}">
+                             <include-form name="LoggerList" location="component://webtools/widget/LogForms.xml"/>
+                         </screenlet>
                      </decorator-section>
                  </decorator-screen>
                </widgets>
@@ -100,7 +106,7 @@ under the License.
                  <set field="tabButtonItem" value="logView"/>
                  <!-- TODO: the following command is not really working (and the default value is always used);
                               my guess is that the base/config/debug.properties file is not found in the classpath -->
-                 <property-to-field resource="debug" property="log4j.appender.css.File" field="logFileName" default="runtime/logs/ofbiz.log" no-locale="true"/>
+                 <property-to-field resource="debug" property="log4j.appender.css.File" field="logFileName" default="runtime/logs/ofbiz.html" no-locale="true"/>
                  <script location="component://webtools/webapp/webtools/WEB-INF/actions/log/LogView.groovy"/>
              </actions>
              <widgets>

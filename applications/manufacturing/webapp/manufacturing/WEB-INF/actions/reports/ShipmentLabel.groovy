@@ -21,19 +21,19 @@ import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.order.order.OrderReadHelper;
 
 shipmentId = parameters.shipmentId;
-shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+shipment = delegator.findByPrimaryKey("Shipment", [shipmentId : shipmentId]);
 
 context.shipmentIdPar = shipment.shipmentId;
 
 if (shipment) {
-    shipmentPackages = from("ShipmentPackage").where("shipmentId", shipmentId).queryList();
+    shipmentPackages = delegator.findByAnd("ShipmentPackage", [shipmentId : shipmentId]);
     records = [];
     orderReaders = [:];
     shipmentPackages.each { shipmentPackage ->
-        shipmentPackageComponents = from("ShipmentPackageContent").where("shipmentId", shipmentId, "shipmentPackageSeqId", shipmentPackage.shipmentPackageSeqId).queryList();;
+        shipmentPackageComponents = delegator.findByAnd("ShipmentPackageContent", [shipmentId : shipmentId, shipmentPackageSeqId : shipmentPackage.shipmentPackageSeqId]);
         shipmentPackageComponents.each { shipmentPackageComponent ->
-            shipmentItem = shipmentPackageComponent.getRelatedOne("ShipmentItem", false);
-            orderShipments = shipmentItem.getRelated("OrderShipment", null, null, false);
+            shipmentItem = shipmentPackageComponent.getRelatedOne("ShipmentItem");
+            orderShipments = shipmentItem.getRelated("OrderShipment");
             orderShipment = EntityUtil.getFirst(orderShipments);
 
             String orderId = null;
@@ -54,7 +54,7 @@ if (shipment) {
             record.shipmentPackageSeqId = shipmentPackageComponent.shipmentPackageSeqId;
             record.orderId = orderId;
             record.orderItemSeqId = orderItemSeqId;
-            product = from("Product").where("productId", record.productId).queryOne();
+            product = delegator.findByPrimaryKey("Product", [productId : record.productId]);
             record.productName = product.internalName;
             record.shipDate = shipment.estimatedShipDate;
             // ---
@@ -62,7 +62,7 @@ if (shipment) {
             if (orderReaders.containsKey(orderId)) {
                 orderReadHelper = (OrderReadHelper)orderReaders.get(orderId);
             } else {
-                orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
+                orderHeader = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
                 orderReadHelper = new OrderReadHelper(orderHeader);
                 orderReaders.put(orderId, orderReadHelper);
             }

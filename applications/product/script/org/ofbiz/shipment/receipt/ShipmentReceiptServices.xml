@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
     <simple-method method-name="createShipmentReceipt" short-description="Create a ShipmentReceipt">
         <make-value value-field="newEntity" entity-name="ShipmentReceipt"/>
         <set-nonpk-fields map="parameters" value-field="newEntity"/>
@@ -45,22 +45,6 @@ under the License.
             <set field="invDet.receiptId" from-field="receiptId"/>
             <store-value value-field="invDet"/>
         </if-not-empty>
-        <set field="affectAccounting" type="Boolean" value="true"/>
-        
-        <entity-one value-field="product" entity-name="Product"/>
-        <if>
-            <condition>
-                <or>
-                    <if-compare field="product.productTypeId" operator="equals" value="SERVICE_PRODUCT"/>
-                    <if-compare field="product.productTypeId" operator="equals" value="ASSET_USAGE_OUT_IN"/>
-                    <if-compare field="product.productTypeId" operator="equals" value="AGGREGATEDSERV_CONF"/>
-                </or>
-            </condition>
-            <then>
-                <set field="affectAccounting" type="Boolean" value="false"/>
-            </then>
-        </if>
-        <field-to-result field="affectAccounting" result-name="affectAccounting"/>
     </simple-method>
 
     <simple-method method-name="createShipmentReceiptRole" short-description="Create a ShipmentReceipt Role">
@@ -467,26 +451,7 @@ under the License.
         </if-not-empty>
         <call-simple-method method-name="getReceivedQuantityForOrderItem"/>
         <if-compare-field field="orderItem.quantity" operator="less" to-field="receivedQuantity" type="BigDecimal">
-            <entity-and list="orderItemShipGroupAssocs" entity-name="OrderItemShipGroupAssoc">
-                <field-map field-name="orderId" from-field="orderItem.orderId"/>
-                <field-map field-name="orderItemSeqId" from-field="orderItem.orderItemSeqId"/>
-            </entity-and>
-            <calculate field="quantityVariance" type="BigDecimal" decimal-scale="2" rounding-mode="HalfUp">
-                <calcop operator="subtract">
-                    <calcop operator="get" field="receivedQuantity"/>
-                    <calcop operator="get" field="orderItem.quantity"/>
-                </calcop>
-            </calculate>
-            <first-from-list entry="orderItemShipGroupAssoc" list="orderItemShipGroupAssocs"/>
-            <calculate field="oisgaQuantity" type="BigDecimal" decimal-scale="2" rounding-mode="HalfUp">
-                <calcop operator="add">
-                    <calcop operator="get" field="orderItemShipGroupAssoc.quantity"/>
-                    <calcop operator="get" field="quantityVariance"/>
-                </calcop>
-            </calculate>
-            <set field="orderItemShipGroupAssoc.quantity" from-field="oisgaQuantity"/>
             <set field="orderItem.quantity" from-field="receivedQuantity"/>
-            <store-value value-field="orderItemShipGroupAssoc"/>
             <store-value value-field="orderItem"/>
         </if-compare-field>
         <if-not-empty field="parameters.shipmentId">
@@ -566,7 +531,6 @@ under the License.
             <!-- update the order item status -->
             <set field="orderItem.statusId" value="ITEM_APPROVED"/>
             <set-service-fields service-name="changeOrderItemStatus" map="orderItem" to-map="orderItemCtx"/>
-            <set field="orderItemCtx.fromStatusId" value="ITEM_COMPLETED"/>
             <call-service service-name="changeOrderItemStatus" in-map-name="orderItemCtx"/>
             <get-related-one value-field="orderItem" relation-name="OrderHeader" to-value-field="orderHeader"/>
             <!-- cancel the invoice -->

@@ -216,7 +216,7 @@ public class MenuEvents {
                     if (!aggregatedItem) {
                         trans.addItem(productId, quantity);
                     } else {
-                        trans.addItem(productId, quantity, pcw);
+                        trans.addItem(productId, pcw);
                     }
                 } catch (CartItemModifyException e) {
                     Debug.logError(e, module);
@@ -241,13 +241,13 @@ public class MenuEvents {
 
     public static synchronized void changeQty(PosScreen pos) {
         PosTransaction trans = PosTransaction.getCurrentTx(pos.getSession());
-        String index = null;
+        String sku = null;
         try {
-            index = getSelectedIdx(pos);
+            sku = getSelectedItem(pos);
         } catch (ArrayIndexOutOfBoundsException e) {
         }
 
-        if (index == null) {
+        if (sku == null) {
             pos.getOutput().print("Invalid Selection!");
             pos.getJournal().refresh(pos);
             pos.getInput().clear();
@@ -271,16 +271,16 @@ public class MenuEvents {
                 try {
                     quantity = new BigDecimal(func[1]);
                 } catch (NumberFormatException e) {
-                    quantity = trans.getItemQuantity(index);
+                    quantity = trans.getItemQuantity(sku);
                 }
             }
         }
 
         // adjust the quantity
-        quantity = (increment ? trans.getItemQuantity(index).add(quantity) : quantity);
+        quantity = (increment ? trans.getItemQuantity(sku).add(quantity) : quantity);
 
         try {
-            trans.modifyQty(index, quantity);
+            trans.modifyQty(sku, quantity);
         } catch (CartItemModifyException e) {
             Debug.logError(e, module);
             pos.showDialog("dialog/error/producterror");
@@ -328,13 +328,13 @@ public class MenuEvents {
         if (!trans.isOpen()) {
             pos.showDialog("dialog/error/terminalclosed");
         } else {
-            String index = null;
+            String sku = null;
             try {
-                index = getSelectedIdx(pos);
+                sku = getSelectedItem(pos);
             } catch (ArrayIndexOutOfBoundsException e) {
             }
 
-            if (index == null) {
+            if (sku == null) {
                 pos.getOutput().print("Invalid Selection!");
                 pos.getJournal().refresh(pos);
                 pos.getInput().clear();
@@ -355,7 +355,7 @@ public class MenuEvents {
                 }
 
                 amount = amount.movePointLeft(2).negate();
-                trans.addDiscount(index, amount, percent);
+                trans.addDiscount(sku, amount, percent);
                 trans.calcTax();
             }
         }
@@ -379,20 +379,20 @@ public class MenuEvents {
 
     public static synchronized void voidItem(PosScreen pos) {
         PosTransaction trans = PosTransaction.getCurrentTx(pos.getSession());
-        String index = null;
+        String sku = null;
         try {
-            index = getSelectedIdx(pos);
+            sku = getSelectedItem(pos);
         } catch (ArrayIndexOutOfBoundsException e) {
         }
 
-        if (index == null) {
+        if (sku == null) {
             pos.getOutput().print("Invalid Selection!");
             pos.getJournal().refresh(pos);
             pos.getInput().clear();
         }
 
         try {
-            trans.voidItem(index);
+            trans.voidItem(sku);
         } catch (CartItemModifyException e) {
             pos.getOutput().print(e.getMessage());
         }
@@ -425,11 +425,6 @@ public class MenuEvents {
         return journal.getSelectedSku();
     }
 
-    public static synchronized String getSelectedIdx(PosScreen pos) {
-        Journal journal = pos.getJournal();
-        return journal.getSelectedIdx();
-    }
-    
     public static synchronized void configureItem(PosScreen pos) {
         PosTransaction trans = PosTransaction.getCurrentTx(pos.getSession());
         Journal journal = pos.getJournal();

@@ -28,7 +28,7 @@ if ((!searchCategoryId || searchCategoryId.length() == 0) && !productStoreId) {
     currentCatalogId = CatalogWorker.getCurrentCatalogId(request);
     searchCategoryId = CatalogWorker.getCatalogSearchCategoryId(request, currentCatalogId);
 }
-searchCategory = from("ProductCategory").where("productCategoryId", searchCategoryId).queryOne();
+searchCategory = delegator.findOne("ProductCategory", [productCategoryId : searchCategoryId], false);
 
 if (searchCategoryId) {
     productFeaturesByTypeMap = ParametricSearch.makeCategoryFeatureLists(searchCategoryId, delegator, 2000);
@@ -46,10 +46,10 @@ searchConstraintStrings = ProductSearchSession.searchGetConstraintStrings(false,
 searchSortOrderString = ProductSearchSession.searchGetSortOrderString(false, request);
 
 // get suppliers in system
-supplerPartyRoleAndPartyDetails = from("PartyRoleAndPartyDetail").where(roleTypeId : "SUPPLIER").orderBy("groupName", "firstName").queryList();
+supplerPartyRoleAndPartyDetails = delegator.findList("PartyRoleAndPartyDetail", EntityCondition.makeCondition([roleTypeId : 'SUPPLIER']), null, ['groupName', 'firstName'], null, false);
 
 // get the GoodIdentification types
-goodIdentificationTypes = from("GoodIdentificationType").orderBy("description").queryList();
+goodIdentificationTypes = delegator.findList("GoodIdentificationType", null, null, ['description'], null, false);
 
 context.searchCategoryId = searchCategoryId;
 context.searchCategory = searchCategory;

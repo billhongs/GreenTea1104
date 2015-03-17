@@ -22,73 +22,68 @@ import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralException;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.finder.PrimaryKeyFinder;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
-import org.ofbiz.minilang.artifact.ArtifactInfoContext;
 import org.ofbiz.minilang.method.MethodContext;
+import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;entity-one&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Centityone%3E}}">Mini-language Reference</a>
+ * Uses the delegator to find entity values by a primary key
  */
-public final class EntityOne extends EntityOperation {
+public class EntityOne extends MethodOperation {
+    public static final class EntityOneFactory implements Factory<EntityOne> {
+        public EntityOne createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new EntityOne(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "entity-one";
+        }
+    }
 
     public static final String module = EntityOne.class.getName();
 
-    private final PrimaryKeyFinder finder;
+    protected PrimaryKeyFinder finder;
 
-    public EntityOne(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    public EntityOne(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "entity-name", "use-cache", "auto-field-map", "value-field", "delegator-name");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "entity-name", "value-field");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "value-field", "delegator-name");
-            MiniLangValidate.childElements(simpleMethod, element, "field-map", "select-field");
-        }
         this.finder = new PrimaryKeyFinder(element);
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
+    public boolean exec(MethodContext methodContext) {
         try {
-            Delegator delegator = getDelegator(methodContext);
+            Delegator delegator = methodContext.getDelegator();
             this.finder.runFind(methodContext.getEnvMap(), delegator);
         } catch (GeneralException e) {
-            String errMsg = "Exception thrown while performing entity find: " + e.getMessage();
-            Debug.logWarning(e, errMsg, module);
-            simpleMethod.addErrorMessage(methodContext, errMsg);
+            Debug.logError(e, module);
+            String errMsg = "ERROR: Could not complete the " + simpleMethod.getShortDescription() + " process: " + e.getMessage();
+
+            if (methodContext.getMethodType() == MethodContext.EVENT) {
+                methodContext.putEnv(simpleMethod.getEventErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getEventResponseCodeName(), simpleMethod.getDefaultErrorCode());
+            } else if (methodContext.getMethodType() == MethodContext.SERVICE) {
+                methodContext.putEnv(simpleMethod.getServiceErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getServiceResponseMessageName(), simpleMethod.getDefaultErrorCode());
+            }
             return false;
         }
         return true;
     }
 
-    @Override
-    public void gatherArtifactInfo(ArtifactInfoContext aic) {
-        aic.addEntityName(this.finder.getEntityName());
+    public String getEntityName() {
+        return this.finder.getEntityName();
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<entity-one ");
-        sb.append("entity-name=\"").append(this.finder.getEntityName()).append("\" />");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<entity-one/>";
     }
-
-    /**
-     * A factory for the &lt;entity-one&gt; element.
-     */
-    public static final class EntityOneFactory implements Factory<EntityOne> {
-        @Override
-        public EntityOne createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new EntityOne(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "entity-one";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }
+

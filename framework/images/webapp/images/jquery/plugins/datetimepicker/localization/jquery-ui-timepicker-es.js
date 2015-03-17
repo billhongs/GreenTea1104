@@ -7,15 +7,11 @@
 		hourText: 'Horas',
 		minuteText: 'Minutos',
 		secondText: 'Segundos',
-		millisecText: 'Milisegundos',
-		microsecText: 'Microsegundos',
 		timezoneText: 'Huso horario',
 		currentText: 'Ahora',
 		closeText: 'Cerrar',
-		timeFormat: 'HH:mm',
-		amNames: ['a.m.', 'AM', 'A'],
-		pmNames: ['p.m.', 'PM', 'P'],
-		isRTL: false
+		timeFormat: 'hh:mm',
+		ampm: false
 	};
 	$.timepicker.setDefaults($.timepicker.regional['es']);
 })(jQuery);

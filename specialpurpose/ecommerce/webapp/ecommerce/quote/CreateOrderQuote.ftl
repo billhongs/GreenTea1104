@@ -18,7 +18,7 @@ under the License.
 -->
 
 <div>
-    <#if quote??>
+    <#if quote?exists>
         <#if quote.statusId == "QUO_APPROVED">
             <a href="<@ofbizUrl>loadCartFromQuote?quoteId=${quote.quoteId}&amp;finalizeMode=init</@ofbizUrl>" class="buttontext">${uiLabelMap.OrderCreateOrder}</a>
         <#else/>

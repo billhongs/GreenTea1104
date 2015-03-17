@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#if shipment??>
+<#if shipment?exists>
 
     <#-- JS to populate the quantity_o_# field required by the chained issueOrderItemToShipment service -->
     <script type="text/javascript">
@@ -31,7 +31,7 @@ under the License.
       }
     </script>
 
-    <#assign productId = parameters.productId!/>
+    <#assign productId = parameters.productId?if_exists/>
 <div class="screenlet">
     <div class="screenlet-title-bar">
         <ul>
@@ -45,26 +45,26 @@ under the License.
         <div class="errorMessage">
             <#assign uiLabelWithVar=uiLabelMap.ProductErrorShipmentNotPurchaseShipment?interpret><@uiLabelWithVar/>
         </div>
-    <#elseif orderId?has_content && !orderHeader??>
+    <#elseif orderId?has_content && !orderHeader?exists>
         <div class="errorMessage">
             <#assign uiLabelWithVar=uiLabelMap.ProductErrorOrderIdNotFound?interpret><@uiLabelWithVar/>
         </div>
-    <#elseif orderHeader?? && orderHeader.orderTypeId != "PURCHASE_ORDER">
+    <#elseif orderHeader?exists && orderHeader.orderTypeId != "PURCHASE_ORDER">
         <div class="errorMessage">
             <#assign uiLabelWithVar=uiLabelMap.ProductErrorOrderNotPurchaseOrder?interpret><@uiLabelWithVar/>
         </div>
-    <#elseif ProductReceiveInventoryAgainstPurchaseOrderProductNotFound??>
+    <#elseif ProductReceiveInventoryAgainstPurchaseOrderProductNotFound?exists>
         <div class="errorMessage">
             <#assign uiLabelWithVar=uiLabelMap.ProductReceiveInventoryAgainstPurchaseOrderProductNotFound?interpret><@uiLabelWithVar/>
             <script type="text/javascript">window.onload=function(){showErrorAlert("${uiLabelMap.CommonErrorMessage2}","<@uiLabelWithVar/>");};</script>
         </div>
-    <#elseif ProductReceiveInventoryAgainstPurchaseOrderQuantityExceedsAvailableToReceive??>
+    <#elseif ProductReceiveInventoryAgainstPurchaseOrderQuantityExceedsAvailableToReceive?exists>
         <div class="errorMessage">
             <#assign uiLabelWithVar=uiLabelMap.ProductReceiveInventoryAgainstPurchaseOrderQuantityExceedsAvailableToReceive?interpret><@uiLabelWithVar/>
             <script type="text/javascript">window.onload=function(){showErrorAlert("${uiLabelMap.CommonErrorMessage2}","<@uiLabelWithVar/>");};</script>
         </div>
     </#if>
-    <#if ProductReceiveInventoryAgainstPurchaseOrderQuantityGoesToBackOrder??>
+    <#if ProductReceiveInventoryAgainstPurchaseOrderQuantityGoesToBackOrder?exists>
         <div class="errorMessage" style="color:green">
             <#assign uiLabelWithVar=uiLabelMap.ProductReceiveInventoryAgainstPurchaseOrderQuantityGoesToBackOrder?interpret><@uiLabelWithVar/>
             <script type="text/javascript">window.onload=function(){showErrorAlert("${uiLabelMap.CommonErrorMessage2}","<@uiLabelWithVar/>");};</script>
@@ -75,21 +75,21 @@ under the License.
 <form name="ReceiveInventoryAgainstPurchaseOrder" action="<@ofbizUrl>ReceiveInventoryAgainstPurchaseOrder</@ofbizUrl>">
     <input type="hidden" name="clearAll" value="Y"/>
     <div>
-        <span class="label">${uiLabelMap.ProductShipmentId}</span>&nbsp;<input type="text" size="20" name="shipmentId" value="${shipmentId!}"/>
+        <span class="label">${uiLabelMap.ProductShipmentId}</span>&nbsp;<input type="text" size="20" name="shipmentId" value="${shipmentId?if_exists}"/>
         <span class="label">${uiLabelMap.ProductOrderId}</span>&nbsp;
         <span>
-            <@htmlTemplate.lookupField value="${orderId!}" formName="ReceiveInventoryAgainstPurchaseOrder" name="purchaseOrderId" id="purchaseOrderId" fieldFormName="LookupOrderHeaderAndShipInfo"/>
+            <@htmlTemplate.lookupField value="${orderId?if_exists}" formName="ReceiveInventoryAgainstPurchaseOrder" name="purchaseOrderId" id="purchaseOrderId" fieldFormName="LookupOrderHeaderAndShipInfo"/>
         </span>
-        <span class="label">${uiLabelMap.ProductOrderShipGroupId}</span>&nbsp;<input type="text" size="20" name="shipGroupSeqId" value="${shipGroupSeqId!}"/>
+        <span class="label">${uiLabelMap.ProductOrderShipGroupId}</span>&nbsp;<input type="text" size="20" name="shipGroupSeqId" value="${shipGroupSeqId?if_exists}"/>
         <input type="submit" value="${uiLabelMap.CommonSelect}" class="smallSubmit"/>
     </div>
 </form>
 
-<#if shipment??>
+<#if shipment?exists>
     <#if isPurchaseShipment>
 
         <#assign itemsAvailableToReceive = totalAvailableToReceive?default(0) &gt; 0/>
-        <#if orderItemDatas??>
+        <#if orderItemDatas?exists>
             <br />
             <#assign rowCount = 0>
             <#assign totalReadyToReceive = 0/>
@@ -119,22 +119,22 @@ under the License.
                         </#if>
                     </tr>
                     <#assign alt_row = false>
-                    <#list orderItemDatas! as orderItemData>
+                    <#list orderItemDatas?if_exists as orderItemData>
                         <#assign orderItem = orderItemData.orderItem>
-                        <#assign product = orderItemData.product!>
-                        <#assign itemShipGroupSeqId = orderItemData.shipGroupSeqId!>
+                        <#assign product = orderItemData.product?if_exists>
+                        <#assign itemShipGroupSeqId = orderItemData.shipGroupSeqId?if_exists>
                         <#assign totalQuantityReceived = orderItemData.totalQuantityReceived?default(0)>
                         <#assign availableToReceive = orderItemData.availableToReceive?default(0)>
                         <#assign backOrderedQuantity = orderItemData.backOrderedQuantity?default(0)>
                         <#assign fulfilledReservations = orderItemData.fulfilledReservations>
                         <tr id="orderItemData_tableRow_${rowCount}" valign="middle"<#if alt_row> class="alternate-row"</#if>>
-                            <td>${(product.internalName)!} [${orderItem.productId?default("N/A")}]</div></td>
+                            <td>${(product.internalName)?if_exists} [${orderItem.productId?default("N/A")}]</div></td>
                             <td>
                                 <div>
                                     <#assign upcaLookup = Static["org.ofbiz.base.util.UtilMisc"].toMap("productId", product.productId, "goodIdentificationTypeId", "UPCA")/>
-                                    <#assign upca = delegator.findOne("GoodIdentification", upcaLookup, true)!/>
+                                    <#assign upca = delegator.findByPrimaryKeyCache("GoodIdentification", upcaLookup)?if_exists/>
                                     <#if upca?has_content>
-                                        ${upca.idValue!}
+                                        ${upca.idValue?if_exists}
                                     </#if>
                                 </div>
                             </td>
@@ -158,20 +158,20 @@ under the License.
                             </td>
                             <#if availableToReceive &gt; 0 >
                                 <td>
-                                    <input type="hidden" name="productId_o_${rowCount}" value="${(product.productId)!}"/>
+                                    <input type="hidden" name="productId_o_${rowCount}" value="${(product.productId)?if_exists}"/>
                                     <input type="hidden" name="facilityId_o_${rowCount}" value="${facilityId}"/>
                                     <input type="hidden" name="shipmentId_o_${rowCount}" value="${shipmentId}"/>
                                     <input type="hidden" name="orderId_o_${rowCount}" value="${orderItem.orderId}"/>
-                                    <input type="hidden" name="shipGroupSeqId_o_${rowCount}" value="${itemShipGroupSeqId!}"/>
+                                    <input type="hidden" name="shipGroupSeqId_o_${rowCount}" value="${itemShipGroupSeqId?if_exists}"/>
                                     <input type="hidden" name="orderItemSeqId_o_${rowCount}" value="${orderItem.orderItemSeqId}"/>
                                     <input type="hidden" name="unitCost_o_${rowCount}" value="${orderItem.unitPrice?default(0)}"/>
                                     <input type="hidden" name="currencyUomId_o_${rowCount}" value="${currencyUomId?default("")}"/>
-                                    <input type="hidden" name="ownerPartyId_o_${rowCount}" value="${(facility.ownerPartyId)!}"/>
+                                    <input type="hidden" name="ownerPartyId_o_${rowCount}" value="${(facility.ownerPartyId)?if_exists}"/>
                                     <input type="hidden" name="datetimeReceived_o_${rowCount}" value="${now}"/>
                                     <input type="hidden" name="quantityRejected_o_${rowCount}" value="0"/>
                                     <#-- quantity field required by the chained issueOrderItemToShipment service -->
                                     <input type="hidden" name="quantity_o_${rowCount}" id="quantity_o_${rowCount}" value=""/>
-                                    <#if itemQuantitiesToReceive?? && itemQuantitiesToReceive.get(orderItem.orderItemSeqId)??>
+                                    <#if itemQuantitiesToReceive?exists && itemQuantitiesToReceive.get(orderItem.orderItemSeqId)?exists>
                                         <#assign quantityToReceive = itemQuantitiesToReceive.get(orderItem.orderItemSeqId)>
                                     <#else>
                                         <#assign quantityToReceive = 0>
@@ -243,5 +243,5 @@ under the License.
     </div>
 </div>
 <#elseif parameters.shipmentId?has_content>
-  <h3>${uiLabelMap.ProductShipmentNotFoundId}: [${shipmentId!}]</h3>
+  <h3>${uiLabelMap.ProductShipmentNotFoundId}: [${shipmentId?if_exists}]</h3>
 </#if>

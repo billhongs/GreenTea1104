@@ -36,6 +36,7 @@ import net.xoetrope.xui.helper.SwingWorker;
 import org.ofbiz.accounting.payment.PaymentGatewayServices;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralException;
+import org.ofbiz.base.util.Log4jLoggerWriter;
 import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilFormatOut;
 import org.ofbiz.base.util.UtilGenerics;
@@ -56,9 +57,7 @@ import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
 import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.guiapp.xui.XuiSession;
 import org.ofbiz.order.shoppingcart.CartItemModifyException;
 import org.ofbiz.order.shoppingcart.CheckOutHelper;
@@ -68,7 +67,6 @@ import org.ofbiz.order.shoppingcart.ShoppingCartItem;
 import org.ofbiz.order.shoppinglist.ShoppingListEvents;
 import org.ofbiz.party.contact.ContactMechWorker;
 import org.ofbiz.pos.component.Journal;
-import org.ofbiz.pos.component.JournalLineParams;
 import org.ofbiz.pos.component.Output;
 import org.ofbiz.pos.device.DeviceLoader;
 import org.ofbiz.pos.device.impl.Receipt;
@@ -97,6 +95,7 @@ public class PosTransaction implements Serializable {
     public static final int INTERNAL_PAYMENT = 1;
     public static final int EXTERNAL_PAYMENT = 2;
 
+    private static PrintWriter defaultPrintWriter = new Log4jLoggerWriter(Debug.getLogger(module));
     private static PosTransaction currentTx = null;
     private static LifoSet<PosTransaction> savedTx = new LifoSet<PosTransaction>();
 
@@ -118,6 +117,7 @@ public class PosTransaction implements Serializable {
     protected int drawerIdx = 0;
 
     private GenericValue shipAddress = null;
+    private Map<String, Integer> skuDiscounts = FastMap.newInstance();
     private int cartDiscount = -1;
 
 
@@ -125,7 +125,7 @@ public class PosTransaction implements Serializable {
         this.session = session;
         this.terminalId = session.getId();
         this.partyId = "_NA_";
-        //this.trace = defaultPrintWriter;
+        this.trace = defaultPrintWriter;
 
         this.productStoreId = (String) session.getAttribute("productStoreId");
         this.facilityId = (String) session.getAttribute("facilityId");
@@ -300,7 +300,7 @@ public class PosTransaction implements Serializable {
             ProductConfigWrapper pcw = null;
             pcw = item.getConfigWrapper();
             List<ConfigOption> selected = pcw.getSelectedOptions();
-            for (ConfigOption configoption : selected) {
+            for(ConfigOption configoption : selected) {
                 Map<String, Object> itemInfo = FastMap.newInstance();
                 if (configoption.isSelected() && !configoption.isDefault()) {
                     itemInfo.put("productId", "");
@@ -329,7 +329,7 @@ public class PosTransaction implements Serializable {
             fields.put("maxAmount", inf.amount);
             fields.put("orderId", this.getOrderId());
 
-            List<GenericValue> paymentPrefs = session.getDelegator().findByAnd("OrderPaymentPreference", fields, null, false);
+            List<GenericValue> paymentPrefs = session.getDelegator().findByAnd("OrderPaymentPreference", fields);
             if (UtilValidate.isNotEmpty(paymentPrefs)) {
                 //Debug.logInfo("Found some prefs - " + paymentPrefs.size(), module);
                 if (paymentPrefs.size() > 1) {
@@ -374,7 +374,7 @@ public class PosTransaction implements Serializable {
             String paymentMethodTypeId = infValue.getString("paymentMethodTypeId");
             GenericValue pmt = null;
             try {
-                 pmt = infValue.getRelatedOne("PaymentMethodType", false);
+                 pmt = infValue.getRelatedOne("PaymentMethodType");
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -386,7 +386,7 @@ public class PosTransaction implements Serializable {
             if ("CREDIT_CARD".equals(paymentMethodTypeId)) {
                 GenericValue cc = null;
                 try {
-                    cc = infValue.getRelatedOne("CreditCard", false);
+                    cc = infValue.getRelatedOne("CreditCard");
                 } catch (GenericEntityException e) {
                     Debug.logError(e, module);
                 }
@@ -407,7 +407,7 @@ public class PosTransaction implements Serializable {
                 /*
                 GenericValue gc = null;
                 try {
-                    gc = infValue.getRelatedOne("GiftCard", false); //FIXME is this really useful ? (Maybe later...)
+                    gc = infValue.getRelatedOne("GiftCard"); //FIXME is this really useful ? (Maybe later...)
                 } catch (GenericEntityException e) {
                     Debug.logError(e, module);
                 }
@@ -418,14 +418,13 @@ public class PosTransaction implements Serializable {
         return payInfo;
     }
 
-    public BigDecimal getItemQuantity(String cartIndex) {
-        trace("request item quantity", cartIndex);
-        int index = Integer.parseInt(cartIndex);
-        ShoppingCartItem item = cart.findCartItem(index);
+    public BigDecimal getItemQuantity(String productId) {
+        trace("request item quantity", productId);
+        ShoppingCartItem item = cart.findCartItem(productId, null, null, null, BigDecimal.ZERO);
         if (item != null) {
             return item.getQuantity();
         } else {
-            trace("item not found", cartIndex);
+            trace("item not found", productId);
             return BigDecimal.ZERO;
         }
     }
@@ -435,8 +434,8 @@ public class PosTransaction implements Serializable {
         try {
             Delegator delegator = cart.getDelegator();
             GenericValue product = null;
-            product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
-            if (UtilValidate.isNotEmpty(product) && ("AGGREGATED".equals(product.getString("productTypeId")) || "AGGREGATED_SERVICE".equals(product.getString("productTypeId")))) {
+            product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
+            if (UtilValidate.isNotEmpty(product) && "AGGREGATED".equals(product.getString("productTypeId"))) {
                 return true;
             }
         } catch (GenericEntityException e) {
@@ -494,8 +493,8 @@ public class PosTransaction implements Serializable {
             Delegator delegator = cart.getDelegator();
             GenericValue product = null;
             ProductConfigWrapper pcw = null;
-            product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
-            if (UtilValidate.isNotEmpty(product) && ("AGGREGATED".equals(product.getString("productTypeId"))||"AGGREGATED_SERVICE".equals(product.getString("productTypeId")))) {
+            product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
+            if (UtilValidate.isNotEmpty(product) && "AGGREGATED".equals(product.getString("productTypeId"))) {
                 // if it's an aggregated item, load the configwrapper and set to defaults
                 pcw = new ProductConfigWrapper(delegator, session.getDispatcher(), productId, null, null, null, null, null, null);
                 pcw.setDefaultConfig();
@@ -517,11 +516,11 @@ public class PosTransaction implements Serializable {
         }
     }
 
-    public void addItem(String productId, BigDecimal quantity, ProductConfigWrapper pcw)
+    public void addItem(String productId, ProductConfigWrapper pcw)
         throws ItemNotFoundException, CartItemModifyException {
-        trace("add item with ProductConfigWrapper", productId + "/" + quantity);
+        trace("add item with ProductConfigWrapper", productId);
         try {
-            cart.addOrIncreaseItem(productId, null, quantity, null, null, null, null, null, null, null, null, pcw, null, null, null, session.getDispatcher());
+            cart.addOrIncreaseItem(productId, null, BigDecimal.ONE, null, null, null, null, null, null, null, null, pcw, null, null, null, session.getDispatcher());
         } catch (ItemNotFoundException e) {
             trace("item not found", e);
             throw e;
@@ -557,10 +556,9 @@ public class PosTransaction implements Serializable {
         return;
     }
 
-    public void modifyQty(String cartIndex, BigDecimal quantity) throws CartItemModifyException {
-        trace("modify item quantity", cartIndex + "/" + quantity);
-        int index = Integer.parseInt(cartIndex);
-        ShoppingCartItem item = cart.findCartItem(index);
+    public void modifyQty(String productId, BigDecimal quantity) throws CartItemModifyException {
+        trace("modify item quantity", productId + "/" + quantity);
+        ShoppingCartItem item = cart.findCartItem(productId, null, null, null, BigDecimal.ZERO);
         if (item != null) {
             try {
                 item.setQuantity(quantity, session.getDispatcher(), cart, true);
@@ -570,22 +568,21 @@ public class PosTransaction implements Serializable {
                 throw e;
             }
         } else {
-            trace("item not found", cartIndex);
+            trace("item not found", productId);
         }
     }
 
-    public void modifyPrice(String cartIndex, BigDecimal price) {
-        trace("modify item price", cartIndex + "/" + price);
-        int index = Integer.parseInt(cartIndex);
-        ShoppingCartItem item = cart.findCartItem(index);
+    public void modifyPrice(String productId, BigDecimal price) {
+        trace("modify item price", productId + "/" + price);
+        ShoppingCartItem item = cart.findCartItem(productId, null, null, null, BigDecimal.ZERO);
         if (item != null) {
             item.setBasePrice(price);
         } else {
-            trace("item not found", cartIndex);
+            trace("item not found", productId);
         }
     }
 
-    public void addDiscount(String cartIndex, BigDecimal discount, boolean percent) {
+    public void addDiscount(String productId, BigDecimal discount, boolean percent) {
         GenericValue adjustment = session.getDelegator().makeValue("OrderAdjustment");
         adjustment.set("orderAdjustmentTypeId", "DISCOUNT_ADJUSTMENT");
         if (percent) {
@@ -594,15 +591,15 @@ public class PosTransaction implements Serializable {
             adjustment.set("amount", discount);
         }
 
-        if (cartIndex != null) {
+        if (productId != null) {
             trace("add item adjustment");
-            int iCartIndex = Integer.parseInt(cartIndex);
-            ShoppingCartItem item = cart.findCartItem(iCartIndex);
-            List<GenericValue> adjustments = item.getAdjustments();
-            for (GenericValue gvAdjustment : adjustments){
-                    item.removeAdjustment(gvAdjustment);
+            ShoppingCartItem item = cart.findCartItem(productId, null, null, null, BigDecimal.ZERO);
+            Integer itemAdj = skuDiscounts.get(productId);
+            if (itemAdj != null) {
+                item.removeAdjustment(itemAdj.intValue());
             }
                int idx = item.addAdjustment(adjustment);
+            skuDiscounts.put(productId, idx);
         } else {
             trace("add sale adjustment");
             if (cartDiscount > -1) {
@@ -617,13 +614,11 @@ public class PosTransaction implements Serializable {
             cart.removeAdjustment(cartDiscount);
             cartDiscount = -1;
         }
-        
-        Iterator<ShoppingCartItem> cartIterator = cart.iterator();
-        while(cartIterator.hasNext()){
-            ShoppingCartItem item = (ShoppingCartItem) cartIterator.next();    
-            List<GenericValue> adjustments = item.getAdjustments();
-            for (GenericValue gvAdjustment : adjustments){
-                item.removeAdjustment(gvAdjustment);
+        for(String productId : skuDiscounts.keySet()) {
+            ShoppingCartItem item = cart.findCartItem(productId, null, null, null, BigDecimal.ZERO);
+            Integer itemAdj = skuDiscounts.remove(productId);
+            if (itemAdj != null) {
+                item.removeAdjustment(itemAdj.intValue());
             }
         }
     }
@@ -632,18 +627,22 @@ public class PosTransaction implements Serializable {
         return cart.getOrderOtherAdjustmentTotal();
     }
 
-    public void voidItem(String cartIndex) throws CartItemModifyException {
-        trace("void item", cartIndex);
-        int index;
+    public void voidItem(String productId) throws CartItemModifyException {
+        trace("void item", productId);
+        ShoppingCartItem item = cart.findCartItem(productId, null, null, null, BigDecimal.ZERO);
+        if (item != null) {
             try {
-            index = Integer.parseInt(cartIndex);
-            cart.removeCartItem(index, session.getDispatcher());
+                int itemIdx = cart.getItemIndex(item);
+                cart.removeCartItem(itemIdx, session.getDispatcher());
             } catch (CartItemModifyException e) {
                 Debug.logError(e, module);
-            trace("void item error", cartIndex, e);
+                trace("void item error", productId, e);
                 throw e;
             }
+        } else {
+            trace("item not found", productId);
         }
+    }
 
     public void voidSale(PosScreen pos) {
         trace("void sale");
@@ -702,7 +701,7 @@ public class PosTransaction implements Serializable {
         Map<String, String> fields = UtilMisc.toMap("paymentMethodTypeId", paymentMethodTypeId, "productStoreId", productStoreId);
         List<GenericValue> values = null;
         try {
-            values = session.getDelegator().findByAnd("ProductStorePaymentSetting", fields, null, true);
+            values = session.getDelegator().findByAndCache("ProductStorePaymentSetting", fields);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }
@@ -820,8 +819,8 @@ public class PosTransaction implements Serializable {
         // attach the party ID to the cart
         cart.setOrderPartyId(partyId);
         // Set the shipping type
-        cart.setAllShipmentMethodTypeId("NO_SHIPPING");
-       // cart.setAllCarrierPartyId();
+        cart.setShipmentMethodTypeId("NO_SHIPPING");
+       // cart.setCarrierPartyId();
 
         // validate payment methods
         output.print(UtilProperties.getMessage(resource, "PosValidating", locale));
@@ -930,8 +929,8 @@ public class PosTransaction implements Serializable {
             GenericValue facilityContactMech = ContactMechWorker.getFacilityContactMechByPurpose(delegator, facilityId, UtilMisc.toList("SHIP_ORIG_LOCATION", "PRIMARY_LOCATION"));
             if (facilityContactMech != null) {
                 try {
-                    this.shipAddress = session.getDelegator().findOne("PostalAddress",
-                            UtilMisc.toMap("contactMechId", facilityContactMech.getString("contactMechId")), false);
+                    this.shipAddress = session.getDelegator().findByPrimaryKey("PostalAddress",
+                            UtilMisc.toMap("contactMechId", facilityContactMech.getString("contactMechId")));
                 } catch (GenericEntityException e) {
                     Debug.logError(e, module);
                 }
@@ -956,63 +955,40 @@ public class PosTransaction implements Serializable {
                 BigDecimal subTotal = unitPrice.multiply(quantity);
                 BigDecimal adjustment = item.getOtherAdjustments();
 
-                XModel line = Journal.appendNode(new JournalLineParams(model, "tr", "" + cart.getItemIndex(item), ""));
-                JournalLineParams sku = new JournalLineParams(line, "td", "sku", item.getProductId());
-                JournalLineParams desc = new JournalLineParams(line, "td", "desc", item.getName());
-                JournalLineParams qty = new JournalLineParams(line, "td", "qty", UtilFormatOut.formatQuantity(quantity));
-                JournalLineParams price = new JournalLineParams(line, "td", "price", UtilFormatOut.formatPrice(subTotal));
-                JournalLineParams index = new JournalLineParams(line, "td", "index", Integer.toString(cart.getItemIndex(item)));
-                JournalLineParams[] journalLineParamses = new JournalLineParams[] {sku, desc, qty, price, index};
-                appendJouralLine(journalLineParamses);
+                XModel line = Journal.appendNode(model, "tr", ""+cart.getItemIndex(item), "");
+                Journal.appendNode(line, "td", "sku", item.getProductId());
+                Journal.appendNode(line, "td", "desc", item.getName());
+                Journal.appendNode(line, "td", "qty", UtilFormatOut.formatQuantity(quantity));
+                Journal.appendNode(line, "td", "price", UtilFormatOut.formatPrice(subTotal));
+                Journal.appendNode(line, "td", "index", Integer.toString(cart.getItemIndex(item)));
 
                 if (this.isAggregatedItem(item.getProductId())) {
                     // put alterations here
                     ProductConfigWrapper pcw = null;
-                    // product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
+                    // product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
                     // pcw = new ProductConfigWrapper(delegator, session.getDispatcher(), productId, null, null, null, null, null, null);
                     pcw = item.getConfigWrapper();
                     List<ConfigOption> selected = pcw.getSelectedOptions();
                     for (ConfigOption configoption : selected) {
                         if (configoption.isSelected()) {
-                            XModel option = Journal.appendNode(new JournalLineParams(model, "tr", "" + cart.getItemIndex(item), ""));
-                            sku = new JournalLineParams(option, "td", "sku", "");
-                            desc = new JournalLineParams(option, "td", "desc", configoption.getDescription());
-                            qty = new JournalLineParams(option, "td", "qty", "");
-                            price = new JournalLineParams(option, "td", "price", UtilFormatOut.formatPrice(configoption.getPrice()));
-                            index = new JournalLineParams(option, "td", "index", Integer.toString(cart.getItemIndex(item)));
-                            journalLineParamses = new JournalLineParams[] {sku, desc, qty, price, index};
-                            appendJouralLine(journalLineParamses);
+                            XModel option = Journal.appendNode(model, "tr", ""+cart.getItemIndex(item), "");
+                            Journal.appendNode(option, "td", "sku", "");
+                            Journal.appendNode(option, "td", "desc", configoption.getDescription());
+                            Journal.appendNode(option, "td", "qty", "");
+                            Journal.appendNode(option, "td", "price", UtilFormatOut.formatPrice(configoption.getPrice()));
+                            Journal.appendNode(option, "td", "index", Integer.toString(cart.getItemIndex(item)));
                         }
                     }
                 }
 
                 if (adjustment.compareTo(BigDecimal.ZERO) != 0) {
                     // append the promo info
-                    XModel promo = Journal.appendNode(new JournalLineParams(model, "tr", "itemadjustment", ""));
-                    sku = new JournalLineParams(promo, "td", "sku", "");
-                    desc = new JournalLineParams(promo, "td", "desc", UtilProperties.getMessage(resource, "PosItemDiscount", locale));
-                    qty = new JournalLineParams(promo, "td", "qty", "");
-                    price = new JournalLineParams(promo, "td", "price", UtilFormatOut.formatPrice(adjustment));
-                    journalLineParamses = new JournalLineParams[] {sku, desc, qty, price, index};
-                    appendJouralLine(journalLineParamses);
+                    XModel promo = Journal.appendNode(model, "tr", "itemadjustment", "");
+                    Journal.appendNode(promo, "td", "sku", "");
+                    Journal.appendNode(promo, "td", "desc", UtilProperties.getMessage(resource, "PosItemDiscount", locale));
+                    Journal.appendNode(promo, "td", "qty", "");
+                    Journal.appendNode(promo, "td", "price", UtilFormatOut.formatPrice(adjustment));
                 }
-            }
-        }
-    }
-    
-    private void appendJouralLine(JournalLineParams[] journalLineParamses) {
-        if (locale.getLanguage().equals("ar")) {
-            int startParamIndex = 2;
-            if (journalLineParamses.length == 4)
-                startParamIndex = 1;
-            for (int p = journalLineParamses.length - startParamIndex; p >= 0; p--) {
-                Journal.appendNode(journalLineParamses[p]);
-            }
-            if (startParamIndex == 2)
-                Journal.appendNode(journalLineParamses[journalLineParamses.length - 1]);
-        }   else {
-            for (int p = 0; p < journalLineParamses.length; p++) {
-                Journal.appendNode(journalLineParamses[p]);
             }
         }
     }
@@ -1036,42 +1012,36 @@ public class PosTransaction implements Serializable {
             for (GenericValue orderAdjustment : adjustments) {
                 BigDecimal amount = orderAdjustment.getBigDecimal("amount");
                 BigDecimal sourcePercentage = orderAdjustment.getBigDecimal("sourcePercentage");
-                XModel adjustmentLine = Journal.appendNode(new JournalLineParams(model, "tr", "adjustment", ""));
-                JournalLineParams[] journalLineParamses = new JournalLineParams[5];
-                journalLineParamses[0] = new JournalLineParams(adjustmentLine, "td", "sku", "");
-                journalLineParamses[1] = new JournalLineParams(adjustmentLine, "td", "desc", 
+                XModel adjustmentLine = Journal.appendNode(model, "tr", "adjustment", "");
+                Journal.appendNode(adjustmentLine, "td", "sku", "");
+                Journal.appendNode(adjustmentLine, "td", "desc",
                         UtilProperties.getMessage(resource, "PosSalesDiscount", locale));
                 if (UtilValidate.isNotEmpty(amount)) {
-                    journalLineParamses[2] = new JournalLineParams(adjustmentLine, "td", "qty", "");
-                    journalLineParamses[3] = new JournalLineParams(adjustmentLine, "td", "price", UtilFormatOut.formatPrice(amount));
+                    Journal.appendNode(adjustmentLine, "td", "qty", "");
+                    Journal.appendNode(adjustmentLine, "td", "price", UtilFormatOut.formatPrice(amount));
                 } else if (UtilValidate.isNotEmpty(sourcePercentage)) {
                     BigDecimal percentage = sourcePercentage.movePointLeft(2).negate(); // sourcePercentage is negative and must be show as a positive value (it's a discount not an amount)
-                    journalLineParamses[2] = new JournalLineParams(adjustmentLine, "td", "qty", UtilFormatOut.formatPercentage(percentage));
+                    Journal.appendNode(adjustmentLine, "td", "qty", UtilFormatOut.formatPercentage(percentage));
                     amount = cart.getItemTotal().add(itemsAdjustmentsAmount).multiply(percentage); // itemsAdjustmentsAmount is negative
-                    journalLineParamses[3] = new JournalLineParams(adjustmentLine, "td", "price", UtilFormatOut.formatPrice(amount.negate())); // amount must be shown as a negative value
+                    Journal.appendNode(adjustmentLine, "td", "price", UtilFormatOut.formatPrice(amount.negate())); // amount must be shown as a negative value
                 }
-                journalLineParamses[4] = new JournalLineParams(adjustmentLine, "td", "index", "-1");
-                appendJouralLine(journalLineParamses);
+                Journal.appendNode(adjustmentLine, "td", "index", "-1");
             }
 
-            XModel taxLine = Journal.appendNode(new JournalLineParams(model, "tr", "tax", ""));
-            JournalLineParams[] journalTaxLineParamses = new JournalLineParams[5];
-            journalTaxLineParamses[0] = new JournalLineParams(taxLine, "td", "sku", "");
+            XModel taxLine = Journal.appendNode(model, "tr", "tax", "");
+            Journal.appendNode(taxLine, "td", "sku", "");
 
-            journalTaxLineParamses[1] = new JournalLineParams(taxLine, "td", "desc", UtilProperties.getMessage(resource, "PosSalesTax", locale));
-            journalTaxLineParamses[2] = new JournalLineParams(taxLine, "td", "qty", "");
-            journalTaxLineParamses[3] = new JournalLineParams(taxLine, "td", "price", UtilFormatOut.formatPrice(taxAmount));
-            journalTaxLineParamses[4] = new JournalLineParams(taxLine, "td", "index", "-1");
-            appendJouralLine(journalTaxLineParamses);
+            Journal.appendNode(taxLine, "td", "desc", UtilProperties.getMessage(resource, "PosSalesTax", locale));
+            Journal.appendNode(taxLine, "td", "qty", "");
+            Journal.appendNode(taxLine, "td", "price", UtilFormatOut.formatPrice(taxAmount));
+            Journal.appendNode(taxLine, "td", "index", "-1");
 
-            XModel totalLine = Journal.appendNode(new JournalLineParams(model, "tr", "total", ""));
-            JournalLineParams[] journalTotalLineParamses = new JournalLineParams[5];
-            journalTotalLineParamses[0] = new JournalLineParams(totalLine, "td", "sku", "");
-            journalTotalLineParamses[1] = new JournalLineParams(totalLine, "td", "desc", UtilProperties.getMessage(resource, "PosGrandTotal", locale));
-            journalTotalLineParamses[2] = new JournalLineParams(totalLine, "td", "qty", "");
-            journalTotalLineParamses[3] = new JournalLineParams(totalLine, "td", "price", UtilFormatOut.formatPrice(total));
-            journalTotalLineParamses[4] = new JournalLineParams(totalLine, "td", "index", "-1");
-            appendJouralLine(journalTotalLineParamses);
+            XModel totalLine = Journal.appendNode(model, "tr", "total", "");
+            Journal.appendNode(totalLine, "td", "sku", "");
+            Journal.appendNode(totalLine, "td", "desc", UtilProperties.getMessage(resource, "PosGrandTotal", locale));
+            Journal.appendNode(totalLine, "td", "qty", "");
+            Journal.appendNode(totalLine, "td", "price", UtilFormatOut.formatPrice(total));
+            Journal.appendNode(totalLine, "td", "index", "-1");
         }
     }
 
@@ -1087,7 +1057,7 @@ public class PosTransaction implements Serializable {
                 if ("PaymentMethod".equals(paymentInfoObj.getEntityName())) {
                     paymentMethod = paymentInfoObj;
                     try {
-                        paymentMethodType = paymentMethod.getRelatedOne("PaymentMethodType", false);
+                        paymentMethodType = paymentMethod.getRelatedOne("PaymentMethodType");
                     } catch (GenericEntityException e) {
                         Debug.logError(e, module);
                     }
@@ -1104,14 +1074,12 @@ public class PosTransaction implements Serializable {
                     amount = inf.amount;
                 }
 
-                XModel paymentLine = Journal.appendNode(new JournalLineParams(model, "tr", Integer.toString(i), ""));
-                JournalLineParams[] journalPaymentLineParamses = new JournalLineParams[5];
-                journalPaymentLineParamses[0] = new JournalLineParams(paymentLine, "td", "sku", "");
-                journalPaymentLineParamses[1] = new JournalLineParams(paymentLine, "td", "desc", descString);
-                journalPaymentLineParamses[2] = new JournalLineParams(paymentLine, "td", "qty", "-");
-                journalPaymentLineParamses[3] = new JournalLineParams(paymentLine, "td", "price", UtilFormatOut.formatPrice(amount.negate()));
-                journalPaymentLineParamses[4] = new JournalLineParams(paymentLine, "td", "index", Integer.toString(i));
-                appendJouralLine(journalPaymentLineParamses);
+                XModel paymentLine = Journal.appendNode(model, "tr", Integer.toString(i), "");
+                Journal.appendNode(paymentLine, "td", "sku", "");
+                Journal.appendNode(paymentLine, "td", "desc", descString);
+                Journal.appendNode(paymentLine, "td", "qty", "-");
+                Journal.appendNode(paymentLine, "td", "price", UtilFormatOut.formatPrice(amount.negate()));
+                Journal.appendNode(paymentLine, "td", "index", Integer.toString(i));
             }
         }
     }
@@ -1120,13 +1088,11 @@ public class PosTransaction implements Serializable {
         if (cart != null) {
             BigDecimal changeDue = this.getTotalDue().negate();
             if (changeDue.compareTo(BigDecimal.ZERO) >= 0) {
-                XModel changeLine = Journal.appendNode(new JournalLineParams(model, "tr", "", ""));
-                JournalLineParams[] journalPaymentLineParamses = new JournalLineParams[4];
-                journalPaymentLineParamses[0] = new JournalLineParams(changeLine, "td", "sku", "");
-                journalPaymentLineParamses[1] = new JournalLineParams(changeLine, "td", "desc", "Change");
-                journalPaymentLineParamses[2] = new JournalLineParams(changeLine, "td", "qty", "-");
-                journalPaymentLineParamses[3] = new JournalLineParams(changeLine, "td", "price", UtilFormatOut.formatPrice(changeDue));
-                appendJouralLine(journalPaymentLineParamses);
+                XModel changeLine = Journal.appendNode(model, "tr", "", "");
+                Journal.appendNode(changeLine, "td", "sku", "");
+                Journal.appendNode(changeLine, "td", "desc", "Change");
+                Journal.appendNode(changeLine, "td", "qty", "-");
+                Journal.appendNode(changeLine, "td", "price", UtilFormatOut.formatPrice(changeDue));
             }
         }
     }
@@ -1168,13 +1134,14 @@ public class PosTransaction implements Serializable {
 
     public GenericValue getTerminalState() {
         Delegator delegator = session.getDelegator();
-        GenericValue state = null;
+        List<GenericValue> states = null;
         try {
-            state = EntityQuery.use(delegator).from("PosTerminalState").where("posTerminalId", this.getTerminalId()).filterByDate(UtilDateTime.nowTimestamp(), "openedDate", "closedDate").queryFirst();
+            states = delegator.findByAnd("PosTerminalState", UtilMisc.toMap("posTerminalId", this.getTerminalId()));
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }
-        return state;
+        states = EntityUtil.filterByDate(states, UtilDateTime.nowTimestamp(), "openedDate", "closedDate", true);
+        return EntityUtil.getFirst(states);
     }
 
     public void setPrintWriter(PrintWriter writer) {
@@ -1194,7 +1161,6 @@ public class PosTransaction implements Serializable {
     }
 
     private void trace(String s1, String s2, Throwable t) {
-        /*
         if (trace != null) {
             String msg = s1;
             if (UtilValidate.isNotEmpty(s2)) {
@@ -1208,7 +1174,6 @@ public class PosTransaction implements Serializable {
             trace.println("[POS @ " + terminalId + " TX:" + transactionId + "] - " + msg);
             trace.flush();
         }
-        */
     }
 
     public static synchronized PosTransaction getCurrentTx(XuiSession session) {
@@ -1223,7 +1188,7 @@ public class PosTransaction implements Serializable {
     public void loadSale(PosScreen pos) {
         trace("Load a sale");
         List<GenericValue> shoppingLists = createShoppingLists();
-        if (UtilValidate.isNotEmpty(shoppingLists)) {
+        if (!shoppingLists.isEmpty()) {
             Map<String, String> salesMap = createSalesMap(shoppingLists);
             if (!salesMap.isEmpty()) {
                 LoadSale loadSale = new LoadSale(salesMap, this, pos);
@@ -1239,7 +1204,7 @@ public class PosTransaction implements Serializable {
 
     public void loadOrder(PosScreen pos) {
         List<GenericValue> orders = findOrders();
-        if (UtilValidate.isNotEmpty(orders)) {
+        if (!orders.isEmpty()) {
             LoadSale loadSale = new LoadSale(createOrderHash(orders), this, pos);
             loadSale.openDlg();
         } else {
@@ -1306,7 +1271,7 @@ public class PosTransaction implements Serializable {
         List<GenericValue> shoppingLists = null;
         Delegator delegator = this.session.getDelegator();
         try {
-            shoppingLists = EntityQuery.use(delegator).from("ShoppingList").queryList();
+            shoppingLists = delegator.findList("ShoppingList", null, null, null, null, false);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return null;
@@ -1323,7 +1288,7 @@ public class PosTransaction implements Serializable {
         for (GenericValue shoppingList : shoppingLists) {
             List<GenericValue> items = null;
             try {
-                items = shoppingList.getRelated("ShoppingListItem", null, UtilMisc.toList("shoppingListItemSeqId"), false);
+                items = shoppingList.getRelated("ShoppingListItem", UtilMisc.toList("shoppingListItemSeqId"));
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -1503,7 +1468,7 @@ public class PosTransaction implements Serializable {
         }
 
         String selectedCartItems[] = new String[cart.size()];
-        for (int i = 0; i < cart.size(); i++) {
+        for(int i = 0; i < cart.size(); i++) {
             Integer integer = i;
             selectedCartItems[i] = integer.toString();
         }
@@ -1656,14 +1621,9 @@ public class PosTransaction implements Serializable {
 
                 try {
                     // set distinct on so we only get one row per person
+                    EntityFindOptions findOpts = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, -1, maxRows, true);
                     // using list iterator
-                     EntityListIterator pli = EntityQuery.use(delegator).select(UtilMisc.toSet(fieldsToSelect))
-                            .from(dynamicView).where(mainCond)
-                            .cursorScrollInsensitive()
-                            .fetchSize(-1)
-                            .maxRows(maxRows)
-                            .cache(true)
-                            .queryIterator();
+                    EntityListIterator pli = delegator.findListIteratorByCondition(dynamicView, mainCond, null, fieldsToSelect, orderBy, findOpts);
 
                     // get the partial list for this page
                     partyList = pli.getPartialList(1, maxRows);
@@ -1733,7 +1693,6 @@ public class PosTransaction implements Serializable {
         // We suppose only one email address (should be ok anyway because of the contactMechPurposeTypeId == "PRIMARY_EMAIL")
         // we suppose only one phone number (should be ok anyway because of the contactMechPurposeTypeId == "PHONE_HOME")
         LocalDispatcher dispatcher = session.getDispatcher();
-        Delegator delegator = dispatcher.getDelegator();
         GenericValue userLogin = session.getUserLogin();
         GenericValue partyUserLogin = null;
         String result = null;
@@ -1841,7 +1800,7 @@ public class PosTransaction implements Serializable {
             GenericValue  person = null;
 
             try {
-                person = session.getDelegator().findOne("Person", UtilMisc.toMap("partyId", partyId), false);
+                person = session.getDelegator().findByPrimaryKey("Person", UtilMisc.toMap("partyId", partyId));
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
                 pos.showDialog("dialog/error/exception", e.getMessage());
@@ -1850,7 +1809,7 @@ public class PosTransaction implements Serializable {
 
             Boolean newLogin = true;
             try {
-                List<GenericValue>  userLogins = session.getDelegator().findByAnd("UserLogin", UtilMisc.toMap("partyId", partyId), null, false);
+                List<GenericValue>  userLogins = session.getDelegator().findByAnd("UserLogin", UtilMisc.toMap("partyId", partyId));
                 if (UtilValidate.isNotEmpty(userLogins)) {
                     userLogin = userLogins.get(0);
                     newLogin = false;
@@ -1898,7 +1857,7 @@ public class PosTransaction implements Serializable {
                     svcCtx.put("partyId", partyId);
                     svcCtx.put("thruDate", null); // last one
                     try {
-                        List<GenericValue>  PartyTelecomNumbers = session.getDelegator().findByAnd("PartyAndTelecomNumber", svcCtx, null, false);
+                        List<GenericValue>  PartyTelecomNumbers = session.getDelegator().findByAnd("PartyAndTelecomNumber", svcCtx);
                         if (UtilValidate.isNotEmpty(PartyTelecomNumbers)) {
                             GenericValue PartyTelecomNumber = PartyTelecomNumbers.get(0); // There is  only one phone number (contactMechPurposeTypeId == "PHONE_HOME")
                             contactNumber = PartyTelecomNumber.getString("contactNumber");
@@ -1939,8 +1898,7 @@ public class PosTransaction implements Serializable {
                             trace("updatePassword");
                             String passwordAcceptEncryptedAndPlain = null;
                             try {
-                            	
-                                passwordAcceptEncryptedAndPlain = EntityUtilProperties.getPropertyValue("security.properties", "password.accept.encrypted.and.plain", delegator);
+                                passwordAcceptEncryptedAndPlain = UtilProperties.getPropertyValue("security.properties", "password.accept.encrypted.and.plain");
                                 UtilProperties.setPropertyValueInMemory("security.properties", "password.accept.encrypted.and.plain", "true");
                                 svcRes = dispatcher.runSync("updatePassword",
                                         UtilMisc.toMap("userLogin", userLogin,
@@ -1975,7 +1933,7 @@ public class PosTransaction implements Serializable {
                 String contactMechId = null;
                 String infoString = null;
                 try {
-                    List<GenericValue>  PartyEmails = session.getDelegator().findByAnd("PartyAndContactMech", svcCtx, null, false);
+                    List<GenericValue>  PartyEmails = session.getDelegator().findByAnd("PartyAndContactMech", svcCtx);
                     if (UtilValidate.isNotEmpty(PartyEmails)) {
                         GenericValue PartyEmail = PartyEmails.get(0); // There is  only one email address (contactMechPurposeTypeId == "PRIMARY_EMAIL")
                         contactMechId = PartyEmail.getString("contactMechId");

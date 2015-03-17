@@ -18,17 +18,11 @@ under the License.
 -->
 
 <#if facilities?has_content>
-<div data-role="content">
-  <ul data-role="listview">
+Facilities :
+<ul>
     <#list facilities as facility>
-      <li>
-       <#-- Each entry will have a html form. Set action to null so previous link be used -->
-        <form>
-          <input type="hidden" name="facilityId" value="${facility.facilityId}"/>
-          <input type="submit" value="${facility.facilityName!}"/>
-        </form>       
-      </li>
+       <li> ${facility.facilityId?if_exists} ${facility.facilityName?if_exists} ${facility.description?if_exists}
+
     </#list>
-  </ul>
-</div>
+</ul>
 </#if>

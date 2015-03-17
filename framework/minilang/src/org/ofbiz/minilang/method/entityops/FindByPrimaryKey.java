@@ -23,116 +23,102 @@ import java.util.Map;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilMisc;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
+import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
+import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericEntity;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangRuntimeException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
-import org.ofbiz.minilang.artifact.ArtifactInfoContext;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
+import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;find-by-primary-key&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cfindbyprimarykey%3E}}">Mini-language Reference</a>
+ * Uses the delegator to find an entity value by its primary key
  */
-public final class FindByPrimaryKey extends EntityOperation {
+public class FindByPrimaryKey extends MethodOperation {
+    public static final class FindByPrimaryKeyFactory implements Factory<FindByPrimaryKey> {
+        public FindByPrimaryKey createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new FindByPrimaryKey(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "find-by-primary-key";
+        }
+    }
 
     public static final String module = FindByPrimaryKey.class.getName();
 
-    private final FlexibleStringExpander entityNameFse;
-    private final FlexibleMapAccessor<Collection<String>> fieldsToSelectListFma;
-    private final FlexibleMapAccessor<Map<String, ? extends Object>> mapFma;
-    private final FlexibleStringExpander useCacheFse;
-    private final FlexibleMapAccessor<GenericValue> valueFma;
+    ContextAccessor<GenericValue> valueAcsr;
+    String entityName;
+    ContextAccessor<Map<String, ? extends Object>> mapAcsr;
+    String delegatorName;
+    String useCacheStr;
+    ContextAccessor<Collection<String>> fieldsToSelectListAcsr;
 
-    public FindByPrimaryKey(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    public FindByPrimaryKey(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "entity-name", "use-cache", "fields-to-select-list", "map", "value-field", "delegator-name");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "value-field", "map");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "value-field", "map", "fields-to-select-list", "delegator-name");
-            MiniLangValidate.noChildElements(simpleMethod, element);
-        }
-        valueFma = FlexibleMapAccessor.getInstance(element.getAttribute("value-field"));
-        entityNameFse = FlexibleStringExpander.getInstance(element.getAttribute("entity-name"));
-        mapFma = FlexibleMapAccessor.getInstance(element.getAttribute("map"));
-        fieldsToSelectListFma = FlexibleMapAccessor.getInstance(element.getAttribute("fields-to-select-list"));
-        useCacheFse = FlexibleStringExpander.getInstance(element.getAttribute("use-cache"));
+        valueAcsr = new ContextAccessor<GenericValue>(element.getAttribute("value-field"), element.getAttribute("value-name"));
+        entityName = element.getAttribute("entity-name");
+        mapAcsr = new ContextAccessor<Map<String, ? extends Object>>(element.getAttribute("map"), element.getAttribute("map-name"));
+        fieldsToSelectListAcsr = new ContextAccessor<Collection<String>>(element.getAttribute("fields-to-select-list"));
+        delegatorName = element.getAttribute("delegator-name");
+        useCacheStr = element.getAttribute("use-cache");
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        String entityName = entityNameFse.expandString(methodContext.getEnvMap());
-        boolean useCache = "true".equals(useCacheFse.expandString(methodContext.getEnvMap()));
-        Delegator delegator = getDelegator(methodContext);
-        Map<String, ? extends Object> inMap = mapFma.get(methodContext.getEnvMap());
-        if (inMap == null) {
-            throw new MiniLangRuntimeException("Primary key map \"" + mapFma + "\" not found", this);
+    public boolean exec(MethodContext methodContext) {
+        String entityName = methodContext.expandString(this.entityName);
+        String delegatorName = methodContext.expandString(this.delegatorName);
+        String useCacheStr = methodContext.expandString(this.useCacheStr);
+
+        boolean useCache = "true".equals(useCacheStr);
+
+        Delegator delegator = methodContext.getDelegator();
+        if (UtilValidate.isNotEmpty(delegatorName)) {
+            delegator = DelegatorFactory.getDelegator(delegatorName);
         }
-        if (entityName.isEmpty() && inMap instanceof GenericEntity) {
+
+        Map<String, ? extends Object> inMap = mapAcsr.get(methodContext);
+        if (UtilValidate.isEmpty(entityName) && inMap instanceof GenericEntity) {
             GenericEntity inEntity = (GenericEntity) inMap;
             entityName = inEntity.getEntityName();
         }
-        if (entityName.isEmpty()) {
-            throw new MiniLangRuntimeException("Entity name not found", this);
+
+        Collection<String> fieldsToSelectList = null;
+        if (!fieldsToSelectListAcsr.isEmpty()) {
+            fieldsToSelectList = fieldsToSelectListAcsr.get(methodContext);
         }
-        Collection<String> fieldsToSelectList = fieldsToSelectListFma.get(methodContext.getEnvMap());
+
         try {
             if (fieldsToSelectList != null) {
-                valueFma.put(methodContext.getEnvMap(), delegator.findByPrimaryKeyPartial(delegator.makePK(entityName, inMap), UtilMisc.toSet(fieldsToSelectList)));
+                valueAcsr.put(methodContext, delegator.findByPrimaryKeyPartial(delegator.makePK(entityName, inMap), UtilMisc.makeSetWritable(fieldsToSelectList)));
             } else {
-                valueFma.put(methodContext.getEnvMap(), EntityQuery.use(delegator).from(entityName).where(inMap).cache(useCache).queryOne());
+                valueAcsr.put(methodContext, delegator.findOne(entityName, inMap, useCache));
             }
         } catch (GenericEntityException e) {
-            String errMsg = "Exception thrown while performing entity find: " + e.getMessage();
-            Debug.logWarning(e, errMsg, module);
-            simpleMethod.addErrorMessage(methodContext, errMsg);
+            Debug.logError(e, module);
+            String errMsg = "ERROR: Could not complete the " + simpleMethod.getShortDescription() + " process [problem finding the " + entityName + " entity: " + e.getMessage() + "]";
+            methodContext.setErrorReturn(errMsg, simpleMethod);
             return false;
         }
         return true;
     }
 
-    @Override
-    public void gatherArtifactInfo(ArtifactInfoContext aic) {
-        aic.addEntityName(entityNameFse.toString());
+    public String getEntityName() {
+        return this.entityName;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<find-by-primary-key ");
-        sb.append("entity-name=\"").append(this.entityNameFse).append("\" ");
-        sb.append("value-field=\"").append(this.valueFma).append("\" ");
-        sb.append("map=\"").append(this.mapFma).append("\" ");
-        if (!fieldsToSelectListFma.isEmpty()) {
-            sb.append("fields-to-select-list=\"").append(this.fieldsToSelectListFma).append("\" ");
-        }
-        if (!useCacheFse.isEmpty()) {
-            sb.append("use-cache=\"").append(this.useCacheFse).append("\" ");
-        }
-        sb.append("/>");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<find-by-primary-key/>";
     }
-
-    /**
-     * A factory for the &lt;find-by-primary-key&gt; element.
-     */
-    public static final class FindByPrimaryKeyFactory implements Factory<FindByPrimaryKey> {
-        @Override
-        public FindByPrimaryKey createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new FindByPrimaryKey(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "find-by-primary-key";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

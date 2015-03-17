@@ -19,15 +19,15 @@
 
 package org.ofbiz.service.eca;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.ofbiz.base.util.Debug;
+import org.w3c.dom.Element;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilValidate;
+import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.entity.model.ModelUtil;
-import org.w3c.dom.Element;
+
+import java.util.Map;
+import javolution.util.FastMap;
 
 /**
  * ServiceEcaSetField
@@ -56,13 +56,15 @@ public class ServiceEcaSetField {
     public void eval(Map<String, Object> context) {
         if (fieldName != null) {
             // try to expand the envName
-            if (UtilValidate.isNotEmpty(this.envName) && this.envName.startsWith("${")) {
-                FlexibleStringExpander exp = FlexibleStringExpander.getInstance(this.envName);
-                String s = exp.expandString(context);
-                if (UtilValidate.isNotEmpty(s)) {
-                    value = s;
+            if (UtilValidate.isEmpty(this.value)) {
+                if (UtilValidate.isNotEmpty(this.envName) && this.envName.startsWith("${")) {
+                    FlexibleStringExpander exp = FlexibleStringExpander.getInstance(this.envName);
+                    String s = exp.expandString(context);
+                    if (UtilValidate.isNotEmpty(s)) {
+                        value = s;
+                    }
+                    Debug.logInfo("Expanded String: " + s, module);
                 }
-                Debug.logInfo("Expanded String: " + s, module);
             }
             // TODO: rewrite using the ContextAccessor.java see hack below to be able to use maps for email notifications
             // check if target is a map and create/get from contaxt
@@ -70,7 +72,7 @@ public class ServiceEcaSetField {
             if (UtilValidate.isNotEmpty(this.mapName) && context.containsKey(this.mapName)) {
                 valueMap = UtilGenerics.checkMap(context.get(mapName));
             } else {
-                valueMap = new HashMap<String, Object>();
+                valueMap = FastMap.newInstance();
             }
             // process the context changes
             Object newValue = null;

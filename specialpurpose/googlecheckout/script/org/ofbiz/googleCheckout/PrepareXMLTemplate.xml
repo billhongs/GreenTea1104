@@ -19,7 +19,7 @@
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
 
 
     <simple-method method-name="transmitRequest" short-description="" login-required="false">
@@ -102,25 +102,25 @@
         <set field="xscreenContext.sendInitialAuthDetails" from-field="sendInitialAuthDetails"/>
         <set field="xscreenContext.shoppingCart" from-field="parameters.shoppingCart"/>
         <!-- create string renderer -->
-        <create-object class-name="org.ofbiz.widget.renderer.html.HtmlScreenRenderer" field="xhtmlStringRenderer"></create-object>
+        <create-object class-name="org.ofbiz.widget.html.HtmlScreenRenderer" field="xhtmlStringRenderer"></create-object>
         <!-- create screen renderer -->
-        <create-object class-name="org.ofbiz.widget.renderer.ScreenRenderer" field="screens">
+        <create-object class-name="org.ofbiz.widget.screen.ScreenRenderer" field="screens">
             <field field="XMLWriter" type="java.lang.Appendable"/>
             <field field="xscreenContext" type="org.ofbiz.base.util.collections.MapStack"/>
-            <field field="xhtmlStringRenderer" type="org.ofbiz.widget.renderer.ScreenStringRenderer"/>
+            <field field="xhtmlStringRenderer" type="org.ofbiz.widget.screen.ScreenStringRenderer"/>
         </create-object>
         <set field="xscreenContext.screens" from-field="screens"/>
-        <create-object class-name="org.ofbiz.widget.renderer.ScreenRenderer" field="xscreens">
+        <create-object class-name="org.ofbiz.widget.screen.ScreenRenderer" field="xscreens">
             <field field="XMLWriter" type="java.lang.Appendable"/>
             <field field="xscreenContext" type="org.ofbiz.base.util.collections.MapStack"/>
-            <field field="xhtmlStringRenderer" type="org.ofbiz.widget.renderer.ScreenStringRenderer"/>
+            <field field="xhtmlStringRenderer" type="org.ofbiz.widget.screen.ScreenStringRenderer"/>
         </create-object>
         <!-- get uri -->
         <property-to-field resource="googleCheckout" property="xmlTemplateUri" field="screenUri"/>
         <call-object-method method-name="render" obj-field="xscreens">
             <field field="screenUri" type="String"/>
         </call-object-method>
-        <set field="content" value="${groovy:XMLWriter.toString()}"/>
+        <set field="content" value="${bsh:XMLWriter.toString()}"/>
     </simple-method>
 <!-- Step 3 -->
     <simple-method method-name="setupContent" short-description="" login-required="false">
@@ -159,7 +159,7 @@
         }
         return org.ofbiz.base.util.UtilMisc.toMap("buffer", buffer);
         ]]></call-bsh>
-        <set field="response" value="${groovy:buffer.toString()}"/>
+        <set field="response" value="${bsh:buffer.toString()}"/>
     </simple-method>
 <!-- Step 5 -->
     <simple-method method-name="getReDirectFromXmlDoc" short-description="" login-required="false">

@@ -22,8 +22,8 @@ import javolution.util.FastList;
 import javolution.util.FastMap;
 
 results =  FastList.newInstance();
-ebayAccountList = from("PartyRoleAndPartyDetail").where("roleTypeId", "EBAY_ACCOUNT").queryList();
-productStoreRoles = from("ProductStoreRole").where("roleTypeId", "EBAY_ACCOUNT").queryList();
+ebayAccountList = delegator.findByAnd("PartyRoleAndPartyDetail",["roleTypeId":"EBAY_ACCOUNT"]);
+productStoreRoles = delegator.findByAnd("ProductStoreRole",["roleTypeId":"EBAY_ACCOUNT"]);
 
 if (productStoreRoles != null && ebayAccountList != null) {
     ebayAccountList.each{ebayAccount->

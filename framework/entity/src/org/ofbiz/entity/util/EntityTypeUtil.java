@@ -39,7 +39,7 @@ public class EntityTypeUtil {
     public static boolean isType(Collection<GenericValue> thisCollection, String typeRelation, GenericValue targetType) {
         for (GenericValue value: thisCollection) {
             try {
-                GenericValue related = value.getRelatedOne(typeRelation, false);
+                GenericValue related = value.getRelatedOne(typeRelation);
                 if (isType(related, targetType)) {
                     return true;
                 } // else keep looking
@@ -72,7 +72,7 @@ public class EntityTypeUtil {
     private static GenericValue getParentType(GenericValue typeValue) {
         // assumes Parent relation is "Parent<entityName>"
         try {
-            return typeValue.getRelatedOne("Parent" + typeValue.getEntityName(), true);
+            return typeValue.getRelatedOneCache("Parent" + typeValue.getEntityName());
         } catch (GenericEntityException e) {
             Debug.logWarning(e, module);
             return null;
@@ -86,7 +86,7 @@ public class EntityTypeUtil {
         // first get all childrenTypes ...
         List<GenericValue> childrenTypes = null;
         try {
-            childrenTypes = typeValue.getRelated("Child" + typeValue.getEntityName(), null, null, true);
+            childrenTypes = typeValue.getRelatedCache("Child" + typeValue.getEntityName());
         } catch (GenericEntityException e) {
             Debug.logWarning(e, module);
             return null;
@@ -133,7 +133,7 @@ public class EntityTypeUtil {
     public static boolean hasParentType(Delegator delegator, String entityName, String primaryKey, String childType, String parentTypeField, String parentType) {
         GenericValue childTypeValue = null;
         try {
-            childTypeValue = EntityQuery.use(delegator).from(entityName).where(primaryKey, childType).cache(true).queryOne();
+            childTypeValue = delegator.findOne(entityName, UtilMisc.toMap(primaryKey, childType), true);
         } catch (GenericEntityException e) {
             Debug.logError("Error finding "+entityName+" record for type "+childType, module);
         }

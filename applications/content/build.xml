@@ -59,5 +59,4 @@ under the License.
         <main-jar/>
         <test-jar/>
     </target>
-
 </project>

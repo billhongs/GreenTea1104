@@ -1,54 +1,51 @@
-/* Flot plugin for plotting images.
+/*
+Flot plugin for plotting images, e.g. useful for putting ticks on a
+prerendered complex visualization.
 
-Copyright (c) 2007-2013 IOLA and Ole Laursen.
-Licensed under the MIT license.
+The data syntax is [[image, x1, y1, x2, y2], ...] where (x1, y1) and
+(x2, y2) are where you intend the two opposite corners of the image to
+end up in the plot. Image must be a fully loaded Javascript image (you
+can make one with new Image()). If the image is not complete, it's
+skipped when plotting.
 
-The data syntax is [ [ image, x1, y1, x2, y2 ], ... ] where (x1, y1) and
-(x2, y2) are where you intend the two opposite corners of the image to end up
-in the plot. Image must be a fully loaded Javascript image (you can make one
-with new Image()). If the image is not complete, it's skipped when plotting.
+There are two helpers included for retrieving images. The easiest work
+the way that you put in URLs instead of images in the data (like
+["myimage.png", 0, 0, 10, 10]), then call $.plot.image.loadData(data,
+options, callback) where data and options are the same as you pass in
+to $.plot. This loads the images, replaces the URLs in the data with
+the corresponding images and calls "callback" when all images are
+loaded (or failed loading). In the callback, you can then call $.plot
+with the data set. See the included example.
 
-There are two helpers included for retrieving images. The easiest work the way
-that you put in URLs instead of images in the data, like this:
+A more low-level helper, $.plot.image.load(urls, callback) is also
+included. Given a list of URLs, it calls callback with an object
+mapping from URL to Image object when all images are loaded or have
+failed loading.
 
-	[ "myimage.png", 0, 0, 10, 10 ]
+Options for the plugin are
 
-Then call $.plot.image.loadData( data, options, callback ) where data and
-options are the same as you pass in to $.plot. This loads the images, replaces
-the URLs in the data with the corresponding images and calls "callback" when
-all images are loaded (or failed loading). In the callback, you can then call
-$.plot with the data set. See the included example.
+  series: {
+      images: {
+          show: boolean
+          anchor: "corner" or "center"
+          alpha: [0,1]
+      }
+  }
 
-A more low-level helper, $.plot.image.load(urls, callback) is also included.
-Given a list of URLs, it calls callback with an object mapping from URL to
-Image object when all images are loaded or have failed loading.
+which can be specified for a specific series
 
-The plugin supports these options:
+  $.plot($("#placeholder"), [{ data: [ ... ], images: { ... } ])
 
-	series: {
-		images: {
-			show: boolean
-			anchor: "corner" or "center"
-			alpha: [ 0, 1 ]
-		}
-	}
+Note that because the data format is different from usual data points,
+you can't use images with anything else in a specific data series.
 
-They can be specified for a specific series:
+Setting "anchor" to "center" causes the pixels in the image to be
+anchored at the corner pixel centers inside of at the pixel corners,
+effectively letting half a pixel stick out to each side in the plot.
 
-	$.plot( $("#placeholder"), [{
-		data: [ ... ],
-		images: { ... }
-	])
 
-Note that because the data format is different from usual data points, you
-can't use images with anything else in a specific data series.
-
-Setting "anchor" to "center" causes the pixels in the image to be anchored at
-the corner pixel centers inside of at the pixel corners, effectively letting
-half a pixel stick out to each side in the plot.
-
-A possible future direction could be support for tiling for large images (like
-Google Maps).
+A possible future direction could be support for tiling for large
+images (like Google Maps).
 
 */
 
@@ -113,7 +110,7 @@ Google Maps).
 
             $('<img />').load(handler).error(handler).attr('src', url);
         });
-    };
+    }
     
     function drawSeries(plot, ctx, series) {
         var plotOffset = plot.getPlotOffset();

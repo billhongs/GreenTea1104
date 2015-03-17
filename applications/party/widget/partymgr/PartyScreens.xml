@@ -63,7 +63,7 @@ under the License.
                 <set field="tabButtonItem" value="viewprofile"/>
                 <set field="labelTitleProperty" value="PartyTaxAuthInfos"/>
                 <set field="partyId" from-field="parameters.partyId"/>
-                <set field="layoutSettings.javaScripts[]" value="/partymgr/static/PartyProfileContent.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/partymgr/js/PartyProfileContent.js" global="true"/>
                 <script location="component://party/webapp/partymgr/WEB-INF/actions/party/ViewProfile.groovy"/>
             </actions>
             <widgets>
@@ -341,7 +341,6 @@ under the License.
 
                 <set field="labelTitleProperty" value="PartyAttribute"/>
 
-                <set field="cancelPage" from-field="parameters.CANCEL_PAGE" default-value="viewprofile"/>
                 <set field="partyId" from-field="parameters.partyId"/>
                 <set field="attrName" from-field="parameters.attrName"/>
                 <entity-one entity-name="Party" value-field="party"/>
@@ -422,7 +421,7 @@ under the License.
 
                 <script location="component://party/webapp/partymgr/WEB-INF/actions/HasPartyPermissions.groovy"/>
                 <script location="component://party/webapp/partymgr/WEB-INF/actions/party/EditContactMech.groovy"/>
-
+                
                 <set field="dependentForm" value="editcontactmechform"/>
                 <set field="paramKey" value="countryGeoId"/>
                 <set field="mainId" value="countryGeoId"/>
@@ -431,7 +430,8 @@ under the License.
                 <set field="responseName" value="stateList"/>
                 <set field="dependentKeyName" value="geoId"/>
                 <set field="descName" value="geoName"/>
-                <set field="selectedDependentOption" from-field="mechMap.postalAddress.stateProvinceGeoId" default-value="_none_"/>
+                <set field="selectedDependentOption" from-field="mechMap.postalAddress.stateProvinceGeoId" default-value="_none_"/>                
+                
             </actions>
             <widgets>
                 <decorator-screen name="CommonPartyDecorator" location="${parameters.mainDecoratorLocation}">
@@ -709,7 +709,7 @@ under the License.
                             <actions>
                                 <!-- fields for setDependentDropdownValuesJs.ftl -->
                                 <set field="dependentForm" value="NewUser"/>
-                                <set field="paramKey" value="countryGeoId"/>
+                                <set field="paramKey" value="countryGeoId"/>                                        
                                 <set field="mainId" value="USER_COUNTRY"/>
                                 <set field="dependentId" value="USER_STATE"/>
                                 <set field="requestName" value="getAssociatedStateList"/>
@@ -754,7 +754,7 @@ under the License.
                             <actions>
                                 <!-- fields for setDependentDropdownValuesJs.ftl -->
                                 <set field="dependentForm" value="NewUser"/>
-                                <set field="paramKey" value="countryGeoId"/>
+                                <set field="paramKey" value="countryGeoId"/>                                        
                                 <set field="mainId" value="USER_COUNTRY"/>
                                 <set field="dependentId" value="USER_STATE"/>
                                 <set field="requestName" value="getAssociatedStateList"/>
@@ -799,7 +799,7 @@ under the License.
                             <actions>
                                 <!-- fields for setDependentDropdownValuesJs.ftl -->
                                 <set field="dependentForm" value="NewUser"/>
-                                <set field="paramKey" value="countryGeoId"/>
+                                <set field="paramKey" value="countryGeoId"/>                                        
                                 <set field="mainId" value="USER_COUNTRY"/>
                                 <set field="dependentId" value="USER_STATE"/>
                                 <set field="requestName" value="getAssociatedStateList"/>
@@ -1093,9 +1093,7 @@ under the License.
                         </section>
                         <section>
                             <actions>
-                                <entity-and entity-name="ReturnHeader" list="returnList">
-                                    <field-map field-name="fromPartyId" from-field="parameters.partyId"/>
-                                </entity-and>
+                                <script location="component://order/webapp/ordermgr/WEB-INF/actions/return/ReturnHeader.groovy"/>
                             </actions>
                             <widgets>
                                 <screenlet title="${uiLabelMap.OrderOrderReturns}">
@@ -1115,28 +1113,16 @@ under the License.
                 <set field="headerItem" value="find"/>
                 <set field="tabButtonItem" value="preferences"/>
                 <set field="partyId"  from-field="parameters.partyId"/>
-                <entity-and entity-name="EnumTypeChildAndEnum" list="enumTypeChildAndEnums">
-                    <field-map field-name="parentEnumTypeId" value="USER_PREF_GROUPS"/>
-                </entity-and>
-                <entity-and entity-name="UserLogin" list="userLogins">
-                    <field-map field-name="partyId" from-field="parameters.partyId"/>
+                <entity-and entity-name="Enumeration" list="userPreferenceList">
+                    <field-map field-name="enumTypeId" value="GLOBAL_PREFERENCES"/>
                 </entity-and>
             </actions>
             <widgets>
                 <decorator-screen name="CommonPartyDecorator" location="${parameters.mainDecoratorLocation}">
                     <decorator-section name="body">
-                        <iterate-section entry="userLogin" list="userLogins">
-                            <section>
-                                <actions>
-                                    <set field="userPrefUserLoginId" from-field="userLogin.userLoginId"/>
-                                </actions>
-                                <widgets>
-                                    <screenlet title="${uiLabelMap.CommonPreferences} ${uiLabelMap.CommonFor} userLogin: ${userPrefUserLoginId}" >
-                                        <include-form name="ListPreference" location="component://party/widget/partymgr/PartyForms.xml"/>
-                                    </screenlet>
-                                </widgets>
-                            </section>
-                        </iterate-section>
+                        <screenlet title="${uiLabelMap.CommonPreferences}" >
+                            <include-form name="ListPreference" location="component://party/widget/partymgr/PartyForms.xml"/>
+                        </screenlet>
                     </decorator-section>
                 </decorator-screen>
             </widgets>
@@ -1152,49 +1138,10 @@ under the License.
             <widgets>
                 <decorator-screen name="CommonPartyDecorator" location="${parameters.mainDecoratorLocation}">
                     <decorator-section name="body">
-                        <section>
-                            <condition>
-                                <not><if-empty field="geoChart"/></not>
-                            </condition>
-                            <widgets>
-                                <container style="button-bar">
-                                    <link target="addGeoLocation" text="${uiLabelMap.CommonUpdate}" style="buttontext">
-                                        <parameter param-name="partyId" from-field="parameters.partyId"/>
-                                    </link>
-                                </container>
-                                <label>${uiLabelMap.CommonLatitude} ${latestGeoPoint.latitude}</label>
-                                <label>${uiLabelMap.CommonLongitude} ${latestGeoPoint.longitude}</label>
-                                <label>${uiLabelMap.CommonElevation} ${latestGeoPoint.elevation} ${elevationUomAbbr}</label>
-                                <include-screen name="geoChart" location="component://common/widget/CommonScreens.xml"/>
-                            </widgets>
-                            <fail-widgets>
-                                <container style="button-bar">
-                                    <link target="addGeoLocation" text="${uiLabelMap.CommonCreateNew}" style="buttontext create">
-                                        <parameter param-name="partyId" from-field="parameters.partyId"/>
-                                    </link>
-                                </container>
-                                <include-screen name="geoChart" location="component://common/widget/CommonScreens.xml"/>
-                            </fail-widgets>
-                        </section>
-                    </decorator-section>
-                </decorator-screen>
-            </widgets>
-        </section>
-    </screen>
-    <screen name="EditGeoLocation">
-        <section>
-            <actions>
-                <set field="titleProperty" value="PageTitlePartyGeoLocation"/>
-                <set field="tabButtonItem" value="PartyGeoLocation"/>
-                <set field="partyId" from-field="parameters.partyId"/>
-                <script location="component://party/webapp/partymgr/WEB-INF/actions/party/GetGeoLocation.groovy"/>
-            </actions>
-            <widgets>
-                <decorator-screen name="CommonPartyDecorator" location="${parameters.mainDecoratorLocation}">
-                    <decorator-section name="body">
-                        <platform-specific>
-                            <html><html-template location="component://party/webapp/partymgr/party/editGeoLocation.ftl"/></html>
-                        </platform-specific>
+                        <label>${uiLabelMap.CommonLatitude} ${latestGeoPoint.latitude}</label>
+                        <label>${uiLabelMap.CommonLongitude} ${latestGeoPoint.longitude}</label>
+                        <label>${uiLabelMap.CommonElevation} ${latestGeoPoint.elevation} ${elevationUomAbbr}</label>
+                        <include-screen name="geoChart" location="component://common/widget/CommonScreens.xml"/>
                     </decorator-section>
                 </decorator-screen>
             </widgets>
@@ -1210,7 +1157,7 @@ under the License.
             </widgets>
         </section>
     </screen>
-
+    
     <!-- PartyIdentification Screen -->
     <screen name="ListPartyIdentifications">
         <section>
@@ -1270,75 +1217,4 @@ under the License.
             </widgets>
         </section>
     </screen>
-    <screen name="postalAddressHtmlFormatter">
-        <section>
-            <actions>
-                <property-map resource="PartyUiLabels" map-name="uiLabelMap" global="true"/>
-                <set field="postalAddressTemplateSuffix" value=".ftl"/>
-                <set field="addressTemplatePath" value="${sys:getProperty('ofbiz.home')}/applications/party/webapp/partymgr/party/contactmechtemplates/"/>
-                <script location="component://party/webapp/partymgr/WEB-INF/actions/party/GetPostalAddressTemplate.groovy"/>
-            </actions>
-            <widgets>
-                <platform-specific>
-                    <html>
-                        <html-template location="component://party/webapp/partymgr/party/contactmechtemplates/${postalAddressTemplate}"/>
-                    </html>
-                </platform-specific>
-            </widgets>
-        </section>
-    </screen>
-    <screen name="postalAddressPdfFormatter">
-        <section>
-            <actions>
-                <property-map resource="PartyUiLabels" map-name="uiLabelMap" global="true"/>
-                <set field="postalAddressTemplateSuffix" value=".fo.ftl"/>
-                <set field="addressTemplatePath" value="${sys:getProperty('ofbiz.home')}/applications/party/webapp/partymgr/party/contactmechtemplates/"/>
-                <script location="component://party/webapp/partymgr/WEB-INF/actions/party/GetPostalAddressTemplate.groovy"/>
-            </actions>
-            <widgets>
-                <platform-specific>
-                    <html>
-                        <html-template location="component://party/webapp/partymgr/party/contactmechtemplates/${postalAddressTemplate}"/>
-                    </html>
-                </platform-specific>
-            </widgets>
-        </section>
-    </screen>
-    <screen name="ImportExport">
-        <section>
-            <actions>
-                <set field="titleProperty" value="CommonImportExport"/>
-                <set field="headerItem" value="importexport"/>
-            </actions>
-            <widgets>
-                <decorator-screen name="main-decorator" location="${parameters.mainDecoratorLocation}">
-                    <decorator-section name="body">
-                        <screenlet title="${uiLabelMap.PartyParty} ${uiLabelMap.CommonImportExport} ID Name, single role (employee, customer, supplier) and contactmechs">
-                            <container style="lefthalf">
-                                <label style="h2">${uiLabelMap.CommonImport}</label>
-                                <include-form name="ImportParty" location="component://party/widget/partymgr/PartyForms.xml"/>
-                            </container>
-                            <container style="righthalf">
-                                <label style="h2">${uiLabelMap.CommonExport}</label>
-                                <include-form name="ExportParty" location="component://party/widget/partymgr/PartyForms.xml"/>
-                            </container>
-                         </screenlet>
-                    </decorator-section>
-                </decorator-screen>
-            </widgets>
-        </section>
-    </screen>
-    <screen name="PartyExportCsv">
-        <section>
-            <actions>
-                <property-map resource="CommonUiLabels" map-name="uiLabelMap" global="true"/>
-                <property-map resource="AccountingUiLabels" map-name="uiLabelMap" global="true"/>
-                <set field="organizationPartyId" from-field="parameters.organizationPartyId"/>
-            </actions>
-            <widgets>
-                <include-form name="ExportPartyCsv" location="component://party/widget/partymgr/PartyForms.xml"/>           
-            </widgets>
-        </section>
-    </screen>
-    
 </screens>

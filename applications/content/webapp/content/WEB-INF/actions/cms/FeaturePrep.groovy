@@ -24,13 +24,13 @@ paramMap = UtilHttp.getParameterMap(request);
 contentId = context.contentId;
 dataResourceId = context.dataResourceId;
 
-productFeatureList = from("ProductFeature").cache(true).queryList();
+productFeatureList = delegator.findList("ProductFeature", null, null, null, null, true);
 featureList = [] as ArrayList;
 if (dataResourceId) {
     productFeatureList.each { productFeature ->
         productFeatureId = productFeature.productFeatureId;
         description = productFeature.description;
-        productFeatureDataResource = from("ProductFeatureDataResource").where("productFeatureId", productFeatureId, "dataResourceId", dataResourceId).cache(true).queryOne();
+        productFeatureDataResource = delegator.findOne("ProductFeatureDataResource", [productFeatureId : productFeatureId, dataResourceId : dataResourceId], true);
         if (productFeatureDataResource) {
             feature = [];
             feature.productFeatureId = productFeatureId;

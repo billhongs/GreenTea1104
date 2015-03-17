@@ -48,8 +48,6 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.order.order.OrderChangeHelper;
 import org.ofbiz.product.store.ProductStoreWorker;
 import org.ofbiz.service.GenericServiceException;
@@ -85,8 +83,8 @@ public class IdealEvents {
         GenericValue orderHeader = null;
         List<GenericValue> orderItemList = null;
         try {
-            orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
-            orderItemList = EntityQuery.use(delegator).from("OrderItem").where("orderId", orderId).queryList();
+            orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
+            orderItemList = delegator.findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Cannot get the order header for order: " + orderId, module);
             request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resourceErr, "idealEvents.problemsGettingOrderHeader", locale));
@@ -195,7 +193,10 @@ public class IdealEvents {
         GenericValue userLogin = (GenericValue) request.getSession().getAttribute("userLogin");
         Map <String, Object> parametersMap = UtilHttp.getParameterMap(request);
         String transactionId = request.getParameter("trxid");
-        for (String name : parametersMap.keySet()) {
+        Set<String> keySet = parametersMap.keySet();
+        Iterator<String> i = keySet.iterator();
+        while (i.hasNext()) {
+            String name = (String) i.next();
             String value = request.getParameter(name);
             Debug.logError("### Param: " + name + " => " + value, module);
         }
@@ -227,7 +228,7 @@ public class IdealEvents {
         if (userLogin == null) {
             String userLoginId = "system";
             try {
-                userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", userLoginId).queryOne();
+                userLogin = delegator.findOne("UserLogin", UtilMisc.toMap("userLoginId", userLoginId), false);
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Cannot get UserLogin for: " + userLoginId + "; cannot continue", module);
                 request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resourceErr, "idealEvents.problemsGettingAuthenticationUser", locale));
@@ -238,7 +239,7 @@ public class IdealEvents {
         GenericValue orderHeader = null;
         if (UtilValidate.isNotEmpty(orderId)) {
             try {
-                orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
+                orderHeader = delegator.findOne("OrderHeader", UtilMisc.toMap("orderId", orderId), false);
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Cannot get the order header for order: " + orderId, module);
                 request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resourceErr, "idealEvents.problemsGettingOrderHeader", locale));
@@ -295,7 +296,7 @@ public class IdealEvents {
             }
         }
         if (okay) {
-            request.setAttribute("_EVENT_MESSAGE_", UtilProperties.getMessage(resource, "IdealSuccessful", locale));
+            request.setAttribute("_EVENT_MESSAGE_", UtilProperties.getMessage(resource, "IdealSuccessFull", locale));
             // attempt to release the offline hold on the order (workflow)
             OrderChangeHelper.releaseInitialOrderHold(dispatcher, orderId);
             // call the email confirm service
@@ -313,14 +314,16 @@ public class IdealEvents {
         Debug.logVerbose("Setting payment prefrences..", module);
         List <GenericValue> paymentPrefs = null;
         try {
-            paymentPrefs = EntityQuery.use(delegator).from("OrderPaymentPreference")
-                    .where("orderId", orderId, "statusId", "PAYMENT_NOT_RECEIVED").queryList();
+            Map <String, String> paymentFields = UtilMisc.toMap("orderId", orderId, "statusId", "PAYMENT_NOT_RECEIVED");
+            paymentPrefs = delegator.findByAnd("OrderPaymentPreference", paymentFields);
         } catch (GenericEntityException e) {
             Debug.logError(e, "Cannot get payment preferences for order #" + orderId, module);
             return false;
         }
         if (paymentPrefs.size() > 0) {
-            for (GenericValue pref : paymentPrefs) {
+            Iterator <GenericValue> i = paymentPrefs.iterator();
+            while (i.hasNext()) {
+                GenericValue pref = i.next();
                 boolean okay = setPaymentPreference(dispatcher, userLogin, pref, request);
                 if (!okay)
                     return false;
@@ -376,7 +379,7 @@ public class IdealEvents {
 
         GenericValue userLoginId = null;
         try {
-            userLoginId = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
+            userLoginId = delegator.findOne("UserLogin", UtilMisc.toMap("userLoginId", "system"), false);
         } catch (GenericEntityException e) {
             return false;
         }
@@ -407,7 +410,7 @@ public class IdealEvents {
         String returnValue = "";
         if (UtilValidate.isNotEmpty(paymentGatewayConfigId)) {
             try {
-                GenericValue ideal = EntityQuery.use(delegator).from("PaymentGatewayiDEAL").where("paymentGatewayConfigId", paymentGatewayConfigId).queryOne();
+                GenericValue ideal = delegator.findOne("PaymentGatewayiDEAL", UtilMisc.toMap("paymentGatewayConfigId", paymentGatewayConfigId), false);
                 if (UtilValidate.isNotEmpty(ideal)) {
                     Object idealField = ideal.get(paymentGatewayConfigParameterName);
                     if (idealField != null) {
@@ -418,7 +421,7 @@ public class IdealEvents {
                 Debug.logError(e, module);
             }
         } else {
-            String value = EntityUtilProperties.getPropertyValue(resource, parameterName, delegator);
+            String value = UtilProperties.getPropertyValue(resource, parameterName);
             if (value != null) {
                 returnValue = value.trim();
             }

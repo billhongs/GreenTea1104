@@ -23,9 +23,9 @@ import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 
+import org.apache.catalina.Globals;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
-import org.apache.catalina.util.SessionConfig;
 import org.apache.catalina.valves.ValveBase;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.MimeHeaders;
@@ -33,8 +33,6 @@ import org.apache.tomcat.util.http.ServerCookie;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
-import org.ofbiz.entity.Delegator;
-import org.ofbiz.entity.util.EntityUtilProperties;
 
 public class CrossSubdomainSessionValve extends ValveBase {
 
@@ -50,10 +48,11 @@ public class CrossSubdomainSessionValve extends ValveBase {
         request.getSession(true);
 
         // replace any Tomcat-generated session cookies with our own
-        Cookie[] cookies = request.getCookies();
+        Cookie[] cookies = response.getCookies();
         if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (SessionConfig.getSessionCookieName(null).equals(cookie.getName())) {
+            for (int i = 0; i < cookies.length; i++) {
+                Cookie cookie = cookies[i];
+                if (Globals.SESSION_COOKIE_NAME.equals(cookie.getName())) {
                     replaceCookie(request, response, cookie);
                 }
             }
@@ -65,10 +64,9 @@ public class CrossSubdomainSessionValve extends ValveBase {
 
     protected void replaceCookie(Request request, Response response, Cookie cookie) {
 
-    	Delegator delegator = (Delegator) request.getAttribute("delegator");
         // copy the existing session cookie, but use a different domain (only if domain is valid)
         String cookieDomain = null;
-        cookieDomain = EntityUtilProperties.getPropertyValue("url", "cookie.domain", "", delegator);
+        cookieDomain = UtilProperties.getPropertyValue("url", "cookie.domain", "");
 
         if (UtilValidate.isEmpty(cookieDomain)) {
             String serverName = request.getServerName();
@@ -109,7 +107,7 @@ public class CrossSubdomainSessionValve extends ValveBase {
             }
 
             // find the Set-Cookie header for the existing cookie and replace its value with new cookie
-            MimeHeaders mimeHeaders = request.getCoyoteRequest().getMimeHeaders();
+            MimeHeaders mimeHeaders = response.getCoyoteResponse().getMimeHeaders();
             for (int i = 0, size = mimeHeaders.size(); i < size; i++) {
                 if (mimeHeaders.getName(i).equals("Set-Cookie")) {
                     MessageBytes value = mimeHeaders.getValue(i);

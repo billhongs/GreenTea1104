@@ -19,12 +19,13 @@
 package org.ofbiz.common;
 
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilMisc;
@@ -33,7 +34,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * A few utility methods related to Keyword Search.
@@ -209,7 +209,7 @@ public class KeywordSearchUtil {
 }
 
     public static Set<String> fixKeywordsForSearch(Set<String> keywordSet, boolean anyPrefix, boolean anySuffix, boolean removeStems, boolean isAnd) {
-        Map<String, Long> keywords = new LinkedHashMap<String, Long>();
+        Map<String, Long> keywords = FastMap.newInstance();
         fixupKeywordSet(keywordSet, keywords, getStopWordBagAnd(), getStopWordBagOr(), removeStems, getStemSet(), true, anyPrefix, anySuffix, isAnd);
         return keywords.keySet();
     }
@@ -218,7 +218,7 @@ public class KeywordSearchUtil {
         boolean replaceEnteredKeyword = false;
 
         try {
-            List<GenericValue> thesaurusList = EntityQuery.use(delegator).from("KeywordThesaurus").where("enteredKeyword", enteredKeyword).cache(true).queryList();
+            List<GenericValue> thesaurusList = delegator.findByAndCache("KeywordThesaurus", UtilMisc.toMap("enteredKeyword", enteredKeyword));
             for (GenericValue keywordThesaurus: thesaurusList) {
                 String relationshipEnumId = (String) keywordThesaurus.get("relationshipEnumId");
                 if (thesaurusRelsToInclude.contains(relationshipEnumId)) {

@@ -40,10 +40,9 @@ import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelUtil;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.service.ServiceContainer;
 
 /**
  * Product Config Item Content Worker: gets product content to display
@@ -99,7 +98,7 @@ public class ProductConfigItemContentWrapper implements java.io.Serializable {
 
     public LocalDispatcher getDispatcher() {
         if (dispatcher == null) {
-            dispatcher = ServiceContainer.getLocalDispatcher(dispatcherName, this.getDelegator());
+            dispatcher = GenericDispatcher.getLocalDispatcher(dispatcherName, this.getDelegator());
         }
         return dispatcher;
     }
@@ -151,7 +150,7 @@ public class ProductConfigItemContentWrapper implements java.io.Serializable {
         ModelEntity productConfigItemModel = delegator.getModelEntity("ProductConfigItem");
         if (productConfigItemModel.isField(candidateFieldName)) {
             if (productConfigItem == null) {
-                productConfigItem = EntityQuery.use(delegator).from("ProductConfigItem").where("configItemId", configItemId).cache().queryOne();
+                productConfigItem = delegator.findByPrimaryKeyCache("ProductConfigItem", UtilMisc.toMap("configItemId", configItemId));
             }
             if (productConfigItem != null) {
                 String candidateValue = productConfigItem.getString(candidateFieldName);
@@ -162,12 +161,9 @@ public class ProductConfigItemContentWrapper implements java.io.Serializable {
             }
         }
 
-        GenericValue productConfigItemContent = EntityQuery.use(delegator).from("ProdConfItemContent")
-                .where("configItemId", configItemId, "confItemContentTypeId", confItemContentTypeId)
-                .orderBy("-fromDate")
-                .cache(true)
-                .filterByDate()
-                .queryFirst();
+        List<GenericValue> productConfigItemContentList = delegator.findByAndCache("ProdConfItemContent", UtilMisc.toMap("configItemId", configItemId, "confItemContentTypeId", confItemContentTypeId), UtilMisc.toList("-fromDate"));
+        productConfigItemContentList = EntityUtil.filterByDate(productConfigItemContentList);
+        GenericValue productConfigItemContent = EntityUtil.getFirst(productConfigItemContentList);
         if (productConfigItemContent != null) {
             // when rendering the product config item content, always include the ProductConfigItem and ProdConfItemContent records that this comes from
             Map<String, Object> inContext = FastMap.newInstance();

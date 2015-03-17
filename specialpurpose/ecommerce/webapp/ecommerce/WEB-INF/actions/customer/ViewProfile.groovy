@@ -31,7 +31,7 @@ productStoreId = ProductStoreWorker.getProductStoreId(request);
 context.productStoreId = productStoreId;
 
 if (userLogin) {
-    profiledefs = from("PartyProfileDefault").where("partyId", partyId, "productStoreId", productStoreId).queryOne();
+    profiledefs = delegator.findByPrimaryKey("PartyProfileDefault", [partyId : partyId, productStoreId : productStoreId]);
 
     showOld = "true".equals(parameters.SHOW_OLD);
 
@@ -45,7 +45,7 @@ if (userLogin) {
 
     // shipping methods - for default selection
     if (profiledefs?.defaultShipAddr) {
-        shipAddress = from("PostalAddress").where("contactMechId", profiledefs.defaultShipAddr).queryOne();
+        shipAddress = delegator.findByPrimaryKey("PostalAddress", [contactMechId : profiledefs.defaultShipAddr]);
         if (shipAddress) {
             carrierShipMeths = ProductStoreWorker.getAvailableStoreShippingMethods(delegator, productStoreId, shipAddress, [1], null, 0, 1);
             context.carrierShipMethods = carrierShipMeths;
@@ -55,35 +55,42 @@ if (userLogin) {
     profileSurveys = ProductStoreWorker.getProductSurveys(delegator, productStoreId, null, "CUSTOMER_PROFILE");
     context.surveys = profileSurveys;
 
+    orderBy = ["-entryDate"];
+    findOpts = new EntityFindOptions();
+    findOpts.setMaxRows(5);
     exprs = [EntityCondition.makeCondition("partyId", EntityOperator.EQUALS, partyId)];
     exprs.add(EntityCondition.makeCondition("roleStatusId", EntityOperator.NOT_EQUAL, "COM_ROLE_READ"));
-    messages = from("CommunicationEventAndRole").where(exprs).orderBy("-entryDate").maxRows(5).queryList();
+    condition = EntityCondition.makeCondition(exprs, EntityOperator.AND);
+    messages = delegator.findList("CommunicationEventAndRole", condition, null, orderBy, findOpts, false);
     context.messages = messages;
     context.profileMessages = true;
 
-    partyContent = from("ContentRole").where("partyId", partyId, "roleTypeId", "OWNER").filterByDate().queryList();
+    partyContent = delegator.findByAnd("ContentRole", [partyId : partyId, roleTypeId : "OWNER"]);
+    partyContent = EntityUtil.filterByDate(partyContent);
     context.partyContent = partyContent;
 
-    mimeTypes = from("MimeType").orderBy("description", "mimeTypeId").queryList();
+    mimeTypes = delegator.findList("MimeType", null, null, ["description", "mimeTypeId"], null, false);
     context.mimeTypes = mimeTypes;
 
-    partyContentTypes = from("PartyContentType").orderBy("description").queryList();
+    partyContentTypes = delegator.findList("PartyContentType", null, null, ["description"], null, false);
     context.partyContentTypes = partyContentTypes;
 
     // call the getOrderedSummaryInformation service to get the sub-total of valid orders in last X months
     monthsToInclude = 12;
-    result = runService('getOrderedSummaryInformation', [partyId : partyId, roleTypeId : "PLACING_CUSTOMER", orderTypeId : "SALES_ORDER", statusId : "ORDER_COMPLETED", monthsToInclude : monthsToInclude, userLogin : userLogin]);
+    serviceIn = [partyId : partyId, roleTypeId : "PLACING_CUSTOMER", orderTypeId : "SALES_ORDER", statusId : "ORDER_COMPLETED", monthsToInclude : monthsToInclude, userLogin : userLogin];
+    result = dispatcher.runSync("getOrderedSummaryInformation", serviceIn);
     context.monthsToInclude = monthsToInclude;
     context.totalSubRemainingAmount = result.totalSubRemainingAmount;
     context.totalOrders = result.totalOrders;
 
-    contactListPartyList = from("ContactListParty").where("partyId", partyId).orderBy("-fromDate").queryList();
+    contactListPartyList = delegator.findByAnd("ContactListParty", [partyId : partyId], ["-fromDate"]);
     // show all, including history, ie don't filter: contactListPartyList = EntityUtil.filterByDate(contactListPartyList, true);
     context.contactListPartyList = contactListPartyList;
 
-    publicContactLists = from("ContactList").where("isPublic", "Y").orderBy("contactListName").queryList();
+    publicContactLists = delegator.findByAnd("ContactList", [isPublic : "Y"], ["contactListName"]);
     context.publicContactLists = publicContactLists;
 
-    partyAndContactMechList = from("PartyAndContactMech").where("partyId", partyId).orderBy("-fromDate").filterByDate().queryList();
+    partyAndContactMechList = delegator.findByAnd("PartyAndContactMech", [partyId : partyId], ["-fromDate"]);
+    partyAndContactMechList = EntityUtil.filterByDate(partyAndContactMechList);
     context.partyAndContactMechList = partyAndContactMechList;
 }

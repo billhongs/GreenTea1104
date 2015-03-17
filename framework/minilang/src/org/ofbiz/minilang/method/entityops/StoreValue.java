@@ -19,75 +19,78 @@
 package org.ofbiz.minilang.method.entityops;
 
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangRuntimeException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
 import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;store-value&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cstorevalue%3E}}">Mini-language Reference</a>
+ * Uses the delegator to store the specified value object entity in the datasource
  */
-public final class StoreValue extends MethodOperation {
+public class StoreValue extends MethodOperation {
+    public static final class StoreValueFactory implements Factory<StoreValue> {
+        public StoreValue createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new StoreValue(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "store-value";
+        }
+    }
 
     public static final String module = StoreValue.class.getName();
-    private final FlexibleMapAccessor<GenericValue> valueFma;
 
-    public StoreValue(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    ContextAccessor<GenericValue> valueAcsr;
+    String doCacheClearStr;
+
+    public StoreValue(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "value-field", "do-cache-clear");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "value-field");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "value-field");
-            MiniLangValidate.noChildElements(simpleMethod, element);
-        }
-        valueFma = FlexibleMapAccessor.getInstance(element.getAttribute("value-field"));
+        valueAcsr = new ContextAccessor<GenericValue>(element.getAttribute("value-field"), element.getAttribute("value-name"));
+        doCacheClearStr = element.getAttribute("do-cache-clear");
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        GenericValue value = valueFma.get(methodContext.getEnvMap());
-        if (value == null) {
-            throw new MiniLangRuntimeException("Entity value not found with name: " + valueFma, this);
-        }
+    public boolean exec(MethodContext methodContext) {
+        boolean doCacheClear = !"false".equals(methodContext.expandString(doCacheClearStr));
+
+        GenericValue value = null;
         try {
-            value.getDelegator().store(value);
+            value = valueAcsr.get(methodContext);
+        } catch (ClassCastException e) {
+            String errMsg = "In store-value the value specified by valueAcsr [" + valueAcsr + "] was not an instance of GenericValue, not storing";
+            Debug.logError(errMsg, module);
+            methodContext.setErrorReturn(errMsg, simpleMethod);
+            return false;
+        }
+        if (value == null) {
+            String errMsg = "In store-value a value was not found with the specified valueAcsr: " + valueAcsr + ", not storing";
+            Debug.logWarning(errMsg, module);
+            methodContext.setErrorReturn(errMsg, simpleMethod);
+            return false;
+        }
+
+        try {
+            methodContext.getDelegator().store(value, doCacheClear);
         } catch (GenericEntityException e) {
-            String errMsg = "Exception thrown while storing entity value: " + e.getMessage();
-            Debug.logWarning(e, errMsg, module);
-            simpleMethod.addErrorMessage(methodContext, errMsg);
+            Debug.logError(e, module);
+            String errMsg = "ERROR: Could not complete the " + simpleMethod.getShortDescription() + " process [problem storing the " + valueAcsr + " value: " + e.getMessage() + "]";
+            methodContext.setErrorReturn(errMsg, simpleMethod);
             return false;
         }
         return true;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<store-value ");
-        sb.append("value-field=\"").append(this.valueFma).append("\" ");
-        sb.append("/>");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<store-value/>";
     }
-
-    /**
-     * A factory for the &lt;store-value&gt; element.
-     */
-    public static final class StoreValueFactory implements Factory<StoreValue> {
-        @Override
-        public StoreValue createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new StoreValue(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "store-value";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

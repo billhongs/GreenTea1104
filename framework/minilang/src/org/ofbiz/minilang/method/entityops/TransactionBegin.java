@@ -19,71 +19,62 @@
 package org.ofbiz.minilang.method.entityops;
 
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
 import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;transaction-begin&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Ctransactionbegin%3E}}">Mini-language Reference</a>
+ * Begins a transaction if one is not already in place; if does begin one puts true in the began-transaction-name env variable, otherwise it returns false.
  */
-public final class TransactionBegin extends MethodOperation {
+public class TransactionBegin extends MethodOperation {
+    public static final class TransactionBeginFactory implements Factory<TransactionBegin> {
+        public TransactionBegin createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new TransactionBegin(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "transaction-begin";
+        }
+    }
 
     public static final String module = TransactionBegin.class.getName();
 
-    private final FlexibleMapAccessor<Boolean> beganTransactionFma;
+    ContextAccessor<Boolean> beganTransactionAcsr;
 
-    public TransactionBegin(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    public TransactionBegin(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "began-transaction-name");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "began-transaction-name");
-            MiniLangValidate.noChildElements(simpleMethod, element);
-        }
-        beganTransactionFma = FlexibleMapAccessor.getInstance(MiniLangValidate.checkAttribute(element.getAttribute("began-transaction-name"), "beganTransaction"));
+        beganTransactionAcsr = new ContextAccessor<Boolean>(element.getAttribute("began-transaction-name"), "beganTransaction");
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
+    public boolean exec(MethodContext methodContext) {
         boolean beganTransaction = false;
         try {
             beganTransaction = TransactionUtil.begin();
         } catch (GenericTransactionException e) {
-            String errMsg = "Exception thrown while beginning transaction: " + e.getMessage();
-            Debug.logWarning(e, errMsg, module);
-            simpleMethod.addErrorMessage(methodContext, errMsg);
+            Debug.logError(e, "Could not begin transaction in simple-method, returning error.", module);
+
+            String errMsg = "ERROR: Could not complete the " + simpleMethod.getShortDescription() + " process [error beginning a transaction: " + e.getMessage() + "]";
+            methodContext.setErrorReturn(errMsg, simpleMethod);
             return false;
         }
-        beganTransactionFma.put(methodContext.getEnvMap(), beganTransaction);
+
+        beganTransactionAcsr.put(methodContext, beganTransaction);
         return true;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<transaction-begin ");
-        sb.append("began-transaction-name=\"").append(this.beganTransactionFma).append("\" />");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<transaction-begin/>";
     }
-
-    /**
-     * A factory for the &lt;transaction-begin&gt; element.
-     */
-    public static final class TransactionBeginFactory implements Factory<TransactionBegin> {
-        @Override
-        public TransactionBegin createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new TransactionBegin(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "transaction-begin";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

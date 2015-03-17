@@ -34,14 +34,14 @@ under the License.
       <tbody>
         <#if orderHeaderList?has_content>
           <#list orderHeaderList as orderHeader>
-            <#assign status = orderHeader.getRelatedOne("StatusItem", true) />
+            <#assign status = orderHeader.getRelatedOneCache("StatusItem") />
             <tr>
               <td>${orderHeader.orderDate.toString()}</td>
               <td>${orderHeader.orderId}</td>
               <td><@ofbizCurrency amount=orderHeader.grandTotal isoCode=orderHeader.currencyUom /></td>
               <td>${status.get("description",locale)}</td>
               <#-- invoices -->
-              <#assign invoices = delegator.findByAnd("OrderItemBilling", Static["org.ofbiz.base.util.UtilMisc"].toMap("orderId", "${orderHeader.orderId}"), Static["org.ofbiz.base.util.UtilMisc"].toList("invoiceId"), false) />
+              <#assign invoices = delegator.findByAnd("OrderItemBilling", Static["org.ofbiz.base.util.UtilMisc"].toMap("orderId", "${orderHeader.orderId}"), Static["org.ofbiz.base.util.UtilMisc"].toList("invoiceId")) />
               <#assign distinctInvoiceIds = Static["org.ofbiz.entity.util.EntityUtil"].getFieldListFromEntityList(invoices, "invoiceId", true)>
               <#if distinctInvoiceIds?has_content>
                 <td>
@@ -76,7 +76,7 @@ under the License.
       <tbody>
         <#if porderHeaderList?has_content>
           <#list porderHeaderList as porderHeader>
-            <#assign pstatus = porderHeader.getRelatedOne("StatusItem", true) />
+            <#assign pstatus = porderHeader.getRelatedOneCache("StatusItem") />
             <tr>
               <td>${porderHeader.orderDate.toString()}</td>
               <td>${porderHeader.orderId}</td>
@@ -109,8 +109,8 @@ under the License.
             <tr>
               <td>${downloadOrderRoleAndProductContentInfo.orderId}</td>
               <td>${downloadOrderRoleAndProductContentInfo.productName}</td>
-              <td>${downloadOrderRoleAndProductContentInfo.contentName!}</td>
-              <td>${downloadOrderRoleAndProductContentInfo.description!}</td>
+              <td>${downloadOrderRoleAndProductContentInfo.contentName?if_exists}</td>
+              <td>${downloadOrderRoleAndProductContentInfo.description?if_exists}</td>
               <td>
                 <a href="<@ofbizUrl>downloadDigitalProduct?dataResourceId=${downloadOrderRoleAndProductContentInfo.dataResourceId}</@ofbizUrl>" class="button">Download</a>
               </td>

@@ -20,9 +20,10 @@ package org.ofbiz.entity.model;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.config.GenericConfigException;
 import org.ofbiz.base.config.MainResourceHandler;
@@ -32,10 +33,10 @@ import org.ofbiz.base.util.UtilTimer;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.UtilXml;
 import org.ofbiz.base.util.cache.UtilCache;
-import org.ofbiz.entity.GenericEntityConfException;
-import org.ofbiz.entity.config.model.Datasource;
-import org.ofbiz.entity.config.model.EntityConfig;
-import org.ofbiz.entity.config.model.FieldType;
+import org.ofbiz.entity.config.DatasourceInfo;
+import org.ofbiz.entity.config.EntityConfigUtil;
+import org.ofbiz.entity.config.FieldTypeInfo;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -51,7 +52,7 @@ public class ModelFieldTypeReader implements Serializable {
 
     protected static Map<String, ModelFieldType> createFieldTypeCache(Element docElement, String location) {
         docElement.normalize();
-        Map<String, ModelFieldType> fieldTypeMap = new HashMap<String, ModelFieldType>();
+        Map<String, ModelFieldType> fieldTypeMap = FastMap.newInstance();
         List<? extends Element> fieldTypeList = UtilXml.childElementList(docElement, "field-type-def");
         for (Element curFieldType: fieldTypeList) {
             String fieldTypeName = curFieldType.getAttribute("type");
@@ -66,35 +67,33 @@ public class ModelFieldTypeReader implements Serializable {
     }
 
     public static ModelFieldTypeReader getModelFieldTypeReader(String helperName) {
-        Datasource datasourceInfo = EntityConfig.getDatasource(helperName);
+        DatasourceInfo datasourceInfo = EntityConfigUtil.getDatasourceInfo(helperName);
         if (datasourceInfo == null) {
             throw new IllegalArgumentException("Could not find a datasource/helper with the name " + helperName);
         }
-        String tempModelName = datasourceInfo.getFieldTypeName();
+        String tempModelName = datasourceInfo.fieldTypeName;
         ModelFieldTypeReader reader = readers.get(tempModelName);
-        while (reader == null) {
-            FieldType fieldTypeInfo = null;
-            try {
-                fieldTypeInfo = EntityConfig.getInstance().getFieldType(tempModelName);
-            } catch (GenericEntityConfException e) {
-                Debug.logWarning(e, "Exception thrown while getting field type config: ", module);
+        if (reader == null) {
+            synchronized (readers) {
+                FieldTypeInfo fieldTypeInfo = EntityConfigUtil.getFieldTypeInfo(tempModelName);
+                if (fieldTypeInfo == null) {
+                    throw new IllegalArgumentException("Could not find a field-type definition with name \"" + tempModelName + "\"");
+                }
+                ResourceHandler fieldTypeResourceHandler = new MainResourceHandler(EntityConfigUtil.ENTITY_ENGINE_XML_FILENAME, fieldTypeInfo.resourceElement);
+                UtilTimer utilTimer = new UtilTimer();
+                utilTimer.timerString("[ModelFieldTypeReader.getModelFieldTypeReader] Reading field types from " + fieldTypeResourceHandler.getLocation());
+                Document document = null;
+                try {
+                    document = fieldTypeResourceHandler.getDocument();
+                } catch (GenericConfigException e) {
+                    Debug.logError(e, module);
+                    throw new IllegalStateException("Error loading field type file " + fieldTypeResourceHandler.getLocation());
+                }
+                Map<String, ModelFieldType> fieldTypeMap = createFieldTypeCache(document.getDocumentElement(), fieldTypeResourceHandler.getLocation());
+                reader = new ModelFieldTypeReader(fieldTypeMap);
+                readers.put(tempModelName, reader);
+                utilTimer.timerString("[ModelFieldTypeReader.getModelFieldTypeReader] Read " + fieldTypeMap.size() + " field types");
             }
-            if (fieldTypeInfo == null) {
-                throw new IllegalArgumentException("Could not find a field-type definition with name \"" + tempModelName + "\"");
-            }
-            ResourceHandler fieldTypeResourceHandler = new MainResourceHandler(EntityConfig.ENTITY_ENGINE_XML_FILENAME, fieldTypeInfo.getLoader(), fieldTypeInfo.getLocation());
-            UtilTimer utilTimer = new UtilTimer();
-            utilTimer.timerString("[ModelFieldTypeReader.getModelFieldTypeReader] Reading field types from " + fieldTypeResourceHandler.getLocation());
-            Document document = null;
-            try {
-                document = fieldTypeResourceHandler.getDocument();
-            } catch (GenericConfigException e) {
-                Debug.logError(e, module);
-                throw new IllegalStateException("Error loading field type file " + fieldTypeResourceHandler.getLocation());
-            }
-            Map<String, ModelFieldType> fieldTypeMap = createFieldTypeCache(document.getDocumentElement(), fieldTypeResourceHandler.getLocation());
-            reader = readers.putIfAbsentAndGet(tempModelName, new ModelFieldTypeReader(fieldTypeMap));
-            utilTimer.timerString("[ModelFieldTypeReader.getModelFieldTypeReader] Read " + fieldTypeMap.size() + " field types");
         }
         return reader;
     }

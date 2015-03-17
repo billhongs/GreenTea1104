@@ -43,7 +43,7 @@ if (itemQuantitiesToReceive) {
     }
 }
 
-shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+shipment = delegator.findOne("Shipment", [shipmentId : shipmentId], false);
 context.shipment = shipment;
 if (!shipment) {
     return;
@@ -55,7 +55,7 @@ if (!isPurchaseShipment) {
     return;
 }
 
-facility = shipment.getRelatedOne("DestinationFacility", false);
+facility = shipment.getRelatedOne("DestinationFacility");
 context.facility = facility;
 context.facilityId = shipment.destinationFacilityId;
 context.now = UtilDateTime.nowTimestamp();
@@ -72,7 +72,7 @@ if (!orderId) {
     return;
 }
 
-orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
+orderHeader = delegator.findOne("OrderHeader", [orderId : orderId], false);
 context.orderHeader = orderHeader;
 if (!orderHeader) {
     return;
@@ -87,9 +87,9 @@ if (!isPurchaseOrder) {
 // Get the base currency from the facility owner, for currency conversions
 baseCurrencyUomId = null;
 if (facility) {
-    owner = facility.getRelatedOne("OwnerParty", false);
+    owner = facility.getRelatedOne("OwnerParty");
     if (owner) {
-        result = runService('getPartyAccountingPreferences', [organizationPartyId : owner.partyId, userLogin : request.getAttribute("userLogin")]);
+        result = dispatcher.runSync("getPartyAccountingPreferences", [organizationPartyId : owner.partyId, userLogin : request.getAttribute("userLogin")]);
         if (!ServiceUtil.isError(result) && result.partyAccountingPreference) {
             ownerAcctgPref = result.partyAccountingPreference;
         }
@@ -99,7 +99,7 @@ if (facility) {
     }
 }
 
-inventoryItemTypes = from("InventoryItemType").queryList();
+inventoryItemTypes = delegator.findList("InventoryItemType", null, null, null, null, false);
 context.inventoryItemTypes = inventoryItemTypes;
 
 // Populate the tracking map with shipment and order IDs
@@ -116,12 +116,12 @@ orderItemDatas = [:] as TreeMap;
 totalAvailableToReceive = 0;
 
 // Populate the order item data for the FTL
-orderItems = orderHeader.getRelated("OrderItemAndShipGroupAssoc", oiasgaLimitMap, ['shipGroupSeqId', 'orderItemSeqId'], false);
+orderItems = orderHeader.getRelated("OrderItemAndShipGroupAssoc", oiasgaLimitMap, ['shipGroupSeqId', 'orderItemSeqId']);
 orderItems.each { orderItemAndShipGroupAssoc ->
-    product = orderItemAndShipGroupAssoc.getRelatedOne("Product", false);
+    product = orderItemAndShipGroupAssoc.getRelatedOne("Product");
 
     // Get the order item, since the orderItemAndShipGroupAssoc's quantity field is manipulated in some cases
-    orderItem = from("OrderItem").where("orderId", orderId, "orderItemSeqId", orderItemAndShipGroupAssoc.orderItemSeqId).queryOne();
+    orderItem = delegator.findOne("OrderItem", [orderId : orderId, orderItemSeqId : orderItemAndShipGroupAssoc.orderItemSeqId], false);
     orderItemData = [:];
 
     // Get the item's ordered quantity
@@ -137,7 +137,7 @@ orderItems.each { orderItemAndShipGroupAssoc ->
 
     // Get the item quantity received from all shipments via the ShipmentReceipt entity
     totalReceived = 0.0;
-    receipts = from("ShipmentReceipt").where("orderId", orderId, "orderItemSeqId", orderItem.orderItemSeqId).queryList();
+    receipts = delegator.findList("ShipmentReceipt", EntityCondition.makeCondition([orderId : orderId, orderItemSeqId : orderItem.orderItemSeqId]), null, null, null, false);
     fulfilledReservations = [] as ArrayList;
     if (receipts) {
         receipts.each { rec ->
@@ -150,7 +150,7 @@ orderItems.each { orderItemAndShipGroupAssoc ->
                 totalReceived += rejected.doubleValue();
             }
             // Get the reservations related to this receipt
-            oisgirs = from("OrderItemShipGrpInvRes").where("inventoryItemId", rec.inventoryItemId).queryList();
+            oisgirs = delegator.findList("OrderItemShipGrpInvRes", EntityCondition.makeCondition([inventoryItemId : rec.inventoryItemId]), null, null, null, false);
             if (oisgirs) {
                 fulfilledReservations.addAll(oisgirs);
             }
@@ -161,7 +161,7 @@ orderItems.each { orderItemAndShipGroupAssoc ->
     // Update the unit cost with the converted value, if any
     if (baseCurrencyUomId && orderHeader.currencyUom) {
         if (product) {
-            result = runService('convertUom', [uomId : orderHeader.currencyUom, uomIdTo : baseCurrencyUomId, originalValue : orderItem.unitPrice]);
+            result = dispatcher.runSync("convertUom", [uomId : orderHeader.currencyUom, uomIdTo : baseCurrencyUomId, originalValue : orderItem.unitPrice]);
             if (!ServiceUtil.isError(result)) {
                 orderItem.unitPrice = result.convertedValue;
             }
@@ -172,7 +172,7 @@ orderItems.each { orderItemAndShipGroupAssoc ->
     // TODO: limit to a facility? The shipment destination facility is not necessarily the same facility as the inventory
     conditions = [EntityCondition.makeCondition("productId", EntityOperator.EQUALS, product.productId),
                   EntityCondition.makeCondition("availableToPromiseTotal", EntityOperator.LESS_THAN, BigDecimal.ZERO)];
-    negativeInventoryItems = from("InventoryItem").where(conditions).queryList();
+    negativeInventoryItems = delegator.findList("InventoryItem",  EntityCondition.makeCondition(conditions, EntityOperator.AND), null, null, null, false);
     backOrderedQuantity = 0;
     negativeInventoryItems.each { negativeInventoryItem ->
         backOrderedQuantity += negativeInventoryItem.getDouble("availableToPromiseTotal").doubleValue();
@@ -201,7 +201,7 @@ if (productIdToReceive) {
 
     // If the productId as given isn't found in the order, try any goodIdentifications and use the first match
     if (!candidateOrderItems) {
-        goodIdentifications = from("GoodIdentification").where("idValue", productIdToReceive).queryList();
+        goodIdentifications = delegator.findList("GoodIdentification", EntityCondition.makeCondition([idValue : productIdToReceive]), null, null, null, false);
         if (goodIdentifications) {
             giit = goodIdentifications.iterator();
             while (giit.hasNext()) {

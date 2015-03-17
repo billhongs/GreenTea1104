@@ -46,7 +46,7 @@ function lookupInventory() {
                   <#if requestParameters.hideFields?default("N") == "Y">
                     <a href="<@ofbizUrl>FindInventoryEventPlan?hideFields=N${paramList}</@ofbizUrl>" class="smallSubmit">${uiLabelMap.CommonShowLookupFields}</a>
                   <#else>
-                    <#if inventoryList??>
+                    <#if inventoryList?exists>
                         <a href="<@ofbizUrl>FindInventoryEventPlan?hideFields=Y${paramList}</@ofbizUrl>" class="smallSubmit">${uiLabelMap.CommonHideFields}</a>
                     </#if>
                   </#if>
@@ -64,7 +64,7 @@ function lookupInventory() {
                     <td width='5%'>&nbsp;</td>
                     <td>
                       <span>
-                        <@htmlTemplate.lookupField value='${requestParameters.productId!}' formName="lookupinventory" name="productId" id="productId" fieldFormName="LookupProduct"/>
+                        <@htmlTemplate.lookupField value='${requestParameters.productId?if_exists}' formName="lookupinventory" name="productId" id="productId" fieldFormName="LookupProduct"/>
                       </span>
                      </td>
                   </tr>
@@ -72,7 +72,7 @@ function lookupInventory() {
                     <td width='20%' align='right' class="label">${uiLabelMap.CommonFromDate}</td>
                     <td width='5%'>&nbsp;</td>
                     <td>
-                      <@htmlTemplate.renderDateTimeField name="eventDate" event="" action="" className="" alert="" title="Format: yyyy-MM-dd HH:mm:ss.SSS" value="${requestParameters.eventDate!}" size="25" maxlength="30" id="fromDate_2" dateType="date" shortDateInput=false timeDropdownParamName="" defaultDateTimeString="" localizedIconTitle="" timeDropdown="" timeHourName="" classString="" hour1="" hour2="" timeMinutesName="" minutes="" isTwelveHour="" ampmName="" amSelected="" pmSelected="" compositeType="" formName=""/>
+                      <@htmlTemplate.renderDateTimeField name="eventDate" event="" action="" className="" alert="" title="Format: yyyy-MM-dd HH:mm:ss.SSS" value="${requestParameters.eventDate?if_exists}" size="25" maxlength="30" id="fromDate_2" dateType="date" shortDateInput=false timeDropdownParamName="" defaultDateTimeString="" localizedIconTitle="" timeDropdown="" timeHourName="" classString="" hour1="" hour2="" timeMinutesName="" minutes="" isTwelveHour="" ampmName="" amSelected="" pmSelected="" compositeType="" formName=""/>
                     </td>
                   </tr>
                   <tr>
@@ -103,7 +103,7 @@ document.lookupinventory.productId.focus();
 <table class="basic-table" cellspacing="0">
   <tr>
     <td width='100%'>
-      <#if inventoryList??>
+      <#if inventoryList?exists>
       <#if 0 < inventoryList?size>
        <#assign rowClass = "alternate-row">
          <table class="basic-table" cellspacing="0">
@@ -148,46 +148,46 @@ document.lookupinventory.productId.focus();
         <#assign count = lowIndex>
         <#assign productTmp = "">
         <#list inventoryList[lowIndex..highIndex-1] as inven>
-            <#assign product = inven.getRelatedOne("Product", false)>
-            <#if facilityId?? && facilityId?has_content>
+            <#assign product = inven.getRelatedOne("Product")>
+            <#if facilityId?exists && facilityId?has_content>
             </#if>
             <#if ! product.equals( productTmp )>
                 <#assign quantityAvailableAtDate = 0>
-                <#assign errorEvents = delegator.findByAnd("MrpEvent", Static["org.ofbiz.base.util.UtilMisc"].toMap("mrpEventTypeId", "ERROR", "productId", inven.productId), null, false)>
-                <#assign qohEvents = delegator.findByAnd("MrpEvent", Static["org.ofbiz.base.util.UtilMisc"].toMap("mrpEventTypeId", "INITIAL_QOH", "productId", inven.productId), null, false)>
+                <#assign errorEvents = delegator.findByAnd("MrpEvent", Static["org.ofbiz.base.util.UtilMisc"].toMap("mrpEventTypeId", "ERROR", "productId", inven.productId))>
+                <#assign qohEvents = delegator.findByAnd("MrpEvent", Static["org.ofbiz.base.util.UtilMisc"].toMap("mrpEventTypeId", "INITIAL_QOH", "productId", inven.productId))>
                 <#assign additionalErrorMessage = "">
                 <#assign initialQohEvent = "">
                 <#assign productFacility = "">
                 <#if qohEvents?has_content>
                     <#assign initialQohEvent = Static["org.ofbiz.entity.util.EntityUtil"].getFirst(qohEvents)>
                 </#if>
-                <#if initialQohEvent??>
+                <#if initialQohEvent != null>
                     <#if initialQohEvent.quantity?has_content>
                         <#assign quantityAvailableAtDate = initialQohEvent.quantity>
                     </#if>
                     <#if initialQohEvent.facilityId?has_content>
-                        <#assign productFacility = delegator.findOne("ProductFacility", Static["org.ofbiz.base.util.UtilMisc"].toMap("facilityId", initialQohEvent.facilityId, "productId", inven.productId), false)!>
+                        <#assign productFacility = delegator.findByPrimaryKey("ProductFacility", Static["org.ofbiz.base.util.UtilMisc"].toMap("facilityId", initialQohEvent.facilityId, "productId", inven.productId))?if_exists>
                     </#if>
                 <#else>
                     <#assign additionalErrorMessage = "No QOH information found, assuming 0.">
                 </#if>
                 <tr bgcolor="lightblue">
                   <th>
-                      <b>[${inven.productId}]</b>&nbsp;&nbsp;${product.internalName!}
+                      <b>[${inven.productId}]</b>&nbsp;&nbsp;${product.internalName?if_exists}
                   </th>
                   <td>
-                    <#if productFacility?has_content>
+                    <#if productFacility != null && productFacility?has_content>
                       <div>
-                      <b>${uiLabelMap.ProductFacility}:</b>&nbsp;${productFacility.facilityId!}
+                      <b>${uiLabelMap.ProductFacility}:</b>&nbsp;${productFacility.facilityId?if_exists}
                       </div>
                       <div>
-                      <b>${uiLabelMap.ProductMinimumStock}:</b>&nbsp;${productFacility.minimumStock!}
+                      <b>${uiLabelMap.ProductMinimumStock}:</b>&nbsp;${productFacility.minimumStock?if_exists}
                       </div>
                       <div>
-                      <b>${uiLabelMap.ProductReorderQuantity}:</b>&nbsp;${productFacility.reorderQuantity!}
+                      <b>${uiLabelMap.ProductReorderQuantity}:</b>&nbsp;${productFacility.reorderQuantity?if_exists}
                       </div>
                       <div>
-                      <b>${uiLabelMap.ProductDaysToShip}:</b>&nbsp;${productFacility.daysToShip!}
+                      <b>${uiLabelMap.ProductDaysToShip}:</b>&nbsp;${productFacility.daysToShip?if_exists}
                       </div>
                       </#if>
                   </td>
@@ -202,21 +202,21 @@ document.lookupinventory.productId.focus();
                 </#if>
                 <#list errorEvents as errorEvent>
                 <tr>
-                    <th colspan="7"><font color="red">${errorEvent.eventName!}</font></td>
+                    <th colspan="7"><font color="red">${errorEvent.eventName?if_exists}</font></td>
                 </tr>
                 </#list>
             </#if>
             <#assign quantityAvailableAtDate = quantityAvailableAtDate?default(0) + inven.getBigDecimal("quantity")>
             <#assign productTmp = product>
-            <#assign MrpEventType = inven.getRelatedOne("MrpEventType", false)>
+            <#assign MrpEventType = inven.getRelatedOne("MrpEventType")>
             <tr class="${rowClass}">
               <td>${MrpEventType.get("description",locale)}</td>
               <td>&nbsp;</td>
-              <td>${inven.eventName!}</td>
+              <td>${inven.eventName?if_exists}</td>
               <td><font <#if inven.isLate?default("N") == "Y">color='red'</#if>>${inven.getString("eventDate")}</font></td>
               <td>&nbsp;</td>
               <td align="right">${inven.getString("quantity")}</td>
-              <td align="right">${quantityAvailableAtDate!}</td>
+              <td align="right">${quantityAvailableAtDate?if_exists}</td>
             </tr>
             <#assign count=count+1>
            </#list>

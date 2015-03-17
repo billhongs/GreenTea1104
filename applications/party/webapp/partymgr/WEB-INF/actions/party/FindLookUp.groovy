@@ -19,18 +19,17 @@
 
 import org.ofbiz.base.util.*;
 import org.ofbiz.entity.condition.*;
-import org.ofbiz.entity.util.EntityUtilProperties;
 
 if (context.noConditionFind == null) {
     context.noConditionFind = parameters.noConditionFind;
 }
 if (context.noConditionFind == null) {
-    context.noConditionFind = EntityUtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind", delegator);
+    context.noConditionFind = UtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind");
 }
 if (context.filterByDate == null) {
     context.filterByDate = parameters.filterByDate;
 }
-prepareResult = runService('prepareFind', [entityName : context.entityName,
+prepareResult = dispatcher.runSync("prepareFind", [entityName : context.entityName,
                                                    orderBy : context.orderBy,
                                                    inputFields : parameters,
                                                    filterByDate : context.filterByDate,
@@ -50,7 +49,7 @@ if (prepareResult.entityConditionList != null) {
     entityConditionList = statusPartyDisable;
 }
 
-executeResult = runService('executeFind', [entityName : context.entityName,
+executeResult = dispatcher.runSync("executeFind", [entityName : context.entityName,
                                                    orderByList : prepareResult.orderByList,
                                                    entityConditionList : entityConditionList,
                                                    noConditionFind :context.noConditionFind

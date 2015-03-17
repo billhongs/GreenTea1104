@@ -19,11 +19,12 @@
 package org.ofbiz.base.util;
 
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+
+import javolution.util.FastMap;
 
 public class UtilGenerics {
 
@@ -140,7 +141,7 @@ public class UtilGenerics {
         if (data.length % 2 == 1) {
             throw new IllegalArgumentException("You must pass an even sized array to the toMap method");
         }
-        Map<K, V> map = new LinkedHashMap<K, V>();
+        Map<K, V> map = FastMap.newInstance();
         for (int i = 0; i < data.length;) {
             Object key = data[i];
             if (key != null && !(keyType.isInstance(key))) throw new IllegalArgumentException("Key(" + i + ") is not a " + keyType.getName() + ", was(" + key.getClass().getName() + ")");
@@ -161,7 +162,7 @@ public class UtilGenerics {
         if (data.length % 2 == 1) {
             throw new IllegalArgumentException("You must pass an even sized array to the toMap method");
         }
-        Map<K, Object> map = new LinkedHashMap<K, Object>();
+        Map<K, Object> map = FastMap.newInstance();
         for (int i = 0; i < data.length;) {
             Object key = data[i];
             if (key != null && !(keyType.isInstance(key))) throw new IllegalArgumentException("Key(" + i + ") is not a " + keyType.getName() + ", was(" + key.getClass().getName() + ")");

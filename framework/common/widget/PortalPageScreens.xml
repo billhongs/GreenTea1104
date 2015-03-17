@@ -94,17 +94,13 @@ under the License.
                 <set field="layoutSettings.javaScripts[]" value="/images/myportal.js" global="true"/>
                 <set field="layoutSettings.styleSheets[+0]" value="/images/myportal.css" global="true"/>
                 <entity-one entity-name="PortalPage" value-field="portalPage"/>
-                <set field="portalPages" value="${groovy:org.ofbiz.widget.portal.PortalPageWorker.getPortalPages(parameters.parentPortalPageId,context)}"/>
+                <set field="portalPages" value="${groovy:org.ofbiz.widget.PortalPageWorker.getPortalPages(parameters.parentPortalPageId,context)}"/>
             </actions>
             <widgets>
                 <decorator-screen name="main-decorator" location="${parameters.mainDecoratorLocation}">
                     <decorator-section name="body">
                         <screenlet id="PortalPagesList" title="${uiLabelMap.CommonPortalPagesForApplication}: ${parameters.parentPortalPageId}" collapsible="true">
-                            <container style="button-bar">
-                                <link target="NewPortalPage" text="${uiLabelMap.CommonNewPortalPage}" style="buttontext create">
-                                    <parameter param-name="parentPortalPageId" from-field="parameters.parentPortalPageId"/>
-                                </link>
-                            </container>
+                            <container style="button-bar"><link target="NewPortalPage" text="${uiLabelMap.CommonNewPortalPage}" style="buttontext create"/></container>
                             <include-form name="ListPortalPages" location="component://common/widget/PortalPageForms.xml"/>
                         </screenlet>
                         <section>

@@ -28,7 +28,7 @@ cart = session.getAttribute("shoppingCart");
 currencyUomId = cart.getCurrency();
 userLogin = session.getAttribute("userLogin");
 partyId = cart.getPartyId();
-party = from("Party").where("partyId", partyId).cache(true).queryOne();
+party = delegator.findByPrimaryKeyCache("Party", [partyId : partyId]);
 productStoreId = ProductStoreWorker.getProductStoreId(request);
 
 checkOutPaymentId = "";
@@ -40,14 +40,16 @@ if (cart) {
     }
 }
 
-finAccounts = from("FinAccountAndRole").where("partyId", partyId, "roleTypeId", "OWNER").filterByDate(UtilDateTime.nowTimestamp(), "fromDate", "thruDate", "roleFromDate", "roleThruDate").queryList();
+finAccounts = delegator.findByAnd("FinAccountAndRole", [partyId : partyId, roleTypeId : "OWNER"]);
+finAccounts = EntityUtil.filterByDate(finAccounts, UtilDateTime.nowTimestamp(), "roleFromDate", "roleThruDate", true);
+finAccounts = EntityUtil.filterByDate(finAccounts);
 context.finAccounts = finAccounts;
 
 context.shoppingCart = cart;
 context.userLogin = userLogin;
 context.productStoreId = productStoreId;
 context.checkOutPaymentId = checkOutPaymentId;
-context.paymentMethodList = EntityUtil.filterByDate(party.getRelated("PaymentMethod", null, ["paymentMethodTypeId"], false), true);
+context.paymentMethodList = EntityUtil.filterByDate(party.getRelated("PaymentMethod", null, ["paymentMethodTypeId"]), true);
 
 billingAccountList = BillingAccountWorker.makePartyBillingAccountList(userLogin, currencyUomId, partyId, delegator, dispatcher);
 if (billingAccountList) {
@@ -57,7 +59,7 @@ if (billingAccountList) {
 
 checkIdealPayment = false;
 productStore = ProductStoreWorker.getProductStore(request);
-productStorePaymentSettingList = productStore.getRelated("ProductStorePaymentSetting", null, null, true);
+productStorePaymentSettingList = productStore.getRelatedCache("ProductStorePaymentSetting");
 productStorePaymentSettingIter = productStorePaymentSettingList.iterator();
 while (productStorePaymentSettingIter.hasNext()) {
     productStorePaymentSetting = productStorePaymentSettingIter.next();

@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#if requestParameters.product_id??>
+<#if requestParameters.product_id?exists>
   <form id="reviewProduct" method="post" action="<@ofbizUrl>createProductReview</@ofbizUrl>">
     <fieldset class="inline">
       <input type="hidden" name="productStoreId" value="${productStore.productStoreId}" />

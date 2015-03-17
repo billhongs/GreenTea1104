@@ -25,7 +25,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityTypeUtil;
 
 /**
@@ -46,10 +45,10 @@ public class PartyTypeHelper {
         GenericValue partyType = null;
         GenericValue checkedTypeOfParty = null;
         try {
-            party = EntityQuery.use(delegator).from("Party").where("partyId", partyId).queryOne();
+            party = delegator.findOne("Party", UtilMisc.toMap("partyId", partyId), false);
             if (UtilValidate.isNotEmpty(party)) {
-                partyType = party.getRelatedOne("PartyType", true);
-                checkedTypeOfParty = EntityQuery.use(delegator).from("PartyType").where("partyTypeId", checkedPartyType).cache().queryOne();
+                partyType = party.getRelatedOneCache("PartyType");
+                checkedTypeOfParty = delegator.findOne("PartyType", UtilMisc.toMap("partyTypeId", checkedPartyType), true);
             } else {
                 return false;
             }

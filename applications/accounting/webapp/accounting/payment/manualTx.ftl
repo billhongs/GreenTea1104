@@ -20,10 +20,10 @@ under the License.
 <h1>${uiLabelMap.AccountingManualTransaction}</h1>
 <br />
 
-<#if security.hasEntityPermission("MANUAL", "_PAYMENT", session) || security.hasEntityPermission("ACCOUNTING", "_CREATE", session)>
+<#if security.hasEntityPermission("MANUAL", "_PAYMENT", session)>
   ${setRequestAttribute("validTx", "false")}
   <form name="manualTxForm" method="post" action="<@ofbizUrl>manualETx</@ofbizUrl>">
-    <#if requestParameters.paymentMethodId??>
+    <#if requestParameters.paymentMethodId?exists>
       <input type="hidden" name="paymentMethodId" value="${requestParameters.paymentMethodId}" />
     </#if>
 
@@ -47,12 +47,12 @@ under the License.
         <td width="5">&nbsp;</td>
         <td width='74%'>
           <#if currentStore?has_content>
-            <div><#if currentStore.storeName??>${currentStore.storeName}<#else>${currentStore.productStoreId}</#if></div>
+            <div><#if currentStore.storeName?exists>${currentStore.storeName}<#else>${currentStore.productStoreId}</#if></div>
             <input type="hidden" name="productStoreId" value="${currentStore.productStoreId}" />
           <#else>
             <select name="productStoreId">
               <#list productStores as productStore>
-                <option value="${productStore.productStoreId}"><#if productStore.storeName??>${productStore.storeName}<#else>${productStore.productStoreId}</#if></option>
+                <option value="${productStore.productStoreId}"><#if productStore.storeName?exists>${productStore.storeName}<#else>${productStore.productStoreId}</#if></option>
               </#list>
             </select>
           </#if>

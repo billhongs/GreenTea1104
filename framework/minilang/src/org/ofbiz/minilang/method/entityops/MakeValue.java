@@ -18,84 +18,58 @@
  *******************************************************************************/
 package org.ofbiz.minilang.method.entityops;
 
-import java.util.Map;
+import java.util.*;
 
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
-import org.ofbiz.entity.Delegator;
+import org.w3c.dom.*;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangRuntimeException;
-import org.ofbiz.minilang.MiniLangValidate;
-import org.ofbiz.minilang.SimpleMethod;
-import org.ofbiz.minilang.artifact.ArtifactInfoContext;
-import org.ofbiz.minilang.method.MethodContext;
-import org.w3c.dom.Element;
+import org.ofbiz.minilang.*;
+import org.ofbiz.minilang.method.*;
 
 /**
- * Implements the &lt;make-value&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cmakevalue%3E}}">Mini-language Reference</a>
+ * Uses the delegator to find entity values by anding the map fields
  */
-public final class MakeValue extends EntityOperation {
-
-    private final FlexibleStringExpander entityNameFse;
-    private final FlexibleMapAccessor<Map<String, ? extends Object>> mapFma;
-    private final FlexibleMapAccessor<GenericValue> valueFma;
-
-    public MakeValue(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-        super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "value-field", "entity-name", "map", "delegator-name");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "value-field", "entity-name");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "value-field", "map", "delegator-name");
-            MiniLangValidate.noChildElements(simpleMethod, element);
-        }
-        valueFma = FlexibleMapAccessor.getInstance(element.getAttribute("value-field"));
-        entityNameFse = FlexibleStringExpander.getInstance(element.getAttribute("entity-name"));
-        mapFma = FlexibleMapAccessor.getInstance(element.getAttribute("map"));
-    }
-
-    @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        String entityName = entityNameFse.expandString(methodContext.getEnvMap());
-        if (entityName.isEmpty()) {
-            throw new MiniLangRuntimeException("Entity name not found.", this);
-        }
-        Delegator delegator = getDelegator(methodContext);
-        valueFma.put(methodContext.getEnvMap(), delegator.makeValidValue(entityName, mapFma.get(methodContext.getEnvMap())));
-        return true;
-    }
-
-    @Override
-    public void gatherArtifactInfo(ArtifactInfoContext aic) {
-        aic.addEntityName(entityNameFse.toString());
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<make-value ");
-        sb.append("entity-name=\"").append(this.entityNameFse).append("\" ");
-        sb.append("value-field=\"").append(this.valueFma).append("\" ");
-        if (!mapFma.isEmpty()) {
-            sb.append("map=\"").append(this.mapFma).append("\" ");
-        }
-        sb.append("/>");
-        return sb.toString();
-    }
-
-    /**
-     * A factory for the &lt;make-value&gt; element.
-     */
+public class MakeValue extends MethodOperation {
     public static final class MakeValueFactory implements Factory<MakeValue> {
-        @Override
-        public MakeValue createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+        public MakeValue createMethodOperation(Element element, SimpleMethod simpleMethod) {
             return new MakeValue(element, simpleMethod);
         }
 
-        @Override
         public String getName() {
             return "make-value";
         }
+    }
+
+    ContextAccessor<GenericValue> valueAcsr;
+    String entityName;
+    ContextAccessor<Map<String, ? extends Object>> mapAcsr;
+
+    public MakeValue(Element element, SimpleMethod simpleMethod) {
+        super(element, simpleMethod);
+        valueAcsr = new ContextAccessor<GenericValue>(element.getAttribute("value-field"), element.getAttribute("value-name"));
+        entityName = element.getAttribute("entity-name");
+        mapAcsr = new ContextAccessor<Map<String, ? extends Object>>(element.getAttribute("map"), element.getAttribute("map-name"));
+    }
+
+    @Override
+    public boolean exec(MethodContext methodContext) {
+        String entityName = methodContext.expandString(this.entityName);
+        Map<String, ? extends Object> ctxMap = (mapAcsr.isEmpty() ? null : mapAcsr.get(methodContext));
+        valueAcsr.put(methodContext, methodContext.getDelegator().makeValidValue(entityName, ctxMap));
+        return true;
+    }
+
+    public String getEntityName() {
+        return this.entityName;
+    }
+
+    @Override
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<make-value/>";
+    }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

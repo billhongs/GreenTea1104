@@ -17,22 +17,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 <#-- variable setup and worker calls -->
-<#if (requestAttributes.topLevelList)??><#assign topLevelList = requestAttributes.topLevelList></#if>
-<#if (requestAttributes.curCategoryId)??><#assign curCategoryId = requestAttributes.curCategoryId></#if>
+<#if (requestAttributes.topLevelList)?exists><#assign topLevelList = requestAttributes.topLevelList></#if>
+<#if (requestAttributes.curCategoryId)?exists><#assign curCategoryId = requestAttributes.curCategoryId></#if>
 
 <#-- looping macro -->
 <#macro categoryList parentCategory category wrapInBox>
-  <#if catContentWrappers?? && catContentWrappers[category.productCategoryId]?? && catContentWrappers[category.productCategoryId].get("CATEGORY_NAME")??>
+  <#if catContentWrappers?exists && catContentWrappers[category.productCategoryId]?exists && catContentWrappers[category.productCategoryId].get("CATEGORY_NAME")?exists>
     <#assign categoryName = catContentWrappers[category.productCategoryId].get("CATEGORY_NAME")>
   <#else>
-    <#assign categoryName = category.categoryName!>
+    <#assign categoryName = category.categoryName?if_exists>
   </#if>
-  <#if catContentWrappers?? && catContentWrappers[category.productCategoryId]?? && catContentWrappers[category.productCategoryId].get("DESCRIPTION")??>
+  <#if catContentWrappers?exists && catContentWrappers[category.productCategoryId]?exists && catContentWrappers[category.productCategoryId].get("DESCRIPTION")?exists>
     <#assign categoryDescription = catContentWrappers[category.productCategoryId].get("DESCRIPTION")>
   <#else>
-    <#assign categoryDescription = category.description!>
+    <#assign categoryDescription = category.description?if_exists>
   </#if>
-  <#if curCategoryId?? && curCategoryId == category.productCategoryId>
+  <#if curCategoryId?exists && curCategoryId == category.productCategoryId>
     <#assign browseCategoryButtonClass = "browsecategorybuttondisabled">
   <#else>
     <#assign browseCategoryButtonClass = "browsecategorybutton">
@@ -54,11 +54,11 @@ under the License.
           <#else>
             <#assign parentCategoryId = ""/>
           </#if>
-          <a href="<@ofbizCatalogAltUrl productCategoryId=category.productCategoryId previousCategoryId=parentCategoryId/>" class="${browseCategoryButtonClass}"><#if categoryName?has_content>${categoryName}<#else>${categoryDescription?default("")}</#if></a>
+          <a href="<@ofbizCatalogUrl currentCategoryId=category.productCategoryId previousCategoryId=parentCategoryId/>" class="${browseCategoryButtonClass}"><#if categoryName?has_content>${categoryName}<#else>${categoryDescription?default("")}</#if></a>
 
-  <#if (Static["org.ofbiz.product.category.CategoryWorker"].checkTrailItem(request, category.getString("productCategoryId"))) || (curCategoryId?? && curCategoryId == category.productCategoryId)>
+  <#if (Static["org.ofbiz.product.category.CategoryWorker"].checkTrailItem(request, category.getString("productCategoryId"))) || (curCategoryId?exists && curCategoryId == category.productCategoryId)>
     <#local subCatList = Static["org.ofbiz.product.category.CategoryWorker"].getRelatedCategoriesRet(request, "subCatList", category.getString("productCategoryId"), true)>
-    <#if subCatList??>
+    <#if subCatList?exists>
       <#list subCatList as subCat>
         <ul class="browsecategorylist">
           <@categoryList parentCategory=category category=subCat wrapInBox="N"/>

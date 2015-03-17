@@ -29,22 +29,15 @@ import org.ofbiz.party.contact.*;
 import org.ofbiz.product.catalog.*;
 import org.ofbiz.product.store.*;
 import org.ofbiz.service.calendar.*;
-import org.ofbiz.webapp.website.WebSiteWorker;
 
-if (userLogin) 
-{
-    party = userLogin.getRelatedOne("Party", false);
-}  else {
-    return; // session ended, prevents a NPE
-}
-
+party = userLogin.getRelatedOne("Party");
 
 cart = ShoppingCartEvents.getCartObject(request);
 currencyUomId = cart.getCurrency();
 
 productStoreId = ProductStoreWorker.getProductStoreId(request);
 prodCatalogId = CatalogWorker.getCurrentCatalogId(request);
-webSiteId = WebSiteWorker.getWebSiteId(request);
+webSiteId = CatalogWorker.getWebSiteId(request);
 
 context.productStoreId = productStoreId;
 context.currencyUomId = currencyUomId;
@@ -53,19 +46,18 @@ context.currencyUomId = currencyUomId;
 exprList = [EntityCondition.makeCondition("partyId", EntityOperator.EQUALS, userLogin.partyId),
         EntityCondition.makeCondition("listName", EntityOperator.NOT_EQUAL, "auto-save")];
 condition = EntityCondition.makeCondition(exprList, EntityOperator.AND);
-allShoppingLists = from("ShoppingList").where(exprList).orderBy("listName").queryList();
+allShoppingLists = delegator.findList("ShoppingList", condition, null, ["listName"], null, false);
 shoppingLists = EntityUtil.filterByAnd(allShoppingLists, [parentShoppingListId : null]);
 context.allShoppingLists = allShoppingLists;
 context.shoppingLists = shoppingLists;
 
 // get all shoppingListTypes
-shoppingListTypes = from("ShoppingListType").orderBy("description").cache(true).queryList();
+shoppingListTypes = delegator.findList("ShoppingListType", null, null, ["description"], null, true);
 context.shoppingListTypes = shoppingListTypes;
 
 // get the shoppingListId for this reqest
 parameterMap = UtilHttp.getParameterMap(request);
 shoppingListId = parameterMap.shoppingListId ?: request.getAttribute("shoppingListId") ?: session.getAttribute("currentShoppingListId");
-context.shoppingListId = shoppingListId;
 
 // no passed shopping list id default to first list
 if (!shoppingListId) {
@@ -78,27 +70,30 @@ session.setAttribute("currentShoppingListId", shoppingListId);
 
 // if we passed a shoppingListId get the shopping list info
 if (shoppingListId) {
-    shoppingList = from("ShoppingList").where("shoppingListId", shoppingListId).queryOne();
+    shoppingList = delegator.findByPrimaryKey("ShoppingList", [shoppingListId : shoppingListId]);
     context.shoppingList = shoppingList;
 
     if (shoppingList) {
         shoppingListItemTotal = 0.0;
         shoppingListChildTotal = 0.0;
 
-        shoppingListItems = shoppingList.getRelated("ShoppingListItem", null, null, true);
+        shoppingListItems = shoppingList.getRelatedCache("ShoppingListItem");
         if (shoppingListItems) {
             shoppingListItemDatas = new ArrayList(shoppingListItems.size());
             shoppingListItems.each { shoppingListItem ->
                 shoppingListItemData = [:];
 
-                product = shoppingListItem.getRelatedOne("Product", true);
+                product = shoppingListItem.getRelatedOneCache("Product");
 
-                calcPriceOutMap = runService('calculateProductPrice', [product : product, quantity : shoppingListItem.quantity, currencyUomId : currencyUomId, userLogin : userLogin,
-                    webSiteId: webSiteId, prodCatalogId: prodCatalogId, productStoreId: productStoreId]);
+                calcPriceInMap = [product : product, quantity : shoppingListItem.quantity, currencyUomId : currencyUomId, userLogin : userLogin];
+                calcPriceInMap.webSiteId = webSiteId;
+                calcPriceInMap.prodCatalogId = prodCatalogId;
+                calcPriceInMap.productStoreId = productStoreId;
+                calcPriceOutMap = dispatcher.runSync("calculateProductPrice", calcPriceInMap);
                 price = calcPriceOutMap.price;
                 totalPrice = price * shoppingListItem.quantity;
                 // similar code at ShoppingCartItem.java getRentalAdjustment
-                if ("ASSET_USAGE".equals(product.productTypeId) || "ASSET_USAGE_OUT_IN".equals(product.productTypeId)) {
+                if ("ASSET_USAGE".equals(product.productTypeId)) {
                     persons = shoppingListItem.reservPersons ?: 0;
                     reservNthPPPerc = product.reservNthPPPerc ?: 0;
                     reserv2ndPPPerc = product.reserv2ndPPPerc ?: 0;
@@ -129,7 +124,7 @@ if (shoppingListId) {
 
                 productVariantAssocs = null;
                 if ("Y".equals(product.isVirtual)) {
-                    productVariantAssocs = product.getRelated("MainProductAssoc", [productAssocTypeId : "PRODUCT_VARIANT"], ["sequenceNum"], true);
+                    productVariantAssocs = product.getRelatedCache("MainProductAssoc", [productAssocTypeId : "PRODUCT_VARIANT"], ["sequenceNum"]);
                     productVariantAssocs = EntityUtil.filterByDate(productVariantAssocs);
                 }
                 shoppingListItemData.shoppingListItem = shoppingListItem;
@@ -140,35 +135,21 @@ if (shoppingListId) {
                 shoppingListItemDatas.add(shoppingListItemData);
             }
             context.shoppingListItemDatas = shoppingListItemDatas;
-            // pagination for the shopping list
-            viewIndex = Integer.valueOf(parameters.VIEW_INDEX  ?: 1);
-            viewSize = Integer.valueOf(parameters.VIEW_SIZE ?: EntityUtilProperties.getPropertyValue("widget", "widget.form.defaultViewSize", "20", delegator));
-            listSize = shoppingListItemDatas ? shoppingListItemDatas.size() : 0;
-
-            lowIndex = ((viewIndex - 1) * viewSize) + 1;
-            highIndex = viewIndex * viewSize;
-            highIndex = highIndex > listSize ? listSize : highIndex;
-            lowIndex = lowIndex > highIndex ? highIndex : lowIndex; 
-
-            context.viewIndex = viewIndex;
-            context.viewSize = viewSize;
-            context.listSize = listSize;
-            context.lowIndex = lowIndex;
-            context.highIndex = highIndex;
         }
 
-        shoppingListType = shoppingList.getRelatedOne("ShoppingListType", false);
+        shoppingListType = shoppingList.getRelatedOne("ShoppingListType");
         context.shoppingListType = shoppingListType;
 
         // get the child shopping lists of the current list for the logged in user
-        childShoppingLists = from("ShoppingList").where("partyId", userLogin.partyId, "parentShoppingListId", shoppingListId).orderBy("listName").cache(true).queryList();
+        childShoppingLists = delegator.findByAndCache("ShoppingList", [partyId : userLogin.partyId, parentShoppingListId : shoppingListId], ["listName"]);
         // now get prices for each child shopping list...
         if (childShoppingLists) {
             childShoppingListDatas = new ArrayList(childShoppingLists.size());
             childShoppingLists.each { childShoppingList ->
                 childShoppingListData = [:];
 
-                childShoppingListPriceMap = runService('calculateShoppingListDeepTotalPrice', [shoppingListId : childShoppingList.shoppingListId, prodCatalogId : prodCatalogId, webSiteId : webSiteId, userLogin : userLogin, currencyUomId : currencyUomId]);
+                calcListPriceInMap = [shoppingListId : childShoppingList.shoppingListId, prodCatalogId : prodCatalogId, webSiteId : webSiteId, userLogin : userLogin, currencyUomId : currencyUomId];
+                childShoppingListPriceMap = dispatcher.runSync("calculateShoppingListDeepTotalPrice", calcListPriceInMap);
                 totalPrice = childShoppingListPriceMap.totalPrice;
                 shoppingListChildTotal += totalPrice;
 
@@ -183,14 +164,14 @@ if (shoppingListId) {
         context.shoppingListChildTotal = shoppingListChildTotal;
 
         // get the parent shopping list if there is one
-        parentShoppingList = shoppingList.getRelatedOne("ParentShoppingList", false);
+        parentShoppingList = shoppingList.getRelatedOne("ParentShoppingList");
         context.parentShoppingList = parentShoppingList;
 
         context.canView = userLogin.partyId.equals(shoppingList.partyId);
 
         // auto-reorder info
         if ("SLT_AUTO_REODR".equals(shoppingListType?.shoppingListTypeId)) {
-            recurrenceVo = shoppingList.getRelatedOne("RecurrenceInfo", false);
+            recurrenceVo = shoppingList.getRelatedOne("RecurrenceInfo");
             context.recurrenceInfo = recurrenceVo;
 
             if (userLogin.partyId.equals(shoppingList.partyId)) {
@@ -199,9 +180,9 @@ if (shoppingListId) {
                 // get customer's shipping & payment info
                 context.chosenShippingMethod = shoppingList.shipmentMethodTypeId + "@" + shoppingList.carrierPartyId;
                 context.shippingContactMechList = ContactHelper.getContactMech(party, "SHIPPING_LOCATION", "POSTAL_ADDRESS", false);
-                context.paymentMethodList = EntityUtil.filterByDate(party.getRelated("PaymentMethod", null, ["paymentMethodTypeId"], false));
+                context.paymentMethodList = EntityUtil.filterByDate(party.getRelated("PaymentMethod", null, ["paymentMethodTypeId"]));
 
-                shipAddress = from("PostalAddress").where("contactMechId", shoppingList.contactMechId).queryOne();
+                shipAddress = delegator.findByPrimaryKey("PostalAddress", ["contactMechId" : shoppingList.contactMechId]);
                 Debug.log("SL - address : " + shipAddress);
                 if (shipAddress) {
                     listCart = ShoppingListServices.makeShoppingListCart(dispatcher, shoppingListId, locale);

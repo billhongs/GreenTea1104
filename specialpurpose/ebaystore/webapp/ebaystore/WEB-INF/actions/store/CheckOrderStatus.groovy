@@ -19,7 +19,7 @@
 import org.ofbiz.entity.util.EntityUtil;
 
 context.importStatus = "NOT_IMPORT";
-orderHeaders = from("OrderHeader").where("externalId", externalId).queryList();
+orderHeaders = delegator.findByAnd("OrderHeader", [externalId : externalId]);
 if (orderHeaders.size() > 0) {
     orderHeader = EntityUtil.getFirst(orderHeaders);
     context.orderId = orderHeader.get("orderId");

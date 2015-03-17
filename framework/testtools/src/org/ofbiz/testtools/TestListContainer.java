@@ -22,8 +22,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.LinkedList;
 import java.util.List;
+
+import javolution.util.FastList;
 
 import org.ofbiz.base.component.ComponentConfig;
 import org.ofbiz.base.config.GenericConfigException;
@@ -42,7 +43,6 @@ public class TestListContainer implements Container {
 
     public static final String module = TestListContainer.class.getName();
 
-    private String name;
     private String outputLocation;
     private String mode = "text";
 
@@ -56,9 +56,10 @@ public class TestListContainer implements Container {
         }
     }
 
-    @Override
-    public void init(String[] args, String name, String configFile) {
-        this.name = name;
+    /**
+     * @see org.ofbiz.base.container.Container#init(java.lang.String[], java.lang.String)
+     */
+    public void init(String[] args, String configFile) {
         this.outputLocation = args[0];
         for (int i = 1; i < args.length; i++) {
             if ("-ant".equals(args[i])) {
@@ -70,9 +71,9 @@ public class TestListContainer implements Container {
     }
 
     public boolean start() throws ContainerException {
-        List<FoundTest> foundTests = new LinkedList<FoundTest>();
+        List<FoundTest> foundTests = FastList.newInstance();
         for (ComponentConfig.TestSuiteInfo testSuiteInfo: ComponentConfig.getAllTestSuiteInfos(null)) {
-            String componentName = testSuiteInfo.getComponentConfig().getComponentName();
+            String componentName = testSuiteInfo.componentConfig.getComponentName();
             ResourceHandler testSuiteResource = testSuiteInfo.createResourceHandler();
 
             try {
@@ -101,7 +102,8 @@ public class TestListContainer implements Container {
                     pout.format("%s:%s", foundTest.componentName, foundTest.suiteName);
                 }
                 pout.println("\"/>\n");
-                for (FoundTest foundTest : foundTests) {
+                for (int i = 0; i < foundTests.size(); i++) {
+                    FoundTest foundTest = foundTests.get(i);
                     pout.format(" <target name=\"%1$s:%2$s\">\n  <ant antfile=\"build.xml\" target=\"run-single-test-suite\">\n   <property name=\"test.component\" value=\"%1$s\"/>\n   <property name=\"test.suiteName\" value=\"%2$s\"/>\n  </ant>\n </target>\n", foundTest.componentName, foundTest.suiteName);
                 }
                 pout.println("</project>");
@@ -118,9 +120,5 @@ public class TestListContainer implements Container {
     }
 
     public void stop() throws ContainerException {
-    }
-
-    public String getName() {
-       return name;
     }
 }

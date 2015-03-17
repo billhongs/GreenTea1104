@@ -29,6 +29,7 @@ under the License.
                 <property-map resource="AccountingUiLabels" map-name="uiLabelMap" global="true"/>
                 <property-map resource="OrderUiLabels" map-name="uiLabelMap" global="true"/>
                 <property-map resource="WorkEffortUiLabels" map-name="uiLabelMap" global="true"/>
+                <property-map resource="ProjectMgrUiLabels" map-name="uiLabelMap" global="true"/>
                 <set field="layoutSettings.companyName" from-field="uiLabelMap.HumanResCompanyName" global="true"/>
                 <set field="layoutSettings.companySubtitle" from-field="uiLabelMap.HumanResCompanySubtitle" global="true"/>
                 <!-- layoutSettings.headerImageUrl can be used to specify an application specific logo; if not set,
@@ -37,9 +38,6 @@ under the License.
                 <set field="activeApp" value="humanres" global="true"/>
                 <set field="layoutSettings.javaScripts[]" value="/partymgr/static/partymgr.js" global="true"/>
                 <set field="layoutSettings.styleSheets[]" value="/partymgr/static/partymgr.css" global="true"/>
-                <set field="layoutSettings.styleSheets[]" value="/images/humanres/humanres.css" global="true"/>
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/js/jquery.cookie-1.4.0.js" global="true"/>
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/jsTree/jquery.jstree.js" global="true"/>
                 <set field="applicationMenuName" value="HumanResAppBar" global="true"/>
                 <set field="applicationMenuLocation" value="component://humanres/widget/HumanresMenus.xml" global="true"/>
                 <set field="applicationTitle" value="${uiLabelMap.HumanResManagerApplication}" global="true"/>
@@ -72,13 +70,12 @@ under the License.
         <section>
             <actions>
                 <set field="partyId" from-field="defaultOrganizationPartyId"/>
-                <script location="component://humanres/webapp/humanres/WEB-INF/actions/category/CategoryTree.groovy"></script>
             </actions>
             <widgets>
                 <screenlet title="${uiLabelMap.FormFieldTitle_company}">
                     <section>
                         <widgets>
-                            <platform-specific><html><html-template location="component://humanres/webapp/humanres/humanres/category/CategoryTree.ftl"/></html></platform-specific>
+                            <include-tree name="OrgTree" location="component://humanres/widget/PartyTrees.xml"/>
                         </widgets>
                     </section>
                 </screenlet>
@@ -395,7 +392,8 @@ under the License.
     <screen name="CommonTrainingDecorator">
         <section>
             <actions>
-                <property-map resource="HumanResUiLabels" map-name="uiLabelMap" global="true"/>
+                <!-- <property-map resource="WebPosUiLabels" map-name="uiLabelMap" global="true"/> -->
+                <property-map resource="ManufacturingUiLabels" map-name="uiLabelMap" global="true"/>
                 <set field="headerItem" value="Training"/>
             </actions>
             <widgets>

@@ -19,75 +19,70 @@
 package org.ofbiz.minilang.method.entityops;
 
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangRuntimeException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
 import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;remove-value&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cremovevalue%3E}}">Mini-language Reference</a>
+ * Uses the delegator to remove the specified value object entity from the datasource
  */
-public final class RemoveValue extends MethodOperation {
+public class RemoveValue extends MethodOperation {
+    public static final class RemoveValueFactory implements Factory<RemoveValue> {
+        public RemoveValue createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new RemoveValue(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "remove-value";
+        }
+    }
 
     public static final String module = RemoveValue.class.getName();
-    private final FlexibleMapAccessor<GenericValue> valueFma;
 
-    public RemoveValue(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    ContextAccessor<GenericValue> valueAcsr;
+    String doCacheClearStr;
+
+    public RemoveValue(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "value-field", "do-cache-clear");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "value-field");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "value-field");
-            MiniLangValidate.noChildElements(simpleMethod, element);
-        }
-        valueFma = FlexibleMapAccessor.getInstance(element.getAttribute("value-field"));
+        valueAcsr = new ContextAccessor<GenericValue>(element.getAttribute("value-field"), element.getAttribute("value-name"));
+        doCacheClearStr = element.getAttribute("do-cache-clear");
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        GenericValue value = valueFma.get(methodContext.getEnvMap());
+    public boolean exec(MethodContext methodContext) {
+        boolean doCacheClear = !"false".equals(methodContext.expandString(doCacheClearStr));
+
+        GenericValue value = valueAcsr.get(methodContext);
         if (value == null) {
-            throw new MiniLangRuntimeException("Entity value not found with name: " + valueFma, this);
+            String errMsg = "In remove-value a value was not found with the specified valueAcsr: " + valueAcsr + ", not removing";
+            Debug.logWarning(errMsg, module);
+            methodContext.setErrorReturn(errMsg, simpleMethod);
+            return false;
         }
+
         try {
-            value.getDelegator().removeValue(value);
+            methodContext.getDelegator().removeValue(value, doCacheClear);
         } catch (GenericEntityException e) {
-            String errMsg = "Exception thrown while removing entity value: " + e.getMessage();
-            Debug.logWarning(e, errMsg, module);
-            simpleMethod.addErrorMessage(methodContext, errMsg);
+            String errMsg = "ERROR: Could not complete the " + simpleMethod.getShortDescription() + " process [problem removing the " + valueAcsr + " value: " + e.getMessage() + "]";
+            Debug.logError(e, errMsg, module);
+            methodContext.setErrorReturn(errMsg, simpleMethod);
             return false;
         }
         return true;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<remove-value ");
-        sb.append("value-field=\"").append(this.valueFma).append("\" ");
-        sb.append("/>");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<remove-value/>";
     }
-
-    /**
-     * A factory for the &lt;remove-value&gt; element.
-     */
-    public static final class RemoveValueFactory implements Factory<RemoveValue> {
-        @Override
-        public RemoveValue createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new RemoveValue(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "remove-value";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

@@ -23,7 +23,6 @@ under the License.
      lastFocusedName = null;
      function setLastFocused(formElement) {
          lastFocusedName = formElement.name;
-         document.write.lastFocusedName;
      }
      function clickUsername() {
          if (document.getElementById('UNUSEEMAIL').checked) {
@@ -51,12 +50,10 @@ under the License.
          }
      }
      function hideShowUsaStates() {
-		 var customerStateElement = document.getElementById('newuserform_stateProvinceGeoId');
-     	 var customerCountryElement = document.getElementById('newuserform_countryGeoId');
-         if (customerCountryElement.value == "USA" || customerCountryElement.value == "UMI") {
-             customerStateElement.style.display = "block";
+         if (document.getElementById('customerCountry').value == "USA" || document.getElementById('customerCountry').value == "UMI") {
+             document.getElementById('customerState').style.display = "block";
          } else {
-             customerStateElement.style.display = "none";
+             document.getElementById('customerState').style.display = "none";
          }
      }
    //]]>
@@ -96,10 +93,7 @@ will generally always be reserved for the logo at the top of the page.
   </#if>
 </#macro>
 
-  &nbsp;<a href="<@ofbizUrl>${donePage}</@ofbizUrl>" class="button">${uiLabelMap.CommonCancel}</a>
-  &nbsp;<a href="javascript:document.getElementById('newuserform').submit()" class="button">${uiLabelMap.CommonSave}</a>
-
-<form method="post" action="<@ofbizUrl>createcustomer${previousParams}</@ofbizUrl>" id="newuserform" name="newuserform">
+<form method="post" action="<@ofbizUrl>createcustomer${previousParams}</@ofbizUrl>" id="newuserform">
   
   
   <#----------------------------------------------------------------------
@@ -158,25 +152,25 @@ will generally always be reserved for the logo at the top of the page.
     <div>
       <label for="USER_FIRST_NAME">${uiLabelMap.PartyFirstName}*</label>
       <@fieldErrors fieldName="USER_FIRST_NAME"/>
-      <input type="text" name="USER_FIRST_NAME" id="USER_FIRST_NAME" value="${requestParameters.USER_FIRST_NAME!}" />
+      <input type="text" name="USER_FIRST_NAME" id="USER_FIRST_NAME" value="${requestParameters.USER_FIRST_NAME?if_exists}" />
     </div>
 
     <div>
       <label for="USER_MIDDLE_NAME">${uiLabelMap.PartyMiddleInitial}</label>
       <@fieldErrors fieldName="USER_MIDDLE_NAME"/>
-      <input type="text" name="USER_MIDDLE_NAME" id="USER_MIDDLE_NAME" value="${requestParameters.USER_MIDDLE_NAME!}" />
+      <input type="text" name="USER_MIDDLE_NAME" id="USER_MIDDLE_NAME" value="${requestParameters.USER_MIDDLE_NAME?if_exists}" />
     </div>
 
     <div>
       <label for="USER_LAST_NAME">${uiLabelMap.PartyLastName}*</label>
       <@fieldErrors fieldName="USER_LAST_NAME"/>
-      <input type="text" name="USER_LAST_NAME" id="USER_LAST_NAME" value="${requestParameters.USER_LAST_NAME!}" />
+      <input type="text" name="USER_LAST_NAME" id="USER_LAST_NAME" value="${requestParameters.USER_LAST_NAME?if_exists}" />
     </div>
 
     <div>
       <label for="USER_SUFFIX">${uiLabelMap.PartySuffix}</label>
       <@fieldErrors fieldName="USER_SUFFIX"/>
-      <input type="text" class='inputBox' name="USER_SUFFIX" id="USER_SUFFIX" value="${requestParameters.USER_SUFFIX!}" />
+      <input type="text" class='inputBox' name="USER_SUFFIX" id="USER_SUFFIX" value="${requestParameters.USER_SUFFIX?if_exists}" />
     </div>
 
   </fieldset>
@@ -186,49 +180,52 @@ will generally always be reserved for the logo at the top of the page.
     <div>
       <label for="CUSTOMER_ADDRESS1">${uiLabelMap.PartyAddressLine1}*</label>
       <@fieldErrors fieldName="CUSTOMER_ADDRESS1"/>
-      <input type="text" name="CUSTOMER_ADDRESS1" id="CUSTOMER_ADDRESS1" value="${requestParameters.CUSTOMER_ADDRESS1!}" />
+      <input type="text" name="CUSTOMER_ADDRESS1" id="CUSTOMER_ADDRESS1" value="${requestParameters.CUSTOMER_ADDRESS1?if_exists}" />
     </div>
 
     <div>
       <label for="CUSTOMER_ADDRESS2">${uiLabelMap.PartyAddressLine2}</label>
       <@fieldErrors fieldName="CUSTOMER_ADDRESS2"/>
-      <input type="text" name="CUSTOMER_ADDRESS2" id="CUSTOMER_ADDRESS2" value="${requestParameters.CUSTOMER_ADDRESS2!}" />
+      <input type="text" name="CUSTOMER_ADDRESS2" id="CUSTOMER_ADDRESS2" value="${requestParameters.CUSTOMER_ADDRESS2?if_exists}" />
     </div>
 
     <div>
       <label for="CUSTOMER_CITY">${uiLabelMap.PartyCity}*</label>
       <@fieldErrors fieldName="CUSTOMER_CITY"/>
-      <input type="text" name="CUSTOMER_CITY" id="CUSTOMER_CITY" value="${requestParameters.CUSTOMER_CITY!}" />
+      <input type="text" name="CUSTOMER_CITY" id="CUSTOMER_CITY" value="${requestParameters.CUSTOMER_CITY?if_exists}" />
     </div>
 
     <div>
       <label for="CUSTOMER_POSTAL_CODE">${uiLabelMap.PartyZipCode}*</label>
       <@fieldErrors fieldName="CUSTOMER_POSTAL_CODE"/>
-      <input type="text" name="CUSTOMER_POSTAL_CODE" id="CUSTOMER_POSTAL_CODE" value="${requestParameters.CUSTOMER_POSTAL_CODE!}" />
+      <input type="text" name="CUSTOMER_POSTAL_CODE" id="CUSTOMER_POSTAL_CODE" value="${requestParameters.CUSTOMER_POSTAL_CODE?if_exists}" />
     </div>
-  
+
     <div>
-        <label for="customerCountry">${uiLabelMap.CommonCountry}*</label>
-        <@fieldErrors fieldName="CUSTOMER_COUNTRY"/>
-        <select name="CUSTOMER_COUNTRY" id="newuserform_countryGeoId">
-            ${screens.render("component://common/widget/CommonScreens.xml#countries")}        
-            <#assign defaultCountryGeoId = Static["org.ofbiz.base.util.UtilProperties"].getPropertyValue("general.properties", "country.geo.id.default")>
-            <option selected="selected" value="${defaultCountryGeoId}">
-                <#assign countryGeo = delegator.findOne("Geo",Static["org.ofbiz.base.util.UtilMisc"].toMap("geoId",defaultCountryGeoId), false)>
-                ${countryGeo.get("geoName",locale)}
-            </option>
-        </select>
-    <div/>
-    
+      <label for="customerCountry">${uiLabelMap.PartyCountry}*</label>
+      <@fieldErrors fieldName="CUSTOMER_COUNTRY"/>
+      <select name="CUSTOMER_COUNTRY" onclick="hideShowUsaStates();" id="customerCountry">
+        <#if requestParameters.CUSTOMER_COUNTRY?exists>
+          <option value='${requestParameters.CUSTOMER_COUNTRY}'>${selectedCountryName?default(requestParameters.CUSTOMER_COUNTRY)}</option>
+        </#if>
+        ${screens.render("component://common/widget/CommonScreens.xml#countries")}
+      </select>
+    </div>
+
     <div>
-        <label for="customerState">${uiLabelMap.PartyState}*</label>
-        <@fieldErrors fieldName="CUSTOMER_STATE"/>
-        <select name="CUSTOMER_STATE" id="newuserform_stateProvinceGeoId"></select>
-    <div/>
+      <label for="customerState">${uiLabelMap.PartyState}*</label>
+      <@fieldErrors fieldName="CUSTOMER_STATE"/>
+      <select name="CUSTOMER_STATE" id="customerState">
+        <#if requestParameters.CUSTOMER_STATE?exists>
+          <option value='${requestParameters.CUSTOMER_STATE}'>${selectedStateName?default(requestParameters.CUSTOMER_STATE)}</option>
+        </#if>
+        <option value="">${uiLabelMap.PartyNoState}</option>
+        ${screens.render("component://common/widget/CommonScreens.xml#states")}
+      </select>
+    </div>
 
     <div>
       <label for="CUSTOMER_ADDRESS_ALLOW_SOL">${uiLabelMap.PartyAllowAddressSolicitation}</label>
-      <@fieldErrors fieldName="CUSTOMER_ADDRESS_ALLOW_SOL"/>
       <select name="CUSTOMER_ADDRESS_ALLOW_SOL" id="CUSTOMER_ADDRESS_ALLOW_SOL">
         <#if (((requestParameters.CUSTOMER_ADDRESS_ALLOW_SOL)!"") == "Y")><option value="Y">${uiLabelMap.CommonY}</option></#if>
         <#if (((requestParameters.CUSTOMER_ADDRESS_ALLOW_SOL)!"") == "N")><option value="N">${uiLabelMap.CommonN}</option></#if>
@@ -246,7 +243,7 @@ will generally always be reserved for the logo at the top of the page.
       <thead>
         <tr>
           <th></th>
-          <th scope="col">${uiLabelMap.CommonCountry}</th>
+          <th scope="col">${uiLabelMap.PartyCountry}</th>
           <th scope="col">${uiLabelMap.PartyAreaCode}</th>
           <th scope="col">${uiLabelMap.PartyContactNumber}</th>
           <th scope="col">${uiLabelMap.PartyExtension}</th>
@@ -256,10 +253,10 @@ will generally always be reserved for the logo at the top of the page.
       <tbody>
         <tr>
           <th scope="row">${uiLabelMap.PartyHomePhone}</th>
-          <td><input type="text" name="CUSTOMER_HOME_COUNTRY" size="5" value="${requestParameters.CUSTOMER_HOME_COUNTRY!}" /></td>
-          <td><input type="text" name="CUSTOMER_HOME_AREA" size="5" value="${requestParameters.CUSTOMER_HOME_AREA!}" /></td>
-          <td><input type="text" name="CUSTOMER_HOME_CONTACT" value="${requestParameters.CUSTOMER_HOME_CONTACT!}" /></td>
-          <td><input type="text" name="CUSTOMER_HOME_EXT" size="6" value="${requestParameters.CUSTOMER_HOME_EXT!}"/></td>
+          <td><input type="text" name="CUSTOMER_HOME_COUNTRY" size="5" value="${requestParameters.CUSTOMER_HOME_COUNTRY?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_HOME_AREA" size="5" value="${requestParameters.CUSTOMER_HOME_AREA?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_HOME_CONTACT" value="${requestParameters.CUSTOMER_HOME_CONTACT?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_HOME_EXT" size="6" value="${requestParameters.CUSTOMER_HOME_EXT?if_exists}"/></td>
           <td>
             <select name="CUSTOMER_HOME_ALLOW_SOL">
               <#if (((requestParameters.CUSTOMER_HOME_ALLOW_SOL)!"") == "Y")><option value="Y">${uiLabelMap.CommonY}</option></#if>
@@ -272,10 +269,10 @@ will generally always be reserved for the logo at the top of the page.
         </tr>
         <tr>
           <th scope="row">${uiLabelMap.PartyBusinessPhone}</th>
-          <td><input type="text" name="CUSTOMER_WORK_COUNTRY" size="5" value="${requestParameters.CUSTOMER_WORK_COUNTRY!}" /></td>
-          <td><input type="text" name="CUSTOMER_WORK_AREA" size="5" value="${requestParameters.CUSTOMER_WORK_AREA!}" /></td>
-          <td><input type="text" name="CUSTOMER_WORK_CONTACT" value="${requestParameters.CUSTOMER_WORK_CONTACT!}" /></td>
-          <td><input type="text" name="CUSTOMER_WORK_EXT" size="6" value="${requestParameters.CUSTOMER_WORK_EXT!}" /></td>
+          <td><input type="text" name="CUSTOMER_WORK_COUNTRY" size="5" value="${requestParameters.CUSTOMER_WORK_COUNTRY?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_WORK_AREA" size="5" value="${requestParameters.CUSTOMER_WORK_AREA?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_WORK_CONTACT" value="${requestParameters.CUSTOMER_WORK_CONTACT?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_WORK_EXT" size="6" value="${requestParameters.CUSTOMER_WORK_EXT?if_exists}" /></td>
           <td>
             <select name="CUSTOMER_WORK_ALLOW_SOL">
               <#if (((requestParameters.CUSTOMER_WORK_ALLOW_SOL)!"") == "Y")><option value="Y">${uiLabelMap.CommonY}</option></#if>
@@ -288,9 +285,9 @@ will generally always be reserved for the logo at the top of the page.
         </tr>
         <tr>
           <th scope="row">${uiLabelMap.PartyFaxNumber}</th>
-          <td><input type="text" name="CUSTOMER_FAX_COUNTRY" size="5" value="${requestParameters.CUSTOMER_FAX_COUNTRY!}" /></td>
-          <td><input type="text" name="CUSTOMER_FAX_AREA" size="5" value="${requestParameters.CUSTOMER_FAX_AREA!}" /></td>
-          <td><input type="text" name="CUSTOMER_FAX_CONTACT" value="${requestParameters.CUSTOMER_FAX_CONTACT!}" /></td>
+          <td><input type="text" name="CUSTOMER_FAX_COUNTRY" size="5" value="${requestParameters.CUSTOMER_FAX_COUNTRY?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_FAX_AREA" size="5" value="${requestParameters.CUSTOMER_FAX_AREA?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_FAX_CONTACT" value="${requestParameters.CUSTOMER_FAX_CONTACT?if_exists}" /></td>
           <td></td>
           <td>
             <select name="CUSTOMER_FAX_ALLOW_SOL">
@@ -304,9 +301,9 @@ will generally always be reserved for the logo at the top of the page.
         </tr>
         <tr>
           <th scope="row">${uiLabelMap.PartyMobilePhone}</th>
-          <td><input type="text" name="CUSTOMER_MOBILE_COUNTRY" size="5" value="${requestParameters.CUSTOMER_MOBILE_COUNTRY!}" /></td>
-          <td><input type="text" name="CUSTOMER_MOBILE_AREA" size="5" value="${requestParameters.CUSTOMER_MOBILE_AREA!}" /></td>
-          <td><input type="text" name="CUSTOMER_MOBILE_CONTACT" value="${requestParameters.CUSTOMER_MOBILE_CONTACT!}" /></td>
+          <td><input type="text" name="CUSTOMER_MOBILE_COUNTRY" size="5" value="${requestParameters.CUSTOMER_MOBILE_COUNTRY?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_MOBILE_AREA" size="5" value="${requestParameters.CUSTOMER_MOBILE_AREA?if_exists}" /></td>
+          <td><input type="text" name="CUSTOMER_MOBILE_CONTACT" value="${requestParameters.CUSTOMER_MOBILE_CONTACT?if_exists}" /></td>
           <td></td>
           <td>
             <select name="CUSTOMER_MOBILE_ALLOW_SOL">
@@ -327,7 +324,7 @@ will generally always be reserved for the logo at the top of the page.
     <div>
       <label for= "CUSTOMER_EMAIL">${uiLabelMap.PartyEmailAddress}*</label>
       <@fieldErrors fieldName="CUSTOMER_EMAIL"/>
-      <input type="text" name="CUSTOMER_EMAIL" id="CUSTOMER_EMAIL" value="${requestParameters.CUSTOMER_EMAIL!}" onchange="changeEmail()" onkeyup="changeEmail()" />
+      <input type="text" name="CUSTOMER_EMAIL" id="CUSTOMER_EMAIL" value="${requestParameters.CUSTOMER_EMAIL?if_exists}" onchange="changeEmail()" onkeyup="changeEmail()" />
     </div>
     <div>
       <label for="CUSTOMER_EMAIL_ALLOW_SOL">${uiLabelMap.PartyAllowSolicitation}</label>
@@ -345,22 +342,15 @@ will generally always be reserved for the logo at the top of the page.
     <legend><#if getUsername>${uiLabelMap.CommonUsername}</#if></legend>
     <#if getUsername>
       <@fieldErrors fieldName="USERNAME"/>
-      <#if !requestParameters.preferredUsername?has_content>
-        <div class="form-row inline">
-          <label for="UNUSEEMAIL">
-            <input type="checkbox" class="checkbox" name="UNUSEEMAIL" id="UNUSEEMAIL" value="on" onclick="setEmailUsername();" onfocus="setLastFocused(this);"/> ${uiLabelMap.EcommerceUseEmailAddress}
-          </label>
-        </div>
-      </#if>
+      <div class="form-row inline">
+        <label for="UNUSEEMAIL">
+          <input type="checkbox" class="checkbox" name="UNUSEEMAIL" id="UNUSEEMAIL" value="on" onclick="setEmailUsername();" onfocus="setLastFocused(this);"/> ${uiLabelMap.EcommerceUseEmailAddress}
+        </label>
+      </div>
 
       <div>
         <label for="USERNAME">${uiLabelMap.CommonUsername}*</label>
-        <#if requestParameters.preferredUsername?has_content>
-            <input type="text" name="showUserName" id="showUserName" value="${requestParameters.USERNAME!}" disabled="disabled"/>
-            <input type="hidden" name="USERNAME" id="USERNAME" value="${requestParameters.USERNAME!}"/>
-        <#else>
-            <input type="text" name="USERNAME" id="USERNAME" value="${requestParameters.USERNAME!}" onfocus="clickUsername();" onchange="changeEmail();"/>
-        </#if>
+        <input type="text" name="USERNAME" id="USERNAME" value="${requestParameters.USERNAME?if_exists}" onfocus="clickUsername();" onchange="changeEmail();"/>
       </div>
     </#if>
   </fieldset>
@@ -383,7 +373,7 @@ will generally always be reserved for the logo at the top of the page.
       <div>
         <label for="PASSWORD_HINT">${uiLabelMap.PartyPasswordHint}</label>
         <@fieldErrors fieldName="PASSWORD_HINT"/>
-        <input type="text" class='inputBox' name="PASSWORD_HINT" id="PASSWORD_HINT" value="${requestParameters.PASSWORD_HINT!}" maxlength="100"/>
+        <input type="text" class='inputBox' name="PASSWORD_HINT" id="PASSWORD_HINT" value="${requestParameters.PASSWORD_HINT?if_exists}" maxlength="100"/>
       </div>
     <#else/>
       <div>
@@ -399,9 +389,9 @@ and a tags acting as submit buttons, all button actions should have a
 class name of "button". No other class names should be used to style 
 button actions.
 ------------------------------------------------------------------------------->
-<div class="buttons">  
-  &nbsp;<a href="<@ofbizUrl>${donePage}</@ofbizUrl>" class="button">${uiLabelMap.CommonCancel}</a>
-  &nbsp;<a href="javascript:document.getElementById('newuserform').submit()" class="button">${uiLabelMap.CommonSave}</a>   
+<div class="buttons">
+  <a href="javascript:document.getElementById('newuserform').submit()">${uiLabelMap.CommonSave}</a>
+  <a href="<@ofbizUrl>checkLogin/main</@ofbizUrl>" class="reset">${uiLabelMap.CommonBack}</a>
 </div>
 
 <script type="text/javascript">

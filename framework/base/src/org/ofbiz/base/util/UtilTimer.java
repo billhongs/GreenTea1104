@@ -18,7 +18,7 @@
  *******************************************************************************/
 package org.ofbiz.base.util;
 
-import java.util.concurrent.ConcurrentHashMap;
+import javolution.util.FastMap;
 
 /**
  * Timer  handling utility
@@ -30,7 +30,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class UtilTimer {
 
     public static final String module = UtilTimer.class.getName();
-    protected static ConcurrentHashMap<String, UtilTimer> staticTimers = new ConcurrentHashMap<String, UtilTimer>();
+    protected static FastMap<String, UtilTimer> staticTimers = FastMap.newInstance();
+    static {
+        staticTimers.setShared(true);
+    }
 
     protected String timerName = null;
     protected String lastMessage = null;

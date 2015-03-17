@@ -39,7 +39,7 @@ if (!partyId) {
 timesheet = null;
 timesheetId = parameters.timesheetId;
 if (timesheetId) {
-    timesheet = from("Timesheet").where("timesheetId", timesheetId).queryOne();
+    timesheet = delegator.findByPrimaryKey("Timesheet", ["timesheetId" : timesheetId]);
     partyId = timesheet.partyId; // use the party from this timesheet
 } else {
     // make sure because of timezone changes, not a duplicate timesheet is created
@@ -49,13 +49,13 @@ if (timesheetId) {
         EntityCondition.makeCondition("thruDate", EntityComparisonOperator.GREATER_THAN, midweek),
         EntityCondition.makeCondition("partyId", EntityComparisonOperator.EQUALS, partyId)
         ], EntityOperator.AND);
-    entryIterator = from("Timesheet").where(entryExprs).queryIterator();
+    entryIterator = delegator.find("Timesheet", entryExprs, null, null, null, null);
     timesheet = entryIterator.next();
     entryIterator.close();
     if (timesheet == null) {
-        result = runService('createProjectTimesheet', ["userLogin" : parameters.userLogin, "partyId" : partyId]);
+        result = dispatcher.runSync("createProjectTimesheet", ["userLogin" : parameters.userLogin, "partyId" : partyId]);
         if (result && result.timesheetId) {
-            timesheet = from("Timesheet").where("timesheetId", result.timesheetId).queryOne();
+            timesheet = delegator.findByPrimaryKey("Timesheet", ["timesheetId" : result.timesheetId]);
         }
     }
 }
@@ -64,9 +64,9 @@ context.timesheet = timesheet;
 context.weekNumber = UtilDateTime.weekNumber(timesheet.fromDate);
 
 // get the user names
-context.partyNameView = from("PartyNameView").where("partyId", partyId).queryOne();
+context.partyNameView = delegator.findByPrimaryKey("PartyNameView",["partyId" : partyId]);
 // get the default rate for this person
-rateTypes = from("PartyRate").where("partyId", partyId, "defaultRate", "Y").filterByDate().queryList();
+rateTypes = EntityUtil.filterByDate(delegator.findByAnd("PartyRate", ["partyId" : partyId, "defaultRate" : "Y"]));
 if (rateTypes) {
     context.defaultRateTypeId = rateTypes[0].rateTypeId;
 }
@@ -82,9 +82,9 @@ lastTimeEntry = null;
 // retrieve work effort data when the workeffortId has changed.
 void retrieveWorkEffortData() {
         // get the planned number of hours
-        entryWorkEffort = lastTimeEntry.getRelatedOne("WorkEffort", false);
+        entryWorkEffort = lastTimeEntry.getRelatedOne("WorkEffort");
         if (entryWorkEffort) {
-            plannedHours = entryWorkEffort.getRelated("WorkEffortSkillStandard", null, null, false);
+            plannedHours = entryWorkEffort.getRelated("WorkEffortSkillStandard");
             pHours = 0.00;
             plannedHours.each { plannedHour ->
                 if (plannedHour.estimatedDuration) {
@@ -92,7 +92,7 @@ void retrieveWorkEffortData() {
                 }
             }
             entry.plannedHours = pHours;
-            actualHours = entryWorkEffort.getRelated("TimeEntry", null, null, false);
+            actualHours = entryWorkEffort.getRelated("TimeEntry");
             aHours = 0.00;
             actualHours.each { actualHour ->
                 if (actualHour.hours) {
@@ -101,7 +101,7 @@ void retrieveWorkEffortData() {
             }
             entry.actualHours = aHours;
             // get party assignment data to be able to set the task to complete
-            workEffortPartyAssigns = EntityUtil.filterByDate(entryWorkEffort.getRelated("WorkEffortPartyAssignment", ["partyId" : partyId], null, false));
+            workEffortPartyAssigns = EntityUtil.filterByDate(entryWorkEffort.getRelatedByAnd("WorkEffortPartyAssignment", ["partyId" : partyId]));
             if (workEffortPartyAssigns) {
                 workEffortPartyAssign = workEffortPartyAssigns[0];
                 entry.fromDate = workEffortPartyAssign.getTimestamp("fromDate");
@@ -114,7 +114,7 @@ void retrieveWorkEffortData() {
             // get project/phase information
             entry.workEffortId = entryWorkEffort.workEffortId;
             entry.workEffortName = entryWorkEffort.workEffortName;
-            result = runService('getProjectIdAndNameFromTask', ["userLogin" : parameters.userLogin,"taskId" : entryWorkEffort.workEffortId]);
+            result = dispatcher.runSync("getProjectIdAndNameFromTask", ["userLogin" : parameters.userLogin,"taskId" : entryWorkEffort.workEffortId]);
                 entry.phaseId = result.phaseId;
                 entry.phaseName = result.phaseName;
                 entry.projectId = result.projectId;
@@ -130,7 +130,7 @@ void retrieveWorkEffortData() {
         entry = ["timesheetId" : timesheet.timesheetId];
 }
 
-timeEntries = timesheet.getRelated("TimeEntry", null, ["workEffortId", "rateTypeId", "fromDate"], false);
+timeEntries = timesheet.getRelated("TimeEntry", ["workEffortId", "rateTypeId", "fromDate"]);
 te = timeEntries.iterator();
 while (te.hasNext()) {
     // only fill lastTimeEntry when not the first time
@@ -189,12 +189,12 @@ if (timeEntry) {
 }
 context.timeEntries = entries;
 // get all timesheets of this user, including the planned hours
-timesheetsDb = from("Timesheet").where("partyId", partyId).orderBy("fromDate DESC").queryList();
+timesheetsDb = delegator.findByAnd("Timesheet", ["partyId" : partyId], ["fromDate DESC"]);
 timesheets = new LinkedList();
 timesheetsDb.each { timesheetDb ->
     timesheet = [:];
     timesheet.putAll(timesheetDb);
-    entries = timesheetDb.getRelated("TimeEntry", null, null, false);
+    entries = timesheetDb.getRelated("TimeEntry");
     hours = 0.00;
     entries.each { timeEntry ->
         if (timeEntry.hours) {

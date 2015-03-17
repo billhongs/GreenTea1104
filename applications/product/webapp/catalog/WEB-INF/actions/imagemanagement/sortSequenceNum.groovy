@@ -20,14 +20,14 @@
 import org.ofbiz.entity.*
 import org.ofbiz.base.util.*
 
-allSequenceNums = from("ProductContent").where("productId", parameters.productId, "productContentTypeId", "IMAGE").queryList();
-nullSequenceNums = from("ProductContent").where("productId", parameters.productId, "productContentTypeId", "IMAGE", "sequenceNum", null).queryList();
+allSequenceNums = delegator.findByAnd("ProductContent", ["productId":parameters.productId, "productContentTypeId":"IMAGE"], ["defaultSequenceNum"])
+nullSequenceNums = delegator.findByAnd("ProductContent", ["productId":parameters.productId, "productContentTypeId":"IMAGE", "defaultSequenceNum":null])
 productContents = allSequenceNums - nullSequenceNums
 def duplicate = 0
-if(parameters.sequenceNum){
-    findExisted = from("ProductContent").where("productId", parameters.productId, "productContentTypeId", "IMAGE", "sequenceNum", (Long)parameters.sequenceNum).queryList();
+if(parameters.defaultSequenceNum){
+    findExisted = delegator.findByAnd("ProductContent", ["productId":parameters.productId, "productContentTypeId":"IMAGE", "defaultSequenceNum":(Long)parameters.defaultSequenceNum])
     duplicate = findExisted.size()
 }
 if(duplicate > 1){
-    context.parameters.sequenceNum = (Long)productContents.sequenceNum[productContents.size()-1] + 1
+    context.parameters.defaultSequenceNum = (Long)productContents.defaultSequenceNum[productContents.size()-1] + 1
 }

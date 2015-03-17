@@ -1,6 +1,6 @@
 /*
  * Translated default messages for the jQuery validation plugin.
- * Locale: IT (Italian; Italiano)
+ * Locale: IT
  */
 jQuery.extend(jQuery.validator.messages, {
        required: "Campo obbligatorio.",

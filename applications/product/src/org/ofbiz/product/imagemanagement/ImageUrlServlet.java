@@ -36,7 +36,6 @@ import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * ControlServlet.java - Master servlet for the web application.
@@ -51,7 +50,7 @@ public class ImageUrlServlet extends HttpServlet {
     }
 
     /**
-     * @see javax.servlet.http.HttpServlet#init(javax.servlet.ServletConfig)
+     * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
      */
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -90,11 +89,11 @@ public class ImageUrlServlet extends HttpServlet {
         
         GenericValue content = null;
         try {
-            GenericValue contentResult = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+            GenericValue contentResult = delegator.findOne("Content", UtilMisc.toMap("contentId", contentId), false);
             if (contentResult == null) {
-                content = EntityQuery.use(delegator).from("Content").where("contentId", sizeTagElement).queryOne();
+                content = delegator.findOne("Content", UtilMisc.toMap("contentId", sizeTagElement), false);
             } else {
-                content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+                content = delegator.findOne("Content", UtilMisc.toMap("contentId", contentId), false);
             }
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
@@ -103,7 +102,7 @@ public class ImageUrlServlet extends HttpServlet {
         if (content != null) {
             GenericValue dataResource = null;
             try {
-                dataResource = content.getRelatedOne("DataResource", false);
+                dataResource = content.getRelatedOne("DataResource");
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -116,7 +115,7 @@ public class ImageUrlServlet extends HttpServlet {
     }
 
     /**
-     * @see javax.servlet.http.HttpServlet#destroy()
+     * @see javax.servlet.Servlet#destroy()
      */
     @Override
     public void destroy() {

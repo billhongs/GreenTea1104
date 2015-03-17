@@ -39,7 +39,6 @@ import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityExpr;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 
 
@@ -60,7 +59,7 @@ public class PaymentWorker {
     public static List<Map<String, GenericValue>> getPartyPaymentMethodValueMaps(Delegator delegator, String partyId, Boolean showOld) {
         List<Map<String, GenericValue>> paymentMethodValueMaps = FastList.newInstance();
         try {
-            List<GenericValue> paymentMethods = EntityQuery.use(delegator).from("PaymentMethod").where("partyId", partyId).queryList();
+            List<GenericValue> paymentMethods = delegator.findByAnd("PaymentMethod", UtilMisc.toMap("partyId", partyId));
 
             if (!showOld) paymentMethods = EntityUtil.filterByDate(paymentMethods, true);
 
@@ -70,13 +69,13 @@ public class PaymentWorker {
                 paymentMethodValueMaps.add(valueMap);
                 valueMap.put("paymentMethod", paymentMethod);
                 if ("CREDIT_CARD".equals(paymentMethod.getString("paymentMethodTypeId"))) {
-                    GenericValue creditCard = paymentMethod.getRelatedOne("CreditCard", false);
+                    GenericValue creditCard = paymentMethod.getRelatedOne("CreditCard");
                     if (creditCard != null) valueMap.put("creditCard", creditCard);
                 } else if ("GIFT_CARD".equals(paymentMethod.getString("paymentMethodTypeId"))) {
-                    GenericValue giftCard = paymentMethod.getRelatedOne("GiftCard", false);
+                    GenericValue giftCard = paymentMethod.getRelatedOne("GiftCard");
                     if (giftCard != null) valueMap.put("giftCard", giftCard);
                 } else if ("EFT_ACCOUNT".equals(paymentMethod.getString("paymentMethodTypeId"))) {
-                    GenericValue eftAccount = paymentMethod.getRelatedOne("EftAccount", false);
+                    GenericValue eftAccount = paymentMethod.getRelatedOne("EftAccount");
                     if (eftAccount != null) valueMap.put("eftAccount", eftAccount);
                 }
             }
@@ -114,10 +113,10 @@ public class PaymentWorker {
 
         if (UtilValidate.isNotEmpty(paymentMethodId)) {
             try {
-                paymentMethod = EntityQuery.use(delegator).from("PaymentMethod").where("paymentMethodId", paymentMethodId).queryOne();
-                creditCard = EntityQuery.use(delegator).from("CreditCard").where("paymentMethodId", paymentMethodId).queryOne();
-                giftCard = EntityQuery.use(delegator).from("GiftCard").where("paymentMethodId", paymentMethodId).queryOne();
-                eftAccount = EntityQuery.use(delegator).from("EftAccount").where("paymentMethodId", paymentMethodId).queryOne();
+                paymentMethod = delegator.findByPrimaryKey("PaymentMethod", UtilMisc.toMap("paymentMethodId", paymentMethodId));
+                creditCard = delegator.findByPrimaryKey("CreditCard", UtilMisc.toMap("paymentMethodId", paymentMethodId));
+                giftCard = delegator.findByPrimaryKey("GiftCard", UtilMisc.toMap("paymentMethodId", paymentMethodId));
+                eftAccount = delegator.findByPrimaryKey("EftAccount", UtilMisc.toMap("paymentMethodId", paymentMethodId));
             } catch (GenericEntityException e) {
                 Debug.logWarning(e, module);
             }
@@ -157,21 +156,22 @@ public class PaymentWorker {
     }
 
     public static GenericValue getPaymentAddress(Delegator delegator, String partyId) {
-        GenericValue purpose = null;
+        List<GenericValue> paymentAddresses = null;
         try {
-            purpose = EntityQuery.use(delegator).from("PartyContactWithPurpose")
-                    .where("partyId", partyId, "contactMechPurposeTypeId", "PAYMENT_LOCATION")
-                    .orderBy("-purposeFromDate").filterByDate("contactFromDate", "contactThruDate", "purposeFromDate", "purposeThruDate")
-                    .queryFirst();
+            paymentAddresses = delegator.findByAnd("PartyContactMechPurpose",
+                UtilMisc.toMap("partyId", partyId, "contactMechPurposeTypeId", "PAYMENT_LOCATION"),
+                UtilMisc.toList("-fromDate"));
+            paymentAddresses = EntityUtil.filterByDate(paymentAddresses);
         } catch (GenericEntityException e) {
-            Debug.logError(e, "Trouble getting PartyContactWithPurpose view entity list", module);
+            Debug.logError(e, "Trouble getting PartyContactMechPurpose entity list", module);
         }
 
         // get the address for the primary contact mech
+        GenericValue purpose = EntityUtil.getFirst(paymentAddresses);
         GenericValue postalAddress = null;
         if (purpose != null) {
             try {
-                postalAddress = EntityQuery.use(delegator).from("PostalAddress").where("contactMechId", purpose.getString("contactMechId")).queryOne();
+                postalAddress = delegator.findByPrimaryKey("PostalAddress", UtilMisc.toMap("contactMechId", purpose.getString("contactMechId")));
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Trouble getting PostalAddress record for contactMechId: " + purpose.getString("contactMechId"), module);
             }
@@ -201,8 +201,7 @@ public class PaymentWorker {
 
     /**
      * Method to return the total amount of an payment which is applied to a payment
-     * @param delegator the delegator
-     * @param paymentId paymentId of the Payment
+     * @param payment GenericValue object of the Payment
      * @return the applied total as BigDecimal
      */
     public static BigDecimal getPaymentApplied(Delegator delegator, String paymentId) {
@@ -216,7 +215,7 @@ public class PaymentWorker {
 
         GenericValue payment = null;
         try {
-            payment = EntityQuery.use(delegator).from("Payment").where("paymentId", paymentId).queryOne();
+            payment = delegator.findByPrimaryKey("Payment", UtilMisc.toMap("paymentId", paymentId));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting Payment", module);
         }
@@ -229,19 +228,19 @@ public class PaymentWorker {
     }
     /**
      * Method to return the amount applied converted to the currency of payment
-     * @param paymentApplicationId the payment application id
-     * @return appliedAmount the applied amount as BigDecimal
+     * @param String paymentApplicationId
+     * @return the applied amount as BigDecimal
      */
     public static BigDecimal getPaymentAppliedAmount(Delegator delegator, String paymentApplicationId) {
         GenericValue paymentApplication = null;
         BigDecimal appliedAmount = BigDecimal.ZERO;
         try {
-            paymentApplication = EntityQuery.use(delegator).from("PaymentApplication").where("paymentApplicationId", paymentApplicationId).queryOne();
+            paymentApplication = delegator.findByPrimaryKey("PaymentApplication", UtilMisc.toMap("paymentApplicationId", paymentApplicationId));
             appliedAmount = paymentApplication.getBigDecimal("amountApplied");
             if (paymentApplication.get("paymentId") != null) {
-                GenericValue payment = paymentApplication.getRelatedOne("Payment", false);
+                GenericValue payment = paymentApplication.getRelatedOne("Payment");
                 if (paymentApplication.get("invoiceId") != null && payment.get("actualCurrencyAmount") != null && payment.get("actualCurrencyUomId") != null) {
-                    GenericValue invoice = paymentApplication.getRelatedOne("Invoice", false);
+                    GenericValue invoice = paymentApplication.getRelatedOne("Invoice");
                     if (payment.getString("actualCurrencyUomId").equals(invoice.getString("currencyUomId"))) {
                            appliedAmount = appliedAmount.multiply(payment.getBigDecimal("amount")).divide(payment.getBigDecimal("actualCurrencyAmount"),new MathContext(100));
                     }
@@ -265,7 +264,7 @@ public class PaymentWorker {
     /**
      * Method to return the total amount of a payment which is applied to a payment
      * @param payment GenericValue object of the Payment
-     * @param actual false for currency of the payment, true for the actual currency
+     * @param false for currency of the payment, true for the actual currency
      * @return the applied total as BigDecimal in the currency of the payment
      */
     public static BigDecimal getPaymentApplied(GenericValue payment, Boolean actual) {
@@ -283,7 +282,7 @@ public class PaymentWorker {
                     BigDecimal amountApplied = paymentApplication.getBigDecimal("amountApplied");
                     // check currency invoice and if different convert amount applied for display
                     if (actual.equals(Boolean.FALSE) && paymentApplication.get("invoiceId") != null && payment.get("actualCurrencyAmount") != null && payment.get("actualCurrencyUomId") != null) {
-                        GenericValue invoice = paymentApplication.getRelatedOne("Invoice", false);
+                        GenericValue invoice = paymentApplication.getRelatedOne("Invoice");
                         if (payment.getString("actualCurrencyUomId").equals(invoice.getString("currencyUomId"))) {
                                amountApplied = amountApplied.multiply(payment.getBigDecimal("amount")).divide(payment.getBigDecimal("actualCurrencyAmount"),new MathContext(100));
                         }
@@ -308,7 +307,7 @@ public class PaymentWorker {
         if (actual.equals(Boolean.TRUE) && UtilValidate.isNotEmpty(payment.getBigDecimal("actualCurrencyAmount"))) {
             return payment.getBigDecimal("actualCurrencyAmount").subtract(getPaymentApplied(payment, actual)).setScale(decimals,rounding);
         }
-            return payment.getBigDecimal("amount").subtract(getPaymentApplied(payment)).setScale(decimals,rounding);
+           return payment.getBigDecimal("amount").subtract(getPaymentApplied(payment)).setScale(decimals,rounding);
     }
 
     public static BigDecimal getPaymentNotApplied(Delegator delegator, String paymentId) {
@@ -322,7 +321,7 @@ public class PaymentWorker {
 
         GenericValue payment = null;
         try {
-            payment = EntityQuery.use(delegator).from("Payment").where("paymentId", paymentId).queryOne();
+            payment = delegator.findByPrimaryKey("Payment", UtilMisc.toMap("paymentId", paymentId));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting Payment", module);
         }

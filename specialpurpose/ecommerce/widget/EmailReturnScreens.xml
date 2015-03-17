@@ -25,8 +25,7 @@ under the License.
         <section>
             <actions>
                 <!-- <set field="title" value="Order Confirmation Notice"/> -->
-                <set field="baseEcommerceSecureUrl" value="${baseSecureUrl}/ecommerce/control"/>
-                <property-map resource="EcommerceUiLabels" map-name="uiLabelMap" global="true"/>                
+                <set field="baseEcommerceSecureUrl" value="${baseSecureUrl}/ecommerce/control/"/>
                 <!-- <script location="component://ecommerce/webapp/ecommerce/WEB-INF/actions/order/OrderStatus.groovy"/> -->
             </actions>
             <widgets>
@@ -37,8 +36,7 @@ under the License.
     <screen name="ReturnCancel">
         <section>
             <actions>
-                <set field="baseEcommerceSecureUrl" value="${baseSecureUrl}/ecommerce/control"/>
-                <property-map resource="EcommerceUiLabels" map-name="uiLabelMap" global="true"/>
+                <set field="baseEcommerceSecureUrl" value="${baseSecureUrl}/ecommerce/control/"/>
             </actions>
             <widgets>
                 <platform-specific><html><html-template location="component://ecommerce/templates/email/returncancel.ftl"/></html></platform-specific>
@@ -48,8 +46,7 @@ under the License.
     <screen name="ReturnComplete">
         <section>
             <actions>
-                <set field="baseEcommerceSecureUrl" value="${baseSecureUrl}/ecommerce/control"/>
-                <property-map resource="EcommerceUiLabels" map-name="uiLabelMap" global="true"/>
+                <set field="baseEcommerceSecureUrl" value="${baseSecureUrl}/ecommerce/control/"/>
             </actions>
             <widgets>
                 <platform-specific><html><html-template location="component://ecommerce/templates/email/returncomplete.ftl"/></html></platform-specific>

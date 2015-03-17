@@ -112,22 +112,16 @@ public class Cache {
     public GenericValue remove(GenericEntity entity) {
         if (Debug.verboseOn()) Debug.logVerbose("Cache remove GenericEntity: " + entity, module);
         GenericValue oldEntity = entityCache.remove(entity.getPrimaryKey());
-        // Workaround because AbstractEntityConditionCache.storeHook doesn't work.
-        entityListCache.remove(entity);
-        entityObjectCache.remove(entity);
-        // entityListCache.storeHook(entity, null);
-        // entityObjectCache.storeHook(entity, null);
+        entityListCache.storeHook(entity, null);
+        entityObjectCache.storeHook(entity, null);
         return oldEntity;
     }
 
     public GenericValue remove(GenericPK pk) {
         if (Debug.verboseOn()) Debug.logVerbose("Cache remove GenericPK: " + pk, module);
         GenericValue oldEntity = entityCache.remove(pk);
-        // Workaround because AbstractEntityConditionCache.storeHook doesn't work.
-        entityListCache.remove(pk);
-        entityObjectCache.remove(pk);
-        // entityListCache.storeHook(pk, null);
-        // entityObjectCache.storeHook(pk, null);
+        entityListCache.storeHook(pk, null);
+        entityObjectCache.storeHook(pk, null);
         return oldEntity;
     }
 }

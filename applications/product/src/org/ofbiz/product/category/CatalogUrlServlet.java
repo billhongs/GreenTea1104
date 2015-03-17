@@ -36,8 +36,6 @@ import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
-import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * ControlServlet.java - Master servlet for the web application.
@@ -57,7 +55,7 @@ public class CatalogUrlServlet extends HttpServlet {
     }
 
     /**
-     * @see javax.servlet.http.HttpServlet#init(javax.servlet.ServletConfig)
+     * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
      */
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -82,26 +80,24 @@ public class CatalogUrlServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         List<String> pathElements = StringUtil.split(pathInfo, "/");
 
+        // look for productId
         String productId = null;
-        String categoryId = null;
         try {
             String lastPathElement = pathElements.get(pathElements.size() - 1);
-            if (lastPathElement.startsWith("p_")) {
-                productId = lastPathElement.substring(2);
-            } else {
-                GenericValue productCategory =  EntityQuery.use(delegator).from("ProductCategory").where("productCategoryId", lastPathElement).cache(true).queryOne();
-                if (UtilValidate.isNotEmpty(productCategory)) {
-                    categoryId = lastPathElement;
+            if (lastPathElement.startsWith("p_") || delegator.findOne("Product", UtilMisc.toMap("productId", lastPathElement), true) != null) {
+                if (lastPathElement.startsWith("p_")) {
+                    productId = lastPathElement.substring(2);
                 } else {
                     productId = lastPathElement;
                 }
+                pathElements.remove(pathElements.size() - 1);
             }
-            pathElements.remove(pathElements.size() - 1);
         } catch (GenericEntityException e) {
-            Debug.logError(e, "Error in looking up ProductUrl or CategoryUrl with path info [" + pathInfo + "]: " + e.toString(), module);
+            Debug.logError(e, "Error looking up product info for ProductUrl with path info [" + pathInfo + "]: " + e.toString(), module);
         }
 
         // get category info going with the IDs that remain
+        String categoryId = null;
         if (pathElements.size() == 1) {
             CategoryWorker.setTrail(request, pathElements.get(0), null);
             categoryId = pathElements.get(0);
@@ -151,7 +147,7 @@ public class CatalogUrlServlet extends HttpServlet {
     }
 
     /**
-     * @see javax.servlet.http.HttpServlet#destroy()
+     * @see javax.servlet.Servlet#destroy()
      */
     @Override
     public void destroy() {
@@ -161,7 +157,7 @@ public class CatalogUrlServlet extends HttpServlet {
     public static String makeCatalogUrl(HttpServletRequest request, String productId, String currentCategoryId, String previousCategoryId) {
         StringBuilder urlBuilder = new StringBuilder();
         urlBuilder.append(request.getSession().getServletContext().getContextPath());
-        if (urlBuilder.length() == 0 || urlBuilder.charAt(urlBuilder.length() - 1) != '/') {
+        if (urlBuilder.charAt(urlBuilder.length() - 1) != '/') {
             urlBuilder.append("/");
         }
         urlBuilder.append(CATALOG_URL_MOUNT_POINT);
@@ -170,31 +166,6 @@ public class CatalogUrlServlet extends HttpServlet {
             List<String> trail = CategoryWorker.getTrail(request);
             trail = CategoryWorker.adjustTrail(trail, currentCategoryId, previousCategoryId);
             for (String trailCategoryId: trail) {
-                if ("TOP".equals(trailCategoryId)) continue;
-                urlBuilder.append("/");
-                urlBuilder.append(trailCategoryId);
-            }
-        }
-
-        if (UtilValidate.isNotEmpty(productId)) {
-            urlBuilder.append("/p_");
-            urlBuilder.append(productId);
-        }
-
-        return urlBuilder.toString();
-    }
-
-    public static String makeCatalogUrl(String contextPath, List<String> crumb, String productId, String currentCategoryId, String previousCategoryId) {
-        StringBuilder urlBuilder = new StringBuilder();
-        urlBuilder.append(contextPath);
-        if (urlBuilder.length() == 0 || urlBuilder.charAt(urlBuilder.length() - 1) != '/') {
-            urlBuilder.append("/");
-        }
-        urlBuilder.append(CATALOG_URL_MOUNT_POINT);
-
-        if (UtilValidate.isNotEmpty(currentCategoryId)) {
-            crumb = CategoryWorker.adjustTrail(crumb, currentCategoryId, previousCategoryId);
-            for (String trailCategoryId: crumb) {
                 if ("TOP".equals(trailCategoryId)) continue;
                 urlBuilder.append("/");
                 urlBuilder.append(trailCategoryId);

@@ -34,11 +34,11 @@ margin: 1em;
             'hideOnContentClick': true
         });
         $("a.group").fancybox({
-            'transitionIn'  :   'elastic',
-            'transitionOut' :   'elastic',
-            'speedIn'       :   600,
-            'speedOut'      :   200,
-            'overlayShow'   :   false
+            'transitionIn'	:	'elastic',
+            'transitionOut'	:	'elastic',
+            'speedIn'		:	600,
+            'speedOut'		:	200,
+            'overlayShow'	:	false
         });
     });
 </script>
@@ -58,7 +58,7 @@ margin: 1em;
       <#list visualThemes as visualTheme>
         <#assign screenshots = delegator.findByAnd("VisualThemeResource", Static["org.ofbiz.base.util.UtilMisc"].toMap(
                                         "visualThemeId", "${visualTheme.visualThemeId}",
-                                        "resourceTypeEnumId", "VT_SCREENSHOT"), orderByList, false)>
+                                        "resourceTypeEnumId", "VT_SCREENSHOT"), orderByList)>
         <tr<#if visualTheme.visualThemeId == visualThemeId> class="selected"</#if>>
           <td>
             <form name="SetUserPreferences_${visualTheme.visualThemeId}" method="post" action="<@ofbizUrl>setUserPreference</@ofbizUrl>">

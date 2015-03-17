@@ -38,7 +38,8 @@ if (internalName) {
 }
 
 if (conditions.size() > 2) {
-    physicalInventory = from("ProductInventoryItem").where(conditions).orderBy("productId").queryList();
+    ecl = EntityCondition.makeCondition(conditions, EntityOperator.AND);
+    physicalInventory = delegator.findList("ProductInventoryItem", ecl, null, ['productId'], null, false);
 
     // also need the overal product QOH and ATP for each product
     atpMap = [:];
@@ -52,7 +53,7 @@ if (conditions.size() > 2) {
 
     // for each product, call the inventory counting service
     productIds.each { productId ->
-        result = runService('getInventoryAvailableByFacility', [facilityId : facilityId, productId : productId]);
+        result = dispatcher.runSync("getInventoryAvailableByFacility", [facilityId : facilityId, productId : productId]);
         if (!ServiceUtil.isError(result)) {
             atpMap.put(productId, result.availableToPromiseTotal);
             qohMap.put(productId, result.quantityOnHandTotal);

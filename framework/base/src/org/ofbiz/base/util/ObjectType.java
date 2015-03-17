@@ -22,11 +22,12 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.conversion.ConversionException;
 import org.ofbiz.base.conversion.Converter;
@@ -46,47 +47,10 @@ public class ObjectType {
 
     public static final Object NULL = new NullObject();
 
+    protected static FastMap<String, Class<?>> classCache = FastMap.newInstance();
+
     public static final String LANG_PACKAGE = "java.lang."; // We will test both the raw value and this + raw value
     public static final String SQL_PACKAGE = "java.sql.";   // We will test both the raw value and this + raw value
-
-    private static final Map<String, String> classAlias = new HashMap<String, String>();
-    private static final Map<String, Class> primitives = new HashMap<String, Class>();
-
-    static {
-        classAlias.put("Object", "java.lang.Object");
-        classAlias.put("String", "java.lang.String");
-        classAlias.put("Boolean", "java.lang.Boolean");
-        classAlias.put("BigDecimal", "java.math.BigDecimal");
-        classAlias.put("Double", "java.lang.Double");
-        classAlias.put("Float", "java.lang.Float");
-        classAlias.put("Long", "java.lang.Long");
-        classAlias.put("Integer", "java.lang.Integer");
-        classAlias.put("Short", "java.lang.Short");
-        classAlias.put("Byte", "java.lang.Byte");
-        classAlias.put("Character", "java.lang.Character");
-        classAlias.put("Timestamp", "java.sql.Timestamp");
-        classAlias.put("Time", "java.sql.Time");
-        classAlias.put("Date", "java.sql.Date");
-        classAlias.put("Locale", "java.util.Locale");
-        classAlias.put("Collection", "java.util.Collection");
-        classAlias.put("List", "java.util.List");
-        classAlias.put("Set", "java.util.Set");
-        classAlias.put("Map", "java.util.Map");
-        classAlias.put("HashMap", "java.util.HashMap");
-        classAlias.put("TimeZone", "java.util.TimeZone");
-        classAlias.put("TimeDuration", "org.ofbiz.base.util.TimeDuration");
-        classAlias.put("GenericValue", "org.ofbiz.entity.GenericValue");
-        classAlias.put("GenericPK", "org.ofbiz.entity.GenericPK");
-        classAlias.put("GenericEntity", "org.ofbiz.entity.GenericEntity");
-        primitives.put("boolean", Boolean.TYPE);
-        primitives.put("short", Short.TYPE);
-        primitives.put("int", Integer.TYPE);
-        primitives.put("long", Long.TYPE);
-        primitives.put("float", Float.TYPE);
-        primitives.put("double", Double.TYPE);
-        primitives.put("byte", Byte.TYPE);
-        primitives.put("char", Character.TYPE);
-    }
 
     /**
      * Loads a class with the current thread's context classloader.
@@ -95,23 +59,25 @@ public class ObjectType {
      * @throws ClassNotFoundException
      */
     public static Class<?> loadClass(String className) throws ClassNotFoundException {
+        int genericsStart = className.indexOf("<");
+        if (genericsStart != -1) className = className.substring(0, genericsStart);
+
+        // small block to speed things up by putting using preloaded classes for common objects, this turns out to help quite a bit...
+        Class<?> theClass = CachedClassLoader.globalClassNameClassMap.get(className);
+
+        if (theClass != null) return theClass;
+
         return loadClass(className, null);
     }
 
     /**
-     * Loads a class with the specified classloader.
+     * Loads a class with the current thread's context classloader.
      * @param className The name of the class to load
      * @param loader The ClassLoader to use
      * @return The requested class
      * @throws ClassNotFoundException
      */
     public static Class<?> loadClass(String className, ClassLoader loader) throws ClassNotFoundException {
-        Class<?> theClass = null;
-        // if it is a primitive type, return the object from the "primitives" map
-        if (primitives.containsKey(className)) {
-            return primitives.get(className);
-        }
-
         int genericsStart = className.indexOf("<");
         if (genericsStart != -1) className = className.substring(0, genericsStart);
 
@@ -132,14 +98,26 @@ public class ObjectType {
             }
         }
 
-        // if className is an alias (e.g. "String") then replace it with the proper class name (e.g. "java.lang.String")
-        if (classAlias.containsKey(className)) {
-            className = classAlias.get(className);
-        }
+        // small block to speed things up by putting using preloaded classes for common objects, this turns out to help quite a bit...
+        Class<?> theClass = CachedClassLoader.globalClassNameClassMap.get(className);
+
+        if (theClass != null) return theClass;
 
         if (loader == null) loader = Thread.currentThread().getContextClassLoader();
 
-        theClass = Class.forName(className, true, loader);
+        try {
+            theClass = Class.forName(className, true, loader);
+        } catch (Exception e) {
+            theClass = classCache.get(className);
+            if (theClass == null) {
+                theClass = Class.forName(className);
+                if (theClass != null) {
+                    if (classCache.putIfAbsent(className, theClass) == null) {
+                        if (Debug.verboseOn()) Debug.logVerbose("Loaded Class: " + theClass.getName(), module);
+                    }
+                }
+            }
+        }
 
         return theClass;
     }
@@ -482,7 +460,7 @@ public class ObjectType {
      * include: String, Boolean, Double, Float, Long, Integer, Date (java.sql.Date),
      * Time, Timestamp, TimeZone;
      * @param obj Object to convert
-     * @param type Optional Java class name of type to convert to. A <code>null</code> or empty <code>String</code> will return the original object.
+     * @param type Name of type to convert to
      * @param format Optional (can be null) format string for Date, Time, Timestamp
      * @param timeZone Optional (can be null) TimeZone for converting dates and times
      * @param locale Optional (can be null) Locale for formatting and parsing Double, Float, Long, Integer
@@ -493,11 +471,27 @@ public class ObjectType {
     @SourceMonitored
     @SuppressWarnings("unchecked")
     public static Object simpleTypeConvert(Object obj, String type, String format, TimeZone timeZone, Locale locale, boolean noTypeFail) throws GeneralException {
-        if (obj == null || UtilValidate.isEmpty(type) || "Object".equals(type) || "java.lang.Object".equals(type)) {
-            return obj;
+        if (obj == null) {
+            return null;
         }
+
+        int genericsStart = type.indexOf("<");
+        if (genericsStart != -1) {
+            type = type.substring(0, genericsStart);
+        }
+
         if ("PlainString".equals(type)) {
             return obj.toString();
+        }
+        Class<?> sourceClass = obj.getClass();
+        if (sourceClass.getName().equals(type)) {
+            return obj;
+        }
+        if ("Object".equals(type) || "java.lang.Object".equals(type)) {
+            return obj;
+        }
+        if (obj instanceof String && UtilValidate.isEmpty(obj)) {
+            return null;
         }
         if (obj instanceof Node) {
             Node node = (Node) obj;
@@ -508,24 +502,13 @@ public class ObjectType {
                 return simpleTypeConvert(nodeValue, type, format, timeZone, locale, noTypeFail);
             }
         }
-        int genericsStart = type.indexOf("<");
-        if (genericsStart != -1) {
-            type = type.substring(0, genericsStart);
-        }
-        Class<?> sourceClass = obj.getClass();
         Class<?> targetClass = null;
         try {
             targetClass = loadClass(type);
         } catch (ClassNotFoundException e) {
             throw new GeneralException("Conversion from " + sourceClass.getName() + " to " + type + " not currently supported", e);
         }
-        if (sourceClass.equals(targetClass)) {
-            return obj;
-        }
-        if (obj instanceof String && ((String) obj).length() == 0) {
-            return null;
-        }
-        Converter<Object, Object> converter = null;
+        Converter<Object,Object> converter = null;
         try {
             converter = (Converter<Object, Object>) Converters.getConverter(sourceClass, targetClass);
         } catch (ClassNotFoundException e) {}
@@ -544,14 +527,12 @@ public class ObjectType {
                 try {
                     return localizedConverter.convert(obj, locale, timeZone, format);
                 } catch (ConversionException e) {
-                    Debug.logWarning(e, "Exception thrown while converting type: ", module);
                     throw new GeneralException(e.getMessage(), e);
                 }
             }
             try {
                 return converter.convert(obj);
             } catch (ConversionException e) {
-                Debug.logWarning(e, "Exception thrown while converting type: ", module);
                 throw new GeneralException(e.getMessage(), e);
             }
         }
@@ -587,19 +568,17 @@ public class ObjectType {
             Debug.logWarning("The specified type [" + type + "] is not a valid class or a known special type, may see more errors later because of this: " + e.getMessage(), module);
         }
 
-        if (value1 == null) {
-            // some default behavior for null values, results in a bit cleaner operation
-            if ("is-null".equals(operator)) {
-                return Boolean.TRUE;
-            } else if ("is-not-null".equals(operator)) {
-                return Boolean.FALSE;
-            } else if ("is-empty".equals(operator)) {
-                return Boolean.TRUE;
-            } else if ("is-not-empty".equals(operator)) {
-                return Boolean.FALSE;
-            } else if ("contains".equals(operator)) {
-                return Boolean.FALSE;
-            }
+        // some default behavior for null values, results in a bit cleaner operation
+        if ("is-null".equals(operator) && value1 == null) {
+            return Boolean.TRUE;
+        } else if ("is-not-null".equals(operator) && value1 == null) {
+            return Boolean.FALSE;
+        } else if ("is-empty".equals(operator) && value1 == null) {
+            return Boolean.TRUE;
+        } else if ("is-not-empty".equals(operator) && value1 == null) {
+            return Boolean.FALSE;
+        } else if ("contains".equals(operator) && value1 == null) {
+            return Boolean.FALSE;
         }
 
         int result = 0;
@@ -786,18 +765,18 @@ public class ObjectType {
     public static boolean isEmpty(Object value) {
         if (value == null) return true;
 
-        if (value instanceof String) return ((String) value).length() == 0;
-        if (value instanceof Collection) return ((Collection<? extends Object>) value).size() == 0;
-        if (value instanceof Map) return ((Map<? extends Object, ? extends Object>) value).size() == 0;
-        if (value instanceof CharSequence) return ((CharSequence) value).length() == 0;
-        if (value instanceof IsEmpty) return ((IsEmpty) value).isEmpty();
+        if (value instanceof String) return UtilValidate.isEmpty((String) value);
+        if (value instanceof Collection) return UtilValidate.isEmpty((Collection<? extends Object>) value);
+        if (value instanceof Map) return UtilValidate.isEmpty((Map<? extends Object, ? extends Object>) value);
+        if (value instanceof CharSequence) return UtilValidate.isEmpty((CharSequence) value);
+        if (value instanceof IsEmpty) return UtilValidate.isEmpty((IsEmpty) value);
 
         // These types would flood the log
         // Number covers: BigDecimal, BigInteger, Byte, Double, Float, Integer, Long, Short
         if (value instanceof Boolean) return false;
         if (value instanceof Number) return false;
         if (value instanceof Character) return false;
-        if (value instanceof java.util.Date) return false;
+        if (value instanceof java.sql.Timestamp) return false;
 
         if (Debug.verboseOn()) {
             Debug.logVerbose("In ObjectType.isEmpty(Object value) returning false for " + value.getClass() + " Object.", module);

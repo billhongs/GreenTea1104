@@ -45,6 +45,13 @@ under the License.
     <request-map uri="view"><security https="true" auth="false"/><response name="success" type="request" value="main"/></request-map>
     <request-map uri="main"><security https="true" auth="true"/><response name="success" type="view" value="main"/></request-map>
 
+    <request-map uri="changeDelegator">
+        <security https="true" auth="true"/>
+        <event type="java" path="org.ofbiz.webapp.event.CoreEvents" invoke="changeDelegator"/>
+        <response name="success" type="view" value="main"/>
+        <response name="error" type="view" value="error"/>
+    </request-map>
+
     <!-- =========== DataSource =========== -->
     <request-map uri="FindDataSource"><security https="true" auth="true"/><response name="success" type="view" value="FindDataSource"/></request-map>
     <request-map uri="EditDataSource"><security https="true" auth="true"/><response name="success" type="view" value="EditDataSource"/></request-map>
@@ -148,6 +155,16 @@ under the License.
         <security https="true" auth="true"/>
         <response name="success" type="view" value="EditMarketingCampaignRoles"/>
     </request-map>
+    <request-map uri="addRoleToMarketingCampaign"><security https="true" auth="true"/>
+        <event type="service" path="" invoke="addRoleToMarketingCampaign"/>
+        <response name="success" type="view" value="EditMarketingCampaignRoles"/>
+        <response name="error" type="view" value="EditMarketingCampaignRoles"/>
+    </request-map>
+    <request-map uri="removeRoleFromMarketingCampaign"><security https="true" auth="true"/>
+        <event type="service" path="" invoke="removeRoleFromMarketingCampaign"/>
+        <response name="success" type="view" value="EditMarketingCampaignRoles"/>
+        <response name="error" type="view" value="EditMarketingCampaignRoles"/>
+    </request-map>
     <request-map uri="ListMarketingCampaignRoles">
         <security https="true" auth="true"/>
         <response name="success" type="view" value="ListMarketingCampaignRoles"/>
@@ -155,7 +172,13 @@ under the License.
     <request-map uri="createMarketingCampaignRole">
         <security https="true" auth="true"/>
         <event type="service" invoke="createMarketingCampaignRole"/>
-        <response name="success" type="view" value="ListMarketingCampaignRoles"/>
+        <response name="success" type="view" value="EditMarketingCampaignRoles"/>
+        <response name="error" type="view" value="EditMarketingCampaignRoles"/>
+    </request-map>
+    <request-map uri="updateMarketingCampaignRole">
+        <security https="true" auth="true"/>
+        <event type="service" invoke="updateMarketingCampaignRole"/>
+        <response name="success" type="view" value="EditMarketingCampaignRoles"/>
         <response name="error" type="view" value="EditMarketingCampaignRoles"/>
     </request-map>
     <request-map uri="removeMarketingCampaignRole">
@@ -308,30 +331,7 @@ under the License.
         <security https="true" auth="false"/>        
         <event type="service" invoke="updateContactListPartyNoUserLogin"/>
         <response name="success" type="view" value="ContactListOptOut"/>
-    </request-map>
-    <!--  WebSiteContactList request -->
-    <request-map uri="webSiteContactList">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="WebSiteContactList"/>
-    </request-map>
-    <request-map uri="createWebSiteContactList">
-        <security https="true" auth="false"/>
-        <event type="service" invoke="createWebSiteContactList"/>
-        <response name="success" type="view" value="WebSiteContactList"/>
-        <response name="error" type="view" value="WebSiteContactList"/>
-    </request-map>
-    <request-map uri="updateWebSiteContactList">
-        <security https="true" auth="false"/>
-        <event type="service" invoke="updateWebSiteContactList"/>
-        <response name="success" type="view" value="WebSiteContactList"/>
-        <response name="error" type="view" value="WebSiteContactList"/>
-    </request-map>
-    <request-map uri="deleteWebSiteContactList">
-        <security https="true" auth="false"/>
-        <event type="service" invoke="deleteWebSiteContactList"/>
-        <response name="success" type="view" value="WebSiteContactList"/>
-        <response name="error" type="view" value="WebSiteContactList"/>
-    </request-map>
+    </request-map>   
 
     <request-map uri="ListContactListCommEvents"><security https="true" auth="true"/><response name="success" type="view" value="ListContactListCommEvents"/></request-map>
     <request-map uri="EditContactListCommEvent"><security https="true" auth="true"/><response name="success" type="view" value="EditContactListCommEvent"/></request-map>
@@ -443,7 +443,6 @@ under the License.
     <view-map name="EditContactListParty" type="screen" page="component://marketing/widget/ContactListScreens.xml#EditContactListParty"/>
     <view-map name="FindContactListParties" type="screen" page="component://marketing/widget/ContactListScreens.xml#FindContactListParties"/>
     <view-map name="ContactListOptOut" type="screen" page="component://marketing/widget/ContactListScreens.xml#OptOutResponse"/>
-    <view-map name="WebSiteContactList" type="screen" page="component://marketing/widget/ContactListScreens.xml#WebSiteContactList"/>
 
     <view-map name="ListContactListCommEvents" type="screen" page="component://marketing/widget/ContactListScreens.xml#ListContactListCommEvents"/>
     <view-map name="EditContactListCommEvent" type="screen" page="component://marketing/widget/ContactListScreens.xml#EditContactListCommEvent"/>

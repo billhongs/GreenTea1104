@@ -53,7 +53,7 @@ public class SyncCallbackAdaptor implements GenericServiceCallback {
         if (ctxSyncId != null && entitySyncId.equals(ctxSyncId)) {
             GenericValue entitySync = null;
             try {
-                entitySync = screen.getSession().getDelegator().findOne("EntitySync", UtilMisc.toMap("entitySyncId", entitySyncId), false);
+                entitySync = screen.getSession().getDelegator().findByPrimaryKey("EntitySync", UtilMisc.toMap("entitySyncId", entitySyncId));
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }

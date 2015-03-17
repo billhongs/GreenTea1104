@@ -18,10 +18,22 @@
  */
 
 import java.util.*;
-import java.sql.Timestamp;
+import java.text.*;
+import org.ofbiz.entity.*;
 import org.ofbiz.base.util.*;
+import org.ofbiz.webapp.pseudotag.*;
+import org.ofbiz.workeffort.workeffort.*;
+import java.sql.Timestamp;
 
+String currentDay = parameters.get("currentDay");
 String startParam = parameters.get("start");
+facilityId = parameters.facilityId;
+fixedAssetId = parameters.fixedAssetId;
+partyId = parameters.partyId;
+workEffortTypeId = parameters.workEffortTypeId;
+calendarType = parameters.calendarType;
+entityExprList = context.entityExprList;
+
 Timestamp start = null;
 if (UtilValidate.isNotEmpty(startParam)) {
     start = new Timestamp(Long.parseLong(startParam));
@@ -31,18 +43,21 @@ if (start == null) {
 } else {
     start = UtilDateTime.getDayStart(start, timeZone, locale);
 }
+
 Timestamp prev = UtilDateTime.getDayStart(start, -1, timeZone, locale);
 context.prevMillis = new Long(prev.getTime()).toString();
 Timestamp next = UtilDateTime.getDayStart(start, 1, timeZone, locale);
 context.nextMillis = new Long(next.getTime()).toString();
-Map serviceCtx = dispatcher.getDispatchContext().makeValidContext("getWorkEffortEventsByPeriod", "IN", parameters);
-serviceCtx.putAll(UtilMisc.toMap("userLogin", userLogin, "start", start, "numPeriods", 24, "periodType", Calendar.HOUR, "locale", locale, "timeZone", timeZone));
-if (context.entityExprList) {
-    serviceCtx.entityExprList = entityExprList;
+
+Map serviceCtx = UtilMisc.toMap("userLogin", userLogin,"start",start,"numPeriods", 24,"periodType", Calendar.HOUR);
+serviceCtx.putAll(UtilMisc.toMap("partyId", partyId, "facilityId", facilityId, "fixedAssetId", fixedAssetId, "workEffortTypeId", workEffortTypeId, "calendarType", calendarType, "locale", locale, "timeZone", timeZone));
+if (entityExprList) {
+    serviceCtx.putAll(["entityExprList" : entityExprList]);
 }
-Map result = runService('getWorkEffortEventsByPeriod', serviceCtx);
-context.put("periods", result.get("periods"));
-context.put("maxConcurrentEntries", result.get("maxConcurrentEntries"));
-context.put("start", start);
-context.put("prev", prev);
-context.put("next", next);
+
+Map result = dispatcher.runSync("getWorkEffortEventsByPeriod",serviceCtx);
+context.put("periods",result.get("periods"));
+context.put("maxConcurrentEntries",result.get("maxConcurrentEntries"));
+context.put("start",start);
+context.put("prev",prev);
+context.put("next",next);

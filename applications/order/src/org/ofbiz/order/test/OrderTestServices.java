@@ -19,6 +19,7 @@
 package org.ofbiz.order.test;
 
 import java.math.BigDecimal;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -95,7 +96,9 @@ public class OrderTestServices {
                 if (result.get("categoryMembers") != null) {
                     List<GenericValue> productCategoryMembers = UtilGenerics.checkList(result.get("categoryMembers"));
                     if (productCategoryMembers != null) {
-                        for (GenericValue prodCatMemb : productCategoryMembers) {
+                        Iterator<GenericValue> i = productCategoryMembers.iterator();
+                        while (i.hasNext()) {
+                            GenericValue prodCatMemb = i.next();
                             if (prodCatMemb != null) {
                                 productsList.add(prodCatMemb.getString("productId"));
                             }

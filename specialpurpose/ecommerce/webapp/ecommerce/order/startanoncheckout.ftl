@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#assign shoppingCart = sessionAttributes.shoppingCart!>
+<#assign shoppingCart = sessionAttributes.shoppingCart?if_exists>
 <#if shoppingCart?has_content>
     <#assign shoppingCartSize = shoppingCart.size()>
 <#else>

@@ -30,13 +30,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.ofbiz.base.util.CachedClassLoader;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.security.Security;
 import org.ofbiz.security.SecurityFactory;
+import org.ofbiz.security.authz.Authorization;
+import org.ofbiz.security.authz.AuthorizationFactory;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.service.ServiceContainer;
 
 /** Implements a WebDAV servlet. The servlet simply forwards WebDAV requests
  * to a <code>RequestHandlerFactory</code> instance, whose class is specified
@@ -51,6 +54,7 @@ public class WebDavServlet extends GenericServlet {
 
     public static final String module = WebDavServlet.class.getName();
 
+    protected Authorization authz = null;
     protected Delegator delegator = null;
     protected LocalDispatcher dispatcher = null;
     protected RequestHandlerFactory handlerFactory = null;
@@ -60,14 +64,17 @@ public class WebDavServlet extends GenericServlet {
     public void init(ServletConfig config) throws ServletException{
         try {
             super.init(config);
+            ClassLoader loader = new CachedClassLoader(Thread.currentThread().getContextClassLoader(), null);
+            Thread.currentThread().setContextClassLoader(loader);
             ServletContext context = this.getServletContext();
             String delegatorName = context.getInitParameter("entityDelegatorName");
             this.delegator = DelegatorFactory.getDelegator(delegatorName);
             String dispatcherName = context.getInitParameter("localDispatcherName");
-            this.dispatcher = ServiceContainer.getLocalDispatcher(dispatcherName, this.delegator);
+            this.dispatcher = GenericDispatcher.getLocalDispatcher(dispatcherName, this.delegator);
             this.security = SecurityFactory.getInstance(this.delegator);
+            this.authz = AuthorizationFactory.getInstance(this.delegator);
             String factoryClassName = context.getInitParameter("requestHandlerFactoryClass");
-            this.handlerFactory = (RequestHandlerFactory) Class.forName(factoryClassName).newInstance();
+            this.handlerFactory = (RequestHandlerFactory) loader.loadClass(factoryClassName).newInstance();
         } catch (Exception e) {
             Debug.logError(e, "Error while initializing WebDAV servlet: ", module);
             throw new ServletException(e);
@@ -79,6 +86,8 @@ public class WebDavServlet extends GenericServlet {
             buff.append(this.dispatcher.getName());
             buff.append(", security = ");
             buff.append(this.security.getClass().getName());
+            buff.append(", authz = ");
+            buff.append(this.authz.getClass().getName());
             buff.append(", handler factory = ");
             buff.append(this.handlerFactory.getClass().getName());
             Debug.logVerbose(buff.toString(), module);
@@ -90,6 +99,7 @@ public class WebDavServlet extends GenericServlet {
         request.setAttribute("delegator", this.delegator);
         request.setAttribute("dispatcher", this.dispatcher);
         request.setAttribute("security", this.security);
+        request.setAttribute("authz", this.authz);
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         RequestHandler handler = this.handlerFactory.getHandler(httpRequest.getMethod());
         try {

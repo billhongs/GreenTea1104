@@ -18,7 +18,7 @@
  */
 
 /*
- * NOTE: This script is also referenced by the webpos and ecommerce's screens and
+ * NOTE: This script is also referenced by the ecommerce's screens and
  * should not contain order component's specific code.
  */
 
@@ -39,7 +39,7 @@ viewIndex = parameters.VIEW_INDEX;
 currentCatalogId = CatalogWorker.getCurrentCatalogId(request);
 
 // set the default view size
-defaultViewSize = request.getAttribute("defaultViewSize") ?: EntityUtilProperties.getPropertyValue("widget", "widget.form.defaultViewSize", "20", delegator);
+defaultViewSize = request.getAttribute("defaultViewSize") ?: 10;
 context.defaultViewSize = defaultViewSize;
 
 // set the limit view
@@ -54,20 +54,51 @@ andMap = [productCategoryId : productCategoryId,
         limitView : limitView];
 andMap.put("prodCatalogId", currentCatalogId);
 andMap.put("checkViewAllow", true);
-// Prevents out of stock product to be displayed on site
-productStore = ProductStoreWorker.getProductStore(request);
-if (productStore) {
-    andMap.put("productStoreId", productStore.productStoreId);
-}
 if (context.orderByFields) {
     andMap.put("orderByFields", context.orderByFields);
 } else {
     andMap.put("orderByFields", ["sequenceNum", "productId"]);
 }
-catResult = runService('getProductCategoryAndLimitedMembers', andMap);
+catResult = dispatcher.runSync("getProductCategoryAndLimitedMembers", andMap);
+
 productCategory = catResult.productCategory;
 productCategoryMembers = catResult.productCategoryMembers;
-context.productCategoryMembers = productCategoryMembers;
+
+// Prevents out of stock product to be displayed on site
+productStore = ProductStoreWorker.getProductStore(request);
+if(productStore) {
+    if("N".equals(productStore.showOutOfStockProducts)) {
+        productsInStock = [];
+        productCategoryMembers.each { productCategoryMember ->
+            product = delegator.findByPrimaryKeyCache("Product", [productId : productCategoryMember.productId]);
+            boolean isMarketingPackage = EntityTypeUtil.hasParentType(delegator, "ProductType", "productTypeId", product.productTypeId, "parentTypeId", "MARKETING_PKG");
+            context.isMarketingPackage = (isMarketingPackage? "true": "false");
+            if (isMarketingPackage) {
+                resultOutput = dispatcher.runSync("getMktgPackagesAvailable", [productId : productCategoryMember.productId]);
+                availableInventory = resultOutput.availableToPromiseTotal;
+                if(availableInventory>0)
+                    productsInStock.add(productCategoryMember);
+            } else {
+                facilities = delegator.findList("ProductFacility", EntityCondition.makeCondition([productId : productCategoryMember.productId]), null, null, null, false);
+                availableInventory = 0.0;
+                if(facilities) {
+                    facilities.each { facility ->
+                        lastInventoryCount = facility.lastInventoryCount;
+                        if (lastInventoryCount != null) {
+                            availableInventory += lastInventoryCount;
+                        }
+                    }
+                    if (availableInventory > 0) {
+                        productsInStock.add(productCategoryMember);
+                    }
+                }
+            }
+        }
+        context.productCategoryMembers = productsInStock;
+    } else {
+        context.productCategoryMembers = productCategoryMembers;
+    }
+}
 context.productCategory = productCategory;
 context.viewIndex = catResult.viewIndex;
 context.viewSize = catResult.viewSize;

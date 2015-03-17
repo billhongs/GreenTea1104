@@ -301,33 +301,4 @@
             </widgets>
         </section>
     </screen>
-    <screen name="EditInternalOrgFtl">
-        <section>
-            <actions>
-            </actions>
-            <widgets>
-                <platform-specific><html><html-template location="component://humanres/webapp/humanres/humanres/internalorg/editinternalorg.ftl"/></html></platform-specific>
-            </widgets>
-        </section>
-    </screen>
-    <screen name="EditInternalOrgOnlyForm">
-        <section>
-            <actions>
-                <set field="titleProperty" value="PageTitleEditInternalOrg"/>
-                <set field="tabButtonItem" value="EditInternalOrg"/>
-                <property-map resource="CommonUiLabels" map-name="uiLabelMap" global="true"/>
-                <entity-one entity-name="PartyRole" value-field="partyRole"/>
-            </actions>
-            <widgets>
-                <include-form name="ListInternalOrg" location="component://humanres/widget/forms/EmplPositionForms.xml"/>
-            </widgets>
-        </section>
-    </screen>
-    <screen name="RemoveInternalOrgFtl">
-        <section>
-            <widgets>
-                <platform-specific><html><html-template location="component://humanres/webapp/humanres/humanres/internalorg/removeinternalorg.ftl"/></html></platform-specific>
-            </widgets>
-        </section>
-    </screen>
 </screens>

@@ -43,11 +43,11 @@ under the License.
                 <set field="initialLocaleComplete" type="String" value="${groovy:parameters?.userLogin?.lastLocale}" default-value="${groovy:locale.toString()}"/>
                 <set field="layoutSettings.javaScripts[+0]" value="${groovy: org.ofbiz.common.JsLanguageFilesMapping.dateTime.getFilePath(initialLocaleComplete)}" global="true"/>
 
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/datetimepicker/jquery-ui-timepicker-addon.min-1.4.3.js" global="true"/>
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/js/jquery-ui-1.10.3.min.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/datetimepicker/jquery-ui-timepicker-addon-0.9.6.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/js/jquery-ui-1.8.13.custom.min.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/ui/development-bundle/ui/jquery.ui.datepicker.js" global="true"/>
                 <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/validate/jquery.validate.min.js" global="true"/>
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-migrate-1.2.1.js" global="true"/>
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-1.11.0.min.js" global="true"/>
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-1.5.2.min.js" global="true"/>
 
                 <script location="component://ecommerce/widget/EcommerceSetup.groovy"/>
 
@@ -60,10 +60,6 @@ under the License.
                 <set field="layoutSettings" from-field="themeResources" default-value="${layoutSettings}" global="true"/>
                 <set field="headerTemplateLocation" from-field="layoutSettings.VT_HDR_TMPLT_LOC[0]" default-value="component://ecommerce/webapp/ecommerce/includes/header.ftl"/>
                 <set field="footerTemplateLocation" from-field="layoutSettings.VT_FTR_TMPLT_LOC[0]" default-value="component://ecommerce/webapp/ecommerce/includes/footer.ftl"/>
-                <entity-and list="webAnalyticsConfigs" entity-name="WebAnalyticsConfig">
-                    <field-map field-name="webSiteId"/>
-                </entity-and>
-                <set field="layoutSettings.javaScripts[]" value="/images/miscAjaxFunctions.js" global="true" />
             </actions>
             <widgets>
                <section>
@@ -108,8 +104,7 @@ under the License.
             <widgets>
                     <include-screen name="choosecatalog" location="component://ecommerce/widget/CatalogScreens.xml"/>
                     <include-screen name="keywordsearchbox" location="component://ecommerce/widget/CatalogScreens.xml"/>
-                    <!--include-screen name="sidedeepcategory" location="component://ecommerce/widget/CatalogScreens.xml"/-->
-                    <include-screen name="productCategories" location="component://ecommerce/widget/CatalogScreens.xml"/>
+                    <include-screen name="sidedeepcategory" location="component://ecommerce/widget/CatalogScreens.xml"/>
                     <include-screen name="LayeredNavBar" location="component://ecommerce/widget/CatalogScreens.xml"/>
                     <include-screen name="minireorderprods" location="component://ecommerce/widget/CatalogScreens.xml"/>
                     <include-screen name="signupforcontactlist" location="component://ecommerce/widget/EmailContactListScreens.xml"/>
@@ -133,7 +128,6 @@ under the License.
                     <include-screen name="minilastviewedproducts" location="component://ecommerce/widget/CatalogScreens.xml"/>
                     <include-screen name="minilastproductsearches" location="component://ecommerce/widget/CatalogScreens.xml"/>
                     <include-screen name="recentlyviewed" location="component://ecommerce/widget/ContentScreens.xml"/>
-                    <include-screen name="populartags" location="component://ecommerce/widget/CatalogScreens.xml"/>
             </widgets>
         </section>
     </screen>
@@ -262,9 +256,7 @@ under the License.
                 <set field="layoutSettings.javaScripts[]" value="/images/selectall.js" global="true"/>
 
                 <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/plugins/validate/jquery.validate.min.js" global="true"/>
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-1.11.0.min.js" global="true"/>
-                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-migrate-1.2.1.js" global="true" />
-                
+                <set field="layoutSettings.javaScripts[+0]" value="/images/jquery/jquery-1.5.2.min.js" global="true"/>
 
                 <script location="component://ecommerce/widget/EcommerceSetup.groovy"/>
 

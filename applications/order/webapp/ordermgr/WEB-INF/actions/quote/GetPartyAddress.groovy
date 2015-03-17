@@ -23,7 +23,7 @@ import org.ofbiz.party.contact.ContactHelper;
 if (party) {
     address = EntityUtil.getFirst(ContactHelper.getContactMech(party, "GENERAL_LOCATION", "POSTAL_ADDRESS", false));
     if (address) {
-        toPostalAddress = address.getRelatedOne("PostalAddress", false);
+        toPostalAddress = address.getRelatedOne("PostalAddress");
         context.toPostalAddress = toPostalAddress;
     }
 }

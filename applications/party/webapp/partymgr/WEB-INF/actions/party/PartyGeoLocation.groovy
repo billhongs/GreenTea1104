@@ -27,7 +27,7 @@ partyId = parameters.partyId ?: parameters.party_id;
 userLoginId = parameters.userlogin_id ?: parameters.userLoginId;
 
 if (!partyId && userLoginId) {
-    thisUserLogin = from("UserLogin").where("userLoginId", userLoginId).queryOne();
+    thisUserLogin = delegator.findByPrimaryKey("UserLogin", [userLoginId : userLoginId]);
     if (thisUserLogin) {
         partyId = thisUserLogin.partyId;
     }
@@ -38,7 +38,7 @@ context.partyId = partyId;
 if (!geoPointId) {
     latestGeoPoint = GeoWorker.findLatestGeoPoint(delegator, "PartyAndGeoPoint", "partyId", partyId, null, null);
 } else {
-    latestGeoPoint = from("GeoPoint").where("geoPointId", geoPointId).queryOne();
+    latestGeoPoint = delegator.findByPrimaryKey("GeoPoint", [geoPointId : geoPointId]);
 }
 if (latestGeoPoint) {
     context.latestGeoPoint = latestGeoPoint;
@@ -53,7 +53,7 @@ if (latestGeoPoint) {
         context.geoChart = geoChart;
     }
     if (latestGeoPoint && latestGeoPoint.elevationUomId) {
-        elevationUom = from("Uom").where("uomId", latestGeoPoint.elevationUomId).queryOne();
+        elevationUom = delegator.findOne("Uom", [uomId : latestGeoPoint.elevationUomId], false);
         context.elevationUomAbbr = elevationUom.abbreviation;
     }
 }

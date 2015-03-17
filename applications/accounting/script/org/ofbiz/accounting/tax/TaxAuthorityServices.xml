@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
 
     <!-- TaxAuthority methods -->
     <simple-method method-name="createTaxAuthority" short-description="create a TaxAuthority">
@@ -219,6 +219,7 @@ under the License.
     <simple-method method-name="createPartyTaxAuthInfo" short-description="create a PartyTaxAuthInfo">
         <set value="_CREATE" field="securityAction"/>
         <check-permission permission="ACCOUNTING" action="${securityAction}">
+            <accept-userlogin-party/>
             <fail-property resource="AccountingUiLabels" property="AccountingPermissionError"/>
         </check-permission>
 
@@ -237,6 +238,7 @@ under the License.
     <simple-method method-name="updatePartyTaxAuthInfo" short-description="update a PartyTaxAuthInfo">
         <set value="_UPDATE" field="securityAction"/>
         <check-permission permission="ACCOUNTING" action="${securityAction}">
+            <accept-userlogin-party/>
             <fail-property resource="AccountingUiLabels" property="AccountingPermissionError"/>
         </check-permission>
 
@@ -272,6 +274,7 @@ under the License.
     <simple-method method-name="deletePartyTaxAuthInfo" short-description="delete a PartyTaxAuthInfo">
         <set value="_DELETE" field="securityAction"/>
         <check-permission permission="ACCOUNTING" action="${securityAction}">
+            <accept-userlogin-party/>
             <fail-property resource="AccountingUiLabels" property="AccountingPermissionError"/>
         </check-permission>
         <check-errors/>

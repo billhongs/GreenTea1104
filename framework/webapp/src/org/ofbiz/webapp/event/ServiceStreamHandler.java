@@ -23,19 +23,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import javolution.util.FastMap;
+
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.service.ServiceContainer;
 import org.ofbiz.service.ServiceUtil;
 import org.ofbiz.webapp.control.ConfigXMLReader.Event;
 import org.ofbiz.webapp.control.ConfigXMLReader.RequestMap;
@@ -52,7 +53,7 @@ public class ServiceStreamHandler implements EventHandler {
     public void init(ServletContext context) throws EventHandlerException {
         String delegatorName = context.getInitParameter("entityDelegatorName");
         this.delegator = DelegatorFactory.getDelegator(delegatorName);
-        this.dispatcher = ServiceContainer.getLocalDispatcher(this.delegator.getDelegatorName(), delegator);
+        this.dispatcher = GenericDispatcher.getLocalDispatcher(this.delegator.getDelegatorName(), delegator);
     }
 
     public String invoke(Event event, RequestMap requestMap, HttpServletRequest request, HttpServletResponse response) throws EventHandlerException {
@@ -69,7 +70,7 @@ public class ServiceStreamHandler implements EventHandler {
             throw new EventHandlerException(e.getMessage(), e);
         }
 
-        Map<String, Object> context = new HashMap<String, Object>();
+        Map<String, Object> context = FastMap.newInstance();
         context.put("inputStream", in);
         context.put("outputStream", out);
 
@@ -108,7 +109,7 @@ public class ServiceStreamHandler implements EventHandler {
         if (message != null)
             out.println("Error message: " + message);
         if (error != null)
-            out.println("Exception occurred: " + error.toString());
+            out.println("Exception occured: " + error.toString());
         out.flush();
         out.close();
         try {

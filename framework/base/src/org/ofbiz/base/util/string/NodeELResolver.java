@@ -19,7 +19,6 @@
 package org.ofbiz.base.util.string;
 
 import java.beans.FeatureDescriptor;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -32,6 +31,8 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+
+import javolution.util.FastList;
 
 import org.apache.xerces.dom.NodeImpl;
 import org.ofbiz.base.util.Debug;
@@ -102,7 +103,7 @@ public class NodeELResolver extends ELResolver {
                 } else if (nodeList.getLength() == 1) {
                     result = nodeList.item(0);
                 } else {
-                    List<Node> newList = new ArrayList<Node>(nodeList.getLength());
+                    List<Node> newList = FastList.newInstance();
                     for (int i = 0; i < nodeList.getLength(); i++) {
                         newList.add(nodeList.item(i));
                     }

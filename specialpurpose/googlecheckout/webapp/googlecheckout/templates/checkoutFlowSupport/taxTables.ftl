@@ -22,13 +22,13 @@ under the License.
         <tax-rules>
             <#list flowSupport.taxTables.default.rules as rule>
             <default-tax-rule>
-                <#if rule.shippingTaxed??>
+                <#if rule.shippingTaxed?exists>
                 <shipping-taxed>${rule.shippingTaxed}</shipping-taxed>
                 </#if>
                 <rate>${rule.rate}</rate>
                 <tax-area>
                     <#if rule.areaType="states">
-                    <#if rule.allowedAreas??>
+                    <#if rule.allowedAreas?exists>
                     <allowed-areas>
                         <us-state-area>
                         <#list rule.allowedAreas as allowed>
@@ -37,7 +37,7 @@ under the License.
                         </us-state-area>
                     </allowed-areas>
                     </#if>
-                    <#if rule.excludedAreas??>
+                    <#if rule.excludedAreas?exists>
                     <excluded-areas>
                         <us-state-area>
                         <#list rule.excludedAreas as excluded>
@@ -47,7 +47,7 @@ under the License.
                     </excluded-areas>
                     </#if>
                     <#elseif rule.areaType="zips">
-                    <#if rule.allowedAreas??>
+                    <#if rule.allowedAreas?exists>
                     <allowed-areas>
                         <us-zip-area>
                         <#list rule.allowedAreas as allowed>
@@ -56,7 +56,7 @@ under the License.
                         </us-zip-area>
                     </allowed-areas>
                     </#if>
-                    <#if rule.excludedAreas??>
+                    <#if rule.excludedAreas?exists>
                     <excluded-areas>
                         <us-zip-area>
                         <#list rule.excludedAreas as excluded>
@@ -73,7 +73,7 @@ under the License.
             </#list>
         </tax-rules>
     </default-tax-table>
-    <#if flowSupport.taxTables.alternateTaxTables??>
+    <#if flowSupport.taxTables.alternateTaxTables?exists>
     <alternate-tax-tables>
         <#list flowSupport.taxTables.alternateTaxTables as altTaxTable>
         <alternate-tax-table name="${altTaxTable.name}" standalone="${altTaxTable.standalone}">
@@ -83,7 +83,7 @@ under the License.
                     <rate>${altRule.rate}</rate>
                     <tax-area>
                         <#if altRule.areaType="states">
-                        <#if altRule.allowedAreas??>
+                        <#if altRule.allowedAreas?exists>
                         <allowed-areas>
                             <us-state-area>
                                 <#list altRule.allowedAreas as altAllowed>
@@ -92,7 +92,7 @@ under the License.
                             </us-state-area>
                         </allowed-areas>
                         </#if>
-                        <#if altRule.excludedAreas??>
+                        <#if altRule.excludedAreas?exists>
                         <excluded-areas>
                             <us-state-area>
                                 <#list altRule.excludedAreas as altExcluded>
@@ -102,7 +102,7 @@ under the License.
                         </excluded-areas>
                         </#if>
                         <#elseif rule.areaType="zips">
-                        <#if altRule.allowedAreas??>
+                        <#if altRule.allowedAreas?exists>
                         <allowed-areas>
                             <us-zip-area>
                                 <#list altRule.allowedAreas as altAllowed>
@@ -111,7 +111,7 @@ under the License.
                             </us-zip-area>
                         </allowed-areas>
                         </#if>
-                        <#if altRule.excludedAreas??>
+                        <#if altRule.excludedAreas?exists>
                         <excluded-areas>
                             <us-zip-area>
                                 <#list altRule.excludedAreas as altExcluded>

@@ -46,8 +46,9 @@ import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+
+import javolution.util.FastMap;
 
 import org.apache.commons.codec.binary.Base64;
 import org.ofbiz.base.component.ComponentConfig;
@@ -142,7 +143,7 @@ public class KeyStoreUtil {
     }
 
     public static Map<String, String> getX500Map(Principal x500) {
-        Map<String, String> x500Map = new HashMap<String, String>();
+        Map<String, String> x500Map = FastMap.newInstance();
 
         String name = x500.getName().replaceAll("\\\\,", "&com;");
         String[] x500Opts = name.split("\\,");
@@ -175,7 +176,7 @@ public class KeyStoreUtil {
             certs[0] = cert;
         } else {
             Debug.logInfo("Certificate chain length : " + certCol.size(), module);
-            certs = certCol.toArray(new Certificate[certCol.size()]);
+            certs = (Certificate[]) certCol.toArray();
         }
 
         ks.setKeyEntry(alias, pk, keyPass.toCharArray(), certs);

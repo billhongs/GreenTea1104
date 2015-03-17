@@ -18,11 +18,11 @@
  *******************************************************************************/
 package org.ofbiz.service.eca;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javolution.util.FastList;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilMisc;
@@ -36,18 +36,20 @@ import org.w3c.dom.Element;
  * ServiceEcaRule
  */
 @SuppressWarnings("serial")
-public final class ServiceEcaRule implements java.io.Serializable {
+public class ServiceEcaRule implements java.io.Serializable {
 
     public static final String module = ServiceEcaRule.class.getName();
 
-    protected final String serviceName;
-    protected final String eventName;
-    protected final boolean runOnFailure;
-    protected final boolean runOnError;
-    protected final List<ServiceEcaCondition> conditions = new ArrayList<ServiceEcaCondition>();
-    protected final List<Object> actionsAndSets = new ArrayList<Object>();
+    protected String serviceName = null;
+    protected String eventName = null;
+    protected boolean runOnFailure = false;
+    protected boolean runOnError = false;
+    protected List<ServiceEcaCondition> conditions = FastList.newInstance();
+    protected List<Object> actionsAndSets = FastList.newInstance();
     protected boolean enabled = true;
-    protected final String definitionLocation;
+    protected String definitionLocation = null;
+
+    protected ServiceEcaRule() {}
 
     public ServiceEcaRule(Element eca, String definitionLocation) {
         this.definitionLocation = definitionLocation;
@@ -68,9 +70,7 @@ public final class ServiceEcaRule implements java.io.Serializable {
             conditions.add(new ServiceEcaCondition(element, false, true));
         }
 
-        if (Debug.verboseOn()) {
-            Debug.logVerbose("Conditions: " + conditions, module);
-        }
+        if (Debug.verboseOn()) Debug.logVerbose("Conditions: " + conditions, module);
 
         Set<String> nameSet = UtilMisc.toSet("set", "action");
         for (Element actionOrSetElement: UtilXml.childElementList(eca, nameSet)) {
@@ -81,9 +81,7 @@ public final class ServiceEcaRule implements java.io.Serializable {
             }
         }
 
-        if (Debug.verboseOn()) {
-            Debug.logVerbose("actions and sets (intermixed): " + actionsAndSets, module);
-        }
+        if (Debug.verboseOn()) Debug.logVerbose("actions and sets (intermixed): " + actionsAndSets, module);
     }
 
     public String getShortDisplayName() {
@@ -103,7 +101,7 @@ public final class ServiceEcaRule implements java.io.Serializable {
     }
 
     public List<ServiceEcaAction> getEcaActionList() {
-        List<ServiceEcaAction> actionList = new LinkedList<ServiceEcaAction>();
+        List<ServiceEcaAction> actionList = FastList.newInstance();
         for (Object actionOrSet: this.actionsAndSets) {
             if (actionOrSet instanceof ServiceEcaAction) {
                 actionList.add((ServiceEcaAction) actionOrSet);
@@ -113,7 +111,7 @@ public final class ServiceEcaRule implements java.io.Serializable {
     }
 
     public List<ServiceEcaCondition> getEcaConditionList() {
-        List<ServiceEcaCondition> condList = new LinkedList<ServiceEcaCondition>();
+        List<ServiceEcaCondition> condList = FastList.newInstance();
         condList.addAll(this.conditions);
         return condList;
     }
@@ -133,15 +131,11 @@ public final class ServiceEcaRule implements java.io.Serializable {
         boolean allCondTrue = true;
         for (ServiceEcaCondition ec: conditions) {
             if (!ec.eval(serviceName, dctx, context)) {
-                if (Debug.infoOn()) {
-                    Debug.logInfo("For Service ECA [" + this.serviceName + "] on [" + this.eventName + "] got false for condition: " + ec, module);
-                }
+                if (Debug.infoOn()) Debug.logInfo("For Service ECA [" + this.serviceName + "] on [" + this.eventName + "] got false for condition: " + ec, module);
                 allCondTrue = false;
                 break;
             } else {
-                if (Debug.verboseOn()) {
-                    Debug.logVerbose("For Service ECA [" + this.serviceName + "] on [" + this.eventName + "] got true for condition: " + ec, module);
-                }
+                if (Debug.verboseOn()) Debug.logVerbose("For Service ECA [" + this.serviceName + "] on [" + this.eventName + "] got true for condition: " + ec, module);
             }
         }
 
@@ -153,9 +147,7 @@ public final class ServiceEcaRule implements java.io.Serializable {
                     // in order to enable OR logic without multiple calls to the given service,
                     // only execute a given service name once per service call phase
                     if (!actionsRun.contains(ea.serviceName)) {
-                        if (Debug.infoOn()) {
-                            Debug.logInfo("Running Service ECA Service: " + ea.serviceName + ", triggered by rule on Service: " + serviceName, module);
-                        }
+                        if (Debug.infoOn()) Debug.logInfo("Running Service ECA Service: " + ea.serviceName + ", triggered by rule on Service: " + serviceName, module);
                         if (ea.runAction(serviceName, dctx, context, result)) {
                             actionsRun.add(ea.serviceName);
                         }
@@ -180,28 +172,14 @@ public final class ServiceEcaRule implements java.io.Serializable {
     public boolean equals(Object obj) {
         if (obj instanceof ServiceEcaRule) {
             ServiceEcaRule other = (ServiceEcaRule) obj;
-            if (!UtilValidate.areEqual(this.serviceName, other.serviceName)) {
-                return false;
-            }
-            if (!UtilValidate.areEqual(this.eventName, other.eventName)) {
-                return false;
-            }
-            if (!this.conditions.equals(other.conditions)) {
-                return false;
-            }
-            if (!this.actionsAndSets.equals(other.actionsAndSets)) {
-                return false;
-            }
+            if (!UtilValidate.areEqual(this.serviceName, other.serviceName)) return false;
+            if (!UtilValidate.areEqual(this.eventName, other.eventName)) return false;
+            if (!this.conditions.equals(other.conditions)) return false;
+            if (!this.actionsAndSets.equals(other.actionsAndSets)) return false;
 
-            if (this.runOnFailure != other.runOnFailure) {
-                return false;
-            }
-            if (this.runOnError != other.runOnError) {
-                return false;
-            }
-            if (this.enabled != other.enabled) {
-                return false;
-            }
+            if (this.runOnFailure != other.runOnFailure) return false;
+            if (this.runOnError != other.runOnError) return false;
+            if (this.enabled != other.enabled) return false;
 
             return true;
         } else {

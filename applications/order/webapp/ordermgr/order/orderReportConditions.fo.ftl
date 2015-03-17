@@ -18,8 +18,8 @@ under the License.
 -->
 <#escape x as x?xml>
 
-<#if shipGroups?? && shipGroups.size() gt 1>
-    <fo:table table-layout="fixed" border-spacing="3pt" space-before="0.3in" font-size="9pt">
+<#if shipGroups?exists && shipGroups.size() gt 1>
+    <fo:table border-spacing="3pt" space-before="0.3in" font-size="9pt">
         <fo:table-column column-width="1in"/>
         <fo:table-column column-width="1in"/>
         <fo:table-column column-width="0.5in"/>
@@ -32,13 +32,13 @@ under the License.
         </fo:table-header>
         <fo:table-body>
             <#list shipGroups as shipGroup>
-                <#assign orderItemShipGroupAssocs = shipGroup.getRelated("OrderItemShipGroupAssoc", null, null, false)!>
+                <#assign orderItemShipGroupAssocs = shipGroup.getRelated("OrderItemShipGroupAssoc")?if_exists>
                 <#if orderItemShipGroupAssocs?has_content>
                     <#list orderItemShipGroupAssocs as shipGroupAssoc>
-                        <#assign orderItem = shipGroupAssoc.getRelatedOne("OrderItem", false)!>
+                        <#assign orderItem = shipGroupAssoc.getRelatedOne("OrderItem")?if_exists>
                         <fo:table-row>
                             <fo:table-cell><fo:block>${shipGroup.shipGroupSeqId}</fo:block></fo:table-cell>
-                            <fo:table-cell><fo:block>${orderItem.productId!}</fo:block></fo:table-cell>
+                            <fo:table-cell><fo:block>${orderItem.productId?if_exists}</fo:block></fo:table-cell>
                             <fo:table-cell text-align="right"><fo:block>${shipGroupAssoc.quantity?string.number}</fo:block></fo:table-cell>
                         </fo:table-row>
                     </#list>

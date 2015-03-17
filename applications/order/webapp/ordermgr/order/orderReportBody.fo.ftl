@@ -18,9 +18,8 @@ under the License.
 -->
 <#escape x as x?xml>
     <#if orderHeader?has_content>
-        <fo:table table-layout="fixed" border-spacing="3pt">
-            <fo:table-column column-width="3in"/>
-            <fo:table-column column-width="1in"/>
+        <fo:table border-spacing="3pt">
+            <fo:table-column column-width="4in"/>
             <fo:table-column column-width="1in"/>
             <fo:table-column column-width="1in"/>
             <fo:table-column column-width="1in"/>
@@ -29,7 +28,6 @@ under the License.
                     <fo:table-cell>
                         <fo:block font-weight="bold">${uiLabelMap.OrderProduct}</fo:block>
                     </fo:table-cell>
-                    <fo:table-cell><fo:block></fo:block></fo:table-cell>
                     <fo:table-cell text-align="right">
                         <fo:block font-weight="bold">${uiLabelMap.OrderQuantity}</fo:block>
                     </fo:table-cell>
@@ -43,31 +41,21 @@ under the License.
             </fo:table-header>
             <fo:table-body>
                 <#list orderItemList as orderItem>
-                    <#assign orderItemType = orderItem.getRelatedOne("OrderItemType", false)!>
-                    <#assign productId = orderItem.productId!>
+                    <#assign orderItemType = orderItem.getRelatedOne("OrderItemType")?if_exists>
+                    <#assign productId = orderItem.productId?if_exists>
                     <#assign remainingQuantity = (orderItem.quantity?default(0) - orderItem.cancelQuantity?default(0))>
                     <#assign itemAdjustment = Static["org.ofbiz.order.order.OrderReadHelper"].getOrderItemAdjustmentsTotal(orderItem, orderAdjustments, true, false, false)>
-                    <#assign internalImageUrl = Static["org.ofbiz.product.imagemanagement.ImageManagementHelper"].getInternalImageUrl(request, productId!)!>
                     <fo:table-row>
                         <fo:table-cell>
                             <fo:block>
                                 <#if orderItem.supplierProductId?has_content>
-                                    ${orderItem.supplierProductId} - ${orderItem.itemDescription!}
-                                <#elseif productId??>
-                                    ${orderItem.productId?default("N/A")} - ${orderItem.itemDescription!}
-                                <#elseif orderItemType??>
-                                    ${orderItemType.get("description",locale)} - ${orderItem.itemDescription!}
+                                    ${orderItem.supplierProductId} - ${orderItem.itemDescription?if_exists}
+                                <#elseif productId?exists>
+                                    ${orderItem.productId?default("N/A")} - ${orderItem.itemDescription?if_exists}
+                                <#elseif orderItemType?exists>
+                                    ${orderItemType.get("description",locale)} - ${orderItem.itemDescription?if_exists}
                                 <#else>
-                                    ${orderItem.itemDescription!}
-                                </#if>
-                            </fo:block>
-                        </fo:table-cell>
-                        <fo:table-cell>
-                            <fo:block>
-                                <#if orderHeader.orderTypeId == "PURCHASE_ORDER">
-                                    <#if internalImageUrl?has_content>
-                                        <fo:external-graphic src="${internalImageUrl}" overflow="hidden" content-width="100"/>
-                                    </#if>
+                                    ${orderItem.itemDescription?if_exists}
                                 </#if>
                             </fo:block>
                         </fo:table-cell>
@@ -99,17 +87,16 @@ under the License.
                     </#if>
                 </#list>
                 <#list orderHeaderAdjustments as orderHeaderAdjustment>
-                    <#assign adjustmentType = orderHeaderAdjustment.getRelatedOne("OrderAdjustmentType", false)>
+                    <#assign adjustmentType = orderHeaderAdjustment.getRelatedOne("OrderAdjustmentType")>
                     <#assign adjustmentAmount = Static["org.ofbiz.order.order.OrderReadHelper"].calcOrderAdjustment(orderHeaderAdjustment, orderSubTotal)>
                     <#if adjustmentAmount != 0>
                         <fo:table-row>
-                            <fo:table-cell><fo:block></fo:block></fo:table-cell>
-                            <fo:table-cell><fo:block></fo:block></fo:table-cell>
+                            <fo:table-cell></fo:table-cell>
                             <fo:table-cell number-columns-spanned="2">
                                 <fo:block font-weight="bold">
                                     ${adjustmentType.get("description",locale)} :
                                     <#if orderHeaderAdjustment.get("description")?has_content>
-                                        (${orderHeaderAdjustment.get("description")!})
+                                        (${orderHeaderAdjustment.get("description")?if_exists})
                                     </#if>
                                 </fo:block>
                             </fo:table-cell>
@@ -121,8 +108,7 @@ under the License.
                 </#list>
                 <#-- summary of order amounts -->
                 <fo:table-row>
-                    <fo:table-cell><fo:block></fo:block></fo:table-cell>
-                    <fo:table-cell><fo:block></fo:block></fo:table-cell>
+                    <fo:table-cell></fo:table-cell>
                     <fo:table-cell number-columns-spanned="2">
                         <fo:block font-weight="bold">${uiLabelMap.OrderItemsSubTotal}</fo:block>
                     </fo:table-cell>
@@ -132,8 +118,7 @@ under the License.
                 </fo:table-row>
                 <#if otherAdjAmount != 0>
                     <fo:table-row>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
+                        <fo:table-cell></fo:table-cell>
                         <fo:table-cell number-columns-spanned="2">
                             <fo:block font-weight="bold">${uiLabelMap.OrderTotalOtherOrderAdjustments}</fo:block>
                         </fo:table-cell>
@@ -144,8 +129,7 @@ under the License.
                 </#if>
                 <#if shippingAmount != 0>
                     <fo:table-row>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
+                        <fo:table-cell></fo:table-cell>
                         <fo:table-cell number-columns-spanned="2">
                             <fo:block font-weight="bold">${uiLabelMap.OrderTotalShippingAndHandling}</fo:block>
                         </fo:table-cell>
@@ -156,8 +140,7 @@ under the License.
                 </#if>
                 <#if taxAmount != 0>
                     <fo:table-row>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
+                        <fo:table-cell></fo:table-cell>
                         <fo:table-cell number-columns-spanned="2">
                             <fo:block font-weight="bold">${uiLabelMap.OrderTotalSalesTax}</fo:block>
                         </fo:table-cell>
@@ -168,8 +151,7 @@ under the License.
                 </#if>
                 <#if grandTotal != 0>
                     <fo:table-row>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
-                        <fo:table-cell><fo:block></fo:block></fo:table-cell>
+                        <fo:table-cell></fo:table-cell>
                         <fo:table-cell number-columns-spanned="2" background-color="#EEEEEE">
                             <fo:block font-weight="bold">${uiLabelMap.OrderTotalDue}</fo:block>
                         </fo:table-cell>
@@ -194,18 +176,16 @@ under the License.
                         <#if (note.internalNote?has_content) && (note.internalNote != "Y")>
                             <fo:table-row>
                                 <fo:table-cell number-columns-spanned="1">
-                                    <fo:block>${note.noteInfo!}</fo:block>
+                                    <fo:block>${note.noteInfo?if_exists}</fo:block>
                                 </fo:table-cell>
                                 <fo:table-cell number-columns-spanned="2">
-                                    <fo:block>
                                     <#if note.noteParty?has_content>
                                         <#assign notePartyNameResult = dispatcher.runSync("getPartyNameForDate", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", note.noteParty, "compareDate", note.noteDateTime, "lastNameFirst", "Y", "userLogin", userLogin))/>
-                                        ${uiLabelMap.CommonBy}: ${notePartyNameResult.fullName?default("${uiLabelMap.OrderPartyNameNotFound}")}
+                                        <fo:block>${uiLabelMap.CommonBy}: ${notePartyNameResult.fullName?default("${uiLabelMap.OrderPartyNameNotFound}")}</fo:block>
                                     </#if>
-                                    </fo:block>
                                 </fo:table-cell>
                                 <fo:table-cell number-columns-spanned="1">
-                                    <fo:block>${uiLabelMap.CommonAt}: ${note.noteDateTime?string!}</fo:block>
+                                    <fo:block>${uiLabelMap.CommonAt}: ${note.noteDateTime?string?if_exists}</fo:block>
                                 </fo:table-cell>
                             </fo:table-row>
                         </#if>

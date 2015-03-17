@@ -35,7 +35,7 @@ import javolution.util.FastMap;
 
 invoiceId = parameters.get("invoiceId");
 
-invoice = from('Invoice').where('invoiceId', invoiceId).queryOne();
+invoice = delegator.findByPrimaryKey("Invoice", [invoiceId : invoiceId]);
 context.invoice = invoice;
 
 currency = parameters.currency;        // allow the display of the invoice in the original currency, the default is to display the invoice in the default currency
@@ -56,8 +56,8 @@ if (invoice) {
     if (billingAddress) {
         context.billingAddress = billingAddress;
     }
-    billToParty = InvoiceWorker.getBillToParty(invoice);
-    context.billToParty = billToParty;
+    billingParty = InvoiceWorker.getBillToParty(invoice);
+    context.billingParty = billingParty;
     sendingParty = InvoiceWorker.getSendFromParty(invoice);
     context.sendingParty = sendingParty;
 
@@ -67,7 +67,7 @@ if (invoice) {
         invoice.invoiceMessage = " converted from original with a rate of: " + conversionRate.setScale(8, rounding);
     }
 
-    invoiceItems = invoice.getRelated("InvoiceItem", null, ["invoiceItemSeqId"], false);
+    invoiceItems = invoice.getRelatedOrderBy("InvoiceItem", ["invoiceItemSeqId"]);
     invoiceItemsConv = FastList.newInstance();
     vatTaxesByType = FastMap.newInstance();
     invoiceItems.each { invoiceItem ->
@@ -75,21 +75,12 @@ if (invoice) {
         invoiceItemsConv.add(invoiceItem);
         // get party tax id for VAT taxes: they are required in invoices by EU
         // also create a map with tax grand total amount by VAT tax: it is also required in invoices by UE
-        taxRate = invoiceItem.getRelatedOne("TaxAuthorityRateProduct", false);
+        taxRate = invoiceItem.getRelatedOne("TaxAuthorityRateProduct");
         if (taxRate && "VAT_TAX".equals(taxRate.taxAuthorityRateTypeId)) {
-            taxInfo = from("PartyTaxAuthInfo")
-                .where('partyId', billToParty.partyId, 'taxAuthGeoId', taxRate.taxAuthGeoId, 'taxAuthPartyId', taxRate.taxAuthPartyId)
-                .filterByDate(invoice.invoiceDate)
-                .queryFirst();
+            taxInfos = EntityUtil.filterByDate(delegator.findByAnd("PartyTaxAuthInfo", [partyId : billingParty.partyId, taxAuthGeoId : taxRate.taxAuthGeoId, taxAuthPartyId : taxRate.taxAuthPartyId]), invoice.invoiceDate);
+            taxInfo = EntityUtil.getFirst(taxInfos);
             if (taxInfo) {
-                context.billToPartyTaxId = taxInfo.partyTaxId;
-            }
-            taxInfo = from("PartyTaxAuthInfo")
-                .where('partyId', sendingParty.partyId, 'taxAuthGeoId', taxRate.taxAuthGeoId, 'taxAuthPartyId', taxRate.taxAuthPartyId)
-                .filterByDate(invoice.invoiceDate)
-                .queryFirst();
-            if (taxInfo) {
-                context.sendingPartyTaxId = taxInfo.partyTaxId;
+                context.billingPartyTaxId = taxInfo.partyTaxId;
             }
             vatTaxesByTypeAmount = vatTaxesByType[taxRate.taxAuthorityRateSeqId];
             if (!vatTaxesByTypeAmount) {
@@ -110,10 +101,10 @@ if (invoice) {
 
                 //*________________this snippet was added for adding Tax ID in invoice header if needed _________________
 
-               sendingTaxInfos = sendingParty.getRelated("PartyTaxAuthInfo", null, null, false);
-               billingTaxInfos = billToParty.getRelated("PartyTaxAuthInfo", null, null, false);
+               sendingTaxInfos = sendingParty.getRelated("PartyTaxAuthInfo");
+               billingTaxInfos = billingParty.getRelated("PartyTaxAuthInfo");
                sendingPartyTaxId = null;
-               billToPartyTaxId = null;
+               billingPartyTaxId = null;
 
                if (billingAddress) {
                    sendingTaxInfos.eachWithIndex { sendingTaxInfo, i ->
@@ -123,38 +114,38 @@ if (invoice) {
                    }
                    billingTaxInfos.eachWithIndex { billingTaxInfo, i ->
                        if (billingTaxInfo.taxAuthGeoId.equals(billingAddress.countryGeoId)) {
-                            billToPartyTaxId = billingTaxInfos[i-1].partyTaxId;
+                            billingPartyTaxId = billingTaxInfos[i-1].partyTaxId;
                        }
                    }
                }
                if (sendingPartyTaxId) {
                    context.sendingPartyTaxId = sendingPartyTaxId;
                }
-               if (billToPartyTaxId && !context.billToPartyTaxId) {
-                   context.billToPartyTaxId = billToPartyTaxId;
+               if (billingPartyTaxId && !context.billingPartyTaxId) {
+                   context.billingPartyTaxId = billingPartyTaxId;
                }
                //________________this snippet was added for adding Tax ID in invoice header if needed _________________*/
 
 
-    terms = invoice.getRelated("InvoiceTerm", null, null, false);
+    terms = invoice.getRelated("InvoiceTerm");
     context.terms = terms;
 
-    paymentAppls = from("PaymentApplication").where('invoiceId', invoiceId).queryList();
+    paymentAppls = delegator.findByAnd("PaymentApplication", [invoiceId : invoiceId]);
     context.payments = paymentAppls;
 
-    orderItemBillings = from("OrderItemBilling").where('invoiceId', invoiceId).orderBy('orderId').queryList();
+    orderItemBillings = delegator.findByAnd("OrderItemBilling", [invoiceId : invoiceId], ['orderId']);
     orders = new LinkedHashSet();
     orderItemBillings.each { orderIb ->
         orders.add(orderIb.orderId);
     }
     context.orders = orders;
 
-    invoiceStatus = invoice.getRelatedOne("StatusItem", false);
+    invoiceStatus = invoice.getRelatedOne("StatusItem");
     context.invoiceStatus = invoiceStatus;
 
     edit = parameters.editInvoice;
     if ("true".equalsIgnoreCase(edit)) {
-        invoiceItemTypes = from("InvoiceItemType").queryList();
+        invoiceItemTypes = delegator.findList("InvoiceItemType", null, null, null, null, false);
         context.invoiceItemTypes = invoiceItemTypes;
         context.editInvoice = true;
     }

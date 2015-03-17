@@ -28,7 +28,7 @@ under the License.
         <menu-item name="Forecast" title="${uiLabelMap.SfaForecasts}"><link target="FindSalesForecast"/></menu-item>
         <menu-item name="Opportunities" title="${uiLabelMap.SfaOpportunities}"><link target="FindSalesOpportunity"/></menu-item>
         <menu-item name="Preferences" title="${uiLabelMap.CommonPreferences}" align-style="opposed">
-            <link target="ManagePortalPages" link-type="anchor">
+            <link target="ManagePortalPages">
                 <parameter param-name="parentPortalPageId" from-field="parameters.parentPortalPageId"/>
             </link>
         </menu-item>
@@ -46,16 +46,6 @@ under the License.
             </link>
         </menu-item>
         <menu-item name="PartyCommEvents" title="${uiLabelMap.PartyCommunications}">
-            <condition>
-                <and>
-                    <not><if-empty field="parameters.salesOpportunityId"/></not>
-                    <or>
-                        <not><if-empty field="leadPartyId"/></not>
-                        <not><if-empty field="leadParty.leadPartyId"/></not>
-                        <not><if-empty field="partyId"/></not>
-                    </or>
-                </and>
-            </condition>
             <link target="ListPartyCommEvents">
                 <parameter param-name="salesOpportunityId" from-field="parameters.salesOpportunityId"/>
             </link>

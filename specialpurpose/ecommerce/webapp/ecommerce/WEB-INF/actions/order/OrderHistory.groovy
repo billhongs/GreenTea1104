@@ -22,22 +22,23 @@ import org.ofbiz.entity.*;
 import org.ofbiz.entity.util.*;
 import org.ofbiz.entity.condition.*;
 
-partyRole = from("PartyRole").where("partyId", userLogin.partyId, "roleTypeId", "SUPPLIER").queryOne();
+partyRole = delegator.findByPrimaryKey("PartyRole", [partyId : userLogin.partyId, roleTypeId : "SUPPLIER"]);
 if (partyRole) {
     if ("SUPPLIER".equals(partyRole.roleTypeId)) {
         /** drop shipper or supplier **/
-        porderRoleCollection = from("OrderRole").where("partyId", userLogin.partyId, "roleTypeId", "SUPPLIER_AGENT").queryList();
-        porderHeaderList = EntityUtil.orderBy(EntityUtil.filterByAnd(EntityUtil.getRelated("OrderHeader", null, porderRoleCollection, false),
+        porderRoleCollection = delegator.findByAnd("OrderRole", [partyId : userLogin.partyId, roleTypeId : "SUPPLIER_AGENT"]);
+        porderHeaderList = EntityUtil.orderBy(EntityUtil.filterByAnd(EntityUtil.getRelated("OrderHeader", porderRoleCollection),
                 [EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_REJECTED"),
                  EntityCondition.makeCondition("orderTypeId", EntityOperator.EQUALS, "PURCHASE_ORDER")]),
                  ["orderDate DESC"]);
         context.porderHeaderList = porderHeaderList;
     }
 }
-orderRoleCollection = from("OrderRole").where("partyId", userLogin.partyId, "roleTypeId", "PLACING_CUSTOMER").queryList();
-orderHeaderList = EntityUtil.orderBy(EntityUtil.filterByAnd(EntityUtil.getRelated("OrderHeader", null, orderRoleCollection, false),
+orderRoleCollection = delegator.findByAnd("OrderRole", [partyId : userLogin.partyId, roleTypeId : "PLACING_CUSTOMER"]);
+orderHeaderList = EntityUtil.orderBy(EntityUtil.filterByAnd(EntityUtil.getRelated("OrderHeader", orderRoleCollection),
         [EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_REJECTED")]), ["orderDate DESC"]);
 context.orderHeaderList = orderHeaderList;
 
-downloadOrderRoleAndProductContentInfoList = from("OrderRoleAndProductContentInfo").where("partyId", userLogin.partyId, "roleTypeId", "PLACING_CUSTOMER", "productContentTypeId", "DIGITAL_DOWNLOAD", "statusId", "ITEM_COMPLETED").queryList();
+downloadOrderRoleAndProductContentInfoList = delegator.findByAnd("OrderRoleAndProductContentInfo",
+    [partyId : userLogin.partyId, roleTypeId : "PLACING_CUSTOMER", productContentTypeId : "DIGITAL_DOWNLOAD", statusId : "ITEM_COMPLETED"]);
 context.downloadOrderRoleAndProductContentInfoList = downloadOrderRoleAndProductContentInfoList;

@@ -25,23 +25,7 @@ under the License.
     <test-case case-name="shoppingCart-test">
         <simple-method-test location="component://order/script/org/ofbiz/order/test/ShoppingCartTests.xml" name="testCreateShoppingCart"/>
     </test-case>
-    
-    <test-case case-name="productRentalOrder-test">
-        <simple-method-test location="component://order/script/org/ofbiz/order/test/ShoppingCartTests.xml" name="testCreateOrderRentalProduct"/>
-    </test-case>
-    
-    <test-case case-name="productServiceOrder-test">
-        <simple-method-test location="component://order/script/org/ofbiz/order/test/ShoppingCartTests.xml" name="testCreateOrderServiceProduct"/>
-    </test-case>
     <test-case case-name="loadCartFromQuote-test">
         <simple-method-test location="component://order/script/org/ofbiz/order/test/ShoppingCartTests.xml" name="testLoadCartFromQuote"/>
-    </test-case>
-    
-    <test-case case-name="configurableServiceOrder-test">
-        <simple-method-test location="component://order/script/org/ofbiz/order/test/ShoppingCartTests.xml" name="testCreateOrderConfigurableServiceProduct"/>
-    </test-case>
-
-    <test-case case-name="testOrderMoveItemBetweenShipGoups">
-        <simple-method-test location="component://order/script/org/ofbiz/order/test/ShoppingCartTests.xml" name="testOrderMoveItemBetweenShipGoups"/>
     </test-case>
 </test-suite>

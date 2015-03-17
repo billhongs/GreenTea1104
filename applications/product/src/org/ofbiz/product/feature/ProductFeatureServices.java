@@ -36,7 +36,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
@@ -94,7 +93,7 @@ public class ProductFeatureServices {
 
         try {
             // get all product features in this feature category
-            List<GenericValue> allFeatures = EntityQuery.use(delegator).from(entityToSearch).where(fieldToSearch, valueToSearch).orderBy(orderBy).queryList();
+            List<GenericValue> allFeatures = delegator.findByAnd(entityToSearch, UtilMisc.toMap(fieldToSearch, valueToSearch), orderBy);
 
             if (entityToSearch.equals("ProductFeatureAndAppl") && productFeatureApplTypeId != null)
                 allFeatures = EntityUtil.filterByAnd(allFeatures, UtilMisc.toMap("productFeatureApplTypeId", productFeatureApplTypeId));
@@ -142,7 +141,7 @@ public class ProductFeatureServices {
              * see if it has every single feature in the list of productFeatureAppls as a STANDARD_FEATURE.  If so, then
              * it qualifies and add it to the list of existingVariantProductIds.
              */
-            List<GenericValue> productAssocs = EntityQuery.use(delegator).from("ProductAssoc").where("productId", productId, "productAssocTypeId", "PRODUCT_VARIANT").filterByDate().queryList();
+            List<GenericValue> productAssocs = EntityUtil.filterByDate(delegator.findByAnd("ProductAssoc", UtilMisc.toMap("productId", productId, "productAssocTypeId", "PRODUCT_VARIANT")));
             for (GenericValue productAssoc: productAssocs) {
 
                 //for each associated product, if it has all standard features, display it's productId
@@ -154,7 +153,7 @@ public class ProductFeatureServices {
 
                     //Debug.logInfo("Using findByMap: " + findByMap);
 
-                    List<GenericValue> standardProductFeatureAndAppls = EntityQuery.use(delegator).from("ProductFeatureAppl").where(findByMap).filterByDate().queryList();
+                    List<GenericValue> standardProductFeatureAndAppls = EntityUtil.filterByDate(delegator.findByAnd("ProductFeatureAppl", findByMap));
                     if (UtilValidate.isEmpty(standardProductFeatureAndAppls)) {
                         // Debug.logInfo("Does NOT have this standard feature");
                         hasAllFeatures = false;

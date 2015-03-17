@@ -23,13 +23,14 @@ import static org.ofbiz.base.util.UtilGenerics.checkMap;
 
 import java.sql.Timestamp;
 import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import javolution.util.FastList;
+import javolution.util.FastMap;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.ObjectType;
@@ -53,9 +54,7 @@ import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelField;
 import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -71,13 +70,12 @@ public class FindServices {
     public static Map<String, EntityComparisonOperator<?, ?>> entityOperators;
 
     static {
-        entityOperators =  new LinkedHashMap<String, EntityComparisonOperator<?, ?>>();
+        entityOperators = FastMap.newInstance();
         entityOperators.put("between", EntityOperator.BETWEEN);
         entityOperators.put("equals", EntityOperator.EQUALS);
         entityOperators.put("greaterThan", EntityOperator.GREATER_THAN);
         entityOperators.put("greaterThanEqualTo", EntityOperator.GREATER_THAN_EQUAL_TO);
         entityOperators.put("in", EntityOperator.IN);
-        entityOperators.put("not-in", EntityOperator.NOT_IN);
         entityOperators.put("lessThan", EntityOperator.LESS_THAN);
         entityOperators.put("lessThanEqualTo", EntityOperator.LESS_THAN_EQUAL_TO);
         entityOperators.put("like", EntityOperator.LIKE);
@@ -111,7 +109,7 @@ public class FindServices {
         // Note that "normalizedFields" will contain values other than those
         // Contained in the associated entity.
         // Those extra fields will be ignored in the second half of this method.
-        Map<String, Map<String, Map<String, Object>>> normalizedFields = new LinkedHashMap<String, Map<String, Map<String, Object>>>();
+        Map<String, Map<String, Map<String, Object>>> normalizedFields = FastMap.newInstance();
         //StringBuffer queryStringBuf = new StringBuffer();
         for (String fieldNameRaw: inputFields.keySet()) { // The name as it appeas in the HTML form
             String fieldNameRoot = null; // The entity field name. Everything to the left of the first "_" if
@@ -183,19 +181,19 @@ public class FindServices {
             }
             subMap = normalizedFields.get(fieldNameRoot);
             if (subMap == null) {
-                subMap = new LinkedHashMap<String, Map<String, Object>>();
+                subMap = FastMap.newInstance();
                 normalizedFields.put(fieldNameRoot, subMap);
             }
             subMap2 = subMap.get(fieldPair);
             if (subMap2 == null) {
-                subMap2 = new LinkedHashMap<String, Object>();
+                subMap2 = FastMap.newInstance();
                 subMap.put(fieldPair, subMap2);
             }
             subMap2.put(fieldMode, fieldValue);
 
             List<Object[]> origList = origValueMap.get(fieldNameRoot);
             if (origList == null) {
-                origList = new LinkedList<Object[]>();
+                origList = FastList.newInstance();
                 origValueMap.put(fieldNameRoot, origList);
             }
             Object [] origValues = {fieldNameRaw, fieldValue};
@@ -212,16 +210,16 @@ public class FindServices {
      * @param queryStringMap
      * @param delegator
      * @param context
-     * @return returns an EntityCondition list
+     * @return
      */
     public static List<EntityCondition> createConditionList(Map<String, ? extends Object> parameters, List<ModelField> fieldList, Map<String, Object> queryStringMap, Delegator delegator, Map<String, ?> context) {
-        Set<String> processed = new LinkedHashSet<String>();
-        Set<String> keys = new LinkedHashSet<String>();
-        Map<String, ModelField> fieldMap = new LinkedHashMap<String, ModelField>();
+        Set<String> processed = FastSet.newInstance();
+        Set<String> keys = FastSet.newInstance();
+        Map<String, ModelField> fieldMap = FastMap.newInstance();
         for (ModelField modelField : fieldList) {
             fieldMap.put(modelField.getName(), modelField);
         }
-        List<EntityCondition> result = new LinkedList<EntityCondition>();
+        List<EntityCondition> result = FastList.newInstance();
         for (Map.Entry<String, ? extends Object> entry : parameters.entrySet()) {
             String parameterName = entry.getKey();
             if (processed.contains(parameterName)) {
@@ -289,7 +287,7 @@ public class FindServices {
      * @param ignoreCase
      * @param delegator
      * @param context
-     * @return return an EntityCondition
+     * @return
      */
     public static EntityCondition createSingleCondition(ModelField modelField, String operation, Object fieldValue, boolean ignoreCase, Delegator delegator, Map<String, ?> context) {
         EntityCondition cond = null;
@@ -334,7 +332,7 @@ public class FindServices {
             fieldOp = EntityOperator.EQUALS;
         }
         Object fieldObject = fieldValue;
-        if ((fieldOp != EntityOperator.IN && fieldOp != EntityOperator.NOT_IN ) || !(fieldValue instanceof Collection<?>)) {
+        if (fieldOp != EntityOperator.IN || !(fieldValue instanceof Collection<?>)) {
             fieldObject = modelField.getModelEntity().convertFieldValue(modelField, fieldValue, delegator, context);
         }
         if (ignoreCase && fieldObject instanceof String) {
@@ -356,8 +354,8 @@ public class FindServices {
      *
      * This is use to the generic method that expects entity data affixed with special suffixes
      * to indicate their purpose in formulating an SQL query statement.
-     * @param modelEntity the model entity object
-     * @param normalizedFields list of field the user have populated
+     * @param keys     list of field for which it's possible to make the query
+     * @param normalizedFields     list of field the user have populated
      * @return a arrayList usable to create an entityCondition
      */
     public static List<EntityCondition> createCondition(ModelEntity modelEntity, Map<String, Map<String, Map<String, Object>>> normalizedFields, Map<String, Object> queryStringMap, Map<String, List<Object[]>> origValueMap, Delegator delegator, Map<String, ?> context) {
@@ -366,7 +364,7 @@ public class FindServices {
         Object fieldValue = null; // If it is a "value" field, it will be the value to be used in the query.
                                   // If it is an "op" field, it will be "equals", "greaterThan", etc.
         EntityCondition cond = null;
-        List<EntityCondition> tmpList = new LinkedList<EntityCondition>();
+        List<EntityCondition> tmpList = FastList.newInstance();
         String opString = null;
         boolean ignoreCase = false;
         List<ModelField> fields = modelEntity.getFieldsUnmodifiable();
@@ -464,14 +462,13 @@ public class FindServices {
         List<String> fieldList =  UtilGenerics.<String>checkList(context.get("fieldList"));
         GenericValue userLogin = (GenericValue) context.get("userLogin");
         Locale locale = (Locale) context.get("locale");
-        Delegator delegator = dctx.getDelegator();
         if (UtilValidate.isEmpty(noConditionFind)) {
             // try finding in inputFields Map
             noConditionFind = (String) inputFields.get("noConditionFind");
         }
         if (UtilValidate.isEmpty(noConditionFind)) {
             // Use configured default
-            noConditionFind = EntityUtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind", delegator);
+            noConditionFind = UtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind");
         }
         String filterByDate = (String) context.get("filterByDate");
         if (UtilValidate.isEmpty(filterByDate)) {
@@ -532,7 +529,6 @@ public class FindServices {
      */
     public static Map<String, Object> prepareFind(DispatchContext dctx, Map<String, ?> context) {
         String entityName = (String) context.get("entityName");
-        Delegator delegator = dctx.getDelegator();
         String orderBy = (String) context.get("orderBy");
         Map<String, ?> inputFields = checkMap(context.get("inputFields"), String.class, Object.class); // Input
         String noConditionFind = (String) context.get("noConditionFind");
@@ -542,7 +538,7 @@ public class FindServices {
         }
         if (UtilValidate.isEmpty(noConditionFind)) {
             // Use configured default
-            noConditionFind = EntityUtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind", delegator);
+            noConditionFind = UtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind");
         }
         String filterByDate = (String) context.get("filterByDate");
         if (UtilValidate.isEmpty(filterByDate)) {
@@ -551,7 +547,8 @@ public class FindServices {
         }
         Timestamp filterByDateValue = (Timestamp) context.get("filterByDateValue");
 
-        Map<String, Object> queryStringMap = new LinkedHashMap<String, Object>();
+        Map<String, Object> queryStringMap = FastMap.newInstance();
+        Delegator delegator = dctx.getDelegator();
         ModelEntity modelEntity = delegator.getModelEntity(entityName);
         List<EntityCondition> tmpList = createConditionList(inputFields, modelEntity.getFieldsUnmodifiable(), queryStringMap, delegator, context);
 
@@ -618,15 +615,8 @@ public class FindServices {
         int listSize = 0;
         try {
             if (noConditionFind || (entityConditionList != null && entityConditionList.getConditionListSize() > 0)) {
-                listIt = EntityQuery.use(delegator)
-                                    .select(fieldSet)
-                                    .from(entityName)
-                                    .where(entityConditionList)
-                                    .orderBy(orderByList)
-                                    .cursorScrollInsensitive()
-                                    .maxRows(maxRows)
-                                    .distinct(distinct)
-                                    .queryIterator();
+                listIt = delegator.find(entityName, entityConditionList, null, fieldSet, orderByList,
+                        new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, -1, maxRows, distinct));
                 listSize = listIt.getResultsSizeAfterPartialList();
             }
         } catch (GenericEntityException e) {
@@ -674,7 +664,7 @@ public class FindServices {
         // Contained in the associated entity.
         // Those extra fields will be ignored in the second half of this method.
         ModelEntity modelEntity = delegator.getModelEntity(entityName);
-        Map<String, Object> normalizedFields = new LinkedHashMap<String, Object>();
+        Map<String, Object> normalizedFields = FastMap.newInstance();
         //StringBuffer queryStringBuf = new StringBuffer();
         for (String fieldNameRaw: inputFields.keySet()) { // The name as it appeas in the HTML form
             String fieldNameRoot = null; // The entity field name. Everything to the left of the first "_" if
@@ -723,7 +713,7 @@ public class FindServices {
      *
      * @param dctx
      * @param context
-     * @return returns the first item 
+     * @return
      */
     public static Map<String, Object> performFindItem(DispatchContext dctx, Map<String, Object> context) {
         context.put("viewSize", 1);

@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
     <simple-method method-name="issueImmediatelyFulfilledOrder" short-description="Issues the Inventory for an Order that was Immediately Fulfilled" login-required="false">
         <entity-one entity-name="OrderHeader" value-field="orderHeader"/>
 
@@ -138,10 +138,10 @@ under the License.
                     <set field="createDetailMap.orderId" from-field="parameters.orderId"/>
                     <set field="createDetailMap.orderItemSeqId" from-field="parameters.orderItemSeqId"/>
                     <set field="createDetailMap.itemIssuanceId" from-field="itemIssuanceId"/>
-                    <calculate field="createDetailMap.availableToPromiseDiff" decimal-scale="6">
+                    <calculate field="createDetailMap.availableToPromiseDiff">
                         <calcop field="parameters.quantityNotIssued" operator="negative"/>
                     </calculate>
-                    <calculate field="createDetailMap.quantityOnHandDiff" decimal-scale="6">
+                    <calculate field="createDetailMap.quantityOnHandDiff">
                         <calcop field="parameters.quantityNotIssued" operator="negative"/>
                     </calculate>
                     <call-service service-name="createInventoryItemDetail" in-map-name="createDetailMap"/>
@@ -173,10 +173,10 @@ under the License.
                     <set field="createDetailMap.orderId" from-field="parameters.orderId"/>
                     <set field="createDetailMap.orderItemSeqId" from-field="parameters.orderItemSeqId"/>
                     <set field="createDetailMap.itemIssuanceId" from-field="itemIssuanceId"/>
-                    <calculate field="createDetailMap.availableToPromiseDiff" decimal-scale="6">
+                    <calculate field="createDetailMap.availableToPromiseDiff">
                         <calcop field="parameters.quantityNotIssued" operator="negative"/>
                     </calculate>
-                    <calculate field="createDetailMap.quantityOnHandDiff" decimal-scale="6">
+                    <calculate field="createDetailMap.quantityOnHandDiff">
                         <calcop field="parameters.quantityNotIssued" operator="negative"/>
                     </calculate>
                     <call-service service-name="createInventoryItemDetail" in-map-name="createDetailMap"/>
@@ -249,10 +249,10 @@ under the License.
                         <set field="createDetailMap.orderItemSeqId" from-field="parameters.orderItemSeqId"/>
                         <set field="createDetailMap.itemIssuanceId" from-field="itemIssuanceId"/>
                         <!-- update availableToPromiseDiff AND quantityOnHandDiff since this is an issuance -->
-                        <calculate field="createDetailMap.availableToPromiseDiff" decimal-scale="6">
+                        <calculate field="createDetailMap.availableToPromiseDiff">
                             <calcop field="parameters.deductAmount" operator="negative"/>
                         </calculate>
-                        <calculate field="createDetailMap.quantityOnHandDiff" decimal-scale="6">
+                        <calculate field="createDetailMap.quantityOnHandDiff">
                             <calcop field="parameters.deductAmount" operator="negative"/>
                         </calculate>
                         <call-service service-name="createInventoryItemDetail" in-map-name="createDetailMap"/>

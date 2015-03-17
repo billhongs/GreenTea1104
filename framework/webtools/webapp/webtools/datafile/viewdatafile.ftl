@@ -23,7 +23,7 @@ under the License.
         <table class="basic-table" cellspacing="0">
           <tr>
             <td class="label">${uiLabelMap.WebtoolsDataDefinitionFileName}</td>
-            <td><input name="DEFINITION_LOCATION" type="text" size="60" value="${parameters.DEFINITION_LOCATION!}" /></td>
+            <td><input name="DEFINITION_LOCATION" type="text" size="60" value="${parameters.DEFINITION_LOCATION?if_exists}" /></td>
             <td><span class="label">${uiLabelMap.WebtoolsDataIsUrl}</span><input type="checkbox" name="DEFINITION_IS_URL"<#if parameters.DEFINITION_IS_URL?has_content> checked="checked"</#if> /></td>
           </tr>
           <tr>
@@ -33,29 +33,29 @@ under the License.
                 <select name="DEFINITION_NAME">
                   <option value=""></option>
                   <#list definitionNames as oneDefinitionName>
-                    boolean isSelected = definitionName?? && definitionName.equals(oneDefinitionName);
-                    <option value="${oneDefinitionName}" <#if parameters.DEFINITION_NAME?? && parameters.DEFINITION_NAME == oneDefinitionName> selected="selected" </#if>>${oneDefinitionName}</option>
+                    boolean isSelected = definitionName != null && definitionName.equals(oneDefinitionName);
+                    <option value="${oneDefinitionName}" <#if parameters.DEFINITION_NAME?exists && parameters.DEFINITION_NAME == oneDefinitionName> selected="selected" </#if>>${oneDefinitionName}</option>
                   </#list>
                 </select>
               <#else>
-                <input name="DEFINITION_NAME" type="text" size="30" value="${definitionName!}" />
+                <input name="DEFINITION_NAME" type="text" size="30" value="${definitionName?if_exists}" />
               </#if>
             </td>
             <td>&nbsp;</td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.WebtoolsDataFileName}</td>
-            <td><input name="DATAFILE_LOCATION" type="text" size="60" value="${parameters.DATAFILE_LOCATION!}" /></td>
+            <td><input name="DATAFILE_LOCATION" type="text" size="60" value="${parameters.DATAFILE_LOCATION?if_exists}" /></td>
             <td><span class="label">${uiLabelMap.WebtoolsDataIsUrl}</span><input type="checkbox" name="DATAFILE_IS_URL"<#if parameters.DATAFILE_IS_URL?has_content> checked="checked"</#if> /></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.WebtoolsDataSaveToFile}</td>
-            <td><input name="DATAFILE_SAVE" type="text" size="60" value="${parameters.DATAFILE_SAVE!}"/></td>
+            <td><input name="DATAFILE_SAVE" type="text" size="60" value="${parameters.DATAFILE_SAVE?if_exists}"/></td>
             <td>&nbsp;</td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.WebtoolsDataSaveToXml}</td>
-            <td><input name="ENTITYXML_FILE_SAVE" type="text" size="60" value="${parameters.ENTITYXML_FILE_SAVE!}" /></td>
+            <td><input name="ENTITYXML_FILE_SAVE" type="text" size="60" value="${parameters.ENTITYXML_FILE_SAVE?if_exists}" /></td>
             <td>&nbsp;</td>
           </tr>
           <tr>
@@ -82,7 +82,7 @@ under the License.
           <#assign modelRecord = record.getModelRecord()>
           <#-- if record is different than the last displayed, make a new table and header row -->
           <#if !modelRecord.name.equals(lastRecordName)>
-            <#if lastRecordName??>
+            <#if lastRecordName != null>
               </table><br />
             </#if>
             <table class="basic-table hover-bar" cellspacing="0">
@@ -113,7 +113,7 @@ under the License.
               </#if>
             </#list>
           </tr>
-          <#if (record.getChildRecords())?has_content>
+          <#if record.getChildRecords() != null && (record.getChildRecords().size() > 0)>
             <@displayrecords records = record.getChildRecords()/>
           </#if>
         </#list>

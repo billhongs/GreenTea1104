@@ -40,7 +40,7 @@ import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityExpr;
 import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.util.EntityListIterator;
-import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.order.finaccount.FinAccountHelper;
 import org.ofbiz.product.store.ProductStoreWorker;
 import org.ofbiz.service.DispatchContext;
@@ -98,9 +98,10 @@ public class FinAccountServices {
             // check for an existing account
             GenericValue creditAccount;
             if (finAccountId != null) {
-                creditAccount = EntityQuery.use(delegator).from("FinAccount").where("finAccountId", finAccountId).queryOne();
+                creditAccount = delegator.findByPrimaryKey("FinAccount", UtilMisc.toMap("finAccountId", finAccountId));
             } else {
-                creditAccount = EntityQuery.use(delegator).from("FinAccount").where(lookupMap).orderBy("-fromDate").filterByDate().queryFirst();
+                List<GenericValue> creditAccounts = delegator.findByAnd("FinAccount", lookupMap, UtilMisc.toList("-fromDate"));
+                creditAccount = EntityUtil.getFirst(EntityUtil.filterByDate(creditAccounts));
             }
 
             if (creditAccount == null) {
@@ -125,7 +126,7 @@ public class FinAccountServices {
                 if (createAccountResult != null) {
                     String creditAccountId = (String) createAccountResult.get("finAccountId");
                     if (UtilValidate.isNotEmpty(creditAccountId)) {
-                        creditAccount = EntityQuery.use(delegator).from("FinAccount").where("finAccountId", creditAccountId).queryOne();
+                        creditAccount = delegator.findByPrimaryKey("FinAccount", UtilMisc.toMap("finAccountId", creditAccountId));
 
                         // create the owner role
                         Map<String, Object> roleCtx = FastMap.newInstance();
@@ -188,8 +189,7 @@ public class FinAccountServices {
 
         try {
             // get the product store id and use it to generate a unique fin account code
-            GenericValue productStoreFinAccountSetting = EntityQuery.use(delegator).from("ProductStoreFinActSetting")
-                    .where("productStoreId", productStoreId, "finAccountTypeId", finAccountTypeId).cache().queryOne();
+            GenericValue productStoreFinAccountSetting = delegator.findByPrimaryKeyCache("ProductStoreFinActSetting", UtilMisc.toMap("productStoreId", productStoreId, "finAccountTypeId", finAccountTypeId));
             if (productStoreFinAccountSetting == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "AccountingFinAccountSetting", 
@@ -260,7 +260,7 @@ public class FinAccountServices {
             }
         } else {
             try {
-                finAccount = EntityQuery.use(delegator).from("FinAccount").where("finAccountId", finAccountId).queryOne();
+                finAccount = delegator.findByPrimaryKey("FinAccount", UtilMisc.toMap("finAccountId", finAccountId));
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
                 return ServiceUtil.returnError(e.getMessage());
@@ -303,7 +303,7 @@ public class FinAccountServices {
 
         GenericValue finAccount;
         try {
-            finAccount = EntityQuery.use(delegator).from("FinAccount").where("finAccountId", finAccountId).queryOne();
+            finAccount = delegator.findByPrimaryKey("FinAccount", UtilMisc.toMap("finAccountId", finAccountId));
         } catch (GenericEntityException ex) {
             return ServiceUtil.returnError(ex.getMessage());
         }
@@ -346,7 +346,7 @@ public class FinAccountServices {
 
         GenericValue finAccount;
         try {
-            finAccount = EntityQuery.use(delegator).from("FinAccount").where("finAccountId", finAccountId).queryOne();
+            finAccount = delegator.findByPrimaryKey("FinAccount", UtilMisc.toMap("finAccountId", finAccountId));
         } catch (GenericEntityException e) {
             return ServiceUtil.returnError(e.getMessage());
         }
@@ -379,7 +379,7 @@ public class FinAccountServices {
 
                 EntityListIterator eli = null;
                 try {
-                    eli = EntityQuery.use(delegator).from("FinAccountTrans").where(condition).orderBy("-transactionDate").queryIterator();
+                    eli = delegator.find("FinAccountTrans", condition, null, null, UtilMisc.toList("-transactionDate"), null);
 
                     GenericValue trans;
                     while (remainingBalance.compareTo(FinAccountHelper.ZERO) < 0 && (trans = eli.next()) != null) {
@@ -388,13 +388,13 @@ public class FinAccountServices {
 
                         // make sure there is an order available to refund
                         if (orderId != null && orderItemSeqId != null) {
-                            GenericValue orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId",orderId).queryOne();
-                            GenericValue productStore = orderHeader.getRelatedOne("ProductStore", false);
-                            GenericValue orderItem = EntityQuery.use(delegator).from("OrderItem").where("orderId", orderId, "orderItemSeqId", orderItemSeqId).queryOne();
+                            GenericValue orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId",orderId));
+                            GenericValue productStore = delegator.getRelatedOne("ProductStore", orderHeader);
+                            GenericValue orderItem = delegator.findByPrimaryKey("OrderItem", UtilMisc.toMap("orderId", orderId, "orderItemSeqId", orderItemSeqId));
                             if (!"ITEM_CANCELLED".equals(orderItem.getString("statusId"))) {
 
                                 // make sure the item hasn't already been returned
-                                List<GenericValue> returnItems = orderItem.getRelated("ReturnItem", null, null, false);
+                                List<GenericValue> returnItems = orderItem.getRelated("ReturnItem");
                                 if (UtilValidate.isEmpty(returnItems)) {
                                     BigDecimal txAmt = trans.getBigDecimal("amount");
                                     BigDecimal refAmt = txAmt;
@@ -447,8 +447,9 @@ public class FinAccountServices {
                                     }
 
                                     // get the return item
-                                    GenericValue returnItem = EntityQuery.use(delegator).from("ReturnItem").where("returnId", returnId, "returnItemSeqId", returnItemSeqId).queryOne();
-                                    GenericValue response = returnItem.getRelatedOne("ReturnItemResponse", false);
+                                    GenericValue returnItem = delegator.findByPrimaryKey("ReturnItem",
+                                            UtilMisc.toMap("returnId", returnId, "returnItemSeqId", returnItemSeqId));
+                                    GenericValue response = returnItem.getRelatedOne("ReturnItemResponse");
                                     if (response == null) {
                                         throw new GeneralException("No return response found for: " + returnItem.getPrimaryKey());
                                     }

@@ -29,7 +29,6 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.util.EntityQuery;
 
 /** TemporalExpression persistence worker. */
 public class TemporalExpressionWorker {
@@ -62,7 +61,7 @@ public class TemporalExpressionWorker {
         if (UtilValidate.isEmpty(tempExprId)) {
             throw new IllegalArgumentException("tempExprId argument cannot be empty");
         }
-        GenericValue exprValue = EntityQuery.use(delegator).from("TemporalExpression").where("tempExprId", tempExprId).cache().queryOne();
+        GenericValue exprValue = delegator.findOne("TemporalExpression", UtilMisc.toMap("tempExprId", tempExprId), true);
         if (UtilValidate.isEmpty(exprValue)) {
             throw new IllegalArgumentException("tempExprId argument invalid - expression not found");
         }
@@ -94,7 +93,7 @@ public class TemporalExpressionWorker {
         } else if (DayOfWeekRange.equals(tempExprTypeId)) {
             return setExpressionId(exprValue, new TemporalExpressions.DayOfWeekRange(exprValue.getLong("integer1").intValue(), exprValue.getLong("integer2").intValue()));
         } else if (Difference.equals(tempExprTypeId)) {
-            List<GenericValue> childExpressions = EntityQuery.use(delegator).from("TemporalExpressionAssoc").where("fromTempExprId", tempExprId).cache(true).queryList();
+            List<GenericValue> childExpressions = delegator.findList("TemporalExpressionAssoc", EntityCondition.makeCondition("fromTempExprId", tempExprId), null, null, null, true);
             GenericValue inclAssoc = null;
             GenericValue exclAssoc = null;
             for (GenericValue childExpression : childExpressions) {
@@ -118,7 +117,7 @@ public class TemporalExpressionWorker {
         } else if (MonthRange.equals(tempExprTypeId)) {
             return setExpressionId(exprValue, new TemporalExpressions.MonthRange(exprValue.getLong("integer1").intValue(), exprValue.getLong("integer2").intValue()));
         } else if (Substitution.equals(tempExprTypeId)) {
-            List<GenericValue> childExpressions = EntityQuery.use(delegator).from("TemporalExpressionAssoc").where("fromTempExprId", tempExprId).cache(true).queryList();
+            List<GenericValue> childExpressions = delegator.findList("TemporalExpressionAssoc", EntityCondition.makeCondition("fromTempExprId", tempExprId), null, null, null, true);
             GenericValue inclAssoc = null;
             GenericValue exclAssoc = null;
             GenericValue substAssoc = null;
@@ -141,13 +140,13 @@ public class TemporalExpressionWorker {
     }
 
     protected static Set<TemporalExpression> getChildExpressions(Delegator delegator, String tempExprId) throws GenericEntityException {
-        List<GenericValue> valueList = EntityQuery.use(delegator).from("TemporalExpressionAssoc").where("fromTempExprId", tempExprId).cache(true).queryList();
+        List<GenericValue> valueList = delegator.findList("TemporalExpressionAssoc", EntityCondition.makeCondition("fromTempExprId", tempExprId), null, null, null, true);
         if (UtilValidate.isEmpty(valueList)) {
             throw new IllegalArgumentException("tempExprId argument invalid - no child expressions found");
         }
         Set<TemporalExpression> exprList = new TreeSet<TemporalExpression>();
         for (GenericValue value : valueList) {
-            exprList.add(makeTemporalExpression(delegator, value.getRelatedOne("ToTemporalExpression", false)));
+            exprList.add(makeTemporalExpression(delegator, value.getRelatedOne("ToTemporalExpression")));
         }
         return exprList;
     }

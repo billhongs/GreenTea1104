@@ -44,7 +44,7 @@ Timestamp fromDate = null;
 if (fromDateStr) fromDate = Timestamp.valueOf(fromDateStr) ?: (Timestamp)request.getAttribute("ProductAssocCreateFromDate");;
 context.fromDate = fromDate;
 
-productAssoc = from("ProductAssoc").where("productId", productId, "productIdTo", productIdTo, "productAssocTypeId", productAssocTypeId, "fromDate", fromDate).queryOne();
+productAssoc = delegator.findByPrimaryKey("ProductAssoc", [productId : productId, productIdTo : productIdTo, productAssocTypeId : productAssocTypeId, fromDate : fromDate]);
 if (updateMode) {
     productAssoc = [:];
     context.remove("productIdTo");
@@ -58,17 +58,17 @@ if (!productAssoc) useValues = false;
 
 context.useValues = useValues;
 
-Collection assocTypes = from("ProductAssocType").where("parentTypeId", "PRODUCT_COMPONENT").orderBy("productAssocTypeId", "description").queryList();
+Collection assocTypes = delegator.findByAnd("ProductAssocType", [parentTypeId : "PRODUCT_COMPONENT"], ["productAssocTypeId", "description"]);
 context.assocTypes = assocTypes;
 
-Collection formulae = from("CustomMethod").where("customMethodTypeId", "BOM_FORMULA").orderBy("customMethodId", "description").queryList();
+Collection formulae = delegator.findByAnd("CustomMethod", [customMethodTypeId : "BOM_FORMULA"], ["customMethodId", "description"]);
 context.formulae = formulae;
 
 if (product) {
-    assocFromProducts = product.getRelated("MainProductAssoc", (productAssocTypeId ? [productAssocTypeId : productAssocTypeId]: [:]), ["sequenceNum","productId"], false);
+    assocFromProducts = product.getRelated("MainProductAssoc", (productAssocTypeId ? [productAssocTypeId : productAssocTypeId]: [:]), ["sequenceNum","productId"]);
     if (assocFromProducts) context.assocFromProducts = assocFromProducts;
 
-    assocToProducts = product.getRelated("AssocProductAssoc", (productAssocTypeId ? [productAssocTypeId : productAssocTypeId]: [:]), ["sequenceNum","productId"], false);
+    assocToProducts = product.getRelated("AssocProductAssoc", (productAssocTypeId ? [productAssocTypeId : productAssocTypeId]: [:]), ["sequenceNum","productId"]);
     if (assocToProducts) context.assocToProducts = assocToProducts;
 }
 

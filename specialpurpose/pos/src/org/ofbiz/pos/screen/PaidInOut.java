@@ -98,14 +98,14 @@ public class PaidInOut extends XPage {
         if (m_type.equals("IN")) {
             m_dialog.setCaption(UtilProperties.getMessage(PosTransaction.resource, "PosPaidInTitle", locale));
             try {
-                posPaidReasons = m_trans.getSession().getDelegator().findByAnd("Enumeration", UtilMisc.toMap("enumTypeId", "POS_PAID_REASON_IN"), null, true);
+                posPaidReasons = m_trans.getSession().getDelegator().findByAndCache("Enumeration", UtilMisc.toMap("enumTypeId", "POS_PAID_REASON_IN"));
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
         } else { // OUT
             m_dialog.setCaption(UtilProperties.getMessage(PosTransaction.resource, "PosPaidOutTitle", locale));
             try {
-                posPaidReasons = m_trans.getSession().getDelegator().findByAnd("Enumeration", UtilMisc.toMap("enumTypeId", "POS_PAID_REASON_OUT"), null, true);
+                posPaidReasons = m_trans.getSession().getDelegator().findByAndCache("Enumeration", UtilMisc.toMap("enumTypeId", "POS_PAID_REASON_OUT"));
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);            }
         }

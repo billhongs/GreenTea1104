@@ -16,24 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 productCategoryId = parameters.productCategoryId;
 if (productCategoryId) {
-    productCategoryContents  = from("ProductCategoryContent").where("productCategoryId", productCategoryId).queryList();
+    productCategoryContents  = delegator.findByAnd("ProductCategoryContent", ["productCategoryId" : productCategoryId]);
     productCategoryContents.each{ productCategoryContent->
         if (productCategoryContent.prodCatContentTypeId == "PAGE_TITLE") {
-            contentTitle  = from("Content").where("contentId", productCategoryContent.contentId).queryOne();
-            dataTextTitle  = from("ElectronicText").where("dataResourceId", contentTitle.dataResourceId).queryOne();
+            contentTitle  = delegator.findOne("Content", ["contentId" : productCategoryContent.contentId], false);
+            dataTextTitle  = delegator.findOne("ElectronicText", ["dataResourceId" : contentTitle.dataResourceId], false);
             context.title = dataTextTitle.textData;
         }
         if (productCategoryContent.prodCatContentTypeId == "META_KEYWORD") {
-            contentMetaKeyword  = from("Content").where("contentId", productCategoryContent.contentId).queryOne();
-            dataTextMetaKeyword  = from("ElectronicText").where("dataResourceId", contentMetaKeyword.dataResourceId).queryOne();
+            contentMetaKeyword  = delegator.findOne("Content", ["contentId" : productCategoryContent.contentId], false);
+            dataTextMetaKeyword  = delegator.findOne("ElectronicText", ["dataResourceId" : contentMetaKeyword.dataResourceId], false);
             context.metaKeyword = dataTextMetaKeyword.textData;
         }
         if (productCategoryContent.prodCatContentTypeId == "META_DESCRIPTION") {
-            contentMetaDescription  = from("Content").where("contentId", productCategoryContent.contentId).queryOne();
-            dataTextMetaDescription  = from("ElectronicText").where("dataResourceId", contentMetaDescription.dataResourceId).queryOne();
+            contentMetaDescription  = delegator.findOne("Content", ["contentId" : productCategoryContent.contentId], false);
+            dataTextMetaDescription  = delegator.findOne("ElectronicText", ["dataResourceId" : contentMetaDescription.dataResourceId], false);
             context.metaDescription = dataTextMetaDescription.textData;
         }
     }

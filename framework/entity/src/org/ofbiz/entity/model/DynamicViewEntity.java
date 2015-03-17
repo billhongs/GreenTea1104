@@ -20,7 +20,6 @@ package org.ofbiz.entity.model;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -229,16 +228,8 @@ public class DynamicViewEntity {
         return this.memberModelMemberEntities.entrySet().iterator();
     }
 
-    /**
-     * @deprecated use {@link #addAliasAll(String, String, Collection)}
-     */
-    @Deprecated
     public void addAliasAll(String entityAlias, String prefix) {
-        addAliasAll(entityAlias, prefix, null);
-    }
-
-    public void addAliasAll(String entityAlias, String prefix, Collection<String> excludes) {
-        ModelAliasAll aliasAll = new ModelAliasAll(entityAlias, prefix, false, null, null, excludes);
+        ModelAliasAll aliasAll = new ModelAliasAll(entityAlias, prefix);
         this.aliasAlls.add(aliasAll);
     }
 
@@ -252,14 +243,10 @@ public class DynamicViewEntity {
 
     /** Add an alias, full detail. All parameters can be null except entityAlias and name. */
     public void addAlias(String entityAlias, String name, String field, String colAlias, Boolean primKey, Boolean groupBy, String function) {
-        addAlias(entityAlias, name, field, colAlias, primKey, groupBy, function, null, null);
+        addAlias(entityAlias, name, field, colAlias, primKey, groupBy, function, null);
     }
 
     public void addAlias(String entityAlias, String name, String field, String colAlias, Boolean primKey, Boolean groupBy, String function, ComplexAliasMember complexAliasMember) {
-        addAlias(entityAlias, name, field, colAlias, primKey, groupBy, function, null, complexAliasMember);
-    }
-
-    public void addAlias(String entityAlias, String name, String field, String colAlias, Boolean primKey, Boolean groupBy, String function, String fieldSet, ComplexAliasMember complexAliasMember) {
         if (entityAlias == null && complexAliasMember == null) {
             throw new IllegalArgumentException("entityAlias cannot be null if this is not a complex alias in call to DynamicViewEntity.addAlias");
         }
@@ -267,7 +254,7 @@ public class DynamicViewEntity {
             throw new IllegalArgumentException("name cannot be null in call to DynamicViewEntity.addAlias");
         }
 
-        ModelAlias alias = new ModelAlias(entityAlias, name, field, colAlias, primKey, groupBy, function, fieldSet);
+        ModelAlias alias = new ModelAlias(entityAlias, name, field, colAlias, primKey, groupBy, function);
         if (complexAliasMember != null) {
             alias.setComplexAliasMember(complexAliasMember);
         }
@@ -279,7 +266,7 @@ public class DynamicViewEntity {
     }
 
     public void addViewLink(String entityAlias, String relEntityAlias, Boolean relOptional, List<ModelKeyMap> modelKeyMaps) {
-        ModelViewLink modelViewLink = new ModelViewLink(entityAlias, relEntityAlias, relOptional, null, modelKeyMaps);
+        ModelViewLink modelViewLink = new ModelViewLink(entityAlias, relEntityAlias, relOptional, modelKeyMaps);
         this.viewLinks.add(modelViewLink);
     }
 
@@ -288,7 +275,7 @@ public class DynamicViewEntity {
     }
 
     public void addRelation(String type, String title, String relEntityName, List<ModelKeyMap> modelKeyMaps) {
-        ModelRelation relation = ModelRelation.create(null, null, type, title, relEntityName, null, modelKeyMaps, false);
+        ModelRelation relation = new ModelRelation(type, title, relEntityName, null, modelKeyMaps);
         this.relations.add(relation);
     }
 

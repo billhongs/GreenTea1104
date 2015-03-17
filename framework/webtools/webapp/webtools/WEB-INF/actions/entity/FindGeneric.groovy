@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import org.ofbiz.base.util.UtilMisc
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.GenericEntityException;
@@ -39,7 +37,6 @@ import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.transaction.TransactionUtil;
 import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.base.util.Debug;
 import java.sql.Timestamp;
 import java.sql.Date;
@@ -47,7 +44,6 @@ import java.sql.Time;
 import javolution.util.FastList;
 import javolution.util.FastMap;
 import javolution.util.FastSet;
-
 
 entityName = parameters.entityName;
 
@@ -127,7 +123,7 @@ context.viewIndexNext = viewIndex+1;
 try {
     viewSize = Integer.valueOf((String)parameters.get("VIEW_SIZE")).intValue();
 } catch (NumberFormatException nfe) {
-    viewSize = Integer.valueOf(EntityUtilProperties.getPropertyValue("widget.properties", "widget.form.defaultViewSize", delegator)).intValue();
+    viewSize = Integer.valueOf(UtilProperties.getPropertyValue("widget.properties", "widget.form.defaultViewSize")).intValue();
 }
 
 context.viewSize = viewSize;
@@ -170,7 +166,7 @@ if ("true".equals(find)) {
             if (groupByFields || functionFields) {
                 fieldsToSelect = FastSet.newInstance();
 
-                for (String groupByField : groupByFields) {
+                for (ModelField groupByField : groupByFields) {
                     fieldsToSelect.add(groupByField);
                 }
 
@@ -178,13 +174,8 @@ if ("true".equals(find)) {
                     fieldsToSelect.add(functionField)
                 }
             }
-            Collection pkNames = FastList.newInstance();
-            Iterator iter = modelEntity.getPksIterator();
-            while (iter != null && iter.hasNext()) {
-                ModelField curField = (ModelField) iter.next();
-                pkNames.add(curField.getName());
-            }
-            resultEli = delegator.find(entityName, condition, null, fieldsToSelect, pkNames, efo);
+
+            resultEli = delegator.find(entityName, condition, null, fieldsToSelect, null, efo);
             resultPartialList = resultEli.getPartialList(lowIndex, highIndex - lowIndex + 1);
 
             arraySize = resultEli.getResultsSizeAfterPartialList();
@@ -213,7 +204,7 @@ context.highIndex = highIndex;
 context.arraySize = arraySize;
 context.resultPartialList = resultPartialList;
 
-viewIndexLast = UtilMisc.getViewLastIndex(arraySize, viewSize);
+viewIndexLast = (int) (arraySize/viewSize);
 context.viewIndexLast = viewIndexLast;
 
 List fieldList = FastList.newInstance();

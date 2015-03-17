@@ -18,23 +18,22 @@
  *******************************************************************************/
 package org.ofbiz.common.status;
 
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import javolution.util.FastList;
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
 
 import static org.ofbiz.base.util.UtilGenerics.checkList;
-
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ServiceUtil;
 
@@ -54,21 +53,16 @@ public class StatusServices {
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, "CommonStatusMandatory", locale));
         }
 
-        List<GenericValue> statusItems = new LinkedList<GenericValue>();
+        List<GenericValue> statusItems = FastList.newInstance();
         for (String statusTypeId: statusTypes) {
             try {
-                List<GenericValue> myStatusItems = EntityQuery.use(delegator)
-                                                              .from("StatusItem")
-                                                              .where("statusTypeId", statusTypeId)
-                                                              .orderBy("sequenceId")
-                                                              .cache(true)
-                                                              .queryList();
+                List<GenericValue> myStatusItems = delegator.findByAndCache("StatusItem", UtilMisc.toMap("statusTypeId", statusTypeId), UtilMisc.toList("sequenceId"));
                 statusItems.addAll(myStatusItems);
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
         }
-        Map<String, Object> ret =  new LinkedHashMap<String, Object>();
+        Map<String, Object> ret = FastMap.newInstance();
         ret.put("statusItems",statusItems);
         return ret;
     }
@@ -78,12 +72,7 @@ public class StatusServices {
         List<GenericValue> statusValidChangeToDetails = null;
         String statusId = (String) context.get("statusId");
         try {
-            statusValidChangeToDetails = EntityQuery.use(delegator)
-                                                    .from("StatusValidChangeToDetail")
-                                                    .where("statusId", statusId)
-                                                    .orderBy("sequenceId")
-                                                    .cache(true)
-                                                    .queryList();
+            statusValidChangeToDetails = delegator.findByAndCache("StatusValidChangeToDetail", UtilMisc.toMap("statusId", statusId), UtilMisc.toList("sequenceId"));
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }

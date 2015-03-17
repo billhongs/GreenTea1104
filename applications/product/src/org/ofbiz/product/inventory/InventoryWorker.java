@@ -36,7 +36,6 @@ import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityConditionList;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityQuery;
 
 public class InventoryWorker {
 
@@ -44,9 +43,9 @@ public class InventoryWorker {
 
     /**
      * Finds all outstanding Purchase orders for a productId.  The orders and the items cannot be completed, cancelled, or rejected
-     * @param productId the product id
-     * @param delegator the delegator
-     * @return returns all outstanding Purchase orders for a productId
+     * @param productId
+     * @param delegator
+     * @return
      */
     public static List<GenericValue> getOutstandingPurchaseOrders(String productId, Delegator delegator) {
         try {
@@ -58,10 +57,8 @@ public class InventoryWorker {
                     EntityCondition.makeCondition("itemStatusId", EntityOperator.NOT_EQUAL, "ITEM_REJECTED"));
             purchaseOrderConditions.add(EntityCondition.makeCondition("orderTypeId", EntityOperator.EQUALS, "PURCHASE_ORDER"));
             purchaseOrderConditions.add(EntityCondition.makeCondition("productId", EntityOperator.EQUALS, productId));
-            List<GenericValue> purchaseOrders = EntityQuery.use(delegator).from("OrderHeaderAndItems")
-                    .where(EntityCondition.makeCondition(purchaseOrderConditions, EntityOperator.AND))
-                    .orderBy("estimatedDeliveryDate DESC", "orderDate")
-                    .queryList();
+            List<GenericValue> purchaseOrders = delegator.findList("OrderHeaderAndItems", EntityCondition.makeCondition(purchaseOrderConditions, EntityOperator.AND),
+                    null, UtilMisc.toList("estimatedDeliveryDate DESC", "orderDate"), null, false);
             return purchaseOrders;
         } catch (GenericEntityException ex) {
             Debug.logError("Unable to find outstanding purchase orders for product [" + productId + "] due to " + ex.getMessage() + " - returning null", module);
@@ -71,9 +68,9 @@ public class InventoryWorker {
 
     /**
      * Finds the net outstanding ordered quantity for a productId, netting quantity on outstanding purchase orders against cancelQuantity
-     * @param productId the product id
-     * @param delegator the delegator
-     * @return returns the net outstanding ordered quantity for a productId
+     * @param productId
+     * @param delegator
+     * @return
      */
     public static BigDecimal getOutstandingPurchasedQuantity(String productId, Delegator delegator) {
         BigDecimal qty = BigDecimal.ZERO;
@@ -126,7 +123,7 @@ public class InventoryWorker {
 
         Map<String, BigDecimal> results = FastMap.newInstance();
         try {
-            List<GenericValue> orderedProducts = EntityQuery.use(delegator).select(fieldsToSelect).from("OrderItemQuantityReportGroupByProduct").where(conditions).queryList();
+            List<GenericValue> orderedProducts = delegator.findList("OrderItemQuantityReportGroupByProduct", conditions, fieldsToSelect, null, null, false);
             for (GenericValue value: orderedProducts) {
                 results.put(value.getString("productId"), value.getBigDecimal("quantityOpen"));
             }

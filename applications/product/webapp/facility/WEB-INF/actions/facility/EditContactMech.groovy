@@ -22,7 +22,7 @@ import org.ofbiz.party.contact.*;
 facilityId = parameters.facilityId;
 context.facilityId = facilityId;
 
-facility = from("Facility").where("facilityId", facilityId).queryOne();
+facility = delegator.findOne("Facility", [facilityId : facilityId], false);
 context.facility = facility;
 
 mechMap = [:];
@@ -62,7 +62,7 @@ if (!cmNewPurposeTypeId) {
 }
 if (cmNewPurposeTypeId) {
     context.contactMechPurposeTypeId = cmNewPurposeTypeId;
-    contactMechPurposeType = from("ContactMechPurposeType").where("contactMechPurposeTypeId", cmNewPurposeTypeId).queryOne();
+    contactMechPurposeType = delegator.findOne("ContactMechPurposeType", [contactMechPurposeTypeId : cmNewPurposeTypeId], false);
     if (contactMechPurposeType) {
         context.contactMechPurposeType = contactMechPurposeType;
     }

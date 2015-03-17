@@ -46,6 +46,12 @@ under the License.
         <response name="success" type="request" value="main"/>
     </request-map>
     
+    <request-map uri="changeDelegator">
+        <event type="java" path="org.ofbiz.webapp.event.CoreEvents" invoke="changeDelegator"/>
+        <response name="success" type="view" value="main"/>
+        <response name="error" type="view" value="error"/>
+    </request-map>
+
     <request-map uri="main">
         <security https="true" auth="true"/>
         <response name="success" type="view" value="main"/>
@@ -717,7 +723,7 @@ under the License.
     <request-map uri="deleteEmplPositionType">
         <security https="true" auth="true"/>
         <event type="service" invoke="deleteEmplPositionType"/>
-        <response name="success" type="request-redirect-noparam" value="FindEmplPositionTypes"/>
+        <response name="success" type="view" value="FindEmplPositionTypes"/>
     </request-map>
     <request-map uri="EditEmplPositionTypeRates">
         <security https="true" auth="true"/>
@@ -1048,62 +1054,6 @@ under the License.
         <response name="success" type="view" value="EditEmplLeaveStatus"/>
         <response name="error" type="view" value="EditEmplLeaveStatus"/>
     </request-map>
-    <request-map uri="getHRChild">
-        <security auth="false" https="true"/>
-        <event type="java" path="org.ofbiz.humanres.HumanResEvents" invoke="getChildHRCategoryTree"/>
-        <response name="success" type="request" value="json"/>
-        <response name="error" type="request" value="json"/>
-    </request-map>
-    <request-map uri="createInternalOrg">
-        <security https="true" auth="true"/>
-        <event type="simple" path="component://humanres/script/org/ofbiz/humanres/HumanResEvents.xml" invoke="createInternalOrg"/>
-        <response name="success" type="view" value="main"/>
-        <response name="error" type="view" value="main"/>
-    </request-map>
-    <request-map uri="removeInternalOrg">
-        <security https="true" auth="true"/>
-        <event type="simple" path="component://humanres/script/org/ofbiz/humanres/HumanResEvents.xml" invoke="removeInternalOrg"/>
-        <response name="success" type="view" value="main"/>
-        <response name="error" type="view" value="main"/>
-    </request-map>
-    <request-map uri="EditInternalOrgFtl">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="EditInternalOrgFtl"/>
-    </request-map>
-    <request-map uri="RemoveInternalOrgFtl">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="RemoveInternalOrgFtl"/>
-    </request-map>
-    <request-map uri="PublicHoliday">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="PublicHoliday"/>
-        <response name="error" type="view" value="PublicHoliday"/>
-    </request-map>
-    <request-map uri="createPublicHoliday">
-        <security https="true" auth="true"/>
-        <event type="simple" path="component://humanres/script/org/ofbiz/humanres/HumanResEvents.xml" invoke="createPublicHoliday"/>
-        <response name="success" type="request-redirect-noparam" value="PublicHoliday"/>
-        <response name="error" type="view" value="PublicHoliday"/>
-    </request-map>
-    <request-map uri="updatePublicHoliday">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="updateWorkEffort"/>
-        <response name="success" type="request-redirect-noparam" value="PublicHoliday"/>
-        <response name="error" type="view-last"/>
-    </request-map>
-    <request-map uri="deletePublicHoliday">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="deleteWorkEffort"/>
-        <response name="success" type="view" value="PublicHoliday"/>
-        <response name="error" type="view-last"/>
-    </request-map>
-    
-    <!--==============PayRoll History Requests==================-->
-    <request-map uri="PayrollHistory">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="PayrollHistory"/>
-    </request-map>
-    
     <!-- ===================Lookup Request===================== -->
     <request-map uri="LookupPartyName"><security auth="true" https="true"/><response name="success" type="view" value="LookupPartyName"/></request-map>
     <request-map uri="LookupPayment"><security auth="true" https="true"/><response name="success" type="view" value="LookupPayment"/></request-map>
@@ -1202,7 +1152,6 @@ under the License.
     <view-map name="EditTerminationTypes" type="screen" page="component://humanres/widget/GlobalHRSettingScreens.xml#EditTerminationTypes"/>
     <view-map name="EditTerminationReasons" type="screen" page="component://humanres/widget/GlobalHRSettingScreens.xml#EditTerminationReasons"/>
     <view-map name="EditTrainingTypes" type="screen" page="component://humanres/widget/GlobalHRSettingScreens.xml#EditTrainingTypes"/>
-    <view-map name="PublicHoliday" type="screen" page="component://humanres/widget/GlobalHRSettingScreens.xml#PublicHoliday"/>
     
     <view-map name="EditPartyResumes" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#EditPartyResumes"/>
     <view-map name="EditEmploymentApps" type="screen" page="component://humanres/widget/EmploymentAppScreens.xml#EditEmploymentApps"/>
@@ -1213,8 +1162,6 @@ under the License.
     <view-map name="EditEmplLeaveReasonTypes" type="screen" page="component://humanres/widget/GlobalHRSettingScreens.xml#EditEmplLeaveReasonTypes"/>
     <view-map name="FindLeaveApprovals" type="screen" page="component://humanres/widget/EmplLeaveScreens.xml#FindLeaveApprovals"/>
     <view-map name="EditEmplLeaveStatus" type="screen" page="component://humanres/widget/EmplLeaveScreens.xml#EditEmplLeaveStatus"/>
-    <view-map name="EditInternalOrgFtl" type="screen" page="component://humanres/widget/EmplPositionScreens.xml#EditInternalOrgFtl"/>
-    <view-map name="RemoveInternalOrgFtl" type="screen" page="component://humanres/widget/EmplPositionScreens.xml#RemoveInternalOrgFtl"/>
     
     <!-- ==================Recruitment View Map===================== -->
     <view-map name="FindJobRequisitions" type="screen" page="component://humanres/widget/RecruitmentScreens.xml#FindJobRequisitions"/>
@@ -1234,7 +1181,4 @@ under the License.
     <view-map name="FindTrainingApprovals" type="screen" page="component://humanres/widget/PersonTrainingScreens.xml#FindTrainingApprovals"/>
     <view-map name="EditTrainingApprovals" type="screen" page="component://humanres/widget/PersonTrainingScreens.xml#EditTrainingApprovals"/>
     <view-map name="LookupTraining" type="screen" page="component://humanres/widget/LookupScreens.xml#LookupTraining"/>
-    
-    <!-- ==================PayRoll History View Map===================== -->
-    <view-map name="PayrollHistory" type="screen" page="component://humanres/widget/EmployeeScreens.xml#PayrollHistory"/>
 </site-conf>

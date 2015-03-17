@@ -19,14 +19,17 @@
 package org.ofbiz.service.engine;
 
 import java.lang.reflect.Constructor;
-import java.util.HashMap;
 import java.util.Map;
 
+import javolution.util.FastMap;
+
 import org.ofbiz.base.config.GenericConfigException;
-import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.ServiceDispatcher;
 import org.ofbiz.service.config.ServiceConfigUtil;
+import org.ofbiz.base.util.UtilGenerics;
+import org.ofbiz.base.util.UtilXml;
+import org.w3c.dom.Element;
 
 /**
  * Generic Engine Factory
@@ -38,7 +41,7 @@ public class GenericEngineFactory {
 
     public GenericEngineFactory(ServiceDispatcher dispatcher) {
         this.dispatcher = dispatcher;
-        engines = new HashMap<String, GenericEngine>();
+        engines = FastMap.newInstance();
     }
 
     /**
@@ -47,14 +50,23 @@ public class GenericEngineFactory {
      *@return GenericEngine that corresponds to the engineName
      */
     public GenericEngine getGenericEngine(String engineName) throws GenericServiceException {
-        String className = null;
+        Element rootElement = null;
+
         try {
-            className = ServiceConfigUtil.getServiceEngine().getEngine(engineName).getClassName();
+            rootElement = ServiceConfigUtil.getXmlRootElement();
         } catch (GenericConfigException e) {
-            throw new GenericServiceException(e);
+            throw new GenericServiceException("Error getting Service Engine XML root element", e);
+        }
+        Element engineElement = UtilXml.firstChildElement(rootElement, "engine", "name", engineName);
+
+        if (engineElement == null) {
+            throw new GenericServiceException("Cannot find a service engine definition for the engine name [" + engineName + "] in the serviceengine.xml file");
         }
 
+        String className = engineElement.getAttribute("class");
+
         GenericEngine engine = engines.get(engineName);
+
         if (engine == null) {
             synchronized (GenericEngineFactory.class) {
                 engine = engines.get(engineName);

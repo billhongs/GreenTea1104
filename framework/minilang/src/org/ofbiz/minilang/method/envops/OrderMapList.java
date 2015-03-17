@@ -18,86 +18,72 @@
  *******************************************************************************/
 package org.ofbiz.minilang.method.envops;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import org.ofbiz.base.util.UtilXml;
+import javolution.util.FastList;
+
+import org.w3c.dom.*;
+import org.ofbiz.base.util.*;
 import org.ofbiz.base.util.collections.FlexibleMapAccessor;
 import org.ofbiz.base.util.collections.MapComparator;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangRuntimeException;
-import org.ofbiz.minilang.MiniLangValidate;
-import org.ofbiz.minilang.SimpleMethod;
-import org.ofbiz.minilang.method.MethodContext;
-import org.ofbiz.minilang.method.MethodOperation;
-import org.w3c.dom.Element;
+import org.ofbiz.minilang.*;
+import org.ofbiz.minilang.method.*;
 
 /**
- * Implements the &lt;order-map-list&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cordermaplist%3E}}">Mini-language Reference</a>
+ * Copies an environment field to a list
  */
-public final class OrderMapList extends MethodOperation {
-
-    private final FlexibleMapAccessor<List<Map<Object, Object>>> listFma;
-    private final MapComparator mc;
-
-    public OrderMapList(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-        super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "list");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "list");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "list");
-            MiniLangValidate.childElements(simpleMethod, element, "order-by");
-            MiniLangValidate.requiredChildElements(simpleMethod, element, "order-by");
+public class OrderMapList extends MethodOperation {
+    public static final class OrderMapListFactory implements Factory<OrderMapList> {
+        public OrderMapList createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new OrderMapList(element, simpleMethod);
         }
-        listFma = FlexibleMapAccessor.getInstance(element.getAttribute("list"));
-        List<? extends Element> orderByElements = UtilXml.childElementList(element, "order-by");
-        if (orderByElements.size() > 0) {
-            ArrayList<FlexibleMapAccessor<String>> orderByList = new ArrayList<FlexibleMapAccessor<String>>(orderByElements.size());
-            for (Element orderByElement : orderByElements) {
-                FlexibleMapAccessor<String> fma = FlexibleMapAccessor.getInstance(orderByElement.getAttribute("field"));
-                orderByList.add(fma);
-            }
-            mc = new MapComparator(orderByList);
-        } else {
-            mc = null;
+
+        public String getName() {
+            return "order-map-list";
         }
     }
 
+    public static final String module = FieldToList.class.getName();
+
+    protected ContextAccessor<List<Map<Object, Object>>> listAcsr;
+    protected List<FlexibleMapAccessor<String>> orderByAcsrList = FastList.newInstance();
+    protected MapComparator mc;
+
+    public OrderMapList(Element element, SimpleMethod simpleMethod) {
+        super(element, simpleMethod);
+        listAcsr = new ContextAccessor<List<Map<Object, Object>>>(element.getAttribute("list"), element.getAttribute("list-name"));
+
+        for (Element orderByElement: UtilXml.childElementList(element, "order-by")) {
+            FlexibleMapAccessor<String> fma = FlexibleMapAccessor.getInstance(UtilValidate.isNotEmpty(orderByElement.getAttribute("field")) ?
+                    orderByElement.getAttribute("field") : orderByElement.getAttribute("field-name"));
+            this.orderByAcsrList.add(fma);
+        }
+
+        this.mc = new MapComparator(this.orderByAcsrList);
+    }
+
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        if (mc == null) {
-            throw new MiniLangRuntimeException("order-by sub-elements not found.", this);
+    public boolean exec(MethodContext methodContext) {
+
+        List<Map<Object, Object>> orderList = listAcsr.get(methodContext);
+
+        if (orderList == null) {
+            if (Debug.infoOn()) Debug.logInfo("List not found with name " + listAcsr + ", not ordering/sorting list.", module);
+            return true;
         }
-        List<Map<Object, Object>> orderList = listFma.get(methodContext.getEnvMap());
-        if (orderList != null) {
-            Collections.sort(orderList, mc);
-        }
+
+        Collections.sort(orderList, mc);
+
         return true;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<order-map-list ");
-        sb.append("list=\"").append(this.listFma).append("\" />");
-        return sb.toString();
+    public String rawString() {
+        return "<order-map-list list-name=\"" + this.listAcsr + "\"/>";
     }
-
-    /**
-     * A factory for the &lt;order-map-list&gt; element.
-     */
-    public static final class OrderMapListFactory implements Factory<OrderMapList> {
-        @Override
-        public OrderMapList createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new OrderMapList(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "order-map-list";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

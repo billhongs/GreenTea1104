@@ -57,9 +57,9 @@ public class ImportProductServices {
      * Note : Create the spreadsheet directory in the ofbiz home folder and keep
      * your xls files in this folder only.
      *
-     * @param dctx the dispatch context
-     * @param context the context
-     * @return the result of the service execution
+     * @param dctx
+     * @param context
+     * @return
      */
     public static Map<String, Object> productImportFromSpreadsheet(DispatchContext dctx, Map<String, ? extends Object> context) {
         Delegator delegator = dctx.getDelegator();

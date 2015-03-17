@@ -30,8 +30,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.AccountingLookupPayment}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="Payment"/>
                 <set field="searchFields" value="[paymentId, partyIdFrom, partyIdTo, currencyUomId]"/>
             </actions>
@@ -57,8 +56,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.AccountingLookupInvoices}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="Invoice"/>
                 <set field="searchFields" value="[invoiceId, partyIdFrom, partyId, description, currencyUomId]"/>
             </actions>
@@ -84,8 +82,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.PageTitleLookupFixedAsset}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="FixedAsset"/>
                 <set field="searchFields" value="[fixedAssetId, fixedAssetName]"/>
             </actions>
@@ -112,8 +109,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.PageTitleLookupBillingAccount}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="BillingAccount"/>
                 <set field="searchFields" value="[billingAccountId, description, externalAccountId, accountCurrencyUomId]"/>
             </actions>
@@ -140,8 +136,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.PageTitleLookupGlAccount}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="GlAccount"/>
                 <set field="searchFields" value="[glAccountId, accountName, glAccountTypeId, glAccountClassId]"/>
             </actions>
@@ -168,8 +163,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.AccountingLookupAgreement}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="Agreement"/>
                 <set field="searchFields" value="[agreementId, productId, description]"/>
             </actions>
@@ -196,8 +190,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.AccountingLookupAgreementItem}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="AgreementItem"/>
                 <set field="searchFields" value="[agreementItemSeqId, agreementId, currencyUomId]"/>
             </actions>
@@ -224,8 +217,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.AccountingLookupPaymentGroupMember}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="PaymentGroupMember"/>
                 <set field="searchFields" value="[paymentGroupId, paymentId, sequenceNum]"/>
             </actions>
@@ -251,8 +243,7 @@ under the License.
                 <property-map resource="AccountingUiLabels" map-name="uiLabelMap" global="true"/>
                 <set field="title" value="${uiLabelMap.AccountingLookupGlReconciliations}"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="GlReconciliation"/>
                 <set field="searchFields" value="[glReconciliationId, glReconciliationName, description]"/>
             </actions>
@@ -263,31 +254,6 @@ under the License.
                     </decorator-section>
                     <decorator-section name="search-results">
                         <include-form name="ListLookupReconciliation" location="component://accounting/widget/FieldLookupForms.xml"/>
-                    </decorator-section>
-                </decorator-screen>
-            </widgets>
-        </section>
-    </screen>
-    
-    <screen name="LookupCustomTimePeriod">
-        <section>
-            <actions>
-                <property-map resource="AccountingUiLabels" map-name="uiLabelMap" global="true"/>
-                <set field="title" value="${uiLabelMap.PageTitleLookupCustomTimePeriod}"/>
-                <set field="queryString" from-field="result.queryString"/>
-                <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
-                <set field="entityName" value="CustomTimePeriod"/>
-                <set field="searchFields" value="[customTimePeriodId, periodName]"/>
-            </actions>
-            <widgets>
-                <decorator-screen name="LookupDecorator" location="component://common/widget/CommonScreens.xml">
-                    <decorator-section name="search-options">
-                        <include-form name="lookupCustomTimePeriod" location="component://accounting/widget/FieldLookupForms.xml"/>
-                    </decorator-section>
-                    <decorator-section name="search-results">
-                        <include-form name="listLookupCustomTimePeriod" location="component://accounting/widget/FieldLookupForms.xml"/>
                     </decorator-section>
                 </decorator-screen>
             </widgets>

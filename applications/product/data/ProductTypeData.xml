@@ -160,7 +160,6 @@ under the License.
     <GoodIdentificationType description="UPCE" goodIdentificationTypeId="UPCE" hasTable="N" parentTypeId=""/>
     <GoodIdentificationType description="EAN" goodIdentificationTypeId="EAN" hasTable="N" parentTypeId=""/>
     <GoodIdentificationType description="Library of Congress" goodIdentificationTypeId="LOC" hasTable="N" parentTypeId=""/>
-    <GoodIdentificationType description="Harmonized System Codes (HS Code)" goodIdentificationTypeId="HS_CODE" hasTable="N" parentTypeId=""/>
 
     <InventoryItemType description="Serialized" hasTable="N" inventoryItemTypeId="SERIALIZED_INV_ITEM" parentTypeId=""/>
     <InventoryItemType description="Non-Serialized" hasTable="N" inventoryItemTypeId="NON_SERIAL_INV_ITEM" parentTypeId=""/>
@@ -224,7 +223,6 @@ under the License.
     <ProductCategoryContentType description="Description" hasTable="N" parentTypeId="" prodCatContentTypeId="DESCRIPTION"/>
     <ProductCategoryContentType description="Description - Long" hasTable="N" parentTypeId="" prodCatContentTypeId="LONG_DESCRIPTION"/>
     <ProductCategoryContentType description="Alternative URL" hasTable="N" parentTypeId="" prodCatContentTypeId="ALTERNATIVE_URL"/>
-    <ProductCategoryContentType description="Category Image" hasTable="N" parentTypeId="" prodCatContentTypeId="CATEGORY_IMAGE"/>
     <ProductCategoryContentType description="Category Image URL" hasTable="N" parentTypeId="" prodCatContentTypeId="CATEGORY_IMAGE_URL"/>
     <ProductCategoryContentType description="Category Image Alt Text" hasTable="N" parentTypeId="" prodCatContentTypeId="CATEGORY_IMAGE_ALT"/>
     <ProductCategoryContentType description="Link 1 Alt Text" hasTable="N" parentTypeId="" prodCatContentTypeId="LINK1_ALT_TEXT"/>
@@ -233,9 +231,6 @@ under the License.
     <ProductCategoryContentType description="Page Title" hasTable="N" parentTypeId="" prodCatContentTypeId="PAGE_TITLE"/>
     <ProductCategoryContentType description="Meta Keyword" hasTable="N" parentTypeId="" prodCatContentTypeId="META_KEYWORD"/>
     <ProductCategoryContentType description="Meta Description" hasTable="N" parentTypeId="" prodCatContentTypeId="META_DESCRIPTION"/>
-    <ProductCategoryContentType description="Related URL" hasTable="N" parentTypeId="" prodCatContentTypeId="RELATED_URL"/>
-    <ProductCategoryContentType description="Video" hasTable="N" parentTypeId="" prodCatContentTypeId="VIDEO"/>
-    <ProductCategoryContentType description="Video URL" hasTable="N" parentTypeId="" prodCatContentTypeId="VIDEO_URL"/>
 
     <ProductContentType description="Online Access" hasTable="N" parentTypeId="" productContentTypeId="ONLINE_ACCESS"/>
     <ProductContentType description="Digital Download" hasTable="N" parentTypeId="" productContentTypeId="DIGITAL_DOWNLOAD"/>
@@ -283,10 +278,6 @@ under the License.
     <ProductContentType description="Image - Additional View 4 Medium" hasTable="N" parentTypeId="" productContentTypeId="XTRA_IMG_4_MEDIUM"/>
     <ProductContentType description="Image - Additional View 4 Large" hasTable="N" parentTypeId="" productContentTypeId="XTRA_IMG_4_LARGE"/>
     <ProductContentType description="Image - Additional View 4 Detail" hasTable="N" parentTypeId="" productContentTypeId="XTRA_IMG_4_DETAIL"/>
-    <ProductContentType description="Image - Additional View Small" hasTable="N" parentTypeId="" productContentTypeId="XTRA_IMG_L_SMALL"/>
-    <ProductContentType description="Image - Additional View Medium" hasTable="N" parentTypeId="" productContentTypeId="XTRA_IMG_L_MEDIUM"/>
-    <ProductContentType description="Image - Additional View Large" hasTable="N" parentTypeId="" productContentTypeId="XTRA_IMG_L_LARGE"/>
-    <ProductContentType description="Image - Additional View Detail" hasTable="N" parentTypeId="" productContentTypeId="XTRA_IMG_L_DETAIL"/>
     <ProductContentType description="Add To Cart Label" hasTable="N" parentTypeId="" productContentTypeId="ADDTOCART_LABEL"/>
     <ProductContentType description="Add To Cart Image" hasTable="N" parentTypeId="" productContentTypeId="ADDTOCART_IMAGE"/>
     <ProductContentType description="Short Sales Pitch" hasTable="N" parentTypeId="" productContentTypeId="SHORT_SALES_PITCH"/>
@@ -499,11 +490,7 @@ under the License.
     <ProductType description="Marketing Package: Pick Assembly" isPhysical="Y" isDigital="N" hasTable="N" parentTypeId="MARKETING_PKG" productTypeId="MARKETING_PKG_PICK"/>
     <ProductType description="Work In Process" isPhysical="Y" isDigital="N" hasTable="N" parentTypeId="GOOD" productTypeId="WIP"/>
     <ProductType description="Configurable Good Configuration" isPhysical="Y" isDigital="N" hasTable="N" parentTypeId="AGGREGATED" productTypeId="AGGREGATED_CONF"/>
-    <ProductType description="Fixed Asset Usage For Rental of an asset which is shipped from and returned to inventory" isPhysical="Y" isDigital="N" hasTable="N" parentTypeId="" productTypeId="ASSET_USAGE_OUT_IN"/>
-    <ProductType description="Service a product using inventory" isPhysical="Y" isDigital="N" hasTable="N" parentTypeId="" productTypeId="SERVICE_PRODUCT"/>
-    <ProductType description="Configurable Service using inventory" isPhysical="Y" isDigital="N" hasTable="N" parentTypeId="SERVICE_PRODUCT" productTypeId="AGGREGATED_SERVICE"/>
-    <ProductType description="Configurable Service Configuration" isPhysical="Y" isDigital="N" hasTable="N" parentTypeId="AGGREGATED" productTypeId="AGGREGATEDSERV_CONF"/>
-    
+
     <EnumerationType description="Product Requirement Method" enumTypeId="PROD_REQ_METHOD" hasTable="N" parentTypeId=""/>
     <!-- NONE: no requirement is created (default) -->
     <Enumeration description="No Requirement Created" enumCode="NONE" enumId="PRODRQM_NONE" sequenceId="01" enumTypeId="PROD_REQ_METHOD"/>
@@ -605,6 +592,13 @@ under the License.
     <!-- product subscription type -->
     <SubscriptionType description="Product" hasTable="N" parentTypeId="" subscriptionTypeId="PRODUCT_SUBSCR"/>
 
+    <WebSite webSiteId="PRODCATALOG" siteName="Catalog Manager" visualThemeSetId="BACKOFFICE"/>
+    <WebSite webSiteId="FACILITY" siteName="Facility Manager" visualThemeSetId="BACKOFFICE"/>
+
+    <WebAnalyticsType description="Web Analytics" hasTable="N" parentTypeId="" webAnalyticsTypeId="WEB_ANALYTICS"/>
+    <WebAnalyticsType webAnalyticsTypeId="GOOGLE_ANALYTICS" parentTypeId="WEB_ANALYTICS" hasTable="N" description="Google Analytics"/>
+    <WebAnalyticsType webAnalyticsTypeId="BING_ANALYTICS" parentTypeId="WEB_ANALYTICS" hasTable="N" description="Bing Analytics"/>
+    
     <!-- Image Management -->
     <RoleType roleTypeId="IMAGEAPPROVER" hasTable="N" description="Image Approver"/>
     
@@ -623,14 +617,14 @@ under the License.
     <ProductFeatureCategory productFeatureCategoryId="IMAGE" description="Image"/>
     <ProductFeatureCategory productFeatureCategoryId="TEXT" description="Text"/>
     
-    <ProductFeature productFeatureId="IMAGE_AVATAR" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="100 X 75 (avatar)" abbrev="100x75" defaultSequenceNum="1"/>
-    <ProductFeature productFeatureId="IMAGE_THUMBNAIL" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="150 X 112 (thumbnail)" abbrev="150x112" defaultSequenceNum="2"/>
-    <ProductFeature productFeatureId="IMAGE_WEBSITE" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="320 X 240 (for websites and email)" abbrev="320x240" defaultSequenceNum="3"/>
-    <ProductFeature productFeatureId="IMAGE_BOARD" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="640 X 480 (for message boards)" abbrev="640x480" defaultSequenceNum="4"/>
-    <ProductFeature productFeatureId="IMAGE_MONITOR15" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="800 X 600 (15-inch monitor)" abbrev="800x600" defaultSequenceNum="5"/>
-    <ProductFeature productFeatureId="IMAGE_MONITOR17" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="1024 X 768 (17-inch monitor)" abbrev="1024x768" defaultSequenceNum="6"/>
-    <ProductFeature productFeatureId="IMAGE_MONITOR19" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="1280 X 1024 (19-inch monitor)" abbrev="1280x1024" defaultSequenceNum="7"/>
-    <ProductFeature productFeatureId="IMAGE_MONITOR21" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="1600 X 1200 (21-inch monitor)" abbrev="1600x1200" defaultSequenceNum="8"/>
+    <ProductFeature productFeatureId="IMAGE_AVATAR" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="100 X 75 (avatar)" defaultSequenceNum="1"/>
+    <ProductFeature productFeatureId="IMAGE_THUMBNAIL" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="150 X 112 (thumbnail)" defaultSequenceNum="2"/>
+    <ProductFeature productFeatureId="IMAGE_WEBSITE" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="320 X 240 (for websites and email)" defaultSequenceNum="3"/>
+    <ProductFeature productFeatureId="IMAGE_BOARD" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="640 X 480 (for message boards)" defaultSequenceNum="4"/>
+    <ProductFeature productFeatureId="IMAGE_MONITOR15" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="800 X 600 (15-inch monitor)" defaultSequenceNum="5"/>
+    <ProductFeature productFeatureId="IMAGE_MONITOR17" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="1024 X 768 (17-inch monitor)" defaultSequenceNum="6"/>
+    <ProductFeature productFeatureId="IMAGE_MONITOR19" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="1280 X 1024 (19-inch monitor)" defaultSequenceNum="7"/>
+    <ProductFeature productFeatureId="IMAGE_MONITOR21" productFeatureTypeId="SIZE" productFeatureCategoryId="IMAGE" description="1600 X 1200 (21-inch monitor)" defaultSequenceNum="8"/>
     
     <ProductFeature productFeatureId="TEXT_SMALL" productFeatureTypeId="SIZE" productFeatureCategoryId="TEXT" description="Small" defaultSequenceNum="1"/>
     <ProductFeature productFeatureId="TEXT_MIDDLE" productFeatureTypeId="SIZE" productFeatureCategoryId="TEXT" description="Middle" defaultSequenceNum="2"/>
@@ -649,11 +643,5 @@ under the License.
     <Enumeration description="Re-take Photo" enumCode="RETAKE_PHOTO" enumId="RETAKE_PHOTO" sequenceId="01" enumTypeId="IMAGE_REJECT_REASON"/>
     <Enumeration description="Remove Logo" enumCode="REMOVE_LOGO" enumId="REMOVE_LOGO" sequenceId="02" enumTypeId="IMAGE_REJECT_REASON"/>
     <Enumeration description="Other" enumCode="OTHER" enumId="OTHER" sequenceId="03" enumTypeId="IMAGE_REJECT_REASON"/>
-    
-    <!-- Group Order -->
-    <StatusType description="Group Order Status" hasTable="N" parentTypeId="" statusTypeId="GROUP_ORDER_STATUS"/>
-    <StatusItem description="Created" sequenceId="01" statusCode="CREATED" statusId="GO_CREATED" statusTypeId="GROUP_ORDER_STATUS"/>
-    <StatusItem description="Success" sequenceId="02" statusCode="SUCCESS" statusId="GO_SUCCESS" statusTypeId="GROUP_ORDER_STATUS"/>
-    <StatusItem description="Cancelled" sequenceId="03" statusCode="CANCELLED" statusId="GO_CANCELLED" statusTypeId="GROUP_ORDER_STATUS"/>
     
 </entity-engine-xml>

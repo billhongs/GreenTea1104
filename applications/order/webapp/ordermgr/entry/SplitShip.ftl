@@ -78,12 +78,12 @@ function submitForm(form, mode, value) {
                       <select name="shippingContactMechId" class="selectBox" onchange="javascript:submitForm(document.editgroupform${groupIdx}, 'SA', null);">
                         <option value="">${uiLabelMap.OrderSelectShippingAddress}</option>
                         <#list shippingContactMechList as shippingContactMech>
-                          <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress", false)>
+                          <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress")>
                           <option value="${shippingAddress.contactMechId}" <#if (shippingAddress.contactMechId == selectedContactMechId)>selected="selected"</#if>>${shippingAddress.address1}</option>
                         </#list>
                       </select>
                     </div>
-                    <#if cart.getShipmentMethodTypeId(groupIdx)??>
+                    <#if cart.getShipmentMethodTypeId(groupIdx)?exists>
                       <#assign selectedShippingMethod = cart.getShipmentMethodTypeId(groupIdx) + "@" + cart.getCarrierPartyId(groupIdx)>
                     <#else>
                       <#assign selectedShippingMethod = "">
@@ -95,9 +95,9 @@ function submitForm(form, mode, value) {
                         <#assign shippingMethod = carrierShipmentMethod.shipmentMethodTypeId + "@" + carrierShipmentMethod.partyId>
                         <option value="${shippingMethod}" <#if (shippingMethod == selectedShippingMethod)>selected="selected"</#if>>
                           <#if carrierShipmentMethod.partyId != "_NA_">
-                            ${carrierShipmentMethod.partyId!}&nbsp;
+                            ${carrierShipmentMethod.partyId?if_exists}&nbsp;
                           </#if>
-                          ${carrierShipmentMethod.description!}
+                          ${carrierShipmentMethod.description?if_exists}
                           <#if shippingEst?has_content>
                             &nbsp;-&nbsp;
                             <#if (shippingEst > -1)>
@@ -111,7 +111,7 @@ function submitForm(form, mode, value) {
                     </select>
 
                     <h2>${uiLabelMap.OrderSpecialInstructions}</h2>
-                    <textarea class='textAreaBox' cols="35" rows="3" wrap="hard" name="shippingInstructions">${cart.getShippingInstructions(groupIdx)!}</textarea>
+                    <textarea class='textAreaBox' cols="35" rows="3" wrap="hard" name="shippingInstructions">${cart.getShippingInstructions(groupIdx)?if_exists}</textarea>
                   </td>
                   <td>
                     <div>
@@ -132,7 +132,7 @@ function submitForm(form, mode, value) {
                     </div>
 
                     <h2>${uiLabelMap.OrderGiftMessage}</h2>
-                    <textarea class='textAreaBox' cols="30" rows="3" wrap="hard" name="giftMessage">${cart.getGiftMessage(groupIdx)!}</textarea>
+                    <textarea class='textAreaBox' cols="30" rows="3" wrap="hard" name="giftMessage">${cart.getGiftMessage(groupIdx)?if_exists}</textarea>
                   </td>
                   <td><input type="button" class="smallSubmit" value="${uiLabelMap.CommonSave}" onclick="javascript:submitForm(document.editgroupform${groupIdx}, 'SV', null);"/></td>
                 </tr>
@@ -173,19 +173,19 @@ function submitForm(form, mode, value) {
                 <input type="hidden" name="itemIndex" value="${cartLineIndex}"/>
                 <td>
                   <div class="tabletext">
-                    <#if cartLine.getProductId()??>
+                    <#if cartLine.getProductId()?exists>
                       <#-- product item -->
                       <#-- start code to display a small image of the product -->
-                      <#assign smallImageUrl = Static["org.ofbiz.product.product.ProductContentWrapper"].getProductContentAsText(cartLine.getProduct(), "SMALL_IMAGE_URL", locale, dispatcher)!>
+                      <#assign smallImageUrl = Static["org.ofbiz.product.product.ProductContentWrapper"].getProductContentAsText(cartLine.getProduct(), "SMALL_IMAGE_URL", locale, dispatcher)?if_exists>
                       <#if !smallImageUrl?string?has_content><#assign smallImageUrl = "/images/defaultImage.jpg"></#if>
                       <#if smallImageUrl?string?has_content>
                         <a href="<@ofbizUrl>product?product_id=${cartLine.getProductId()}</@ofbizUrl>">
-                          <img src="<@ofbizContentUrl>${requestAttributes.contentPathPrefix!}${smallImageUrl}</@ofbizContentUrl>" class="cssImgSmall" alt="" />
+                          <img src="<@ofbizContentUrl>${requestAttributes.contentPathPrefix?if_exists}${smallImageUrl}</@ofbizContentUrl>" class="cssImgSmall" alt="" />
                         </a>
                       </#if>
                       <#-- end code to display a small image of the product -->
                       <a href="<@ofbizUrl>product?product_id=${cartLine.getProductId()}</@ofbizUrl>" class="buttontext">${cartLine.getProductId()} -
-                      ${cartLine.getName()!}</a> : ${cartLine.getDescription()!}
+                      ${cartLine.getName()?if_exists}</a> : ${cartLine.getDescription()?if_exists}
 
                       <#-- display the registered ship groups and quantity -->
                       <#assign itemShipGroups = cart.getShipGroups(cartLine)>
@@ -205,7 +205,7 @@ function submitForm(form, mode, value) {
 
                     <#else>
                       <#-- this is a non-product item -->
-                      <b>${cartLine.getItemTypeDescription()!}</b> : ${cartLine.getName()!}
+                      <b>${cartLine.getItemTypeDescription()?if_exists}</b> : ${cartLine.getName()?if_exists}
                     </#if>
                   </div>
 

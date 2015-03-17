@@ -18,6 +18,7 @@
  *******************************************************************************/
 package org.ofbiz.content.content;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -47,7 +48,7 @@ import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.minilang.MiniLangException;
 import org.ofbiz.minilang.SimpleMapProcessor;
 import org.ofbiz.service.GenericServiceException;
@@ -294,13 +295,12 @@ public class UploadContentAndImage {
 
             // Check for existing AUTHOR link
             String userLoginId = userLogin.getString("userLoginId");
-            GenericValue authorContent = EntityQuery.use(delegator).from("Content").where("contentId", userLoginId).cache().queryOne();
+            GenericValue authorContent = delegator.findByPrimaryKeyCache("Content", UtilMisc.toMap("contentId", userLoginId));
             if (authorContent != null) {
-                long currentAuthorAssocCount = EntityQuery.use(delegator).from("ContentAssoc")
-                        .where("contentId", ftlContentId, "contentIdTo", userLoginId, "contentAssocTypeId", "AUTHOR")
-                        .filterByDate().queryCount();
+                List<GenericValue> authorAssocList = delegator.findByAnd("ContentAssoc", UtilMisc.toMap("contentId", ftlContentId, "contentIdTo", userLoginId, "contentAssocTypeId", "AUTHOR"));
+                List<GenericValue> currentAuthorAssocList = EntityUtil.filterByDate(authorAssocList);
                 //if (Debug.infoOn()) Debug.logInfo("[UploadContentAndImage]currentAuthorAssocList " + currentAuthorAssocList, module);
-                if (currentAuthorAssocCount == 0) {
+                if (currentAuthorAssocList.size() == 0) {
                     // Don't want to bother with permission checking on this association
                     GenericValue authorAssoc = delegator.makeValue("ContentAssoc");
                     authorAssoc.set("contentId", ftlContentId);
@@ -463,9 +463,11 @@ public class UploadContentAndImage {
 
         ModelEntity modelEntity = delegator.getModelEntity("ContentAssocDataResourceViewFrom");
         List<String> fieldNames = modelEntity.getAllFieldNames();
+        Iterator<String> iter = fieldNames.iterator();
         Map<String, Object> ftlContext2 = FastMap.newInstance();
         Map<String, Object> ftlContext3 = FastMap.newInstance();
-        for (String keyName : fieldNames) {
+        while (iter.hasNext()) {
+            String keyName = iter.next();
             Object obj = passedParams.get(keyName + suffix);
             ftlContext2.put(keyName, obj);
         }

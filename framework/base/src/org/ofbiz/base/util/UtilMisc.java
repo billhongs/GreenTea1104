@@ -26,12 +26,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -39,6 +36,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import javolution.util.FastList;
+import javolution.util.FastMap;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.util.collections.MapComparator;
 
@@ -50,8 +51,6 @@ public class UtilMisc {
     public static final String module = UtilMisc.class.getName();
 
     public static final BigDecimal ZERO_BD = BigDecimal.ZERO;
-
-    private UtilMisc () {}
 
     public static final <T extends Throwable> T initCause(T throwable, Throwable cause) {
         throwable.initCause(cause);
@@ -100,7 +99,11 @@ public class UtilMisc {
      * @return The resulting Map
      */
     public static <V, V1 extends V> Map<String, V> toMap(String name1, V1 value1) {
-        return populateMap(new HashMap<String, V>(), name1, value1);
+        return new UtilMisc.SimpleMap<V>(name1, value1);
+
+        /* Map fields = FastMap.newInstance();
+         fields.put(name1, value1);
+         return fields;*/
     }
 
     /**
@@ -108,7 +111,12 @@ public class UtilMisc {
      * @return The resulting Map
      */
     public static <V, V1 extends V, V2 extends V> Map<String, V> toMap(String name1, V1 value1, String name2, V2 value2) {
-        return populateMap(new HashMap<String, V>(), name1, value1, name2, value2);
+        return new UtilMisc.SimpleMap<V>(name1, value1, name2, value2);
+
+        /* Map fields = FastMap.newInstance();
+         fields.put(name1, value1);
+         fields.put(name2, value2);
+         return fields;*/
     }
 
     /**
@@ -116,7 +124,13 @@ public class UtilMisc {
      * @return The resulting Map
      */
     public static <V, V1 extends V, V2 extends V, V3 extends V> Map<String, V> toMap(String name1, V1 value1, String name2, V2 value2, String name3, V3 value3) {
-        return populateMap(new HashMap<String, V>(), name1, value1, name2, value2, name3, value3);
+        return new UtilMisc.SimpleMap<V>(name1, value1, name2, value2, name3, value3);
+
+        /* Map fields = FastMap.newInstance();
+         fields.put(name1, value1);
+         fields.put(name2, value2);
+         fields.put(name3, value3);
+         return fields;*/
     }
 
     /**
@@ -124,7 +138,14 @@ public class UtilMisc {
      * @return The resulting Map
      */
     public static <V, V1 extends V, V2 extends V, V3 extends V, V4 extends V> Map<String, V> toMap(String name1, V1 value1, String name2, V2 value2, String name3, V3 value3, String name4, V4 value4) {
-        return populateMap(new HashMap<String, V>(), name1, value1, name2, value2, name3, value3, name4, value4);
+        return new UtilMisc.SimpleMap<V>(name1, value1, name2, value2, name3, value3, name4, value4);
+
+        /* Map fields = FastMap.newInstance();
+         fields.put(name1, value1);
+         fields.put(name2, value2);
+         fields.put(name3, value3);
+         fields.put(name4, value4);
+         return fields;*/
     }
 
     /**
@@ -132,7 +153,14 @@ public class UtilMisc {
      * @return The resulting Map
      */
     public static <V, V1 extends V, V2 extends V, V3 extends V, V4 extends V, V5 extends V> Map<String, V> toMap(String name1, V1 value1, String name2, V2 value2, String name3, V3 value3, String name4, V4 value4, String name5, V5 value5) {
-        return populateMap(new HashMap<String, V>(), name1, value1, name2, value2, name3, value3, name4, value4, name5, value5);
+        Map<String, V> fields = FastMap.newInstance();
+
+        fields.put(name1, value1);
+        fields.put(name2, value2);
+        fields.put(name3, value3);
+        fields.put(name4, value4);
+        fields.put(name5, value5);
+        return fields;
     }
 
     /**
@@ -140,7 +168,15 @@ public class UtilMisc {
      * @return The resulting Map
      */
     public static <V, V1 extends V, V2 extends V, V3 extends V, V4 extends V, V5 extends V, V6 extends V> Map<String, V> toMap(String name1, V1 value1, String name2, V2 value2, String name3, V3 value3, String name4, V4 value4, String name5, V5 value5, String name6, V6 value6) {
-        return populateMap(new HashMap<String, V>(), name1, value1, name2, value2, name3, value3, name4, value4, name5, value5, name6, value6);
+        Map<String, V> fields = FastMap.newInstance();
+
+        fields.put(name1, value1);
+        fields.put(name2, value2);
+        fields.put(name3, value3);
+        fields.put(name4, value4);
+        fields.put(name5, value5);
+        fields.put(name6, value6);
+        return fields;
     }
 
     /**
@@ -149,25 +185,17 @@ public class UtilMisc {
      */
     @SuppressWarnings("unchecked")
     public static <K, V> Map<String, V> toMap(Object... data) {
+        if (data == null) {
+            return null;
+        }
         if (data.length == 1 && data[0] instanceof Map) {
-            // Logging a warning here because a lot of code misuses this method and that code needs to be fixed.
-            //Debug.logWarning("UtilMisc.toMap called with a Map. Use UtilGenerics.checkMap instead.", module);
+            // Fix for javac's broken type inferring
             return UtilGenerics.<String, V>checkMap(data[0]);
         }
         if (data.length % 2 == 1) {
-            IllegalArgumentException e = new IllegalArgumentException("You must pass an even sized array to the toMap method (size = " + data.length + ")");
-            Debug.logInfo(e, module);
-            throw e;
+            throw new IllegalArgumentException("You must pass an even sized array to the toMap method");
         }
-        Map<String, V> map = new HashMap<String, V>();
-        for (int i = 0; i < data.length;) {
-            map.put((String) data[i++], (V) data[i++]);
-        }
-        return map;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <K, V> Map<String, V> populateMap(Map<String, V> map, Object... data) {
+        Map<String, V> map = FastMap.newInstance();
         for (int i = 0; i < data.length;) {
             map.put((String) data[i++], (V) data[i++]);
         }
@@ -186,22 +214,19 @@ public class UtilMisc {
     }
 
     public static <T> List<T> makeListWritable(Collection<? extends T> col) {
-        List<T> result = new LinkedList<T>();
+        List<T> result = FastList.newInstance();
         if (col != null) result.addAll(col);
         return result;
     }
 
     public static <K, V> Map<K, V> makeMapWritable(Map<K, ? extends V> map) {
-        if (map == null) {
-            return new HashMap<K, V>();
-        }
-        Map<K, V> result = new HashMap<K, V>(map.size());
-        result.putAll(map);
+        Map<K, V> result = FastMap.newInstance();
+        if (map != null) result.putAll(map);
         return result;
     }
 
     public static <T> Set<T> makeSetWritable(Collection<? extends T> col) {
-        Set<T> result = new LinkedHashSet<T>();
+        Set<T> result = FastSet.newInstance();
         if (col != null) result.addAll(col);
         return result;
     }
@@ -214,7 +239,7 @@ public class UtilMisc {
      */
     public static <V> void makeMapSerializable(Map<String, V> map) {
         // now filter out all non-serializable values
-        Set<String> keysToRemove = new LinkedHashSet<String>();
+        Set<String> keysToRemove = FastSet.newInstance();
         for (Map.Entry<String, V> mapEntry: map.entrySet()) {
             Object entryValue = mapEntry.getValue();
             if (entryValue != null && !(entryValue instanceof Serializable)) {
@@ -241,7 +266,7 @@ public class UtilMisc {
     public static List<Map<Object, Object>> sortMaps(List<Map<Object, Object>> listOfMaps, List<? extends String> sortKeys) {
         if (listOfMaps == null || sortKeys == null)
             return null;
-        List<Map<Object, Object>> toSort = new ArrayList<Map<Object, Object>>(listOfMaps.size());
+        List<Map<Object, Object>> toSort = FastList.newInstance();
         toSort.addAll(listOfMaps);
         try {
             MapComparator mc = new MapComparator(sortKeys);
@@ -259,7 +284,7 @@ public class UtilMisc {
     public static <K, IK, V> Map<IK, V> getMapFromMap(Map<K, Object> outerMap, K key) {
         Map<IK, V> innerMap = UtilGenerics.<IK, V>checkMap(outerMap.get(key));
         if (innerMap == null) {
-            innerMap = new HashMap<IK, V>();
+            innerMap = FastMap.newInstance();
             outerMap.put(key, innerMap);
         }
         return innerMap;
@@ -271,7 +296,7 @@ public class UtilMisc {
     public static <K, V> List<V> getListFromMap(Map<K, Object> outerMap, K key) {
         List<V> innerList = UtilGenerics.<V>checkList(outerMap.get(key));
         if (innerList == null) {
-            innerList = new LinkedList<V>();
+            innerList = FastList.newInstance();
             outerMap.put(key, innerList);
         }
         return innerList;
@@ -313,7 +338,7 @@ public class UtilMisc {
         if (c instanceof Set<?>) {
             theSet = (Set<T>) c;
         } else {
-            theSet = new LinkedHashSet<T>();
+            theSet = FastSet.newInstance();
             c.remove(null);
             theSet.addAll(c);
         }
@@ -325,7 +350,7 @@ public class UtilMisc {
      * @return The resulting Set
      */
     public static <T> Set<T> toSet(T obj1) {
-        Set<T> theSet = new LinkedHashSet<T>();
+        Set<T> theSet = FastSet.newInstance();
         theSet.add(obj1);
         return theSet;
     }
@@ -335,7 +360,7 @@ public class UtilMisc {
      * @return The resulting Set
      */
     public static <T> Set<T> toSet(T obj1, T obj2) {
-        Set<T> theSet = new LinkedHashSet<T>();
+        Set<T> theSet = FastSet.newInstance();
         theSet.add(obj1);
         theSet.add(obj2);
         return theSet;
@@ -346,7 +371,7 @@ public class UtilMisc {
      * @return The resulting Set
      */
     public static <T> Set<T> toSet(T obj1, T obj2, T obj3) {
-        Set<T> theSet = new LinkedHashSet<T>();
+        Set<T> theSet = FastSet.newInstance();
         theSet.add(obj1);
         theSet.add(obj2);
         theSet.add(obj3);
@@ -358,7 +383,7 @@ public class UtilMisc {
      * @return The resulting Set
      */
     public static <T> Set<T> toSet(T obj1, T obj2, T obj3, T obj4) {
-        Set<T> theSet = new LinkedHashSet<T>();
+        Set<T> theSet = FastSet.newInstance();
         theSet.add(obj1);
         theSet.add(obj2);
         theSet.add(obj3);
@@ -371,7 +396,7 @@ public class UtilMisc {
      * @return The resulting Set
      */
     public static <T> Set<T> toSet(T obj1, T obj2, T obj3, T obj4, T obj5) {
-        Set<T> theSet = new LinkedHashSet<T>();
+        Set<T> theSet = FastSet.newInstance();
         theSet.add(obj1);
         theSet.add(obj2);
         theSet.add(obj3);
@@ -385,7 +410,7 @@ public class UtilMisc {
      * @return The resulting Set
      */
     public static <T> Set<T> toSet(T obj1, T obj2, T obj3, T obj4, T obj5, T obj6) {
-        Set<T> theSet = new LinkedHashSet<T>();
+        Set<T> theSet = FastSet.newInstance();
         theSet.add(obj1);
         theSet.add(obj2);
         theSet.add(obj3);
@@ -396,7 +421,7 @@ public class UtilMisc {
     }
     
     public static <T> Set<T> toSet(T obj1, T obj2, T obj3, T obj4, T obj5, T obj6, T obj7, T obj8) {
-        Set<T> theSet = new LinkedHashSet<T>();
+        Set<T> theSet = FastSet.newInstance();
         theSet.add(obj1);
         theSet.add(obj2);
         theSet.add(obj3);
@@ -413,7 +438,7 @@ public class UtilMisc {
         if (collection instanceof Set<?>) {
             return (Set<T>) collection;
         } else {
-            Set<T> theSet = new LinkedHashSet<T>();
+            Set<T> theSet = FastSet.newInstance();
             theSet.addAll(collection);
             return theSet;
         }
@@ -423,7 +448,7 @@ public class UtilMisc {
         if (data == null) {
             return null;
         }
-        Set<T> set = new LinkedHashSet<T>();
+        Set<T> set = FastSet.newInstance();
         for (T value: data) {
             set.add(value);
         }
@@ -435,7 +460,7 @@ public class UtilMisc {
      * @return The resulting List
      */
     public static <T> List<T> toList(T obj1) {
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
 
         list.add(obj1);
         return list;
@@ -446,7 +471,7 @@ public class UtilMisc {
      * @return The resulting List
      */
     public static <T> List<T> toList(T obj1, T obj2) {
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
 
         list.add(obj1);
         list.add(obj2);
@@ -458,7 +483,7 @@ public class UtilMisc {
      * @return The resulting List
      */
     public static <T> List<T> toList(T obj1, T obj2, T obj3) {
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
 
         list.add(obj1);
         list.add(obj2);
@@ -471,7 +496,7 @@ public class UtilMisc {
      * @return The resulting List
      */
     public static <T> List<T> toList(T obj1, T obj2, T obj3, T obj4) {
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
 
         list.add(obj1);
         list.add(obj2);
@@ -485,7 +510,7 @@ public class UtilMisc {
      * @return The resulting List
      */
     public static <T> List<T> toList(T obj1, T obj2, T obj3, T obj4, T obj5) {
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
 
         list.add(obj1);
         list.add(obj2);
@@ -500,7 +525,7 @@ public class UtilMisc {
      * @return The resulting List
      */
     public static <T> List<T> toList(T obj1, T obj2, T obj3, T obj4, T obj5, T obj6) {
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
 
         list.add(obj1);
         list.add(obj2);
@@ -512,7 +537,7 @@ public class UtilMisc {
     }
     
     public static <T> List<T> toList(T obj1, T obj2, T obj3, T obj4, T obj5, T obj6, T obj7, T obj8, T obj9) {
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
 
         list.add(obj1);
         list.add(obj2);
@@ -531,7 +556,7 @@ public class UtilMisc {
         if (collection instanceof List<?>) {
             return (List<T>) collection;
         } else {
-            List<T> list = new LinkedList<T>();
+            List<T> list = FastList.newInstance();
             list.addAll(collection);
             return list;
         }
@@ -541,7 +566,7 @@ public class UtilMisc {
         if (data == null) {
             return null;
         }
-        List<T> list = new LinkedList<T>();
+        List<T> list = FastList.newInstance();
         for (T value: data) {
             list.add(value);
         }
@@ -551,7 +576,7 @@ public class UtilMisc {
     public static <K, V> void addToListInMap(V element, Map<K, Object> theMap, K listKey) {
         List<V> theList = UtilGenerics.checkList(theMap.get(listKey));
         if (theList == null) {
-            theList = new LinkedList<V>();
+            theList = FastList.newInstance();
             theMap.put(listKey, theList);
         }
         theList.add(element);
@@ -560,7 +585,7 @@ public class UtilMisc {
     public static <K, V> void addToSetInMap(V element, Map<K, Set<V>> theMap, K setKey) {
         Set<V> theSet = UtilGenerics.checkSet(theMap.get(setKey));
         if (theSet == null) {
-            theSet = new LinkedHashSet<V>();
+            theSet = FastSet.newInstance();
             theMap.put(setKey, theSet);
         }
         theSet.add(element);
@@ -722,40 +747,291 @@ public class UtilMisc {
      * @param localeObject An Object representing the locale
      */
     public static Locale ensureLocale(Object localeObject) {
-        if (localeObject instanceof String) {
-            return parseLocale((String) localeObject);
-        } else if (localeObject instanceof Locale) {
+        if (localeObject != null && localeObject instanceof String) {
+            localeObject = UtilMisc.parseLocale((String) localeObject);
+        }
+        if (localeObject != null && localeObject instanceof Locale) {
             return (Locale) localeObject;
         }
         return Locale.getDefault();
     }
 
-    // Private lazy-initializer class
-    private static class LocaleHolder {
-        private static final List<Locale> availableLocaleList = getAvailableLocaleList();
-
-        private static List<Locale> getAvailableLocaleList() {
-            TreeMap<String, Locale> localeMap = new TreeMap<String, Locale>();
-            String localesString = UtilProperties.getPropertyValue("general", "locales.available");
-            if (UtilValidate.isNotEmpty(localesString)) {
-                List<String> idList = StringUtil.split(localesString, ",");
-                for (String id : idList) {
-                    Locale curLocale = parseLocale(id);
-                    localeMap.put(curLocale.getDisplayName(), curLocale);
-                }
-            } else {
-                Locale[] locales = Locale.getAvailableLocales();
-                for (int i = 0; i < locales.length && locales[i] != null; i++) {
-                    localeMap.put(locales[i].getDisplayName(), locales[i]);
-                }
-            }
-            return Collections.unmodifiableList(new ArrayList<Locale>(localeMap.values()));
-        }
-    }
-
+    public static List<Locale> availableLocaleList = null;
     /** Returns a List of available locales sorted by display name */
     public static List<Locale> availableLocales() {
-        return LocaleHolder.availableLocaleList;
+        if (availableLocaleList == null) {
+            synchronized(UtilMisc.class) {
+                if (availableLocaleList == null) {
+                    TreeMap<String, Locale> localeMap = new TreeMap<String, Locale>();
+                    String localesString = UtilProperties.getPropertyValue("general", "locales.available");
+                    if (UtilValidate.isNotEmpty(localesString)) { // check if available locales need to be limited according general.properties file
+                        int end = -1;
+                        int start = 0;
+                        for (int i=0; start < localesString.length(); i++) {
+                            end = localesString.indexOf(",", start);
+                            if (end == -1) {
+                                end = localesString.length();
+                            }
+                            Locale curLocale = UtilMisc.ensureLocale(localesString.substring(start, end));
+                            localeMap.put(curLocale.getDisplayName(), curLocale);
+                            start = end + 1;
+                        }
+                    } else {
+                        Locale[] locales = Locale.getAvailableLocales();
+                        for (int i = 0; i < locales.length && locales[i] != null; i++) {
+                            localeMap.put(locales[i].getDisplayName(), locales[i]);
+                        }
+                    }
+                    availableLocaleList = new LinkedList<Locale>(localeMap.values());
+                }
+            }
+        }
+        return availableLocaleList;
+    }
+
+    /** This is meant to be very quick to create and use for small sized maps, perfect for how we usually use UtilMisc.toMap */
+    @SuppressWarnings("serial")
+    protected static class SimpleMap<V> implements Map<String, V>, java.io.Serializable {
+        protected Map<String, V> realMapIfNeeded = null;
+
+        String[] names;
+        Object[] values;
+
+        public SimpleMap() {
+            names = new String[0];
+            values = new Object[0];
+        }
+
+        public SimpleMap(String name1, Object value1) {
+            names = new String[1];
+            values = new Object[1];
+            this.names[0] = name1;
+            this.values[0] = value1;
+        }
+
+        public SimpleMap(String name1, Object value1, String name2, Object value2) {
+            names = new String[2];
+            values = new Object[2];
+            this.names[0] = name1;
+            this.values[0] = value1;
+            this.names[1] = name2;
+            this.values[1] = value2;
+        }
+
+        public SimpleMap(String name1, Object value1, String name2, Object value2, String name3, Object value3) {
+            names = new String[3];
+            values = new Object[3];
+            this.names[0] = name1;
+            this.values[0] = value1;
+            this.names[1] = name2;
+            this.values[1] = value2;
+            this.names[2] = name3;
+            this.values[2] = value3;
+        }
+
+        public SimpleMap(String name1, Object value1, String name2, Object value2, String name3, Object value3, String name4, Object value4) {
+            names = new String[4];
+            values = new Object[4];
+            this.names[0] = name1;
+            this.values[0] = value1;
+            this.names[1] = name2;
+            this.values[1] = value2;
+            this.names[2] = name3;
+            this.values[2] = value3;
+            this.names[3] = name4;
+            this.values[3] = value4;
+        }
+
+        @SuppressWarnings("unchecked")
+        protected void makeRealMap() {
+            realMapIfNeeded = FastMap.newInstance();
+            for (int i = 0; i < names.length; i++) {
+                realMapIfNeeded.put(names[i], (V) values[i]);
+            }
+            this.names = null;
+            this.values = null;
+        }
+
+        public void clear() {
+            if (realMapIfNeeded != null) {
+                realMapIfNeeded.clear();
+            } else {
+                realMapIfNeeded = FastMap.newInstance();
+                names = null;
+                values = null;
+            }
+        }
+
+        public boolean containsKey(Object obj) {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.containsKey(obj);
+            } else {
+                for (String name: names) {
+                    if (obj == null && name == null) return true;
+                    if (name != null && name.equals(obj)) return true;
+                }
+                return false;
+            }
+        }
+
+        public boolean containsValue(Object obj) {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.containsValue(obj);
+            } else {
+                for (Object value: values) {
+                    if (obj == null && value == null) return true;
+                    if (value != null && value.equals(obj)) return true;
+                }
+                return false;
+            }
+        }
+
+        public java.util.Set<Map.Entry<String, V>> entrySet() {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.entrySet();
+            } else {
+                this.makeRealMap();
+                return realMapIfNeeded.entrySet();
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        public V get(Object obj) {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.get(obj);
+            } else {
+                for (int i = 0; i < names.length; i++) {
+                    if (obj == null && names[i] == null) return (V) values[i];
+                    if (names[i] != null && names[i].equals(obj)) return (V) values[i];
+                }
+                return null;
+            }
+        }
+
+        public boolean isEmpty() {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.isEmpty();
+            } else {
+                if (this.names.length == 0) return true;
+                return false;
+            }
+        }
+
+        public java.util.Set<String> keySet() {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.keySet();
+            } else {
+                this.makeRealMap();
+                return realMapIfNeeded.keySet();
+            }
+        }
+
+        public V put(String obj, V obj1) {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.put(obj, obj1);
+            } else {
+                this.makeRealMap();
+                return realMapIfNeeded.put(obj, obj1);
+            }
+        }
+
+        public void putAll(java.util.Map<? extends String, ? extends V> map) {
+            if (realMapIfNeeded != null) {
+                realMapIfNeeded.putAll(map);
+            } else {
+                this.makeRealMap();
+                realMapIfNeeded.putAll(map);
+            }
+        }
+
+        public V remove(Object obj) {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.remove(obj);
+            } else {
+                this.makeRealMap();
+                return realMapIfNeeded.remove(obj);
+            }
+        }
+
+        public int size() {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.size();
+            } else {
+                return this.names.length;
+            }
+        }
+
+        public java.util.Collection<V> values() {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.values();
+            } else {
+                this.makeRealMap();
+                return realMapIfNeeded.values();
+            }
+        }
+
+        @Override
+        public String toString() {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.toString();
+            } else {
+                StringBuilder outString = new StringBuilder("{");
+                for (int i = 0; i < names.length; i++) {
+                    if (i > 0) outString.append(',');
+                    outString.append('{');
+                    outString.append(names[i]);
+                    outString.append(',');
+                    outString.append(values[i]);
+                    outString.append('}');
+                }
+                outString.append('}');
+                return outString.toString();
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.hashCode();
+            } else {
+                int hashCode = 0;
+                for (int i = 0; i < names.length; i++) {
+                    //note that this calculation is done based on the calc specified in the Java java.util.Map interface
+                    int tempNum = (names[i] == null   ? 0 : names[i].hashCode()) ^
+                            (values[i] == null ? 0 : values[i].hashCode());
+                    hashCode += tempNum;
+                }
+                return hashCode;
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (realMapIfNeeded != null) {
+                return realMapIfNeeded.equals(obj);
+            } else {
+                Map<String, V> mapObj = UtilGenerics.<String, V>checkMap(obj);
+
+                //first check the size
+                if (mapObj.size() != names.length) return false;
+
+                //okay, same size, now check each entry
+                for (int i = 0; i < names.length; i++) {
+                    //first check the name
+                    if (!mapObj.containsKey(names[i])) return false;
+
+                    //if that passes, check the value
+                    Object mapValue = mapObj.get(names[i]);
+                    if (mapValue == null) {
+                        if (values[i] != null) return false;
+                    } else {
+                        if (!mapValue.equals(values[i])) return false;
+                    }
+                }
+
+                return true;
+            }
+        }
     }
 
     /** @deprecated use Thread.sleep() */
@@ -782,9 +1058,4 @@ public class UtilMisc {
             out.close();
         }
     }
-
-    public static int getViewLastIndex(int listSize, int viewSize) {
-        return (int)Math.ceil(listSize / (float) viewSize) - 1;
-    }
-    
 }

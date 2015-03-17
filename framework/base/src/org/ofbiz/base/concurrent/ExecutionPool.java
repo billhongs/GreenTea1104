@@ -18,45 +18,29 @@
  *******************************************************************************/
 package org.ofbiz.base.concurrent;
 
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.DelayQueue;
+import java.lang.management.ManagementFactory;
+import java.util.Iterator;
 import java.util.concurrent.Delayed;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
+import java.util.concurrent.DelayQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.ofbiz.base.lang.SourceMonitored;
-import org.ofbiz.base.util.Debug;
 
 @SourceMonitored
 public final class ExecutionPool {
-    public static final String module = ExecutionPool.class.getName();
-    public static final ExecutorService GLOBAL_BATCH = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 5, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), new ExecutionPoolThreadFactory(null, "OFBiz-batch"));
-    public static final ForkJoinPool GLOBAL_FORK_JOIN = new ForkJoinPool();
-    private static final ExecutorService pulseExecutionPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), new ExecutionPoolThreadFactory(null, "OFBiz-ExecutionPoolPulseWorker"));
-
     protected static class ExecutionPoolThreadFactory implements ThreadFactory {
-        private final ThreadGroup group;
         private final String namePrefix;
-        private volatile int count = 1;
+        private int count = 0;
 
-        protected ExecutionPoolThreadFactory(ThreadGroup group, String namePrefix) {
-            this.group = group;
+        protected ExecutionPoolThreadFactory(String namePrefix) {
             this.namePrefix = namePrefix;
         }
 
         public Thread newThread(Runnable r) {
-            Thread t = new Thread(group, r);
+            Thread t = new Thread(r);
             t.setDaemon(true);
             t.setPriority(Thread.NORM_PRIORITY);
             t.setName(namePrefix + "-" + count++);
@@ -64,30 +48,23 @@ public final class ExecutionPool {
         }
     }
 
-    public static ScheduledExecutorService getScheduledExecutor(ThreadGroup group, String namePrefix, int threadCount, long keepAliveSeconds, boolean preStart) {
-        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(threadCount, new ExecutionPoolThreadFactory(group, namePrefix));
-        if (keepAliveSeconds > 0) {
-            executor.setKeepAliveTime(keepAliveSeconds, TimeUnit.SECONDS);
-            executor.allowCoreThreadTimeOut(true);
-        }
-        if (preStart) {
-            executor.prestartAllCoreThreads();
-        }
+    public static ThreadFactory createThreadFactory(String namePrefix) {
+        return new ExecutionPoolThreadFactory(namePrefix);
+    }
+
+    public static ScheduledExecutorService getExecutor(String namePrefix, int threadCount) {
+        ExecutionPoolThreadFactory threadFactory = new ExecutionPoolThreadFactory(namePrefix);
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(threadCount, threadFactory);
+        executor.prestartAllCoreThreads();
         return executor;
     }
 
-    public static <F> List<F> getAllFutures(Collection<Future<F>> futureList) {
-        List<F> result = new LinkedList<F>();
-        for (Future<F> future: futureList) {
-            try {
-                result.add(future.get());
-            } catch (ExecutionException e) {
-                Debug.logError(e, module);
-            } catch (InterruptedException e) {
-                Debug.logError(e, module);
-            }
-        }
-        return result;
+    public static ScheduledExecutorService getNewExactExecutor(String namePrefix) {
+        return getExecutor(namePrefix, ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors());
+    }
+
+    public static ScheduledExecutorService getNewOptimalExecutor(String namePrefix) {
+        return getExecutor(namePrefix, ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors() * 2);
     }
 
     public static void addPulse(Pulse pulse) {
@@ -98,10 +75,25 @@ public final class ExecutionPool {
         delayQueue.remove(pulse);
     }
 
+    public static void pulseAll(Class<? extends Pulse> match) {
+        Iterator<Pulse> it = delayQueue.iterator();
+        while (it.hasNext()) {
+            Pulse pulse = it.next();
+            if (match.isInstance(pulse)) {
+                it.remove();
+                pulse.run();
+            }
+        }
+    }
+
     static {
-        int numberOfExecutionPoolPulseWorkers = Runtime.getRuntime().availableProcessors();
-        for (int i = 0; i < numberOfExecutionPoolPulseWorkers; i++) {
-            pulseExecutionPool.execute(new ExecutionPoolPulseWorker());
+        ExecutionPoolPulseWorker worker = new ExecutionPoolPulseWorker();
+        int processorCount = ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors();
+        for (int i = 0; i < processorCount; i++) {
+            Thread t = new Thread(worker);
+            t.setDaemon(true);
+            t.setName("ExecutionPoolPulseWorker(" + i + ")");
+            t.start();
         }
     }
 

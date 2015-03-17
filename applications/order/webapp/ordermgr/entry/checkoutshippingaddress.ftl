@@ -53,9 +53,8 @@ function toggleBillingAccount(box) {
 
 //]]>
 </script>
-<#assign cart = shoppingCart!/>
+<#assign cart = shoppingCart?if_exists/>
 <form method="post" name="checkoutInfoForm" style="margin:0;">
-  <fieldset>
     <input type="hidden" name="checkoutpage" value="shippingaddress"/>
     <div class="screenlet" style="height: 100%;">
         <div class="screenlet-title-bar">
@@ -75,7 +74,7 @@ function toggleBillingAccount(box) {
                <#if shippingContactMechList?has_content>
                  <tr><td colspan="2"><hr /></td></tr>
                  <#list shippingContactMechList as shippingContactMech>
-                   <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress", false)>
+                   <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress")>
                    <#assign checkThisAddress = (shippingContactMech_index == 0 && !cart.getShippingContactMechId()?has_content) || (cart.getShippingContactMechId()?default("") == shippingAddress.contactMechId)/>
                    <tr>
                      <td valign="top" width="1%" nowrap="nowrap">
@@ -101,7 +100,7 @@ function toggleBillingAccount(box) {
               </table>
              <div>&nbsp;${uiLabelMap.AccountingAgreementInformation}</div>
                <table>
-                 <#if agreements??>
+                 <#if agreements?exists>
                    <#if agreements.size()!=1>
                      <tr>
                        <td>&nbsp;</td>
@@ -115,7 +114,7 @@ function toggleBillingAccount(box) {
                          <div class='tabletext' valign='top'>
                            <select name="agreementId">
                              <#list agreements as agreement>
-                               <option value='${agreement.agreementId!}'>${agreement.agreementId} - ${agreement.description!}</option>
+                               <option value='${agreement.agreementId?if_exists}'>${agreement.agreementId} - ${agreement.description?if_exists}</option>
                              </#list>
                            </select>
                          </div>
@@ -123,7 +122,7 @@ function toggleBillingAccount(box) {
                      </tr>
                    <#else>
                      <#list agreements as agreement>
-                        <input type="radio" name="agreementId" value="${agreement.agreementId!}"<#if checkThisAddress> checked="checked"</#if> />${agreement.description!} will be used for this order.
+                        <input type="radio" name="agreementId" value="${agreement.agreementId?if_exists}"<#if checkThisAddress> checked="checked"</#if> />${agreement.description?if_exists} will be used for this order.
                      </#list>
                    </#if>
                  </#if>
@@ -134,7 +133,6 @@ function toggleBillingAccount(box) {
             ${screens.render("component://order/widget/ordermgr/OrderEntryOrderScreens.xml#customertaxinfo")}
         </div>
     </div>
-  </fieldset>
 </form>
 
 <table width="100%">

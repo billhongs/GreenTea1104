@@ -159,10 +159,7 @@ under the License.
       <field name="dataSourceId" type="id"></field>
       <field name="statusId" type="id"></field>
       <field name="privilegeEnumId" type="id"></field>
-      <field name="serviceName" type="long-varchar">
-          <description>Deprecated : use customMethod pattern instead of. Kept for backward compatibility</description>
-      </field>
-      <field name="customMethodId" type="id"></field>
+      <field name="serviceName" type="long-varchar"></field>
       <field name="contentName" type="name"></field>
       <field name="description" type="description"></field>
       <field name="localeString" type="very-short"></field>
@@ -189,9 +186,6 @@ under the License.
       </relation>
       <relation type="one" fk-name="CONTENT_PRIVENM" title="Privilege" rel-entity-name="Enumeration">
         <key-map field-name="privilegeEnumId" rel-field-name="enumId"/>
-      </relation>
-      <relation type="one" fk-name="CONTENT_CUSTMET" rel-entity-name="CustomMethod">
-        <key-map field-name="customMethodId"/>
       </relation>
       <!-- the relationship to MimeType is one-nofk so that you can still do a lookup on MimeType but a new
       and unexpected mime type would not cause a foreign key constraint violation, so MimeType can store the
@@ -520,6 +514,7 @@ under the License.
       <field name="dataSourceId" type="id"></field>
       <prim-key field="contentId"/>
       <prim-key field="metaDataPredicateId"/>
+      <prim-key field="metaDataValue"/>
       <relation type="one" fk-name="CONTENTMD_CNTNT" rel-entity-name="Content">
         <key-map field-name="contentId"/>
       </relation>
@@ -728,7 +723,7 @@ under the License.
             package-name="org.ofbiz.content.data"
             title="Other Data Object Entity">
       <field name="dataResourceId" type="id-ne"></field>
-      <field name="audioData" type="object"></field>
+      <field name="audioData" type="blob"></field>
       <prim-key field="dataResourceId"/>
       <relation type="one" fk-name="DATA_REC_AUDIO" rel-entity-name="DataResource">
         <key-map field-name="dataResourceId"/>
@@ -892,6 +887,7 @@ under the License.
       <field name="dataSourceId" type="id"></field>
       <prim-key field="dataResourceId"/>
       <prim-key field="metaDataPredicateId"/>
+      <prim-key field="metaDataValue"/>
       <relation type="one" fk-name="DATA_MD_DATREC" rel-entity-name="DataResource">
         <key-map field-name="dataResourceId"/>
       </relation>
@@ -1002,7 +998,7 @@ under the License.
             package-name="org.ofbiz.content.data"
             title="Image Data Object Entity">
       <field name="dataResourceId" type="id-ne"></field>
-      <field name="imageData" type="byte-array"></field>
+      <field name="imageData" type="blob"></field>
       <prim-key field="dataResourceId"/>
       <relation type="one" fk-name="DATA_REC_IMAGE" rel-entity-name="DataResource">
         <key-map field-name="dataResourceId"/>
@@ -1039,7 +1035,7 @@ under the License.
             package-name="org.ofbiz.content.data"
             title="Other Data Object Entity">
       <field name="dataResourceId" type="id-ne"></field>
-      <field name="dataResourceContent" type="object"></field>
+      <field name="dataResourceContent" type="blob"></field>
       <prim-key field="dataResourceId"/>
       <relation type="one" fk-name="DATA_REC_OTHER" rel-entity-name="DataResource">
         <key-map field-name="dataResourceId"/>
@@ -1049,7 +1045,7 @@ under the License.
             package-name="org.ofbiz.content.data"
             title="Other Data Object Entity">
       <field name="dataResourceId" type="id-ne"></field>
-      <field name="videoData" type="object"></field>
+      <field name="videoData" type="blob"></field>
       <prim-key field="dataResourceId"/>
       <relation type="one" fk-name="DATA_REC_VIDEO" rel-entity-name="DataResource">
         <key-map field-name="dataResourceId"/>
@@ -1069,13 +1065,16 @@ under the License.
       <field name="comments" type="comment"></field>
       <field name="documentLocation" type="long-varchar"></field>
       <field name="documentText" type="long-varchar"></field>
-      <field name="imageData" type="object"></field>
+      <field name="imageData" type="blob"></field>
       <prim-key field="documentId"/>
       <relation type="one" fk-name="DOCUMENT_TO_TYPE" rel-entity-name="DocumentType">
         <key-map field-name="documentTypeId"/>
       </relation>
       <relation type="many" rel-entity-name="DocumentTypeAttr">
         <key-map field-name="documentTypeId"/>
+      </relation>
+      <relation type="many" rel-entity-name="ShippingDocument">
+        <key-map field-name="documentId"/>
       </relation>
     </entity>
     <entity entity-name="DocumentAttribute"
@@ -1645,77 +1644,4 @@ under the License.
             <key-map field-name="helpContentId" rel-field-name="contentId"/>
         </relation>
     </extend-entity>
-    
-    <entity entity-name="ContentKeyword" package-name="org.ofbiz.content.content" title="Content Keyword Entity" never-cache="true">
-      <field name="contentId" type="id-ne"></field>
-      <field name="keyword" type="short-varchar"></field>
-      <field name="relevancyWeight" type="numeric"></field>
-      <prim-key field="contentId"/>
-      <prim-key field="keyword"/>
-      <relation type="one" fk-name="CNT_KWD_CNT" rel-entity-name="Content">
-        <key-map field-name="contentId"/>
-      </relation>
-      <index name="CNT_KWD_KWD">
-        <index-field name="keyword"/>
-      </index>
-    </entity>
-    <entity entity-name="ContentSearchConstraint" package-name="org.ofbiz.content.content" never-cache="true" title="Content Search Result Constraint Entity">
-      <field name="contentSearchResultId" type="id-ne"></field>
-      <field name="constraintSeqId" type="id-ne"></field>
-      <field name="constraintName" type="long-varchar"></field>
-      <field name="infoString" type="long-varchar"></field>
-      <field name="includeSubCategories" type="indicator"></field>
-      <field name="isAnd" type="indicator"></field>
-      <field name="anyPrefix" type="indicator"></field>
-      <field name="anySuffix" type="indicator"></field>
-      <field name="removeStems" type="indicator"></field>
-      <field name="lowValue" type="short-varchar"></field>
-      <field name="highValue" type="short-varchar"></field>
-      <prim-key field="contentSearchResultId"/>
-      <prim-key field="constraintSeqId"/>
-      <relation type="one" fk-name="CNT_SCHRSI_RES" rel-entity-name="ContentSearchResult">
-        <key-map field-name="contentSearchResultId"/>
-      </relation>
-    </entity>
-    <entity entity-name="ContentSearchResult"
-            package-name="org.ofbiz.content.content"
-            never-cache="true"
-            title="Content Search Result Entity">
-      <field name="contentSearchResultId" type="id-ne"></field>
-      <field name="visitId" type="id"></field>
-      <field name="orderByName" type="long-varchar"></field>
-      <field name="isAscending" type="indicator"></field>
-      <field name="numResults" type="numeric"></field>
-      <field name="secondsTotal" type="floating-point"></field>
-      <field name="searchDate" type="date-time"></field>
-      <prim-key field="contentSearchResultId"/>
-    </entity>
-    
-    <entity entity-name="WebAnalyticsConfig"
-            package-name="org.ofbiz.content.website"
-            title="Web Analytics Configuration">
-        <field name="webSiteId" type="id-ne"></field>
-        <field name="webAnalyticsTypeId" type="id-ne"></field>
-        <field name="webAnalyticsCode" type="very-long"><description>copy in here the analitics javascript code without the beginning- and end&lt;script&gt; tags</description></field>
-        <prim-key field="webSiteId"/>
-        <prim-key field="webAnalyticsTypeId"/>
-        <relation type="one-nofk" rel-entity-name="WebAnalyticsType">
-          <key-map field-name="webAnalyticsTypeId"/>
-        </relation>
-        <relation type="one-nofk" rel-entity-name="WebSite">
-            <key-map field-name="webSiteId"/>
-        </relation>
-    </entity>
-
-    <entity entity-name="WebAnalyticsType" package-name="org.ofbiz.content.website"
-        title="Web Analytics Type Entity">
-        <field name="webAnalyticsTypeId" type="id-ne"></field>
-        <field name="parentTypeId" type="id"></field>
-        <field name="hasTable" type="indicator"></field>
-        <field name="description" type="description"></field>
-        <prim-key field="webAnalyticsTypeId"/>
-        <relation type="one" fk-name="WANA_TYP_PARENT" title="Parent" rel-entity-name="WebAnalyticsType">
-            <key-map field-name="parentTypeId" rel-field-name="webAnalyticsTypeId"/>
-        </relation>
-    </entity>
 </entitymodel>

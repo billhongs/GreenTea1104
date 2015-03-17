@@ -18,15 +18,12 @@
  *******************************************************************************/
 package org.ofbiz.minilang.operation;
 
-import java.lang.reflect.Method;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
+import java.lang.reflect.*;
 
-import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.GeneralException;
-import org.ofbiz.base.util.ObjectType;
-import org.w3c.dom.Element;
+import org.w3c.dom.*;
+
+import org.ofbiz.base.util.*;
 
 /**
  * A string operation that calls a validation method
@@ -35,8 +32,8 @@ public class ValidateMethod extends SimpleMapOperation {
 
     public static final String module = ValidateMethod.class.getName();
 
-    String className;
     String methodName;
+    String className;
 
     public ValidateMethod(Element element, SimpleMapProcess simpleMapProcess) {
         super(element, simpleMapProcess);
@@ -47,37 +44,49 @@ public class ValidateMethod extends SimpleMapOperation {
     @Override
     public void exec(Map<String, Object> inMap, Map<String, Object> results, List<Object> messages, Locale locale, ClassLoader loader) {
         Object obj = inMap.get(fieldName);
+
         String fieldValue = null;
+
         try {
             fieldValue = (String) ObjectType.simpleTypeConvert(obj, "String", null, locale);
         } catch (GeneralException e) {
             messages.add("Could not convert field value for comparison: " + e.getMessage());
             return;
         }
+
         if (loader == null) {
             loader = Thread.currentThread().getContextClassLoader();
         }
-        Class<?>[] paramTypes = new Class<?>[] { String.class };
-        Object[] params = new Object[] { fieldValue };
+
+        Class<?>[] paramTypes = new Class<?>[] {String.class};
+        Object[] params = new Object[] {fieldValue};
+
         Class<?> valClass;
+
         try {
             valClass = loader.loadClass(className);
         } catch (ClassNotFoundException cnfe) {
             String msg = "Could not find validation class: " + className;
+
             messages.add(msg);
             Debug.logError("[ValidateMethod.exec] " + msg, module);
             return;
         }
+
         Method valMethod;
+
         try {
             valMethod = valClass.getMethod(methodName, paramTypes);
         } catch (NoSuchMethodException cnfe) {
             String msg = "Could not find validation method: " + methodName + " of class " + className;
+
             messages.add(msg);
             Debug.logError("[ValidateMethod.exec] " + msg, module);
             return;
         }
+
         Boolean resultBool = Boolean.FALSE;
+
         try {
             resultBool = (Boolean) valMethod.invoke(null, params);
         } catch (Exception e) {
@@ -87,6 +96,7 @@ public class ValidateMethod extends SimpleMapOperation {
             Debug.logError("[ValidateMethod.exec] " + msg, module);
             return;
         }
+
         if (!resultBool.booleanValue()) {
             addMessage(messages, loader, locale);
         }

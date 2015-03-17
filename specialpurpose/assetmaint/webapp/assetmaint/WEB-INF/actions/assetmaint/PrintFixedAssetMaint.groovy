@@ -20,10 +20,10 @@ under the License.
 import org.ofbiz.entity.*;
 import org.ofbiz.entity.condition.*;
 
-facility = fixedAsset.getRelatedOne("LocatedAtFacility", false);
+facility = fixedAsset.getRelatedOne("LocatedAtFacility");
 context.locatedAtFacility = facility;
 
-fixedAssetIdents = from("FixedAssetIdent").where("fixedAssetId", fixedAssetId).queryList();
+fixedAssetIdents = delegator.findList("FixedAssetIdent", EntityCondition.makeCondition([fixedAssetId : fixedAssetId]), null, null, null, false);
 fixedAssetIdentValue = "";
 if (fixedAssetIdents) {
     fixedAssetIdents.each { ident ->
@@ -32,13 +32,13 @@ if (fixedAssetIdents) {
 }
 context.fixedAssetIdentValue = fixedAssetIdentValue;
 
-status = fixedAssetMaint.getRelatedOne("StatusItem", false);
+status = fixedAssetMaint.getRelatedOne("StatusItem");
 if (status) {
     context.statusItemDesc = status.description;
 }
 //context.put("fixedAssetMaint",fixedAssetMaint);
 
-intervalUom = fixedAssetMaint.getRelatedOne("IntervalUom", false);
+intervalUom = fixedAssetMaint.getRelatedOne("IntervalUom");
 if (intervalUom) {
     context.intervalUomDesc = intervalUom.description;
 }
@@ -46,13 +46,13 @@ if (intervalUom) {
 instanceOfProductId = fixedAsset.instanceOfProductId;
 productMaintSeqId = fixedAssetMaint.productMaintSeqId;
 if (productMaintSeqId) {
-    productMaint = from("ProductMaint").where("productId", instanceOfProductId, "productMaintSeqId", productMaintSeqId).queryOne();
+    productMaint = delegator.findOne("ProductMaint", [productId : instanceOfProductId, productMaintSeqId : productMaintSeqId], false);
     context.productMaintName = productMaint.maintName;
 }
 
 productMaintTypeId = fixedAssetMaint.productMaintTypeId;
 if (productMaintTypeId) {
-    productMaintType = from("ProductMaintType").where("productMaintTypeId", productMaintTypeId).queryOne();
+    productMaintType = delegator.findOne("ProductMaintType", [productMaintTypeId : productMaintTypeId], false);
     if (productMaintType) {
         productMaintTypeDesc = productMaintType.description;
         context.productMaintTypeDesc = productMaintTypeDesc;
@@ -62,10 +62,10 @@ if (productMaintTypeId) {
 intervalMeterTypeId = fixedAssetMaint.intervalMeterTypeId;
 productMeterTypeDesc = "";
 if (intervalMeterTypeId) {
-    productMeterType = from("ProductMeterType").where("productMeterTypeId", intervalMeterTypeId).queryOne();
+    productMeterType = delegator.findOne("ProductMeterType", [productMeterTypeId : intervalMeterTypeId], false);
     productMeterTypeDesc  = productMeterType.description;
 }
 context.productMeterTypeDesc = productMeterTypeDesc;
 
-scheduleWorkEffort = fixedAssetMaint.getRelatedOne("ScheduleWorkEffort", false);
+scheduleWorkEffort = fixedAssetMaint.getRelatedOne("ScheduleWorkEffort");
 context.scheduleWorkEffort = scheduleWorkEffort;

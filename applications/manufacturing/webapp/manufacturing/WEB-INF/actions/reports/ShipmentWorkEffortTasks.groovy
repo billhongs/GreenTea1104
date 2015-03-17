@@ -20,24 +20,24 @@
 import org.ofbiz.entity.GenericValue;
 
 shipmentId = parameters.shipmentId;
-shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+shipment = delegator.findByPrimaryKey("Shipment", [shipmentId : shipmentId]);
 
 context.shipmentIdPar = shipment.shipmentId;
 context.date = new Date();
 Double fixedAssetTime = new Double(0);
 
 if (shipment) {
-    shipmentPlans = from("OrderShipment").where("shipmentId", shipmentId).queryList();
+    shipmentPlans = delegator.findByAnd("OrderShipment", [shipmentId : shipmentId]);
     shipmentPlans.each { shipmentPlan ->
-        productionRuns = from("WorkOrderItemFulfillment").where("orderId", shipmentPlan.orderId, "orderItemSeqId", shipmentPlan.orderItemSeqId).orderBy("workEffortId").queryList();
+        productionRuns = delegator.findByAnd("WorkOrderItemFulfillment", [orderId : shipmentPlan.orderId, orderItemSeqId : shipmentPlan.orderItemSeqId] , ["workEffortId"]); // TODO: add shipmentId
         if (productionRuns) {
             productionRuns.each { productionRun ->
                 productionRunProduct = [:];
-                productionRunProducts = from("WorkEffortGoodStandard").where("workEffortId", productionRun.workEffortId , "workEffortGoodStdTypeId", "PRUN_PROD_DELIV", "statusId", "WEGS_CREATED").queryList();
+                productionRunProducts = delegator.findByAnd("WorkEffortGoodStandard", [workEffortId : productionRun.workEffortId , workEffortGoodStdTypeId : "PRUN_PROD_DELIV", statusId : "WEGS_CREATED"]);
                 if (productionRunProducts) {
-                    productionRunProduct = ((GenericValue)productionRunProducts.get(0)).getRelatedOne("Product", false);
+                    productionRunProduct = ((GenericValue)productionRunProducts.get(0)).getRelatedOne("Product");
                 }
-                tasks = from("WorkEffort").where("workEffortParentId", productionRun.workEffortId, "workEffortTypeId", "PROD_ORDER_TASK").queryList();
+                tasks = delegator.findByAnd("WorkEffort", [workEffortParentId : productionRun.workEffortId, workEffortTypeId : "PROD_ORDER_TASK"]);
                 tasks.each { task ->
                     record = [:];
                     record.productId = productionRunProduct.productId;

@@ -19,6 +19,7 @@
 
 import org.ofbiz.base.util.UtilMisc;
 
-Map requests = runService('getCustRequestsByRole', ["userLogin": userLogin]);
+Map serviceCtx = UtilMisc.toMap("userLogin", userLogin);
+Map requests = dispatcher.runSync("getCustRequestsByRole", serviceCtx);
 
 context.put("custRequestAndRoles", requests.get("custRequestAndRoles"));

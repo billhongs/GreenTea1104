@@ -31,7 +31,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.product.store.ProductStoreWorker;
 import org.ofbiz.service.LocalDispatcher;
@@ -98,28 +97,27 @@ public class BOMTree {
         this.delegator = delegator;
         this.dispatcher = dispatcher;
 
-        inputProduct = EntityQuery.use(delegator).from("Product").where("productId", productId).queryOne();
+        inputProduct = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", productId));
 
         String productIdForRules = productId;
         // The selected product features are loaded
-        List<GenericValue> productFeaturesAppl = EntityQuery.use(delegator).from("ProductFeatureAppl")
-                .where("productId", productId, 
-                        "productFeatureApplTypeId", "STANDARD_FEATURE")
-                .queryList();
+        List<GenericValue> productFeaturesAppl = delegator.findByAnd("ProductFeatureAppl", 
+                UtilMisc.toMap("productId", productId, "productFeatureApplTypeId", "STANDARD_FEATURE"));
         List<GenericValue> productFeatures = FastList.newInstance();
         GenericValue oneProductFeatureAppl = null;
         for (int i = 0; i < productFeaturesAppl.size(); i++) {
             oneProductFeatureAppl = productFeaturesAppl.get(i);
-            productFeatures.add(oneProductFeatureAppl.getRelatedOne("ProductFeature", false));
+            productFeatures.add(delegator.findByPrimaryKey("ProductFeature",
+                    UtilMisc.toMap("productFeatureId", oneProductFeatureAppl.getString("productFeatureId"))));
+
         }
         // If the product is manufactured as a different product,
         // load the new product
         GenericValue manufacturedAsProduct = manufacturedAsProduct(productId, inDate);
         // We load the information about the product that needs to be manufactured
         // from Product entity
-        GenericValue product = EntityQuery.use(delegator).from("Product")
-                .where("productId", (manufacturedAsProduct != null? manufacturedAsProduct.getString("productIdTo"): productId))
-                .queryOne();
+        GenericValue product = delegator.findByPrimaryKey("Product", 
+                UtilMisc.toMap("productId", (manufacturedAsProduct != null? manufacturedAsProduct.getString("productIdTo"): productId)));
         if (product == null) return;
         BOMNode originalNode = new BOMNode(product, dispatcher, userLogin);
         originalNode.setTree(this);
@@ -127,7 +125,7 @@ public class BOMTree {
         // the bill of materials of its virtual product (if the current
         // product is variant).
         if (!hasBom(product, inDate)) {
-            List<GenericValue> virtualProducts = product.getRelated("AssocProductAssoc", UtilMisc.toMap("productAssocTypeId", "PRODUCT_VARIANT"), null, false);
+            List<GenericValue> virtualProducts = product.getRelatedByAnd("AssocProductAssoc", UtilMisc.toMap("productAssocTypeId", "PRODUCT_VARIANT"));
             virtualProducts = EntityUtil.filterByDate(virtualProducts, inDate);
             GenericValue virtualProduct = EntityUtil.getFirst(virtualProducts);
             if (virtualProduct != null) {
@@ -135,9 +133,8 @@ public class BOMTree {
                 // load the new product
                 productIdForRules = virtualProduct.getString("productId");
                 manufacturedAsProduct = manufacturedAsProduct(virtualProduct.getString("productId"), inDate);
-                product = EntityQuery.use(delegator).from("Product")
-                        .where("productId", (manufacturedAsProduct != null? manufacturedAsProduct.getString("productIdTo"): virtualProduct.get("productId")))
-                        .queryOne();
+                product = delegator.findByPrimaryKey("Product", 
+                        UtilMisc.toMap("productId", (manufacturedAsProduct != null? manufacturedAsProduct.getString("productIdTo"): virtualProduct.get("productId"))));
             }
         }
         if (product == null) return;
@@ -165,14 +162,20 @@ public class BOMTree {
     }
 
     private GenericValue manufacturedAsProduct(String productId, Date inDate) throws GenericEntityException {
-        return EntityQuery.use(delegator).from("ProductAssoc")
-                .where("productId", productId,
-                        "productAssocTypeId", "PRODUCT_MANUFACTURED")
-                .filterByDate(inDate).queryFirst();
+        List<GenericValue> manufacturedAsProducts = delegator.findByAnd("ProductAssoc",
+                                         UtilMisc.toMap("productId", productId,
+                                         "productAssocTypeId", "PRODUCT_MANUFACTURED"));
+        manufacturedAsProducts = EntityUtil.filterByDate(manufacturedAsProducts, inDate);
+        GenericValue manufacturedAsProduct = null;
+        if (UtilValidate.isNotEmpty(manufacturedAsProducts)) {
+            manufacturedAsProduct = EntityUtil.getFirst(manufacturedAsProducts);
+        }
+        return manufacturedAsProduct;
     }
 
     private boolean hasBom(GenericValue product, Date inDate) throws GenericEntityException {
-        List<GenericValue> children = product.getRelated("MainProductAssoc", UtilMisc.toMap("productAssocTypeId", bomTypeId), null, false);
+        List<GenericValue> children = product.getRelatedByAnd("MainProductAssoc", 
+                UtilMisc.toMap("productAssocTypeId", bomTypeId));
         children = EntityUtil.filterByDate(children, inDate);
         return UtilValidate.isNotEmpty(children);
     }
@@ -313,17 +316,9 @@ public class BOMTree {
     /** It visits the in-memory tree that represents a bill of materials
      * and it creates a manufacturing order for each of the nodes that needs
      * to be manufactured.
-     * @param facilityId the facility id
-     * @param date the context date
-     * @param workEffortName the work effort name
-     * @param description the description
-     * @param routingId the routing id
-     * @param orderId the order id
-     * @param orderItemSeqId the order item id
-     * @param shipGroupSeqId the shipment group item id
-     * @param shipmentId the shipment id delegator used
-     * @param userLogin the GenericValue object of userLogin
-     * @return returns the work effort id
+     * @param orderId The (sales) order id for which the manufacturing orders are created. If specified (together with orderItemSeqId) a link between the two order lines is created. If null, no link is created.
+     * @param orderItemSeqId
+     * @param delegator The delegator used.
      * @throws GenericEntityException If a db problem occurs.
      */
     public String createManufacturingOrders(String facilityId, Date date, String workEffortName, String description, String routingId, String orderId, String orderItemSeqId, String shipGroupSeqId, String shipmentId, GenericValue userLogin)  throws GenericEntityException {
@@ -331,7 +326,7 @@ public class BOMTree {
         if (root != null) {
             if (UtilValidate.isEmpty(facilityId)) {
                 if (orderId != null) {
-                    GenericValue order = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
+                    GenericValue order = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
                     String productStoreId = order.getString("productStoreId");
                     if (productStoreId != null) {
                         GenericValue productStore = ProductStoreWorker.getProductStore(productStoreId, delegator);
@@ -342,7 +337,7 @@ public class BOMTree {
 
                 }
                 if (facilityId == null && shipmentId != null) {
-                    GenericValue shipment = EntityQuery.use(delegator).from("Shipment").where("shipmentId", shipmentId).queryOne();
+                    GenericValue shipment = delegator.findByPrimaryKey("Shipment", UtilMisc.toMap("shipmentId", shipmentId));
                     facilityId = shipment.getString("originFacilityId");
                 }
             }

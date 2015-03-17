@@ -44,7 +44,7 @@ if (tree) {
         try {
             outMap = [:];
             if (currencyUomId) {
-                outMap = runService('getProductCost', [productId : node.getProduct().productId,
+                outMap = dispatcher.runSync("getProductCost", [productId : node.getProduct().productId,
                                                                              currencyUomId : currencyUomId,
                                                                              costComponentTypePrefix : "EST_STD",
                                                                              userLogin : userLogin]);
@@ -53,7 +53,7 @@ if (tree) {
                 grandTotalCost = grandTotalCost + totalCost ?: 0;
             }
             if (facilityId) {
-                outMap = runService('getInventoryAvailableByFacility', [productId : node.getProduct().productId,
+                outMap = dispatcher.runSync("getInventoryAvailableByFacility", [productId : node.getProduct().productId,
                                                                                               facilityId : facilityId,
                                                                                               userLogin : userLogin]);
                 qoh = outMap.quantityOnHandTotal;

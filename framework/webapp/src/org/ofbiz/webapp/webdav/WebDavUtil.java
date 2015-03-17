@@ -23,12 +23,13 @@ import java.io.InputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.xml.parsers.ParserConfigurationException;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Base64;
 import org.ofbiz.base.util.Debug;
@@ -100,7 +101,7 @@ public class WebDavUtil {
         if ("true".equalsIgnoreCase(UtilProperties.getPropertyValue("security.properties", "password.lowercase"))) {
             password = password.toLowerCase();
         }
-        Map<String, Object> result = new HashMap<String, Object>();
+        Map<String, Object> result = FastMap.newInstance();
         result.put("login.username", username);
         result.put("login.password", password);
         return result;

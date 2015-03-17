@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilMisc;
+import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.GenericEntity;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
@@ -37,17 +38,19 @@ import org.w3c.dom.Element;
  * EntityEcaAction
  */
 @SuppressWarnings("serial")
-public final class EntityEcaAction implements java.io.Serializable {
+public class EntityEcaAction implements java.io.Serializable {
     public static final String module = EntityEcaAction.class.getName();
 
-    private final String serviceName;
-    private final String serviceMode;
-    private final String runAsUser;
-    private final String valueAttr;
-    private final boolean resultToValue;
-    private final boolean abortOnError;
-    private final boolean rollbackOnError;
-    private final boolean persist;
+    protected String serviceName = null;
+    protected String serviceMode = null;
+    protected String runAsUser = null;
+    protected String valueAttr = null;
+    protected boolean resultToValue = true;
+    protected boolean abortOnError = false;
+    protected boolean rollbackOnError = false;
+    protected boolean persist = false;
+
+    protected EntityEcaAction() {}
 
     public EntityEcaAction(Element action) {
         this.serviceName = action.getAttribute("service");
@@ -62,16 +65,14 @@ public final class EntityEcaAction implements java.io.Serializable {
         this.valueAttr = action.getAttribute("value-attr");
     }
 
-    public String getServiceName() {
-        return this.serviceName;
-    }
-
     public void runAction(DispatchContext dctx, Map<String, ? extends Object> context, GenericEntity newValue) throws GenericEntityException {
+        Map<String, Object> actionResult = null;
+
         try {
             // pull out context parameters needed for this service.
             Map<String, Object> actionContext = dctx.getModelService(serviceName).makeValid(context, ModelService.IN_PARAM);
             // if value-attr is specified, insert the value object in that attr name
-            if (!valueAttr.isEmpty()) {
+            if (UtilValidate.isNotEmpty(valueAttr)) {
                 actionContext.put(valueAttr, newValue);
             }
 
@@ -80,8 +81,8 @@ public final class EntityEcaAction implements java.io.Serializable {
 
             // setup the run-as-user
             GenericValue userLoginToRunAs = null;
-            if (!this.runAsUser.isEmpty()) {
-                userLoginToRunAs = dctx.getDelegator().findOne("UserLogin", UtilMisc.toMap("userLoginId", this.runAsUser), true);
+            if (UtilValidate.isNotEmpty(this.runAsUser)) {
+                userLoginToRunAs = dctx.getDelegator().findByPrimaryKeyCache("UserLogin", UtilMisc.toMap("userLoginId", this.runAsUser));
                 if (userLoginToRunAs != null) {
                     actionContext.put("userLogin", userLoginToRunAs);
                 }
@@ -89,13 +90,9 @@ public final class EntityEcaAction implements java.io.Serializable {
 
             LocalDispatcher dispatcher = dctx.getDispatcher();
             if ("sync".equals(this.serviceMode)) {
-                Map<String, Object> actionResult = dispatcher.runSync(this.serviceName, actionContext);
+                actionResult = dispatcher.runSync(this.serviceName, actionContext);
                 if (ServiceUtil.isError(actionResult)) {
                     throw new GenericServiceException("Error running Entity ECA action service: " + ServiceUtil.getErrorMessage(actionResult));
-                }
-                // use the result to update the context fields.
-                if (resultToValue) {
-                    newValue.setNonPKFields(actionResult);
                 }
             } else if ("async".equals(this.serviceMode)) {
                 dispatcher.runAsync(serviceName, actionContext, persist);
@@ -113,6 +110,11 @@ public final class EntityEcaAction implements java.io.Serializable {
             } else {
                 Debug.logError(e, "Error running Entity ECA action service", module);
             }
+        }
+
+        // use the result to update the context fields.
+        if (resultToValue) {
+            newValue.setNonPKFields(actionResult);
         }
     }
 }

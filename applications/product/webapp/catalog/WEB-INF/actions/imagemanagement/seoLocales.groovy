@@ -32,7 +32,7 @@ def nameLocal;
 def productTextData;
 contentAssocs.each { contentAssoc ->
 
-content = from("Content").where("contentId", contentAssoc.contentIdTo).queryOne();
+content = delegator.findOne("Content",[contentId : contentAssoc.contentIdTo], false);
 localeString = content.localeString;
 
     if (serverLocal == "au") {
@@ -58,7 +58,7 @@ localeString = content.localeString;
     }
     
     if (localeString == nameLocal) {
-            electronicText = from("ElectronicText").where("dataResourceId", content.dataResourceId).queryOne();
+            electronicText = delegator.findOne("ElectronicText",[dataResourceId : content.dataResourceId], false);
             productTextData = electronicText.textData;
     }
 

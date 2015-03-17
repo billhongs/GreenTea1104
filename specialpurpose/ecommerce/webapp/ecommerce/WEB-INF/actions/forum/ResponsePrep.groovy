@@ -32,7 +32,8 @@ import org.ofbiz.entity.*;
 import org.ofbiz.security.*;
 import org.ofbiz.service.*;
 import org.ofbiz.entity.model.*;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
+import org.ofbiz.widget.form.*;
 import org.ofbiz.securityext.login.*;
 import org.ofbiz.common.*;
 import org.ofbiz.content.content.ContentWorker;
@@ -62,7 +63,7 @@ if (trail) {
 
 // start at 1 to skip webSiteId
 idList.each { id ->
-    webSitePublishPoint = from("WebSitePublishPoint").where("contentId", id).cache(true).queryOne();
+    webSitePublishPoint = delegator.findByPrimaryKeyCache("WebSitePublishPoint", [contentId : id]);
     siteAncestorList.add(webSitePublishPoint);
 }
 context.siteAncestorList = siteAncestorList;

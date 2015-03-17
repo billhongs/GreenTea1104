@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
 
     <!-- Party Invitation Services -->
     <simple-method method-name="createPartyInvitation" short-description="Create a PartyInvitation">
@@ -88,13 +88,8 @@ under the License.
         <if-not-empty field="partyInvitationRoleAssocs">
             <set field="createPartyRoleCtx.partyId" from-field="parameters.partyId"/>
             <iterate list="partyInvitationRoleAssocs" entry="partyInvitationRoleAssoc">
-                <entity-one value-field="partyRole" entity-name="PartyRole">
-                    <field-map field-name="roleTypeId" from-field="partyInvitationRoleAssoc.roleTypeId"/>
-                </entity-one>
-                <if-empty field="partyRole">
-                    <set field="createPartyRoleCtx.roleTypeId" from-field="partyInvitationRoleAssoc.roleTypeId"/>
-                    <call-service service-name="createPartyRole" in-map-name="createPartyRoleCtx"/>
-                </if-empty>
+                <set field="createPartyRoleCtx.roleTypeId" from-field="partyInvitationRoleAssoc.roleTypeId"/>
+                <call-service service-name="createPartyRole" in-map-name="createPartyRoleCtx"/>
             </iterate>
         </if-not-empty>
         <set field="updatePartyInvitationCtx.partyInvitationId" from-field="parameters.partyInvitationId"/>

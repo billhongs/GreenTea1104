@@ -27,6 +27,7 @@ import java.sql.Timestamp;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
+import org.ofbiz.service.ServiceDispatcher;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ModelService;
 import org.ofbiz.service.ModelParam;
@@ -40,7 +41,7 @@ if (session.getAttribute("_SAVED_SYNC_RESULT_") != null) {
 }
 
 serviceName = parameters.SERVICE_NAME;
-context.POOL_NAME = ServiceConfigUtil.getServiceEngine().getThreadPool().getSendToPool();
+context.POOL_NAME = ServiceConfigUtil.getSendPool();
 
 scheduleOptions = [];
 serviceParameters = [];

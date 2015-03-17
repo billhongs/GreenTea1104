@@ -27,7 +27,6 @@ import javolution.util.FastMap;
 import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.testtools.OFBizTestCase;
 
 public class InventoryItemTransferTest extends OFBizTestCase {
@@ -42,7 +41,7 @@ public class InventoryItemTransferTest extends OFBizTestCase {
 
     @Override
     protected void setUp() throws Exception {
-        userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
+        userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
     }
 
     @Override
@@ -50,11 +49,11 @@ public class InventoryItemTransferTest extends OFBizTestCase {
     }
 
     public void testCreateInventoryItemsTransfer() throws Exception {
-        // create
         Map<String, Object> ctx = FastMap.newInstance();
+        String statusId = "IXF_REQUESTED";
         String inventoryItemId = "9005";
         ctx.put("inventoryItemId", inventoryItemId);
-        ctx.put("statusId", "IXF_REQUESTED");
+        ctx.put("statusId", statusId);
         ctx.put("facilityId", "WebStoreWarehouse");
         ctx.put("facilityIdTo", "WebStoreWarehouse");
         ctx.put("receiveDate", UtilDateTime.nowTimestamp());
@@ -63,14 +62,17 @@ public class InventoryItemTransferTest extends OFBizTestCase {
         Map<String, Object> resp = dispatcher.runSync("createInventoryTransfer", ctx);
         inventoryTransferId = (String) resp.get("inventoryTransferId");
         assertNotNull(inventoryTransferId);
+    }
 
-        // transfer
-        ctx = FastMap.newInstance();
+    public void testUpdateInventoryItemTransfer() throws Exception {
+        Map<String, Object> ctx = FastMap.newInstance();
+        String statusId = "IXF_COMPLETE";
         ctx.put("inventoryTransferId", inventoryTransferId);
+        String inventoryItemId = delegator.findByPrimaryKey("InventoryTransfer", UtilMisc.toMap("inventoryTransferId", inventoryTransferId)).getString("inventoryItemId");
         ctx.put("inventoryItemId", inventoryItemId);
-        ctx.put("statusId", "IXF_COMPLETE");
+        ctx.put("statusId", statusId);
         ctx.put("userLogin", userLogin);
-        resp = dispatcher.runSync("updateInventoryTransfer", ctx);
+        Map<String, Object> resp = dispatcher.runSync("updateInventoryTransfer", ctx);
         String respMsg = (String) resp.get("responseMessage");
         assertNotSame("error", respMsg);
     }

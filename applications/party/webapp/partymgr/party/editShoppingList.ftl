@@ -24,7 +24,7 @@ under the License.
       <li class="h3">${uiLabelMap.PartyShoppingLists}</li>
       <li>
         <form id="createEmptyShoppingList" action="<@ofbizUrl>createEmptyShoppingList</@ofbizUrl>" method="post">
-          <input type="hidden" name="partyId" value="${partyId!}" />
+          <input type="hidden" name="partyId" value="${partyId?if_exists}" />
           <a href="javascript:document.getElementById('createEmptyShoppingList').submit();" class="buttontext">${uiLabelMap.CommonCreateNew}</a>
         </form>
       </li>
@@ -43,7 +43,6 @@ under the License.
             <option value="${list.shoppingListId}">${list.listName}</option>
           </#list>
         </select>
-        <input type="hidden" name="partyId" value="${partyId!}" />
         <a href="javascript:document.selectShoppingList.submit();" class="smallSubmit">${uiLabelMap.CommonEdit}</a>
       </form>
     <#else>
@@ -58,22 +57,16 @@ under the License.
     <ul>
       <li class="h3">${uiLabelMap.PartyShoppingListDetail} - ${shoppingList.listName}</li>
       <li><a href="javascript:document.updateList.submit();">${uiLabelMap.CommonSave}</a></li>
-      <li>
-      <form method="post" name="createQuoteFromShoppingListForm" action="/ordermgr/control/createQuoteFromShoppingList">
-        <input type= "hidden" name= "applyStorePromotions" value= "N"/>
-        <input type= "hidden" name= "shoppingListId" value= "${shoppingList.shoppingListId!}"/>
-      </form>
-      <a href="javascript:document.createQuoteFromShoppingListForm.submit()">${uiLabelMap.PartyCreateNewQuote}</a>
-      </li>
-      <li><a href="/ordermgr/control/createCustRequestFromShoppingList?shoppingListId=${shoppingList.shoppingListId!}">${uiLabelMap.PartyCreateNewCustRequest}</a></li>
-      <li><a href="/ordermgr/control/loadCartFromShoppingList?shoppingListId=${shoppingList.shoppingListId!}">${uiLabelMap.OrderNewOrder}</a></li>
+      <li><a href="/ordermgr/control/createQuoteFromShoppingList?shoppingListId=${shoppingList.shoppingListId?if_exists}&amp;applyStorePromotions=N">${uiLabelMap.PartyCreateNewQuote}</a></li>
+      <li><a href="/ordermgr/control/createCustRequestFromShoppingList?shoppingListId=${shoppingList.shoppingListId?if_exists}">${uiLabelMap.PartyCreateNewCustRequest}</a></li>
+      <li><a href="/ordermgr/control/loadCartFromShoppingList?shoppingListId=${shoppingList.shoppingListId?if_exists}">${uiLabelMap.OrderNewOrder}</a></li>
     </ul>
     <br class="clear"/>
   </div>
   <div class="screenlet-body">
     <form name="updateList" method="post" action="<@ofbizUrl>updateShoppingList</@ofbizUrl>">
       <input type="hidden" name="shoppingListId" value="${shoppingList.shoppingListId}" />
-      <input type="hidden" name="partyId" value="${shoppingList.partyId!}" />
+      <input type="hidden" name="partyId" value="${shoppingList.partyId?if_exists}" />
       <table class="basic-table" cellspacing='0'>
         <tr>
           <td class="label">${uiLabelMap.PartyListName}</td>
@@ -81,13 +74,13 @@ under the License.
         </tr>
         <tr>
           <td class="label">${uiLabelMap.CommonDescription}</td>
-          <td><input type="text" size="70" name="description" value="${shoppingList.description!}" <#if shoppingList.listName?default("") == "auto-save">disabled="disabled"</#if> />
+          <td><input type="text" size="70" name="description" value="${shoppingList.description?if_exists}" <#if shoppingList.listName?default("") == "auto-save">disabled="disabled"</#if> />
         </tr>
         <tr>
           <td class="label">${uiLabelMap.PartyListType}</td>
           <td>
             <select name="shoppingListTypeId" <#if shoppingList.listName?default("") == "auto-save">disabled</#if>>
-              <#if shoppingListType??>
+              <#if shoppingListType?exists>
                 <option value="${shoppingListType.shoppingListTypeId}">${shoppingListType.get("description",locale)?default(shoppingListType.shoppingListTypeId)}</option>
                 <option value="${shoppingListType.shoppingListTypeId}">--</option>
               </#if>
@@ -112,7 +105,7 @@ under the License.
           <td class="label">${uiLabelMap.PartyParentList}</td>
           <td>
             <select name="parentShoppingListId" <#if shoppingList.listName?default("") == "auto-save">disabled</#if>>
-              <#if parentShoppingList??>
+              <#if parentShoppingList?exists>
                 <option value="${parentShoppingList.shoppingListId}">${parentShoppingList.listName?default(parentShoppingList.shoppingListId)}</option>
               </#if>
               <option value="">${uiLabelMap.PartyNoParent}</option>
@@ -120,7 +113,7 @@ under the License.
                 <option value="${newParShoppingList.shoppingListId}">${newParShoppingList.listName?default(newParShoppingList.shoppingListId)}</option>
               </#list>
             </select>
-            <#if parentShoppingList??>
+            <#if parentShoppingList?exists>
               <a href="<@ofbizUrl>editShoppingList?shoppingListId=${parentShoppingList.shoppingListId}</@ofbizUrl>" class="smallSubmit">${uiLabelMap.CommonGotoParent} (${parentShoppingList.listName?default(parentShoppingList.shoppingListId)})</a>
             </#if>
           </td>
@@ -176,16 +169,6 @@ under the License.
   </div>
   <div class="screenlet-body">
     <#if shoppingListItemDatas?has_content>
-        <#-- Pagination -->
-        <#include "component://common/webcommon/includes/htmlTemplate.ftl"/>
-        <#assign commonUrl = "editShoppingList?partyId=" + partyId + "&shoppingListId="+(shoppingListId!)+"&"/>
-        <#assign viewIndexFirst = 0/>
-        <#assign viewIndexPrevious = viewIndex - 1/>
-        <#assign viewIndexNext = viewIndex + 1/>
-        <#assign viewIndexLast = Static["org.ofbiz.base.util.UtilMisc"].getViewLastIndex(listSize, viewSize) />
-        <#assign messageMap = Static["org.ofbiz.base.util.UtilMisc"].toMap("lowCount", lowIndex, "highCount", highIndex, "total", listSize)/>
-        <#assign commonDisplaying = Static["org.ofbiz.base.util.UtilProperties"].getMessage("CommonUiLabels", "CommonDisplaying", messageMap, locale)/>
-        <@nextPrev commonUrl=commonUrl ajaxEnabled=false javaScriptEnabled=false paginateStyle="nav-pager" paginateFirstStyle="nav-first" viewIndex=viewIndex highIndex=highIndex listSize=listSize viewSize=viewSize ajaxFirstUrl="" firstUrl="" paginateFirstLabel="" paginatePreviousStyle="nav-previous" ajaxPreviousUrl="" previousUrl="" paginatePreviousLabel="" pageLabel="" ajaxSelectUrl="" selectUrl="" ajaxSelectSizeUrl="" selectSizeUrl="" commonDisplaying=commonDisplaying paginateNextStyle="nav-next" ajaxNextUrl="" nextUrl="" paginateNextLabel="" paginateLastStyle="nav-last" ajaxLastUrl="" lastUrl="" paginateLastLabel="" paginateViewSizeLabel="" />
       <table class="basic-table" cellspacing="0">
         <tr class="header-row">
           <td>${uiLabelMap.PartyProduct}</td>
@@ -196,17 +179,17 @@ under the License.
           <td>&nbsp;</td>
         </tr>
         <#assign alt_row = false>
-        <#list shoppingListItemDatas[lowIndex-1..highIndex-1] as shoppingListItemData>
+        <#list shoppingListItemDatas as shoppingListItemData>
           <#assign shoppingListItem = shoppingListItemData.shoppingListItem>
           <#assign product = shoppingListItemData.product>
           <#assign productContentWrapper = Static["org.ofbiz.product.product.ProductContentWrapper"].makeProductContentWrapper(product, request)>
           <#assign unitPrice = shoppingListItemData.unitPrice>
           <#assign totalPrice = shoppingListItemData.totalPrice>
-          <#assign productVariantAssocs = shoppingListItemData.productVariantAssocs!>
-          <#assign isVirtual = product.isVirtual?? && product.isVirtual.equals("Y")>
+          <#assign productVariantAssocs = shoppingListItemData.productVariantAssocs?if_exists>
+          <#assign isVirtual = product.isVirtual?exists && product.isVirtual.equals("Y")>
           <tr valign="middle"<#if alt_row> class="alternate-row"</#if>>
             <td><a href="/catalog/control/EditProduct?productId=${shoppingListItem.productId}&amp;externalLoginKey=${requestAttributes.externalLoginKey}">${shoppingListItem.productId} -
-              ${productContentWrapper.get("PRODUCT_NAME")?default("No Name")}</a> : ${productContentWrapper.get("DESCRIPTION")!}
+              ${productContentWrapper.get("PRODUCT_NAME")?default("No Name")}</a> : ${productContentWrapper.get("DESCRIPTION")?if_exists}
             </td>
             <form method="post" action="<@ofbizUrl>removeFromShoppingList</@ofbizUrl>" name='removeform_${shoppingListItem.shoppingListItemSeqId}'>
               <input type="hidden" name="shoppingListId" value="${shoppingListItem.shoppingListId}" />
@@ -221,7 +204,7 @@ under the License.
               <td>
                 <input size="6" type="text" name="quantityPurchased"
                   <#if shoppingListItem.quantityPurchased?has_content>
-                    value="${shoppingListItem.quantityPurchased!?string.number}"
+                    value="${shoppingListItem.quantityPurchased?if_exists?string.number}"
                   </#if> />
               </td>
             </form>
@@ -251,9 +234,9 @@ under the License.
     <br class="clear"/>
   </div>
   <div class="screenlet-body">
-    <form name="addToShoppingList" method="post" action="<@ofbizUrl>addItemToShoppingList</@ofbizUrl>">
+    <form name="addToShoppingList" method="post" action="<@ofbizUrl>addItemToShoppingList<#if requestAttributes._CURRENT_VIEW_?exists>/${requestAttributes._CURRENT_VIEW_}</#if></@ofbizUrl>">
       <input type="hidden" name="shoppingListId" value="${shoppingList.shoppingListId}" />
-      <input type="hidden" name="partyId" value="${shoppingList.partyId!}" />
+      <input type="hidden" name="partyId" value="${shoppingList.partyId?if_exists}" />
       <input type="text" name="productId" value="" />
       <input type="text" size="5" name="quantity" value="${requestParameters.quantity?default("1")}" />
       <input type="submit" value="${uiLabelMap.PartyAddToShoppingList}" />

@@ -42,7 +42,7 @@ if (partyId) {
 
     // NOTE: if there was an error, then don't look up and fill in all of this data, just use the values from the previous request (which will be in the parameters Map automagically)
     if (!request.getAttribute("_ERROR_MESSAGE_") && !request.getAttribute("_ERROR_MESSAGE_LIST_")) {
-        person = from("Person").where("partyId", partyId).queryOne();
+        person = delegator.findByPrimaryKey("Person", [partyId : partyId]);
         if (person) {
             context.callSubmitForm = true;
             // should never be null for the anonymous checkout, but just in case
@@ -52,7 +52,8 @@ if (partyId) {
         }
 
         // get the Email Address
-        emailPartyContactDetail = from("PartyContactDetailByPurpose").where("partyId", partyId, "contactMechPurposeTypeId", "PRIMARY_EMAIL").filterByDate().queryFirst();
+        emailPartyContactDetail = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("PartyContactDetailByPurpose",
+                [partyId : partyId, contactMechPurposeTypeId : "PRIMARY_EMAIL"])));
         if (emailPartyContactDetail) {
             parameters.emailContactMechId = emailPartyContactDetail.contactMechId;
             parameters.emailAddress = emailPartyContactDetail.infoString;
@@ -60,7 +61,8 @@ if (partyId) {
         }
 
         // get the Phone Numbers
-        homePhonePartyContactDetail = from("PartyContactDetailByPurpose").where("partyId", partyId, "contactMechPurposeTypeId", "PHONE_HOME").filterByDate().queryFirst();
+        homePhonePartyContactDetail = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("PartyContactDetailByPurpose",
+                [partyId : partyId, contactMechPurposeTypeId : "PHONE_HOME"])));
         if (homePhonePartyContactDetail) {
             parameters.homePhoneContactMechId = homePhonePartyContactDetail.contactMechId;
             parameters.homeCountryCode = homePhonePartyContactDetail.countryCode;
@@ -70,7 +72,8 @@ if (partyId) {
             parameters.homeSol = homePhonePartyContactDetail.allowSolicitation;
         }
 
-        workPhonePartyContactDetail = from("PartyContactDetailByPurpose").where(partyId : partyId, contactMechPurposeTypeId : "PHONE_WORK").filterByDate().queryFirst();
+        workPhonePartyContactDetail = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("PartyContactDetailByPurpose",
+                [partyId : partyId, contactMechPurposeTypeId : "PHONE_WORK"])));
         if (workPhonePartyContactDetail) {
             parameters.workPhoneContactMechId = workPhonePartyContactDetail.contactMechId;
             parameters.workCountryCode = workPhonePartyContactDetail.countryCode;
@@ -90,9 +93,9 @@ context.cart = cart;
 request.removeAttribute("_EVENT_MESSAGE_");
 
 if (cartPartyId && !cartPartyId.equals("_NA_")) {
-    cartParty = from("Party").where("partyId", cartPartyId).queryOne();
+    cartParty = delegator.findByPrimaryKey("Party", [partyId : cartPartyId]);
     if (cartParty) {
-        cartPerson = cartParty.getRelatedOne("Person", false);
+        cartPerson = cartParty.getRelatedOne("Person");
         context.party = cartParty;
         context.person = cartPerson;
     }
@@ -100,7 +103,8 @@ if (cartPartyId && !cartPartyId.equals("_NA_")) {
 
 if (cart && cart.getShippingContactMechId()) {
     shippingContactMechId = cart.getShippingContactMechId();
-    shippingPartyContactDetail = from("PartyContactDetailByPurpose").where("partyId", cartPartyId, "contactMechId", shippingContactMechId).filterByDate().queryFirst();
+    shippingPartyContactDetail = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("PartyContactDetailByPurpose",
+       [partyId : cartPartyId, contactMechId : shippingContactMechId])));
     parameters.shippingContactMechId = shippingPartyContactDetail.contactMechId;
     context.callSubmitForm = true;
     parameters.shipToName = shippingPartyContactDetail.toName;
@@ -117,7 +121,7 @@ if (cart && cart.getShippingContactMechId()) {
 
 billingContactMechId = session.getAttribute("billingContactMechId");
 if (billingContactMechId) {
-    billPostalAddress = from("PostalAddress").where("contactMechId", billingContactMechId).queryOne();
+    billPostalAddress = delegator.findByPrimaryKey("PostalAddress", [contactMechId : billingContactMechId]);
     parameters.billingContactMechId = billPostalAddress.contactMechId;
     parameters.billToName = billPostalAddress.toName;
     parameters.billToAttnName = billPostalAddress.attnName;

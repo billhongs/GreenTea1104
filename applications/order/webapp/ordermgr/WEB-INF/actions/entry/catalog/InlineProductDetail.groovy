@@ -25,9 +25,8 @@ import org.ofbiz.service.*;
 import org.ofbiz.entity.*;
 import org.ofbiz.entity.condition.*;
 import org.ofbiz.entity.util.*;
-import org.ofbiz.webapp.taglib.ContentUrlTag;
+import org.ofbiz.webapp.taglib.*;
 import org.ofbiz.webapp.stats.VisitHandler;
-import org.ofbiz.webapp.website.WebSiteWorker
 import org.ofbiz.order.shoppingcart.ShoppingCartEvents;
 import org.ofbiz.product.catalog.*;
 import org.ofbiz.product.category.*;
@@ -47,7 +46,7 @@ catalogName = CatalogWorker.getCatalogName(request);
 currentCatalogId = CatalogWorker.getCurrentCatalogId(request);
 
 if (inlineProductId) {
-    inlineProduct = from("Product").where("productId", inlineProductId).cache(true).queryOne();
+    inlineProduct = delegator.findByPrimaryKeyCache("Product", [productId : inlineProductId]);
     if (inlineProduct) {
         context.product = inlineProduct;
         contentWrapper = new ProductContentWrapper(inlineProduct, request);
@@ -123,7 +122,7 @@ if (inlineProduct) {
 
 
     // get the product price
-    webSiteId = WebSiteWorker.getWebSiteId(request);
+    webSiteId = CatalogWorker.getWebSiteId(request);
     autoUserLogin = request.getSession().getAttribute("autoUserLogin");
     if (cart.isSalesOrder()) {
         // sales order: run the "calculateProductPrice" service
@@ -134,13 +133,13 @@ if (inlineProduct) {
         priceContext.checkIncludeVat = "Y";
         priceContext.agreementId = cart.getAgreementId();
         priceContext.partyId = cart.getPartyId();  // IMPORTANT: must put this in, or price will be calculated for the CSR instead of the customer
-        priceMap = runService('calculateProductPrice', priceContext);
+        priceMap = dispatcher.runSync("calculateProductPrice", priceContext);
         context.priceMap = priceMap;
     } else {
         // purchase order: run the "calculatePurchasePrice" service
         priceContext = [product : inlineProduct, currencyUomId : cart.getCurrency(),
                 partyId : cart.getPartyId(), userLogin : userLogin];
-        priceMap = runService('calculatePurchasePrice', priceContext);
+        priceMap = dispatcher.runSync("calculatePurchasePrice", priceContext);
         context.priceMap = priceMap;
     }
 
@@ -154,10 +153,10 @@ if (inlineProduct) {
         if ("VV_FEATURETREE".equals(ProductWorker.getProductVirtualVariantMethod(delegator, inlineProductId))) {
             context.featureLists = ProductWorker.getSelectableProductFeaturesByTypesAndSeq(inlineProduct);
         } else {
-            featureMap = runService("getProductFeatureSet", [productId : inlineProductId]);
+            featureMap = dispatcher.runSync("getProductFeatureSet", [productId : inlineProductId]);
             featureSet = featureMap.featureSet;
             if (featureSet) {
-                variantTreeMap = runService('getProductVariantTree', [productId : inlineProductId, featureOrder : featureSet, productStoreId : productStoreId]);
+                variantTreeMap = dispatcher.runSync("getProductVariantTree", [productId : inlineProductId, featureOrder : featureSet, productStoreId : productStoreId]);
                 variantTree = variantTreeMap.variantTree;
                 imageMap = variantTreeMap.variantSample;
                 virtualVariant = variantTreeMap.virtualVariant;
@@ -176,7 +175,7 @@ if (inlineProduct) {
                 if (variantTree) {
                     featureOrder = new LinkedList(featureSet);
                     featureOrder.each { featureKey ->
-                        featureValue = from("ProductFeatureType").where("productFeatureTypeId", featureKey).cache(true).queryOne();
+                        featureValue = delegator.findByPrimaryKeyCache("ProductFeatureType", [productFeatureTypeId : featureKey]);
                         fValue = featureValue.get("description") ?: featureValue.productFeatureTypeId;
                         featureTypes[featureKey] = fValue;
                     }
@@ -268,7 +267,7 @@ if (inlineProduct) {
                     }
 
                     // make a list of variant sku with requireAmount
-                    variantsRes = runService('getAssociatedProducts', [productId : inlineProductId, type : "PRODUCT_VARIANT", checkViewAllow : true, prodCatalogId : currentCatalogId]);
+                    variantsRes = dispatcher.runSync("getAssociatedProducts", [productId : inlineProductId, type : "PRODUCT_VARIANT", checkViewAllow : true, prodCatalogId : currentCatalogId]);
                     variants = variantsRes.assocProducts;
                     if (variants) {
                         amt = new StringBuffer();
@@ -284,12 +283,12 @@ if (inlineProduct) {
                         }
                         numberFormat = NumberFormat.getCurrencyInstance(locale);
                         variants.each { variantAssoc ->
-                            variant = variantAssoc.getRelatedOne("AssocProduct", false);
+                            variant = variantAssoc.getRelatedOne("AssocProduct");
                             // Get the price for each variant. Reuse the priceContext already setup for virtual product above and replace the product
                             if (cart.isSalesOrder()) {
                                 // sales order: run the "calculateProductPrice" service
                                 priceContext.product = variant;
-                                variantPriceMap = runService('calculateProductPrice', priceContext);
+                                variantPriceMap = dispatcher.runSync("calculateProductPrice", priceContext);
                             }
                             amt.append(" if (sku == \"" + variant.productId + "\") return \"" + (variant.requireAmount ?: "N") + "\"; ");
                             variantPriceJS.append("  if (sku == \"" + variant.productId + "\") return \"" + numberFormat.format(variantPriceMap.basePrice) + "\"; ");

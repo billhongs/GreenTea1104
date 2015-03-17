@@ -33,7 +33,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.security.Security;
 import org.ofbiz.service.DispatchContext;
@@ -79,7 +78,7 @@ public class PartyRelationshipServices {
         partyRelationshipType.set("partyRelationshipName", context.get("partyRelationshipName"), false);
 
         try {
-            if ((EntityQuery.use(delegator).from(partyRelationshipType.getEntityName()).where(partyRelationshipType.getPrimaryKey()).queryOne()) != null) {
+            if (delegator.findOne(partyRelationshipType.getEntityName(), partyRelationshipType.getPrimaryKey(), false) != null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
                         "PartyRelationshipTypeAlreadyExists", locale));
             }
@@ -127,14 +126,14 @@ public class PartyRelationshipServices {
 
                 // Before creating the partyRelationShip, create the partyRoles if they don't exist
                 GenericValue partyToRole = null;
-                partyToRole = EntityQuery.use(delegator).from("PartyRole").where("partyId", partyIdTo, "roleTypeId", roleTypeIdTo).queryOne();
+                partyToRole = delegator.findOne("PartyRole", UtilMisc.toMap("partyId", partyIdTo, "roleTypeId", roleTypeIdTo), false);
                 if (partyToRole == null) {
                     partyToRole = delegator.makeValue("PartyRole", UtilMisc.toMap("partyId", partyIdTo, "roleTypeId", roleTypeIdTo));
                     partyToRole.create();
                 }
 
                 GenericValue partyFromRole= null;
-                partyFromRole = EntityQuery.use(delegator).from("PartyRole").where("partyId", partyIdFrom, "roleTypeId", roleTypeIdFrom).queryOne();
+                partyFromRole = delegator.findOne("PartyRole", UtilMisc.toMap("partyId", partyIdFrom, "roleTypeId", roleTypeIdFrom), false);
                 if (partyFromRole == null) {
                     partyFromRole = delegator.makeValue("PartyRole", UtilMisc.toMap("partyId", partyIdFrom, "roleTypeId", roleTypeIdFrom));
                     partyFromRole.create();
@@ -142,11 +141,13 @@ public class PartyRelationshipServices {
 
                 // Check if there is already a partyRelationship of that type with another party from the side indicated
                 String sideChecked = partyIdFrom.equals(partyId)? "partyIdFrom" : "partyIdTo";
+                partyRelationShipList = delegator.findByAnd("PartyRelationship", UtilMisc.toMap(sideChecked, partyId,
+                        "roleTypeIdFrom", roleTypeIdFrom,
+                        "roleTypeIdTo", roleTypeIdTo,
+                        "partyRelationshipTypeId", partyRelationshipTypeId));
                 // We consider the last one (in time) as sole active (we try to maintain a unique relationship and keep changes history)
-                GenericValue oldPartyRelationShip = EntityQuery.use(delegator).from("PartyRelationship")
-                        .where(sideChecked, partyId, "roleTypeIdFrom", roleTypeIdFrom, "roleTypeIdTo", roleTypeIdTo, "partyRelationshipTypeId", partyRelationshipTypeId)
-                        .filterByDate()
-                        .queryFirst();
+                partyRelationShipList = EntityUtil.filterByDate(partyRelationShipList);
+                GenericValue oldPartyRelationShip = EntityUtil.getFirst(partyRelationShipList);
                 if (UtilValidate.isNotEmpty(oldPartyRelationShip)) {
                         oldPartyRelationShip.setFields(UtilMisc.toMap("thruDate", UtilDateTime.nowTimestamp())); // Current becomes inactive
                         oldPartyRelationShip.store();

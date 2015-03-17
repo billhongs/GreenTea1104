@@ -25,16 +25,21 @@ under the License.
     <classpath type="jar" location="build/lib/*"/>
     <classpath type="dir" location="config"/>
     <classpath type="jar" location="lib/*"/>
+    <classpath type="jar" location="lib/securepay/*"/>
+    <classpath type="jar" location="lib/cybersource/*"/>
+    <classpath type="jar" location="lib/worldpay/*"/>
+    <classpath type="dir" location="lib/worldpay"/>
 
     <entity-resource type="model" reader-name="main" loader="main" location="entitydef/entitymodel.xml"/>
     <entity-resource type="model" reader-name="main" loader="main" location="entitydef/entitymodel_reports.xml"/>
     <entity-resource type="model" reader-name="main" loader="main" location="entitydef/entitymodel_old.xml"/>
+    <entity-resource type="model" reader-name="main" loader="main" location="entitydef/entitymodel_olap.xml"/>
+    <entity-resource type="group" reader-name="main" loader="main" location="entitydef/entitygroup_olap.xml"/>
     <entity-resource type="eca" reader-name="main" loader="main" location="entitydef/eecas.xml"/>
     <entity-resource type="data" reader-name="seed" loader="main" location="data/AccountingTypeData.xml"/>
     <entity-resource type="data" reader-name="seed" loader="main" location="data/AccountingHelpData.xml"/>
     <entity-resource type="data" reader-name="seed" loader="main" location="data/UsTaxAccountGroups.xml"/>
-    <entity-resource type="data" reader-name="seed" loader="main" location="data/AccountingSecurityPermissionSeedData.xml"/>
-    <entity-resource type="data" reader-name="demo" loader="main" location="data/AccountingSecurityGroupDemoData.xml"/>
+    <entity-resource type="data" reader-name="seed" loader="main" location="data/AccountingSecurityData.xml"/>
     <entity-resource type="data" reader-name="seed" loader="main" location="data/AccountingPortletData.xml"/>
     <entity-resource type="data" reader-name="seed-initial" loader="main" location="data/PaymentGatewayConfData.xml"/>
     <entity-resource type="data" reader-name="seed-initial" loader="main" location="data/AccountingScheduledServiceData.xml"/>
@@ -45,15 +50,13 @@ under the License.
     <entity-resource type="data" reader-name="demo" loader="main" location="data/DemoTaxAuthority.xml"/>
     <entity-resource type="data" reader-name="demo" loader="main" location="data/DemoAcctgTransactionData.xml"/>
     <entity-resource type="data" reader-name="demo" loader="main" location="data/DemoPaymentsInvoices.xml"/>
+
     <entity-resource type="data" reader-name="demo" loader="main" location="data/DemoAccountingUserData.xml"/>
-    <entity-resource type="data" reader-name="demo" loader="main" location="data/DemoAssetMaintData.xml"/>
-    <entity-resource type="data" reader-name="demo" loader="main" location="data/DemoBudgetData.xml"/>
 
     <!-- General Payment Service Definitions -->
     <service-resource type="model" loader="main" location="servicedef/services_agreement.xml"/>
     <service-resource type="model" loader="main" location="servicedef/services_admin.xml"/>
     <service-resource type="model" loader="main" location="servicedef/services_billing.xml"/>
-    <service-resource type="model" loader="main" location="servicedef/services_budget.xml"/>
     <service-resource type="model" loader="main" location="servicedef/services_finaccount.xml"/>
     <service-resource type="model" loader="main" location="servicedef/services_fixedasset.xml"/>
     <service-resource type="model" loader="main" location="servicedef/services_invoice.xml"/>
@@ -64,6 +67,7 @@ under the License.
     <service-resource type="model" loader="main" location="servicedef/services_tax.xml"/>
     <service-resource type="model" loader="main" location="servicedef/services_rate.xml"/>
     <service-resource type="model" loader="main" location="servicedef/services_cost.xml"/>
+    <service-resource type="model" loader="main" location="servicedef/services_olap.xml"/>
 
     <!-- Payment Processor/Gateway Service Definitions -->
     <service-resource type="model" loader="main" location="servicedef/services_sagepay.xml"/>
@@ -88,11 +92,11 @@ under the License.
     <service-resource type="eca" loader="main" location="servicedef/secas.xml"/>
     <service-resource type="eca" loader="main" location="servicedef/secas_payment.xml"/>
     <service-resource type="eca" loader="main" location="servicedef/secas_ledger.xml"/>
+    <service-resource type="eca" loader="main" location="servicedef/secas_olap.xml"/>
     <service-resource type="eca" loader="main" location="servicedef/secas_invoice.xml"/>
 
     <test-suite loader="main" location="testdef/accountingtests.xml"/>
     <test-suite loader="main" location="testdef/paymenttests.xml"/>
-    <test-suite loader="main" location="testdef/paymentappltests.xml"/>
     <test-suite loader="main" location="testdef/invoicetests.xml"/>
     <test-suite loader="main" location="testdef/fixedassettests.xml"/>
 
@@ -104,14 +108,14 @@ under the License.
         mount-point="/accounting"/>
 
     <webapp name="ar"
-        title="Accounting - AR"
+        title="AR"
         server="default-server"
         location="webapp/ar"
         base-permission="OFBTOOLS,ACCOUNTING"
         mount-point="/ar"/>
 
     <webapp name="ap"
-        title="Accounting - AP"
+        title="AP"
         server="default-server"
         location="webapp/ap"
         base-permission="OFBTOOLS,ACCOUNTING"

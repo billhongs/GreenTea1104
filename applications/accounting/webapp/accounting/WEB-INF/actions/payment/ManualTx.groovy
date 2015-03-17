@@ -20,18 +20,18 @@
 import org.ofbiz.base.util.*;
 
 // stores
-productStores = from("ProductStore").orderBy("storeName").cache(true).queryList();
+productStores = delegator.findList("ProductStore", null, null, ["storeName"], null, true);
 context.productStores = productStores;
 
 // current store
 productStoreId = parameters.productStoreId;
 if (productStoreId) {
-    productStore = from("ProductStore").where("productStoreId", productStoreId).queryOne();
+    productStore = delegator.findByPrimaryKey("ProductStore", [productStoreId : productStoreId]);
     context.currentStore = productStore;
 }
 
 // payment settings
-paymentSettings = from("Enumeration").where("enumTypeId", "PRDS_PAYSVC").orderBy("sequenceId").queryList();
+paymentSettings = delegator.findByAnd("Enumeration", [enumTypeId : "PRDS_PAYSVC"], ["sequenceId"]);
 context.paymentSettings = paymentSettings;
 
 // payment method (for auto-fill)
@@ -46,35 +46,35 @@ context.paymentMethodTypeId = paymentMethodTypeId;
 txType = parameters.transactionType;
 context.txType = txType;
 if (txType) {
-    currentTx = from("Enumeration").where("enumId", txType).queryOne();
+    currentTx = delegator.findByPrimaryKey("Enumeration", [enumId : txType]);
     context.currentTx = currentTx;
 }
 
 if (paymentMethodId) {
-    paymentMethod = from("PaymentMethod").where("paymentMethodId", paymentMethodId).queryOne();
+    paymentMethod = delegator.findByPrimaryKey("PaymentMethod", [paymentMethodId : paymentMethodId]);
     if (paymentMethod) {
         // payment method type
         paymentMethodTypeId = paymentMethod.paymentMethodTypeId;
 
         // party information
-        party = paymentMethod.getRelatedOne("Party", false);
+        party = paymentMethod.getRelatedOne("Party");
         if (party && "PERSON".equals(party.partyTypeId)) {
-            person = party.getRelatedOne("Person", false);
+            person = party.getRelatedOne("Person");
             context.person = person;
         } else if (party && "PARTY_GROUP".equals(party.partyTypeId)) {
-            partyGroup = party.getRelatedOne("PartyGroup", false);
+            partyGroup = party.getRelatedOne("PartyGroup");
             context.partyGroup = partyGroup;
         }
 
         // method info + address
-        creditCard = paymentMethod.getRelatedOne("CreditCard", false);
+        creditCard = paymentMethod.getRelatedOne("CreditCard");
         context.put("creditCard", creditCard);
         if (creditCard) {
-            postalAddress = creditCard.getRelatedOne("PostalAddress", false);
+            postalAddress = creditCard.getRelatedOne("PostalAddress");
             context.postalFields = postalAddress;
         }
 
-        giftCard = paymentMethod.getRelatedOne("GiftCard", false);
+        giftCard = paymentMethod.getRelatedOne("GiftCard");
         context.giftCard = giftCard;
 
         // todo add support for eft account
@@ -82,7 +82,7 @@ if (paymentMethodId) {
 }
 
 if (paymentMethodTypeId) {
-    paymentMethodType = from("PaymentMethodType").where("paymentMethodTypeId", paymentMethodTypeId).queryOne();
+    paymentMethodType = delegator.findByPrimaryKey("PaymentMethodType", [paymentMethodTypeId : paymentMethodTypeId]);
     context.paymentMethodType = paymentMethodType;
     context.paymentMethodTypeId = paymentMethodTypeId;
 }

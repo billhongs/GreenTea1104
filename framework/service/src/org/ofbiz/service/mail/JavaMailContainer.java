@@ -22,10 +22,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
+import java.util.Timer;
+import java.util.TimerTask;
 import javax.mail.FetchProfile;
 import javax.mail.Flags;
 import javax.mail.Folder;
@@ -35,25 +33,24 @@ import javax.mail.NoSuchProviderException;
 import javax.mail.Session;
 import javax.mail.Store;
 import javax.mail.URLName;
-import javax.mail.event.StoreEvent;
-import javax.mail.event.StoreListener;
 import javax.mail.internet.MimeMessage;
 import javax.mail.search.FlagTerm;
+import javax.mail.event.StoreEvent;
+import javax.mail.event.StoreListener;
 
 import org.ofbiz.base.container.Container;
 import org.ofbiz.base.container.ContainerConfig;
 import org.ofbiz.base.container.ContainerException;
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
+import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
-import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.service.GenericServiceException;
+import org.ofbiz.entity.GenericEntityException;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.service.ServiceContainer;
+import org.ofbiz.service.GenericServiceException;
 
 public class JavaMailContainer implements Container {
 
@@ -65,12 +62,12 @@ public class JavaMailContainer implements Container {
     protected GenericValue userLogin = null;
     protected long timerDelay = 300000;
     protected long maxSize = 1000000;
-    protected ScheduledExecutorService pollTimer = null;
+    protected Timer pollTimer = null;
     protected boolean deleteMail = false;    // whether to delete emails after fetching them.
 
     protected String configFile = null;
     protected Map<Store, Session> stores = null;
-    private String name;
+
     /**
      * Initialize the container
      *
@@ -79,12 +76,10 @@ public class JavaMailContainer implements Container {
      * @throws org.ofbiz.base.container.ContainerException
      *
      */
-    @Override
-    public void init(String[] args, String name, String configFile) throws ContainerException {
-        this.name = name;
+    public void init(String[] args, String configFile) throws ContainerException {
         this.configFile = configFile;
         this.stores = new LinkedHashMap<Store, Session>();
-        this.pollTimer = Executors.newScheduledThreadPool(1);
+        this.pollTimer = new Timer();
     }
 
     /**
@@ -94,22 +89,21 @@ public class JavaMailContainer implements Container {
      * @throws org.ofbiz.base.container.ContainerException
      *
      */
-    @Override
     public boolean start() throws ContainerException {
-        ContainerConfig.Container cfg = ContainerConfig.getContainer(name, configFile);
+        ContainerConfig.Container cfg = ContainerConfig.getContainer("javamail-container", configFile);
         String dispatcherName = ContainerConfig.getPropertyValue(cfg, "dispatcher-name", "JavaMailDispatcher");
         String delegatorName = ContainerConfig.getPropertyValue(cfg, "delegator-name", "default");
         this.deleteMail = "true".equals(ContainerConfig.getPropertyValue(cfg, "delete-mail", "false"));
 
         this.delegator = DelegatorFactory.getDelegator(delegatorName);
-        this.dispatcher = ServiceContainer.getLocalDispatcher(dispatcherName, delegator);
+        this.dispatcher = GenericDispatcher.getLocalDispatcher(dispatcherName, delegator);
         this.timerDelay = ContainerConfig.getPropertyValue(cfg, "poll-delay", 300000);
         this.maxSize = ContainerConfig.getPropertyValue(cfg, "maxSize", 1000000); // maximum size in bytes
 
         // load the userLogin object
         String runAsUser = ContainerConfig.getPropertyValue(cfg, "run-as-user", "system");
         try {
-            this.userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", runAsUser).queryOne();
+            this.userLogin = delegator.findOne("UserLogin", false, "userLoginId", runAsUser);
         } catch (GenericEntityException e) {
             Debug.logError(e, "Unable to load run-as-user UserLogin; cannot start container", module);
             return false;
@@ -131,7 +125,7 @@ public class JavaMailContainer implements Container {
 
         // start the polling timer
         if (UtilValidate.isNotEmpty(stores)) {
-            pollTimer.scheduleAtFixedRate(new PollerTask(dispatcher, userLogin), timerDelay, timerDelay, TimeUnit.MILLISECONDS);
+            pollTimer.schedule(new PollerTask(dispatcher, userLogin), timerDelay, timerDelay);
         } else {
             Debug.logWarning("No JavaMail Store(s) configured; poller disabled.", module);
         }
@@ -145,16 +139,10 @@ public class JavaMailContainer implements Container {
      * @throws org.ofbiz.base.container.ContainerException
      *
      */
-    @Override
     public void stop() throws ContainerException {
         // stop the poller
-        this.pollTimer.shutdown();
+        this.pollTimer.cancel();
         Debug.logWarning("stop JavaMail poller", module);
-    }
-
-    @Override
-    public String getName() {
-        return name;
     }
 
     // java-mail methods
@@ -235,39 +223,13 @@ public class JavaMailContainer implements Container {
                 host = props.getProperty("mail.host");
             }
         }
-        
-        // check the port
-        int portProps = 0;
-        String portStr = props.getProperty("mail." + protocol + ".port");
-        if (!UtilValidate.isEmpty(portStr)) {
-            try {
-                portProps = Integer.valueOf(portStr);
-            } catch (NumberFormatException e) {
-                Debug.logError("The port given in property mail." + protocol + ".port is wrong, please check", module);
-            }
-        }
-        if (portProps == 0) {
-            portStr = props.getProperty("mail.port");
-            if (!UtilValidate.isEmpty(portStr)) {
-                try {
-                    portProps = Integer.valueOf(props.getProperty("mail.port"));
-                } catch (NumberFormatException e) {
-                    Debug.logError("The port given in property mail.port is wrong, please check", module);
-                }
-            }
-        }
-        // override the port if have found one.
-        if (portProps != 0) {
-            port = portProps;
-        }
- 
+
         if (Debug.verboseOn()) Debug.logVerbose("Update URL - " + protocol + "://" + userName + "@" + host + ":" + port + "!" + password + ";" + file, module);
         return new URLName(protocol, host, port, file, userName, password);
     }
 
     class LoggingStoreListener implements StoreListener {
 
-        @Override
         public void notification(StoreEvent event) {
             String typeString = "";
             switch (event.getMessageType()) {
@@ -283,7 +245,7 @@ public class JavaMailContainer implements Container {
         }
     }
 
-    class PollerTask implements Runnable {
+    class PollerTask extends TimerTask {
 
         LocalDispatcher dispatcher;
         GenericValue userLogin;

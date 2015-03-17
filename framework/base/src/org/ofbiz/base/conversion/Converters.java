@@ -19,11 +19,11 @@
 package org.ofbiz.base.conversion;
 
 import java.lang.reflect.Modifier;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+
+import javolution.util.FastMap;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.lang.SourceMonitored;
 import org.ofbiz.base.util.Debug;
@@ -35,11 +35,12 @@ import org.ofbiz.base.util.UtilGenerics;
 public class Converters {
     protected static final String module = Converters.class.getName();
     protected static final String DELIMITER = "->";
-    protected static final ConcurrentHashMap<String, Converter<?, ?>> converterMap = new ConcurrentHashMap<String, Converter<?, ?>>();
-    protected static final Set<ConverterCreator> creators = new HashSet<ConverterCreator>();
-    protected static final Set<String> noConversions = new HashSet<String>();
+    protected static final FastMap<String, Converter<?, ?>> converterMap = FastMap.newInstance();
+    protected static final FastSet<ConverterCreator> creators = FastSet.newInstance();
+    protected static final FastSet<String> noConversions = FastSet.newInstance();
 
     static {
+        converterMap.setShared(true);
         registerCreator(new PassThruConverterCreator());
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
         Iterator<ConverterLoader> converterLoaders = ServiceLoader.load(ConverterLoader.class, loader).iterator();
@@ -84,23 +85,11 @@ OUTER:
             if (noConversions.contains(key)) {
                 throw new ClassNotFoundException("No converter found for " + key);
             }
-            Class<?> foundSourceClass = null;
-            Converter<?, ?> foundConverter = null;
             for (Converter<?, ?> value : converterMap.values()) {
                 if (value.canConvert(sourceClass, targetClass)) {
-                    // this converter can deal with the source/target pair
-                    if (foundSourceClass == null || foundSourceClass.isAssignableFrom(value.getSourceClass())) {
-                        // remember the current target source class; if we find another converter, check
-                        // to see if it's source class is assignable to this one, and if so, it means it's
-                        // a child class, so we'll then take that converter.
-                        foundSourceClass = value.getSourceClass();
-                        foundConverter = value;
-                    }
+                    converterMap.putIfAbsent(key, value);
+                    continue OUTER;
                 }
-            }
-            if (foundConverter != null) {
-                converterMap.putIfAbsent(key, foundConverter);
-                continue OUTER;
             }
             for (ConverterCreator value : creators) {
                 result = createConverter(value, sourceClass, targetClass);
@@ -109,11 +98,7 @@ OUTER:
                     continue OUTER;
                 }
             }
-            boolean addedToSet = false;
-            synchronized (noConversions) {
-                addedToSet = noConversions.add(key);
-            }
-            if (addedToSet) {
+            if (noConversions.add(key)) {
                 Debug.logWarning("*** No converter found, converting from " +
                         sourceClass.getName() + " to " + targetClass.getName() +
                         ". Please report this message to the developer community so " +
@@ -166,9 +151,7 @@ OUTER:
      * @param creator The <code>ConverterCreater</code> instance to register
      */
     public static <S, T> void registerCreator(ConverterCreator creator) {
-        synchronized (creators) {
-            creators.add(creator);
-        }
+        creators.add(creator);
     }
 
     /** Registers a <code>Converter</code> instance to be used by the

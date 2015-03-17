@@ -33,12 +33,12 @@ if (currentCustomTimePeriodId) {
     context.currentCustomTimePeriodId = currentCustomTimePeriodId;
 }
 
-currentCustomTimePeriod = currentCustomTimePeriodId ? from("CustomTimePeriod").where("customTimePeriodId", currentCustomTimePeriodId).queryOne() : null;
+currentCustomTimePeriod = currentCustomTimePeriodId ? delegator.findByPrimaryKey("CustomTimePeriod", [customTimePeriodId : currentCustomTimePeriodId]) : null;
 if (currentCustomTimePeriod) {
     context.currentCustomTimePeriod = currentCustomTimePeriod;
 }
 
-currentPeriodType = currentCustomTimePeriod ? currentCustomTimePeriod.getRelatedOne("PeriodType", true) : null;
+currentPeriodType = currentCustomTimePeriod ? currentCustomTimePeriod.getRelatedOneCache("PeriodType") : null;
 if (currentPeriodType) {
     context.currentPeriodType = currentPeriodType;
 }
@@ -47,13 +47,13 @@ findMap = [ : ];
 if (findOrganizationPartyId) findMap.organizationPartyId = findOrganizationPartyId;
 if (currentCustomTimePeriodId) findMap.parentPeriodId = currentCustomTimePeriodId;
 
-customTimePeriods = from("CustomTimePeriod").where(findMap).orderBy(["periodTypeId", "periodNum", "fromDate"]).queryList();
+customTimePeriods = delegator.findByAnd("CustomTimePeriod", findMap, ["periodTypeId", "periodNum", "fromDate"]);
 context.customTimePeriods = customTimePeriods;
 
-allCustomTimePeriods = from("CustomTimePeriod").orderBy(["organizationPartyId", "parentPeriodId", "periodTypeId", "periodNum", "fromDate"]).queryList();
+allCustomTimePeriods = delegator.findList("CustomTimePeriod", null, null, ["organizationPartyId", "parentPeriodId", "periodTypeId", "periodNum", "fromDate"], null, false);
 context.allCustomTimePeriods = allCustomTimePeriods;
 
-periodTypes = from("PeriodType").orderBy("description").cache(true).queryList();
+periodTypes = delegator.findList("PeriodType", null, null, ["description"], null, true);
 context.periodTypes = periodTypes;
 
 newPeriodTypeId = "FISCAL_YEAR";

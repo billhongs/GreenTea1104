@@ -43,7 +43,7 @@ if (!description) {
     description = null;
 }
 
-productContent = from("ProductContent").where("contentId", contentId, "productId", productId, "productContentTypeId", productContentTypeId, "fromDate", fromDate).queryOne();
+productContent = delegator.findOne("ProductContent", [contentId : contentId, productId : productId, productContentTypeId : productContentTypeId, fromDate : fromDate], false);
 if (!productContent) {
     productContent = [:];
     productContent.productId = productId;
@@ -66,7 +66,7 @@ productContentData.putAll(productContent);
 content = [:];
 context.contentId = contentId;
 if (contentId) {
-    content = from("Content").where("contentId", contentId).queryOne();
+    content = delegator.findOne("Content", [contentId : contentId], false);
     context.content = content;
 } else {
     if (description) {
@@ -78,19 +78,20 @@ if (contentId) {
 if ("FULFILLMENT_EMAIL".equals(productContentTypeId)) {
     emailData = [:];
     if (contentId && content) {
-        subjectDr = content.getRelatedOne("DataResource", false);
+        subjectDr = content.getRelatedOne("DataResource");
         if (subjectDr) {
-            subject = subjectDr.getRelatedOne("ElectronicText", false);
+            subject = subjectDr.getRelatedOne("ElectronicText");
             emailData.subject = subject.textData;
             emailData.subjectDataResourceId = subject.dataResourceId;
         }
-        result = runService('findAssocContent', [userLogin : userLogin, contentId : contentId, mapKeys : ['plainBody', 'htmlBody']]);
+        serviceCtx = [userLogin : userLogin, contentId : contentId, mapKeys : ['plainBody', 'htmlBody']];
+        result = dispatcher.runSync("findAssocContent", serviceCtx);
         contentAssocs = result.get("contentAssocs");
         if (contentAssocs) {
             contentAssocs.each { contentAssoc ->
-                bodyContent = contentAssoc.getRelatedOne("ToContent", false);
-                bodyDr = bodyContent.getRelatedOne("DataResource", false);
-                body = bodyDr.getRelatedOne("ElectronicText", false);
+                bodyContent = contentAssoc.getRelatedOne("ToContent");
+                bodyDr = bodyContent.getRelatedOne("DataResource");
+                body = bodyDr.getRelatedOne("ElectronicText");
                 emailData.put(contentAssoc.mapKey, body.textData);
                 emailData.put(contentAssoc.get("mapKey")+"DataResourceId", body.dataResourceId);
             }
@@ -102,9 +103,9 @@ if ("FULFILLMENT_EMAIL".equals(productContentTypeId)) {
 } else if ("DIGITAL_DOWNLOAD".equals(productContentTypeId)) {
     downloadData = [:];
     if (contentId && content) {
-        downloadDr = content.getRelatedOne("DataResource", false);
+        downloadDr = content.getRelatedOne("DataResource");
         if (downloadDr) {
-            download = downloadDr.getRelatedOne("OtherDataResource", false);
+            download = downloadDr.getRelatedOne("OtherDataResource");
             if (download) {
                 downloadData.file = download.dataResourceContent;
                 downloadData.fileDataResourceId = download.dataResourceId;
@@ -121,9 +122,9 @@ if ("FULFILLMENT_EMAIL".equals(productContentTypeId)) {
     //Assume it is a generic simple text content
     textData = [:];
     if (contentId && content) {
-        textDr = content.getRelatedOne("DataResource", false);
+        textDr = content.getRelatedOne("DataResource");
         if (textDr) {
-            text = textDr.getRelatedOne("ElectronicText", false);
+            text = textDr.getRelatedOne("ElectronicText");
             if (text) {
                 textData.text = text.textData;
                 textData.textDataResourceId = text.dataResourceId;
@@ -134,7 +135,7 @@ if ("FULFILLMENT_EMAIL".equals(productContentTypeId)) {
     context.textData = textData;
 }
 if (productContentTypeId) {
-    productContentType = from("ProductContentType").where("productContentTypeId", productContentTypeId).queryOne();
+    productContentType = delegator.findOne("ProductContentType", [productContentTypeId : productContentTypeId], false);
     if (productContentType && "DIGITAL_DOWNLOAD".equals(productContentType.parentTypeId)) {
         context.contentFormName = "EditProductContentDownload";
     }

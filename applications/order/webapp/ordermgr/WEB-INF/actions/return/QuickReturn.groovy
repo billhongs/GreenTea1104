@@ -36,17 +36,17 @@ if (partyId) {
     if (("VENDOR_RETURN").equals(returnHeaderTypeId)) {
         context.toPartyId = partyId;
     }
-    party = from("Party").where("partyId", partyId).queryOne();
+    party = delegator.findByPrimaryKey("Party", [partyId : partyId]);
     context.party = party;
 }
 
-returnHeaders = from("ReturnHeader").where("statusId", "RETURN_REQUESTED").queryList();
+returnHeaders = delegator.findByAnd("ReturnHeader", [statusId : "RETURN_REQUESTED"], ["entryDate"]);
 context.returnHeaders = returnHeaders;
 
 // put in the return to party information from the order header
 if (orderId) {
-    order = from("OrderHeader").where("orderId", orderId).queryOne();
-    productStore = order.getRelatedOne("ProductStore", false);
+    order = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
+    productStore = order.getRelatedOne("ProductStore");
     if (productStore) {
         if (("VENDOR_RETURN").equals(returnHeaderTypeId)) {
             context.partyId = productStore.payToPartyId;
@@ -64,37 +64,37 @@ if (orderId) {
 
 // payment method info
 if (partyId) {
-    creditCardList = from("PaymentMethodAndCreditCard").where("partyId", partyId).filterByDate().queryList();
+    creditCardList = EntityUtil.filterByDate(delegator.findByAnd("PaymentMethodAndCreditCard", [partyId : partyId]));
     if (creditCardList) {
         context.creditCardList = creditCardList;
     }
-    eftAccountList = from("PaymentMethodAndEftAccount").where("partyId", partyId).filterByDate().queryList();
+    eftAccountList = EntityUtil.filterByDate(delegator.findByAnd("PaymentMethodAndEftAccount", [partyId : partyId]));
     if (eftAccountList) {
         context.eftAccountList = eftAccountList;
     }
 }
 
 
-returnTypes = from("ReturnType").orderBy("sequenceId").queryList();
+returnTypes = delegator.findList("ReturnType", null, null, ["sequenceId"], null, false);
 context.returnTypes = returnTypes;
 
-returnReasons = from("ReturnReason").orderBy("sequenceId").queryList();
+returnReasons = delegator.findList("ReturnReason", null, null, ["sequenceId"], null, false);
 context.returnReasons = returnReasons;
 
-itemStts = from("StatusItem").where("statusTypeId", "INV_SERIALIZED_STTS").orderBy("sequenceId").queryList();
+itemStts = delegator.findByAnd("StatusItem", [statusTypeId : "INV_SERIALIZED_STTS"], ["sequenceId"]);
 context.itemStts = itemStts;
 
 typeMap = [:];
-returnItemTypeMap = from("ReturnItemTypeMap").where("returnHeaderTypeId", returnHeaderTypeId).queryList();
+returnItemTypeMap = delegator.findByAnd("ReturnItemTypeMap", [returnHeaderTypeId : returnHeaderTypeId]);
 returnItemTypeMap.each { value ->
     typeMap[value.returnItemMapKey] = value.returnItemTypeId;
 }
 context.returnItemTypeMap = typeMap;
 
 if (orderId) {
-    returnRes = runService('getReturnableItems', [orderId : orderId]);
+    returnRes = dispatcher.runSync("getReturnableItems", [orderId : orderId]);
     context.returnableItems = returnRes.returnableItems;
-    orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
+    orderHeader = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
     context.orderHeader = orderHeader;
 }
 

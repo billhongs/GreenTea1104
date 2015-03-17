@@ -19,10 +19,10 @@
 package org.ofbiz.base.util;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -48,7 +48,6 @@ public class HttpClient {
     private boolean keepAlive = false;
 
     private String contentType = null;
-    private String streamCharset = null;
     private String url = null;
     private String rawStream = null;
     private String clientCertAlias = null;
@@ -182,16 +181,6 @@ public class HttpClient {
     /** Returns the content type */
     public String getContentType() {
         return this.contentType;
-    }
-    
-    /** Sets the scream charset */
-    public void setStreamCharset(String streamCharset) {
-        this.streamCharset = streamCharset;
-    }
-    
-    /** Returns the stream charset */
-    public String getStreamCharset() {
-        return this.streamCharset;
     }
 
     /** Toggle keep-alive setting */
@@ -361,7 +350,7 @@ public class HttpClient {
                 }
             }
 
-            if (Debug.verboseOn() || debug) Debug.logVerbose("Content-Type: " + contentType, module);
+            if (Debug.verboseOn() || debug) Debug.logInfo("Content-Type: " + contentType, module);
 
             if (contentType != null) {
                 contentType = contentType.toUpperCase();
@@ -373,16 +362,16 @@ public class HttpClient {
                     charset = contentType.substring(charsetEqualsLoc + 1);
                 }
 
-                if (charset != null) charset = charset.trim().replaceAll("\"", "");
-                if (Debug.verboseOn() || debug) Debug.logVerbose("Getting text from HttpClient with charset: " + charset, module);
+                if (charset != null) charset = charset.trim();
+                if (Debug.verboseOn() || debug) Debug.logInfo("Getting text from HttpClient with charset: " + charset, module);
             }
 
             BufferedReader post = new BufferedReader(charset == null ? new InputStreamReader(in) : new InputStreamReader(in, charset));
             String line = "";
 
-            if (Debug.verboseOn() || debug) Debug.logVerbose("---- HttpClient Response Content ----", module);
+            if (Debug.verboseOn() || debug) Debug.logInfo("---- HttpClient Response Content ----", module);
             while ((line = post.readLine()) != null) {
-                if (Debug.verboseOn() || debug) Debug.logVerbose("[HttpClient] : " + line, module);
+                if (Debug.verboseOn() || debug) Debug.logInfo("[HttpClient] : " + line, module);
                 buf.append(line);
                 if (lineFeed) {
                     buf.append("\n");
@@ -432,11 +421,11 @@ public class HttpClient {
             } else {
                 con = URLConnector.openConnection(requestUrl, timeout, clientCertAlias, hostVerification);
             }
-            if (Debug.verboseOn() || debug) Debug.logVerbose("Connection opened to : " + requestUrl.toExternalForm(), module);
+            if (Debug.verboseOn() || debug) Debug.logInfo("Connection opened to : " + requestUrl.toExternalForm(), module);
 
             if ((con instanceof HttpURLConnection)) {
                 ((HttpURLConnection) con).setInstanceFollowRedirects(followRedirects);
-                if (Debug.verboseOn() || debug) Debug.logVerbose("Connection is of type HttpURLConnection, more specifically: " + con.getClass().getName(), module);
+                if (Debug.verboseOn() || debug) Debug.logInfo("Connection is of type HttpURLConnection, more specifically: " + con.getClass().getName(), module);
             }
 
             // set the content type
@@ -462,7 +451,7 @@ public class HttpClient {
             if (basicAuthUsername != null) {
                 String basicAuthString = "Basic " + Base64.base64Encode(basicAuthUsername + ":" + (basicAuthPassword == null ? "" : basicAuthPassword));
                 con.setRequestProperty("Authorization", basicAuthString);
-                if (Debug.verboseOn() || debug) Debug.logVerbose("Header - Authorization: " + basicAuthString, module);
+                if (Debug.verboseOn() || debug) Debug.logInfo("Header - Authorization: " + basicAuthString, module);
             }
 
             if (UtilValidate.isNotEmpty(headers)) {
@@ -470,22 +459,22 @@ public class HttpClient {
                     String headerName = entry.getKey();
                     String headerValue = entry.getValue();
                     con.setRequestProperty(headerName, headerValue);
-                    if (Debug.verboseOn() || debug) Debug.logVerbose("Header - " + headerName + ": " + headerValue, module);
+                    if (Debug.verboseOn() || debug) Debug.logInfo("Header - " + headerName + ": " + headerValue, module);
                 }
             }
 
             if (method.equalsIgnoreCase("post")) {
-                OutputStreamWriter out = new OutputStreamWriter(con.getOutputStream(), this.streamCharset != null ? this.streamCharset : "UTF-8");
-                if (Debug.verboseOn() || debug) Debug.logVerbose("Opened output stream", module);
+                DataOutputStream out = new DataOutputStream(con.getOutputStream());
+                if (Debug.verboseOn() || debug) Debug.logInfo("Opened output stream", module);
 
                 if (arguments != null) {
-                    out.write(arguments);
-                    if (Debug.verboseOn() || debug) Debug.logVerbose("Wrote arguements (parameters) : " + arguments, module);
+                    out.writeBytes(arguments);
+                    if (Debug.verboseOn() || debug) Debug.logInfo("Wrote arguements (parameters) : " + arguments, module);
                 }
 
                 out.flush();
                 out.close();
-                if (Debug.verboseOn() || debug) Debug.logVerbose("Flushed and closed buffer", module);
+                if (Debug.verboseOn() || debug) Debug.logInfo("Flushed and closed buffer", module);
             }
 
             if (Debug.verboseOn() || debug) {

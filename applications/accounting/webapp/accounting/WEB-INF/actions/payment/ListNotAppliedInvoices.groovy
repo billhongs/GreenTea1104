@@ -31,7 +31,7 @@ import org.ofbiz.entity.condition.EntityConditionList;
 import java.math.*;
 
 paymentId = parameters.paymentId;
-payment = from("Payment").where("paymentId", paymentId).queryOne();
+payment = delegator.findByPrimaryKey("Payment", [paymentId : paymentId]);
 
 decimals = UtilNumber.getBigDecimalScale("invoice.decimals");
 rounding = UtilNumber.getBigDecimalRoundingMode("invoice.rounding");
@@ -41,7 +41,7 @@ exprList = [EntityCondition.makeCondition("partyId", EntityOperator.EQUALS, paym
 partyCond = EntityCondition.makeCondition(exprList, EntityOperator.AND);
 
 exprList1 = [EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "INVOICE_APPROVED"),
-             EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "INVOICE_SENT"),
+             EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "INVOICE_SEND"),
              EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "INVOICE_READY"),
              EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "INVOICE_RECEIVED")];
 statusCond = EntityCondition.makeCondition(exprList1, EntityOperator.OR);
@@ -51,20 +51,13 @@ actualCurrCond = EntityCondition.makeCondition("currencyUomId", EntityOperator.E
 
 topCond = EntityCondition.makeCondition([partyCond, statusCond, currCond], EntityOperator.AND);
 topCondActual = EntityCondition.makeCondition([partyCond, statusCond, actualCurrCond], EntityOperator.AND);
+fields = new HashSet(["invoiceId", "invoiceTypeId", "currencyUomId", "description", "invoiceDate"]);
 
 //retrieve invoices for the related parties which have not been (fully) applied yet and which have the same currency as the payment
-invoices = select("invoiceId", "invoiceTypeId", "currencyUomId", "description", "invoiceDate")
-                .from("Invoice")
-                .where(topCond)
-                .orderBy("invoiceDate")
-                .queryList();
+invoices = delegator.findList("Invoice", topCond, fields, ["invoiceDate"], null, false);
 context.invoices = getInvoices(invoices, false);
 //retrieve invoices for the related parties which have not been (fully) applied yet and which have the same originalCurrency as the payment
-invoices = select("invoiceId", "invoiceTypeId", "currencyUomId", "description", "invoiceDate")
-                .from("Invoice")
-                .where(topCondActual)
-                .orderBy("invoiceDate")
-                .queryList();
+invoices = delegator.findList("Invoice", topCondActual, fields, ["invoiceDate"], null, false);
 context.invoicesOtherCurrency = getInvoices(invoices, true);
 
 List getInvoices(List invoices, boolean actual) {

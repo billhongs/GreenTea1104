@@ -23,7 +23,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Map;
-
 import javolution.util.FastMap;
 
 import org.ofbiz.base.util.GeneralException;
@@ -31,7 +30,6 @@ import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ServiceUtil;
 
@@ -161,7 +159,7 @@ public class VerifyPickSessionRow implements Serializable {
             picklistItemMap.put("shipGroupSeqId", this.getShipGroupSeqId());
             picklistItemMap.put("inventoryItemId", this.getInventoryItemId());
 
-            GenericValue picklistItem = EntityQuery.use(delegator).from("PicklistItem").where(picklistItemMap).cache(true).queryOne();
+            GenericValue picklistItem = delegator.findOne("PicklistItem", picklistItemMap, true);
             if (UtilValidate.isNotEmpty(picklistItem)) {
                 BigDecimal itemQty = picklistItem.getBigDecimal("quantity");
                 if (itemQty.compareTo(quantity) == 0) {

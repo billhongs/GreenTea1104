@@ -18,40 +18,52 @@
  *******************************************************************************/
 package org.ofbiz.minilang.method;
 
-import org.ofbiz.base.util.UtilXml;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
-import org.ofbiz.minilang.SimpleMethod;
-import org.w3c.dom.Element;
+import org.w3c.dom.*;
+
+import org.ofbiz.base.util.*;
+import org.ofbiz.minilang.*;
 
 /**
- * Specifies a <code>java.lang.String</code> to be passed as an argument to a method call.
+ * A type of MethodObject that represents a String constant value to be used as an Object
  */
-public final class StringObject extends MethodObject<String> {
+public class StringObject extends MethodObject<String> {
 
-    private final FlexibleStringExpander cdataValueFse;
-    private final FlexibleStringExpander valueFse;
+    String value;
+    String cdataValue;
 
     public StringObject(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        this.cdataValueFse = FlexibleStringExpander.getInstance(UtilXml.elementValue(element));
-        this.valueFse = FlexibleStringExpander.getInstance(element.getAttribute("value"));
-    }
-
-    @Override
-    public String getObject(MethodContext methodContext) {
-        String value = this.valueFse.expandString(methodContext.getEnvMap());
-        String cdataValue = this.cdataValueFse.expandString(methodContext.getEnvMap());
-        return value.concat(cdataValue);
-    }
-
-    @Override
-    public Class<String> getTypeClass(MethodContext methodContext) throws ClassNotFoundException {
-        return java.lang.String.class;
+        value = element.getAttribute("value");
+        cdataValue = UtilXml.elementValue(element);
     }
 
     /** Get the name for the type of the object */
     @Override
     public String getTypeName() {
         return "java.lang.String";
+    }
+
+    @Override
+    public Class<String> getTypeClass(ClassLoader loader) {
+        return java.lang.String.class;
+    }
+
+    @Override
+    public String getObject(MethodContext methodContext) {
+        String value = methodContext.expandString(this.value);
+        String cdataValue = methodContext.expandString(this.cdataValue);
+
+        boolean valueExists = UtilValidate.isNotEmpty(value);
+        boolean cdataValueExists = UtilValidate.isNotEmpty(cdataValue);
+
+        if (valueExists && cdataValueExists) {
+            return value + cdataValue;
+        } else {
+            if (valueExists) {
+                return value;
+            } else {
+                return cdataValue;
+            }
+        }
     }
 }

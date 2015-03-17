@@ -53,7 +53,7 @@ context.currencyUomId = shoppingCart.getCurrency();
 context.orderType = shoppingCart.getOrderType();
 
 // get all the possible gift wrap options
-allgiftWraps = from("ProductFeature").where("productFeatureTypeId", "GIFT_WRAP").orderBy("defaultSequenceNum").queryList();
+allgiftWraps = delegator.findByAnd("ProductFeature", [productFeatureTypeId : "GIFT_WRAP"], ["defaultSequenceNum"]);
 context.allgiftWraps = allgiftWraps;
 
 context.contentPathPrefix = CatalogWorker.getContentPathPrefix(request);
@@ -82,24 +82,24 @@ context.defaultComment = defaultComment;
 
 // get all party shopping lists
 if (partyId) {
-  shoppingLists = from("ShoppingList").where("partyId", partyId).queryList();
+  shoppingLists = delegator.findByAnd("ShoppingList", [partyId : partyId]);
   context.shoppingLists = shoppingLists;
 }
 
 // get product inventory summary for each shopping cart item
-productStore = from("ProductStore").where("productStoreId", productStoreId).cache(true).queryOne();
+productStore = delegator.findByPrimaryKeyCache("ProductStore", [productStoreId : productStoreId]);
 context.productStore = productStore
 productStoreFacilityId = null;
 if (productStore) {
     productStoreFacilityId = productStore.inventoryFacilityId;
 }
 context.facilityId = productStoreFacilityId;
-inventorySummary = runService('getProductInventorySummaryForItems', [orderItems : shoppingCart.makeOrderItems(), facilityId : productStoreFacilityId]);
+inventorySummary = dispatcher.runSync("getProductInventorySummaryForItems", [orderItems : shoppingCart.makeOrderItems(), facilityId : productStoreFacilityId]);
 context.availableToPromiseMap = inventorySummary.availableToPromiseMap;
 context.quantityOnHandMap = inventorySummary.quantityOnHandMap;
 context.mktgPkgATPMap = inventorySummary.mktgPkgATPMap;
 context.mktgPkgQOHMap = inventorySummary.mktgPkgQOHMap;
 
 // get purchase order item types
-purchaseOrderItemTypeList = from("OrderItemType").where("parentTypeId", "PURCHASE_SPECIFIC").cache(true).queryList();
+purchaseOrderItemTypeList = delegator.findByAndCache("OrderItemType", [parentTypeId : "PURCHASE_SPECIFIC"]);
 context.purchaseOrderItemTypeList = purchaseOrderItemTypeList;

@@ -19,10 +19,13 @@
 package org.ofbiz.accounting.thirdparty.valuelink;
 
 import java.math.BigDecimal;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+
+import javax.transaction.xa.XAException;
 
 import javolution.util.FastMap;
 
@@ -33,11 +36,11 @@ import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
+import org.ofbiz.base.util.collections.ResourceBundleMapWrapper;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.entity.util.EntityUtilProperties;
+import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.product.store.ProductStoreWorker;
 import org.ofbiz.service.DispatchContext;
@@ -45,6 +48,7 @@ import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ModelService;
 import org.ofbiz.service.ServiceUtil;
+import org.ofbiz.service.ServiceXaWrapper;
 
 /**
  * ValueLinkServices - Integration with ValueLink Gift Cards
@@ -91,7 +95,7 @@ public class ValueLinkServices {
         byte[] testBytes = StringUtil.fromHexString(testString);
 
         // place holder
-        byte[] testEncryption = null;
+        byte[] testEncryption = new byte[0];
         String desc = "";
 
         if (mode.intValue() == 1) {
@@ -788,11 +792,13 @@ public class ValueLinkServices {
         // Activate/Rollback is not supported by valuelink
         if (!vlInterface.equals("Activate")) {
             // create the listener
+            ServiceXaWrapper xaw = new ServiceXaWrapper(dctx);
+            xaw.setRollbackService("vlTimeOutReversal", context);
+            //xaw.setCommitService("vlTimeOutReversal", context);
             Debug.logInfo("Set 704 context : " + context, module);
             try {
-                dctx.getDispatcher().addRollbackService("vlTimeOutReversal", context, false);
-                //dctx.getDispatcher().addCommitService("vlTimeOutReversal", context, false);
-            } catch (GenericServiceException e) {
+                xaw.enlist();
+            } catch (XAException e) {
                 Debug.logError(e, "Unable to setup 0704 Timeout Reversal", module);
             }
         }
@@ -810,7 +816,6 @@ public class ValueLinkServices {
     // payment processing wrappers (process/release/refund)
 
     public static Map<String, Object> giftCardProcessor(DispatchContext dctx, Map<String, Object> context) {
-        Delegator delegator = dctx.getDelegator();
         LocalDispatcher dispatcher = dctx.getDispatcher();
         GenericValue userLogin = (GenericValue) context.get("userLogin");
         Locale locale = (Locale) context.get("locale");
@@ -823,7 +828,7 @@ public class ValueLinkServices {
 
         // make sure we have a currency
         if (currency == null) {
-            currency = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+            currency = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
         }
 
         Map<String, Object> redeemCtx = FastMap.newInstance();
@@ -887,7 +892,6 @@ public class ValueLinkServices {
     }
 
     public static Map<String, Object> giftCardRelease(DispatchContext dctx, Map<String, Object> context) {
-        Delegator delegator = dctx.getDelegator();
         LocalDispatcher dispatcher = dctx.getDispatcher();
         GenericValue userLogin = (GenericValue) context.get("userLogin");
         Locale locale = (Locale) context.get("locale");
@@ -902,7 +906,7 @@ public class ValueLinkServices {
         // get the GiftCard VO
         GenericValue giftCard = null;
         try {
-            giftCard = paymentPref.getRelatedOne("GiftCard", false);
+            giftCard = paymentPref.getRelatedOne("GiftCard");
         } catch (GenericEntityException e) {
             Debug.logError("Unable to get GiftCard from OrderPaymentPreference", module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
@@ -916,7 +920,7 @@ public class ValueLinkServices {
 
         // make sure we have a currency
         if (currency == null) {
-            currency = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+            currency = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
         }
 
         Map<String, Object> redeemCtx = FastMap.newInstance();
@@ -952,7 +956,6 @@ public class ValueLinkServices {
     }
 
     public static Map<String, Object> giftCardRefund(DispatchContext dctx, Map<String, Object> context) {
-        Delegator delegator = dctx.getDelegator();
         LocalDispatcher dispatcher = dctx.getDispatcher();
         GenericValue userLogin = (GenericValue) context.get("userLogin");
         Locale locale = (Locale) context.get("locale");
@@ -967,7 +970,7 @@ public class ValueLinkServices {
         // get the GiftCard VO
         GenericValue giftCard = null;
         try {
-            giftCard = paymentPref.getRelatedOne("GiftCard", false);
+            giftCard = paymentPref.getRelatedOne("GiftCard");
         } catch (GenericEntityException e) {
             Debug.logError("Unable to get GiftCard from OrderPaymentPreference", module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
@@ -981,7 +984,7 @@ public class ValueLinkServices {
 
         // make sure we have a currency
         if (currency == null) {
-            currency = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+            currency = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
         }
 
         Map<String, Object> refundCtx = FastMap.newInstance();
@@ -1032,7 +1035,7 @@ public class ValueLinkServices {
         // the order header for store info
         GenericValue orderHeader = null;
         try {
-            orderHeader = orderItem.getRelatedOne("OrderHeader", false);
+            orderHeader = orderItem.getRelatedOne("OrderHeader");
         } catch (GenericEntityException e) {
             Debug.logError(e, "Unable to get OrderHeader from OrderItem",module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceOrder, 
@@ -1047,7 +1050,7 @@ public class ValueLinkServices {
 
         // make sure we have a currency
         if (currency == null) {
-            currency = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+            currency = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
         }
 
         // get the product store
@@ -1086,7 +1089,7 @@ public class ValueLinkServices {
         // the product entity needed for information
         GenericValue product = null;
         try {
-            product = orderItem.getRelatedOne("Product", false);
+            product = orderItem.getRelatedOne("Product");
         } catch (GenericEntityException e) {
             Debug.logError("Unable to get Product from OrderItem", module);
         }
@@ -1098,11 +1101,11 @@ public class ValueLinkServices {
         // get the productFeature type TYPE (VL promo code)
         GenericValue typeFeature = null;
         try {
-            typeFeature = EntityQuery.use(delegator)
-                    .from("ProductFeatureAndAppl")
-                    .where("productId", product.get("productId"), 
-                            "productFeatureTypeId", "TYPE")
-                    .orderBy("-fromDate").filterByDate().queryFirst();
+            Map<String, Object> fields = UtilMisc.toMap("productId", product.get("productId"), "productFeatureTypeId", "TYPE");
+            List<String> order = UtilMisc.toList("-fromDate");
+            List<GenericValue> featureAppls = delegator.findByAndCache("ProductFeatureAndAppl", fields, order);
+            featureAppls = EntityUtil.filterByDate(featureAppls);
+            typeFeature = EntityUtil.getFirst(featureAppls);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -1122,16 +1125,17 @@ public class ValueLinkServices {
         }
 
         // survey information
-        String surveyId = EntityUtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.purchase.surveyId", delegator);
+        String surveyId = UtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.purchase.surveyId");
 
         // get the survey response
         GenericValue surveyResponse = null;
         try {
-            surveyResponse = EntityQuery.use(delegator).from("SurveyResponse")
-                    .where("orderId", orderId,
-                            "orderItemSeqId", orderItem.get("orderItemSeqId"),
-                            "surveyId", surveyId)
-                    .queryFirst();
+            Map<String, Object> fields = UtilMisc.<String, Object>toMap("orderId", orderId, 
+                    "orderItemSeqId", orderItem.get("orderItemSeqId"), "surveyId", surveyId);
+            List<String> order = UtilMisc.toList("-responseDate");
+            List<GenericValue> responses = delegator.findByAnd("SurveyResponse", fields, order);
+            // there should be only one
+            surveyResponse = EntityUtil.getFirst(responses);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError,
@@ -1141,7 +1145,7 @@ public class ValueLinkServices {
         // get the response answers
         List<GenericValue> responseAnswers = null;
         try {
-            responseAnswers = surveyResponse.getRelated("SurveyResponseAnswer", null, null, false);
+            responseAnswers = surveyResponse.getRelated("SurveyResponseAnswer");
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError,
@@ -1151,10 +1155,12 @@ public class ValueLinkServices {
         // make a map of answer info
         Map<String, Object> answerMap = FastMap.newInstance();
         if (responseAnswers != null) {
-            for (GenericValue answer : responseAnswers) {
+            Iterator<GenericValue> rai = responseAnswers.iterator();
+            while (rai.hasNext()) {
+                GenericValue answer = rai.next();
                 GenericValue question = null;
                 try {
-                    question = answer.getRelatedOne("SurveyQuestion", false);
+                    question = answer.getRelatedOne("SurveyQuestion");
                 } catch (GenericEntityException e) {
                     Debug.logError(e, module);
                     return ServiceUtil.returnError(UtilProperties.getMessage(resourceError,
@@ -1169,11 +1175,12 @@ public class ValueLinkServices {
         }
 
         // get the send to email address - key defined in properties file
-        String sendToKey = EntityUtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.purchase.survey.sendToEmail", delegator);
+        String sendToKey = UtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.purchase.survey.sendToEmail");
         String sendToEmail = (String) answerMap.get(sendToKey);
+
         // get the copyMe flag and set the order email address
         String orderEmails = orh.getOrderEmailString();
-        String copyMeField = EntityUtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.purchase.survey.copyMe", delegator);
+        String copyMeField = UtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.purchase.survey.copyMe");
         String copyMeResp = copyMeField != null ? (String) answerMap.get(copyMeField) : null;
         boolean copyMe = (UtilValidate.isNotEmpty(copyMeField)
                 && UtilValidate.isNotEmpty(copyMeResp) && "true".equalsIgnoreCase(copyMeResp)) ? true : false;
@@ -1206,10 +1213,14 @@ public class ValueLinkServices {
             }
 
             if (!failure) {
-                // set the void on rollback
+                // set the void on rollback wrapper
+                ServiceXaWrapper xaw = new ServiceXaWrapper(dctx);
+                activateCtx.put("cardNumber", activateResult.get("cardNumber"));
+                activateCtx.put("pin", activateResult.get("pin"));
+                xaw.setRollbackService("voidActivateGiftCard", activateCtx);
                 try {
-                    dispatcher.addRollbackService("voidActivateGiftCard", activateCtx, false);
-                } catch (GenericServiceException e) {
+                    xaw.enlist();
+                } catch (XAException e) {
                     Debug.logError(e, "Unable to setup Activate/Void on error", module);
                 }
             }
@@ -1217,7 +1228,7 @@ public class ValueLinkServices {
             // create the fulfillment record
             Map<String, Object> vlFulFill = FastMap.newInstance();
             vlFulFill.put("typeEnumId", "GC_ACTIVATE");
-            vlFulFill.put("merchantId", EntityUtilProperties.getPropertyValue(paymentConfig, "payment.valuelink.merchantId", delegator));
+            vlFulFill.put("merchantId", UtilProperties.getPropertyValue(paymentConfig, "payment.valuelink.merchantId"));
             vlFulFill.put("partyId", partyId);
             vlFulFill.put("orderId", orderId);
             vlFulFill.put("orderItemSeqId", orderItem.get("orderItemSeqId"));
@@ -1252,13 +1263,17 @@ public class ValueLinkServices {
             GenericValue productStoreEmail = null;
             String emailType = "PRDS_GC_PURCHASE";
             try {
-                productStoreEmail = EntityQuery.use(delegator).from("ProductStoreEmailSetting").where("productStoreId", productStoreId, "emailType", emailType).queryOne();
+                productStoreEmail = delegator.findByPrimaryKey("ProductStoreEmailSetting", UtilMisc.toMap("productStoreId", productStoreId, "emailType", emailType));
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Unable to get product store email setting for gift card purchase", module);
             }
             if (productStoreEmail == null) {
                 Debug.logError("No gift card purchase email setting found for this store; cannot send gift card information", module);
             } else {
+                ResourceBundleMapWrapper uiLabelMap = UtilProperties.getResourceBundleMap("EcommerceUiLabels", locale);
+                uiLabelMap.addBottomResourceBundle("OrderUiLabels");
+                uiLabelMap.addBottomResourceBundle("CommonUiLabels");
+                answerMap.put("uiLabelMap", uiLabelMap);
                 answerMap.put("locale", locale);
 
                 // set the bcc address(s)
@@ -1316,7 +1331,7 @@ public class ValueLinkServices {
         // the order header for store info
         GenericValue orderHeader = null;
         try {
-            orderHeader = orderItem.getRelatedOne("OrderHeader", false);
+            orderHeader = orderItem.getRelatedOne("OrderHeader");
         } catch (GenericEntityException e) {
             Debug.logError(e, "Unable to get OrderHeader from OrderItem",module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceOrder, 
@@ -1331,7 +1346,7 @@ public class ValueLinkServices {
 
         // make sure we have a currency
         if (currency == null) {
-            currency = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+            currency = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
         }
 
         // get the product store
@@ -1367,16 +1382,17 @@ public class ValueLinkServices {
         BigDecimal amount = orderItem.getBigDecimal("unitPrice");
 
         // survey information
-        String surveyId = EntityUtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.reload.surveyId", delegator);
+        String surveyId = UtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.reload.surveyId");
 
         // get the survey response
         GenericValue surveyResponse = null;
         try {
-            surveyResponse = EntityQuery.use(delegator).from("SurveyResponse")
-                    .where("orderId", orderId, 
-                            "orderItemSeqId", orderItem.get("orderItemSeqId"), 
-                            "surveyId", surveyId).orderBy("-responseDate")
-                    .queryFirst();
+            Map<String, Object> fields = UtilMisc.toMap("orderId", orderId, 
+                    "orderItemSeqId", orderItem.get("orderItemSeqId"), "surveyId", surveyId);
+            List<String> order = UtilMisc.toList("-responseDate");
+            List<GenericValue> responses = delegator.findByAnd("SurveyResponse", fields, order);
+            // there should be only one
+            surveyResponse = EntityUtil.getFirst(responses);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError,
@@ -1386,7 +1402,7 @@ public class ValueLinkServices {
         // get the response answers
         List<GenericValue> responseAnswers = null;
         try {
-            responseAnswers = surveyResponse.getRelated("SurveyResponseAnswer", null, null, false);
+            responseAnswers = surveyResponse.getRelated("SurveyResponseAnswer");
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError,
@@ -1396,10 +1412,12 @@ public class ValueLinkServices {
         // make a map of answer info
         Map<String, Object> answerMap = FastMap.newInstance();
         if (responseAnswers != null) {
-            for (GenericValue answer : responseAnswers) {
+            Iterator<GenericValue> rai = responseAnswers.iterator();
+            while (rai.hasNext()) {
+                GenericValue answer = rai.next();
                 GenericValue question = null;
                 try {
-                    question = answer.getRelatedOne("SurveyQuestion", false);
+                    question = answer.getRelatedOne("SurveyQuestion");
                 } catch (GenericEntityException e) {
                     Debug.logError(e, module);
                     return ServiceUtil.returnError(UtilProperties.getMessage(resourceError,
@@ -1413,8 +1431,8 @@ public class ValueLinkServices {
             }
         }
 
-        String cardNumberKey = EntityUtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.reload.survey.cardNumber", delegator);
-        String pinNumberKey = EntityUtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.reload.survey.pinNumber", delegator);
+        String cardNumberKey = UtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.reload.survey.cardNumber");
+        String pinNumberKey = UtilProperties.getPropertyValue(paymentConfig, "payment.giftcert.reload.survey.pinNumber");
         String cardNumber = (String) answerMap.get(cardNumberKey);
         String pinNumber = (String) answerMap.get(pinNumberKey);
 
@@ -1441,7 +1459,7 @@ public class ValueLinkServices {
         // create the fulfillment record
         Map<String, Object> vlFulFill = FastMap.newInstance();
         vlFulFill.put("typeEnumId", "GC_RELOAD");
-        vlFulFill.put("merchantId", EntityUtilProperties.getPropertyValue(paymentConfig, "payment.valuelink.merchantId", delegator));
+        vlFulFill.put("merchantId", UtilProperties.getPropertyValue(paymentConfig, "payment.valuelink.merchantId"));
         vlFulFill.put("partyId", partyId);
         vlFulFill.put("orderId", orderId);
         vlFulFill.put("orderItemSeqId", orderItem.get("orderItemSeqId"));
@@ -1499,7 +1517,7 @@ public class ValueLinkServices {
         GenericValue productStoreEmail = null;
         String emailType = "PRDS_GC_RELOAD";
         try {
-            productStoreEmail = EntityQuery.use(delegator).from("ProductStoreEmailSetting").where("productStoreId", productStoreId, "emailType", emailType).queryOne();
+            productStoreEmail = delegator.findByPrimaryKey("ProductStoreEmailSetting", UtilMisc.toMap("productStoreId", productStoreId, "emailType", emailType));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Unable to get product store email setting for gift card purchase", module);
         }
@@ -1507,6 +1525,10 @@ public class ValueLinkServices {
             Debug.logError("No gift card purchase email setting found for this store; cannot send gift card information", module);
         } else {
             Map<String, Object> emailCtx = FastMap.newInstance();
+            ResourceBundleMapWrapper uiLabelMap = UtilProperties.getResourceBundleMap("EcommerceUiLabels", locale);
+            uiLabelMap.addBottomResourceBundle("OrderUiLabels");
+            uiLabelMap.addBottomResourceBundle("CommonUiLabels");
+            answerMap.put("uiLabelMap", uiLabelMap);
             answerMap.put("locale", locale);
 
             String bodyScreenLocation = productStoreEmail.getString("bodyScreenLocation");

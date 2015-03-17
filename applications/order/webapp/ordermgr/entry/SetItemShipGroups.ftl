@@ -30,7 +30,7 @@ under the License.
           <td>
             <#list 1..shoppingCart.getShipGroupSize() as currIndex>
               <#assign shipGroupIndex = currIndex - 1>
-              <#assign supplier =  delegator.findOne("PartyGroup", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", shoppingCart.getSupplierPartyId(shipGroupIndex)), false)! />
+              <#assign supplier =  delegator.findByPrimaryKey("PartyGroup", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", shoppingCart.getSupplierPartyId(shipGroupIndex)))?if_exists />
               <table width="100%" cellpadding="1" border="0" cellpadding="0" cellspacing="0">
               <tr>
                 <td colspan="2">
@@ -65,7 +65,7 @@ under the License.
                 <input type="hidden" name="fromGroupIndex_o_${rowCount}" value="${shipGroupIndex}"/>
                 <tr>
                   <td>
-                    <div>[${shoppingCartItem.getProductId()}] ${shoppingCartItem.getName()!}: ${shoppingCartItem.getDescription()!}</div>
+                    <div>[${shoppingCartItem.getProductId()}] ${shoppingCartItem.getName()?if_exists}: ${shoppingCartItem.getDescription()?if_exists}</div>
                   </td>
                   <td>
                     <div>${shipGroupItemQuantity}</div>

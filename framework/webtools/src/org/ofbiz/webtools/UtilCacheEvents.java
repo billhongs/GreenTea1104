@@ -24,7 +24,6 @@ import java.util.Locale;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilHttp;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilProperties;
@@ -41,7 +40,7 @@ public class UtilCacheEvents {
     /** An HTTP WebEvent handler the specified element from the specified cache
      * @param request The HTTP request object for the current JSP or Servlet request.
      * @param response The HTTP response object for the current JSP or Servlet request.
-     * @return return an HTTP WebEvent handler the specified element from the specified cache
+     * @return
      */
     public static String removeElementEvent(HttpServletRequest request, HttpServletResponse response) {
         String errMsg = "";
@@ -113,7 +112,7 @@ public class UtilCacheEvents {
     /** An HTTP WebEvent handler that clears the named cache
      * @param request The HTTP request object for the current JSP or Servlet request.
      * @param response The HTTP response object for the current JSP or Servlet request.
-     * @return return an HTTP WebEvent handler that clears the named cache
+     * @return
      */
     public static String clearEvent(HttpServletRequest request, HttpServletResponse response) {
         String errMsg = "";
@@ -150,7 +149,7 @@ public class UtilCacheEvents {
     /** An HTTP WebEvent handler that clears all caches
      * @param request The HTTP request object for the current JSP or Servlet request.
      * @param response The HTTP response object for the current JSP or Servlet request.
-     * @return return an HTTP WebEvent handler that clears all caches
+     * @return
      */
     public static String clearAllEvent(HttpServletRequest request, HttpServletResponse response) {
         String errMsg = "";
@@ -164,15 +163,15 @@ public class UtilCacheEvents {
         }
 
         UtilCache.clearAllCaches();
-        errMsg = UtilProperties.getMessage(UtilCacheEvents.err_resource, "utilCache.clearAllCaches", locale);
-        request.setAttribute("_EVENT_MESSAGE_", errMsg + " (" + UtilDateTime.nowDateString("yyyy-MM-dd HH:mm:ss")  + ").");
+        errMsg = UtilProperties.getMessage(UtilCacheEvents.err_resource, "utilCache.clearAllCaches", locale) + ".";
+        request.setAttribute("_EVENT_MESSAGE_", errMsg);
         return "success";
     }
 
     /** An HTTP WebEvent handler that updates the named cache
      * @param request The HTTP request object for the current JSP or Servlet request.
      * @param response The HTTP response object for the current JSP or Servlet request.
-     * @return return an HTTP WebEvent handler that updates the named cache
+     * @return
      */
     public static String updateEvent(HttpServletRequest request, HttpServletResponse response) {
         String errMsg = "";

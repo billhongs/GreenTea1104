@@ -32,7 +32,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ServiceUtil;
@@ -65,7 +64,7 @@ public static String createReconcileAccount(HttpServletRequest request, HttpServ
         organizationPartyId = (String) ctx.get("organizationPartyId" + suffix);
         glAccountId = (String) ctx.get("glAccountId" + suffix);
         try {
-            GenericValue acctgTransEntry = EntityQuery.use(delegator).from("AcctgTransEntry").where("acctgTransId", acctgTransId, "acctgTransEntrySeqId", acctgTransEntrySeqId).queryOne();
+            GenericValue acctgTransEntry = delegator.findOne("AcctgTransEntry", UtilMisc.toMap("acctgTransId", acctgTransId, "acctgTransEntrySeqId", acctgTransEntrySeqId), false);
             if (UtilValidate.isNotEmpty(acctgTransEntry)) {
                 //calculate amount for each AcctgTransEntry according to glAccountId based on debit and credit
                 debitCreditFlag = acctgTransEntry.getString("debitCreditFlag");
@@ -103,7 +102,7 @@ public static String createReconcileAccount(HttpServletRequest request, HttpServ
         acctgTransId = (String) ctx.get("acctgTransId" + suffix);
         acctgTransEntrySeqId = (String) ctx.get("acctgTransEntrySeqId" + suffix);
         try {
-            GenericValue acctgTransEntry = EntityQuery.use(delegator).from("AcctgTransEntry").where("acctgTransId", acctgTransId, "acctgTransEntrySeqId", acctgTransEntrySeqId).queryOne();
+            GenericValue acctgTransEntry = delegator.findOne("AcctgTransEntry", UtilMisc.toMap("acctgTransId", acctgTransId, "acctgTransEntrySeqId", acctgTransEntrySeqId), false);
             if (UtilValidate.isNotEmpty(acctgTransEntry)) {
                 reconciledAmount = acctgTransEntry.getString("amount");
                 acctgTransId = acctgTransEntry.getString("acctgTransId");

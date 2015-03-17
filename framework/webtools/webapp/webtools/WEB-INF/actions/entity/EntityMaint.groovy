@@ -19,24 +19,14 @@
 import javolution.util.FastList;
 
 import org.ofbiz.base.util.UtilValidate;
-import org.ofbiz.entity.Delegator
-import org.ofbiz.entity.DelegatorFactory
-import org.ofbiz.entity.GenericValue
-import org.ofbiz.entity.condition.EntityComparisonOperator
-import org.ofbiz.entity.condition.EntityCondition;
+import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.model.ModelGroupReader;
 import org.ofbiz.entity.model.ModelReader;
 import org.ofbiz.entity.model.ModelEntity;
-import org.ofbiz.entity.model.ModelViewEntity
-import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.model.ModelViewEntity;
 
-if (delegator.getDelegatorTenantId() == null) {
-    mgr = delegator.getModelGroupReader();
-    entityGroups = mgr.getGroupNames(delegator.getDelegatorName()).toArray().sort();
-} else {
-    Delegator baseDelegator = DelegatorFactory.getDelegator(delegator.getDelegatorBaseName());
-    entityGroups = EntityUtil.getFieldListFromEntityList(baseDelegator.findList("TenantDataSource", EntityCondition.makeCondition("tenantId", EntityComparisonOperator.EQUALS, delegator.getDelegatorTenantId()), ['entityGroupName'] as Set, ['entityGroupName'], null, false), 'entityGroupName', false);
-}
+mgr = delegator.getModelGroupReader();
+entityGroups = mgr.getGroupNames(delegator.getDelegatorBaseName()).iterator();
 
 filterByGroupName = parameters.filterByGroupName;
 context.filterByGroupName = filterByGroupName;
@@ -52,17 +42,14 @@ int kIdx = 0;
 entitiesList = [];
 entities.each { entityName ->
     entity = reader.getModelEntity(entityName);
-    entityGroupName = delegator.getEntityGroupName(entity.getEntityName());
 
-    if (!entityGroups.contains(entityGroupName)) {
-        return;
-    }
-    if (filterByGroupName && !filterByGroupName.equals(entityGroupName)) {
+    if (filterByGroupName && !filterByGroupName.equals(delegator.getEntityGroupName(entity.getEntityName()))) {
         return;
     }
     if (filterByEntityName && !((String)entity.getEntityName()).toUpperCase().contains(filterByEntityName.toUpperCase())) {
         return;
     }
+
     viewEntity = "N";
     if (entity instanceof ModelViewEntity) {
         viewEntity = "Y";

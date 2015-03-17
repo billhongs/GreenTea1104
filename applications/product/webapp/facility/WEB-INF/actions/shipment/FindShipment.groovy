@@ -24,11 +24,7 @@ import org.ofbiz.entity.util.*
 import org.ofbiz.entity.condition.*
 import org.ofbiz.entity.transaction.*
 import org.ofbiz.base.util.*
-import org.ofbiz.entity.model.DynamicViewEntity;
-import org.ofbiz.entity.model.ModelKeyMap;
-import org.ofbiz.entity.model.ModelViewEntity.ComplexAlias;
-import org.ofbiz.entity.model.ModelViewEntity.ComplexAliasField;
-import org.ofbiz.entity.model.ModelViewEntity.ComplexAliasMember;
+
 
 lookupFlag = parameters.lookupFlag;
 shipmentTypeId = parameters.shipmentTypeId;
@@ -40,17 +36,13 @@ maxDate = parameters.maxDate;
 
 // set the page parameters
 viewIndex = Integer.valueOf(parameters.VIEW_INDEX  ?: 0);
-viewSize = Integer.valueOf(parameters.VIEW_SIZE ?: EntityUtilProperties.getPropertyValue("widget", "widget.form.defaultViewSize", "20", delegator));
+viewSize = Integer.valueOf(parameters.VIEW_SIZE ?: UtilProperties.getPropertyValue("widget", "widget.form.defaultViewSize"));
 context.viewIndex = viewIndex;
 context.viewSize = viewSize;
 
 findShipmentExprs = [] as LinkedList;
 paramListBuffer = new StringBuffer();
 
-orderReturnValue = false;
-if (UtilValidate.isNotEmpty(statusId) && statusId.startsWith("RETURN_")) {
-    orderReturnValue = true;
-}
 if (parameters.shipmentId) {
     findShipmentExprs.add(EntityCondition.makeCondition("shipmentId", EntityOperator.EQUALS, parameters.shipmentId));
 }
@@ -59,30 +51,28 @@ if (shipmentTypeId) {
     paramListBuffer.append("&shipmentTypeId=");
     paramListBuffer.append(shipmentTypeId);
     findShipmentExprs.add(EntityCondition.makeCondition("shipmentTypeId", EntityOperator.EQUALS, shipmentTypeId));
-    currentShipmentType = from("ShipmentType").where("shipmentTypeId", shipmentTypeId).cache(true).queryOne();
+    currentShipmentType = delegator.findOne("ShipmentType", [shipmentTypeId : shipmentTypeId], true);
     context.currentShipmentType = currentShipmentType;
 }
 if (originFacilityId) {
     paramListBuffer.append("&originFacilityId=");
     paramListBuffer.append(originFacilityId);
     findShipmentExprs.add(EntityCondition.makeCondition("originFacilityId", EntityOperator.EQUALS, originFacilityId));
-    currentOriginFacility = from("Facility").where("facilityId", originFacilityId).cache(true).queryOne();
+    currentOriginFacility = delegator.findOne("Facility", [facilityId : originFacilityId], true);
     context.currentOriginFacility = currentOriginFacility;
 }
 if (destinationFacilityId) {
     paramListBuffer.append("&destinationFacilityId=");
     paramListBuffer.append(destinationFacilityId);
     findShipmentExprs.add(EntityCondition.makeCondition("destinationFacilityId", EntityOperator.EQUALS, destinationFacilityId));
-    currentDestinationFacility = from("Facility").where("facilityId", destinationFacilityId).cache(true).queryOne();
+    currentDestinationFacility = delegator.findOne("Facility", [facilityId : destinationFacilityId], true);
     context.currentDestinationFacility = currentDestinationFacility;
 }
 if (statusId) {
     paramListBuffer.append("&statusId=");
     paramListBuffer.append(statusId);
-    if (!orderReturnValue) {
-        findShipmentExprs.add(EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, statusId));
-    }
-    currentStatus = from("StatusItem").where("statusId", statusId).cache(true).queryOne();
+    findShipmentExprs.add(EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, statusId));
+    currentStatus = delegator.findOne("StatusItem", [statusId : statusId], true);
     context.currentStatus = currentStatus;
 }
 if (minDate && minDate.length() > 8) {
@@ -92,12 +82,7 @@ if (minDate && minDate.length() > 8) {
     }
     paramListBuffer.append("&minDate=");
     paramListBuffer.append(minDate);
-    if (orderReturnValue) {
-        findShipmentExprs.add(EntityCondition.makeCondition("entryDate", EntityOperator.GREATER_THAN_EQUAL_TO, ObjectType.simpleTypeConvert(minDate, "Timestamp", null, null)));
-    } else {
-        findShipmentExprs.add(EntityCondition.makeCondition("estimatedShipDate", EntityOperator.GREATER_THAN_EQUAL_TO, ObjectType.simpleTypeConvert(minDate, "Timestamp", null, null)));
-    }
-    
+    findShipmentExprs.add(EntityCondition.makeCondition("estimatedShipDate", EntityOperator.GREATER_THAN_EQUAL_TO, ObjectType.simpleTypeConvert(minDate, "Timestamp", null, null)));
 }
 if (maxDate && maxDate.length() > 8) {
     maxDate = maxDate.trim();
@@ -106,16 +91,18 @@ if (maxDate && maxDate.length() > 8) {
     }
     paramListBuffer.append("&maxDate=");
     paramListBuffer.append(maxDate);
-    if (orderReturnValue) {
-        findShipmentExprs.add(EntityCondition.makeCondition("entryDate", EntityOperator.LESS_THAN_EQUAL_TO, ObjectType.simpleTypeConvert(maxDate, "Timestamp", null, null)));
-    } else {
-        findShipmentExprs.add(EntityCondition.makeCondition("estimatedShipDate", EntityOperator.LESS_THAN_EQUAL_TO, ObjectType.simpleTypeConvert(maxDate, "Timestamp", null, null)));
-    }
-    
+    findShipmentExprs.add(EntityCondition.makeCondition("estimatedShipDate", EntityOperator.LESS_THAN_EQUAL_TO, ObjectType.simpleTypeConvert(maxDate, "Timestamp", null, null)));
 }
 
 if ("Y".equals(lookupFlag)) {
     context.paramList = paramListBuffer.toString();
+
+    findOpts = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, true);
+    mainCond = null;
+    if (findShipmentExprs.size() > 0) {
+        mainCond = EntityCondition.makeCondition(findShipmentExprs, EntityOperator.AND);
+    }
+    orderBy = ['-estimatedShipDate'];
 
     beganTransaction = false;
     try {
@@ -124,65 +111,24 @@ if ("Y".equals(lookupFlag)) {
         // get the indexes for the partial list
         lowIndex = viewIndex * viewSize + 1;
         highIndex = (viewIndex + 1) * viewSize;
-        
-        if (!orderReturnValue) {
-            // using list iterator
-            if (findShipmentExprs.size() > 0) {
-                orli = from("Shipment").where(EntityCondition.makeCondition(findShipmentExprs, EntityOperator.AND)).orderBy("-estimatedShipDate").cursorScrollInsensitive().distinct().maxRows(highIndex).queryIterator();
-            } else {
-                orli = from("Shipment").orderBy("-estimatedShipDate").cursorScrollInsensitive().distinct().maxRows(highIndex).queryIterator();
-            }
-    
-            shipmentListSize = orli.getResultsSizeAfterPartialList();
-            if (highIndex > shipmentListSize) {
-                highIndex = shipmentListSize;
-            }
-    
-            // get the partial list for this page
-            if (shipmentListSize > 0) {
-                shipmentList = orli.getPartialList(lowIndex, viewSize);
-            } else {
-                shipmentList = [] as ArrayList;
-            }
-    
-            // close the list iterator
-            orli.close();
+        findOpts.setMaxRows(highIndex);
+        // using list iterator
+        orli = delegator.find("Shipment", mainCond, null, null, orderBy, findOpts);
+
+        shipmentListSize = orli.getResultsSizeAfterPartialList();
+        if (highIndex > shipmentListSize) {
+            highIndex = shipmentListSize;
         }
-        
-        if (orderReturnValue) {
-            returnCond = null;
-            findShipmentExprs.add(EntityCondition.makeCondition("returnStatusId", EntityOperator.EQUALS, statusId));
-            returnCond = EntityCondition.makeCondition(findShipmentExprs, EntityOperator.AND);
-            OrderReturnViewEntity = new DynamicViewEntity();
-            OrderReturnViewEntity.addMemberEntity("SM", "Shipment");
-            OrderReturnViewEntity.addMemberEntity("RH", "ReturnHeader");
-            OrderReturnViewEntity.addViewLink("SM", "RH", false, ModelKeyMap.makeKeyMapList("primaryReturnId", "returnId"));
-            OrderReturnViewEntity.addAlias("SM", "shipmentId");
-            OrderReturnViewEntity.addAlias("SM", "shipmentTypeId");
-            OrderReturnViewEntity.addAlias("SM", "primaryReturnId");
-            OrderReturnViewEntity.addAlias("SM", "destinationFacilityId");
-            OrderReturnViewEntity.addAlias("SM", "originFacilityId");
-            OrderReturnViewEntity.addAlias("SM", "estimatedShipDate");
-            OrderReturnViewEntity.addAlias("SM", "statusId");
-            OrderReturnViewEntity.addAlias("RH", "returnId");
-            OrderReturnViewEntity.addAlias("RH", "entryDate");
-            OrderReturnViewEntity.addAlias("RH", "returnStatusId", "statusId", null, null, null, null);
-            
-            orderReturnIt = from(OrderReturnViewEntity).where(returnCond).queryList();
-            shipmentListSize = orderReturnIt.getResultsSizeAfterPartialList();
-            
-            if (highIndex > shipmentListSize) {
-                highIndex = shipmentListSize;
-            }
-            
-            // get the partial list for this page
-            if (shipmentListSize > 0) {
-                shipmentList = orderReturnIt.getPartialList(lowIndex, viewSize);
-            } else {
-                shipmentList = [] as ArrayList;
-            }
-            orderReturnIt.close();
+
+        // get the partial list for this page
+        if (shipmentListSize > 0) {
+            shipmentList = orli.getPartialList(lowIndex, viewSize);
+        } else {
+            shipmentList = [] as ArrayList;
         }
+
+        // close the list iterator
+        orli.close();
     } catch (GenericEntityException e) {
         errMsg = "Failure in operation, rolling back transaction";
         Debug.logError(e, errMsg, module);
@@ -198,7 +144,7 @@ if ("Y".equals(lookupFlag)) {
         // only commit the transaction if we started one... this will throw an exception if it fails
         TransactionUtil.commit(beganTransaction);
     }
-    
+
     context.shipmentList = shipmentList;
     context.listSize = shipmentListSize;
     context.highIndex = highIndex;
@@ -207,16 +153,13 @@ if ("Y".equals(lookupFlag)) {
 
 // =============== Prepare the Option Data for the Find Form =================
 
-context.shipmentTypes = from("ShipmentType").orderBy("description").queryList();
+context.shipmentTypes = delegator.findList("ShipmentType", null, null, ['description'], null, false);
 
-context.facilities = from("Facility").orderBy("facilityName").queryList();
+context.facilities = delegator.findList("Facility", null, null, ['facilityName'], null, false);
 
 // since purchase and sales shipments have different status codes, we'll need to make two separate lists
-context.shipmentStatuses = from("StatusItem").where("statusTypeId", "SHIPMENT_STATUS").orderBy("sequenceId").queryList();
-context.purchaseShipmentStatuses = from("StatusItem").where("statusTypeId", "PURCH_SHIP_STATUS").orderBy("sequenceId").queryList();
-
-/// Get return status lists
-context.returnStatuses = from("StatusItem").where("statusTypeId", "ORDER_RETURN_STTS").orderBy("sequenceId").queryList();
+context.shipmentStatuses = delegator.findList("StatusItem", EntityCondition.makeCondition([statusTypeId : 'SHIPMENT_STATUS']), null, ['sequenceId'], null, false);
+context.purchaseShipmentStatuses = delegator.findList("StatusItem", EntityCondition.makeCondition([statusTypeId : 'PURCH_SHIP_STATUS']), null, ['sequenceId'], null, false);
 
 // create the fromDate for calendar
 fromCal = Calendar.getInstance();

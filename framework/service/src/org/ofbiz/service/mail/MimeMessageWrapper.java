@@ -18,13 +18,12 @@
  *******************************************************************************/
 package org.ofbiz.service.mail;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
@@ -37,9 +36,8 @@ import javax.mail.Part;
 import javax.mail.Session;
 import javax.mail.internet.MimeMessage;
 
-import org.ofbiz.base.conversion.AbstractConverter;
-import org.ofbiz.base.conversion.ConversionException;
-import org.ofbiz.base.conversion.Converters;
+import javolution.util.FastList;
+
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralRuntimeException;
 import org.ofbiz.base.util.UtilDateTime;
@@ -247,7 +245,7 @@ public class MimeMessageWrapper implements java.io.Serializable {
     }
 
     public List<String> getAttachmentIndexes() {
-        List<String> attachments = new LinkedList<String>();
+        List<String> attachments = FastList.newInstance();
         if (getMainPartCount() == 0) { // single part message (no attachments)
             return attachments;
         } else {
@@ -545,23 +543,5 @@ public class MimeMessageWrapper implements java.io.Serializable {
         }
 
         return ByteBuffer.wrap(baos.toByteArray());
-    }
-
-    static {
-        Converters.registerConverter(new MimeMessageToString<String>());
-    }
-
-    /**
-     * Convert MimeMessageWrapper to String. This is used when sending emails.
-     * 
-     */
-    private static class MimeMessageToString<E> extends AbstractConverter<MimeMessageWrapper, String> {
-        public MimeMessageToString() {
-            super(MimeMessageWrapper.class, String.class);
-        }
-
-        public String convert(MimeMessageWrapper obj) throws ConversionException {
-            return obj.toString();
-        }
     }
 }

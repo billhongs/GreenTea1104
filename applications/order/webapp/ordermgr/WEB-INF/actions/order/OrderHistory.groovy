@@ -25,33 +25,31 @@ context.orderId = orderId;
 
 orderHeader = null;
 if (orderId) {
-    orderHeader = from("OrderHeader").where(orderId : orderId).queryOne();
+    orderHeader = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
 }
 
 if (orderHeader) {
     shipmentMethodCond = [EntityCondition.makeCondition("changedEntityName", EntityOperator.EQUALS, "OrderItemShipGroup"),
                           EntityCondition.makeCondition("changedFieldName", EntityOperator.EQUALS, "shipmentMethodTypeId"),
                           EntityCondition.makeCondition("pkCombinedValueText", EntityOperator.LIKE, orderId + "%")];
-    shipmentMethodHistories = from("EntityAuditLog").where(shipmentMethodCond).orderBy("-changedDate").queryList();
+    shipmentMethodHistories = delegator.findList("EntityAuditLog", EntityCondition.makeCondition(shipmentMethodCond, EntityOperator.AND), null, ["-changedDate"], null, false);
 
     carrierPartyCond = [EntityCondition.makeCondition("changedEntityName", EntityOperator.EQUALS, "OrderItemShipGroup"),
                         EntityCondition.makeCondition("changedFieldName", EntityOperator.EQUALS, "carrierPartyId"),
                         EntityCondition.makeCondition("pkCombinedValueText", EntityOperator.LIKE, orderId + "%")];
-    carrierPartyHistories = from("EntityAuditLog").where(carrierPartyCond).queryList();
+    carrierPartyHistories = delegator.findList("EntityAuditLog", EntityCondition.makeCondition(carrierPartyCond, EntityOperator.AND), null, null, null, false);
 
     orderShipmentHistories = [];
     shipmentMethodHistories.each { shipmentMethodHistory ->
         orderShipmentHistory = [:];
         if ("shipmentMethodTypeId".equals(shipmentMethodHistory.changedFieldName)) {
-            shipmentMethodType = from("ShipmentMethodType").where("shipmentMethodTypeId", shipmentMethodHistory.newValueText).queryOne();
-            if (shipmentMethodType != null){
-                carrierPartyHistories.each { carrierPartyHistory ->
-                    if (carrierPartyHistory.lastUpdatedTxStamp == shipmentMethodHistory.lastUpdatedTxStamp) {
-                        if ("_NA_".equals(carrierPartyHistory.newValueText)) {
-                            orderShipmentHistory.shipmentMethod = shipmentMethodType.description;
-                        } else {
-                            orderShipmentHistory.shipmentMethod = carrierPartyHistory.newValueText + " " + shipmentMethodType.description;
-                        }
+            shipmentMethodType = delegator.findOne("ShipmentMethodType", ["shipmentMethodTypeId" : shipmentMethodHistory.newValueText], false);
+            carrierPartyHistories.each { carrierPartyHistory ->
+                if (carrierPartyHistory.lastUpdatedTxStamp == shipmentMethodHistory.lastUpdatedTxStamp) {
+                    if ("_NA_".equals(carrierPartyHistory.newValueText)) {
+                        orderShipmentHistory.shipmentMethod = shipmentMethodType.description;
+                    } else {
+                        orderShipmentHistory.shipmentMethod = carrierPartyHistory.newValueText + " " + shipmentMethodType.description;
                     }
                 }
             }
@@ -66,13 +64,13 @@ if (orderHeader) {
     changedByInfoCond = [EntityCondition.makeCondition("changedEntityName", EntityOperator.EQUALS, "OrderItem"),
                          EntityCondition.makeCondition("changedFieldName", EntityOperator.EQUALS, "changeByUserLoginId"),
                          EntityCondition.makeCondition("pkCombinedValueText", EntityOperator.LIKE, orderId + "%")];
-    changedByInfoHistories = from("EntityAuditLog").where(changedByInfoCond).orderBy("-changedDate").queryList();
+    changedByInfoHistories = delegator.findList("EntityAuditLog", EntityCondition.makeCondition(changedByInfoCond, EntityOperator.AND), null, ["-changedDate"], null, false);
 
     orderUnitPriceHistories = [];
     unitPriceCond = [EntityCondition.makeCondition("changedEntityName", EntityOperator.EQUALS, "OrderItem"),
                      EntityCondition.makeCondition("changedFieldName", EntityOperator.EQUALS, "unitPrice"),
                      EntityCondition.makeCondition("pkCombinedValueText", EntityOperator.LIKE, orderId + "%")];
-    unitPriceHistories = from("EntityAuditLog").where(unitPriceCond).orderBy("-changedDate").queryList();
+    unitPriceHistories = delegator.findList("EntityAuditLog", EntityCondition.makeCondition(unitPriceCond, EntityOperator.AND), null, ["-changedDate"], null, false);
     unitPriceHistories.each { unitPriceHistory ->
         orderUnitPriceHistory = [:];
         if  ((unitPriceHistory.oldValueText) && (unitPriceHistory.newValueText)) {
@@ -81,7 +79,7 @@ if (orderHeader) {
                 orderUnitPriceHistory.newValue = unitPriceHistory.newValueText;
                 orderUnitPriceHistory.changedDate = unitPriceHistory.changedDate;
                 orderItemSeqId = (unitPriceHistory.pkCombinedValueText).substring((unitPriceHistory.pkCombinedValueText).indexOf("::") + 2, (unitPriceHistory.pkCombinedValueText).length());
-                orderItem = from("OrderItem").where("orderId", orderId, "orderItemSeqId", orderItemSeqId).queryOne();
+                orderItem = delegator.findOne("OrderItem", [orderId : orderId, orderItemSeqId : orderItemSeqId], false);
                 orderUnitPriceHistory.productId = orderItem.productId;
                 changedByInfoHistories.each { changedByInfoHistory ->
                     if (changedByInfoHistory.lastUpdatedTxStamp == unitPriceHistory.lastUpdatedTxStamp) {
@@ -102,7 +100,7 @@ if (orderHeader) {
     quantityCond = [EntityCondition.makeCondition("changedEntityName", EntityOperator.EQUALS, "OrderItem"),
                     EntityCondition.makeCondition("changedFieldName", EntityOperator.EQUALS, "quantity"),
                     EntityCondition.makeCondition("pkCombinedValueText", EntityOperator.LIKE, orderId + "%")];
-    quantityHistories = from("EntityAuditLog").where(quantityCond).orderBy("-changedDate").queryList();
+    quantityHistories = delegator.findList("EntityAuditLog", EntityCondition.makeCondition(quantityCond, EntityOperator.AND), null, ["-changedDate"], null, false);
     quantityHistories.each { quantityHistory ->
         orderQuantityHistory = [:];
         if ((quantityHistory.oldValueText) && (quantityHistory.newValueText)) {
@@ -111,7 +109,7 @@ if (orderHeader) {
                 orderQuantityHistory.newValue = quantityHistory.newValueText;
                 orderQuantityHistory.changedDate = quantityHistory.changedDate;
                 orderItemSeqId = (quantityHistory.pkCombinedValueText).substring((quantityHistory.pkCombinedValueText).indexOf("::") + 2, (quantityHistory.pkCombinedValueText).length());
-                orderItem = from("OrderItem").where("orderId", orderId, "orderItemSeqId", orderItemSeqId).queryOne();
+                orderItem = delegator.findOne("OrderItem", [orderId : orderId, orderItemSeqId : orderItemSeqId], false);
                 orderQuantityHistory.productId = orderItem.productId;
                 changedByInfoHistories.each { changedByInfoHistory ->
                     if (changedByInfoHistory.lastUpdatedTxStamp == quantityHistory.lastUpdatedTxStamp) {

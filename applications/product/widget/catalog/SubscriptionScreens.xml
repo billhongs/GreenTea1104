@@ -77,6 +77,19 @@ under the License.
                     <decorator-section name="left-column">
                         <include-screen name="leftbar" location="component://product/widget/catalog/CommonScreens.xml"/>
                     </decorator-section>                    
+                    <decorator-section name="pre-body">
+                        <section>
+                            <condition>
+                                <and>
+                                    <if-service-permission service-name="subscriptionPermissionCheck" main-action="VIEW"/>
+                                    <not><if-empty field="subscription"/></not>
+                                </and>
+                            </condition>
+                            <widgets>
+                                <include-menu name="EditSubscription" location="component://product/widget/catalog/SubscriptionMenus.xml"/>
+                            </widgets>
+                        </section>
+                    </decorator-section>
                     <decorator-section name="body">
                         <section>
                             <condition>
@@ -88,19 +101,11 @@ under the License.
                                         <not><if-empty field="subscription"/></not>
                                     </condition>
                                     <widgets>
-                                    <include-menu name="EditSubscription" location="component://product/widget/catalog/SubscriptionMenus.xml"/>
-                                        <container style="button-bar"><link target="EditSubscription" text="${uiLabelMap.ProductNewSubscription}" style="buttontext"/></container>
                                         <container style="h1"><label>${uiLabelMap[titleProperty]} ${uiLabelMap.CommonFor} ${subscription.description} [${subscriptionId}]</label></container>
+                                        <container style="button-bar"><link target="EditSubscription" text="${uiLabelMap.ProductNewSubscription}" style="buttontext"/></container>
                                     </widgets>
                                     <fail-widgets>
-                                        <section>
-                                            <condition>
-                                                <if-compare operator="not-equals" value="EditSubscription" field="tabButtonItem"/>
-                                            </condition>
-                                            <widgets>
-                                                <container style="button-bar"><link target="EditSubscription" text="${uiLabelMap.ProductNewSubscription}" style="buttontext"/></container>
-                                            </widgets>
-                                        </section>
+                                        <container style="h1"><label>${uiLabelMap[titleProperty]}</label></container>
                                     </fail-widgets>
                                 </section>
                                 <decorator-section-include name="body"/>
@@ -132,9 +137,7 @@ under the License.
                 </section>
                 <decorator-screen name="CommonSubscriptionDecorator" location="${parameters.subscriptionDecoratorLocation}">
                     <decorator-section name="body">
-                        <screenlet id="editSubscription" title="${uiLabelMap.PageTitleEditSubscription}" collapsible="true">
-                            <include-form name="EditSubscription" location="component://product/widget/catalog/SubscriptionForms.xml"/>
-                        </screenlet>
+                        <include-form name="EditSubscription" location="component://product/widget/catalog/SubscriptionForms.xml"/>
                     </decorator-section>
                 </decorator-screen>
             </widgets>
@@ -174,7 +177,7 @@ under the License.
                 <set field="titleProperty" value="PageTitleFindSubscriptionResource"/>
             </actions>
             <widgets>
-                <decorator-screen name="CommonSubscriptionResourceDecorator">
+                <decorator-screen name="main-decorator" location="${parameters.mainDecoratorLocation}">
                     <decorator-section name="body">
                         <section>
                             <condition>
@@ -208,9 +211,6 @@ under the License.
             </actions>
             <widgets>
                 <decorator-screen name="main-decorator" location="${parameters.mainDecoratorLocation}">
-                    <decorator-section name="left-column">
-                        <include-screen name="leftbar" location="component://product/widget/catalog/CommonScreens.xml"/>
-                    </decorator-section>                    
                     <decorator-section name="body">
                         <section>
                             <condition>
@@ -223,13 +223,13 @@ under the License.
                                     </condition>
                                     <widgets>
                                         <include-menu name="EditSubscriptionResource" location="component://product/widget/catalog/SubscriptionMenus.xml"/>
+                                        <container style="h1"><label>${uiLabelMap[titleProperty]} ${uiLabelMap.CommonFor} "${subscriptionResource.description}" [${subscriptionResourceId}]</label></container>
                                         <container style="button-bar">
                                             <link target="EditSubscriptionResource" text="${uiLabelMap.ProductNewSubscriptionResource}" style="buttontext"/>
                                             <link target="FindSubscription" text="${uiLabelMap.ProductFindResourceSubscriptions}" style="buttontext">
                                                 <parameter param-name="subscriptionResourceId"/>
                                             </link>
                                         </container>
-                                        <container style="h1"><label>${uiLabelMap[titleProperty]} ${uiLabelMap.CommonFor} "${subscriptionResource.description}" [${subscriptionResourceId}]</label></container>
                                     </widgets>
                                     <fail-widgets>
                                         <container style="h1"><label>${uiLabelMap[titleProperty]}</label></container>
@@ -264,9 +264,7 @@ under the License.
                 </section>
                 <decorator-screen name="CommonSubscriptionResourceDecorator" location="${parameters.subscriptionResourceDecoratorLocation}">
                     <decorator-section name="body">
-                        <screenlet id="EditSubscriptionResource" title="${uiLabelMap.PageTitleEditSubscriptionResource}" collapsible="true">
-                            <include-form name="EditSubscriptionResource" location="component://product/widget/catalog/SubscriptionForms.xml"/>
-                        </screenlet>
+                        <include-form name="EditSubscriptionResource" location="component://product/widget/catalog/SubscriptionForms.xml"/>
                     </decorator-section>
                 </decorator-screen>
             </widgets>

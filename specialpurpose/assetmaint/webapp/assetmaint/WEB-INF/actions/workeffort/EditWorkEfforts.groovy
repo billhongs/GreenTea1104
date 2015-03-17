@@ -44,16 +44,16 @@ fixedAsset = null;
 rootWorkEffortId = null;
 
 if (workEffortId) {
-    workEffort = from("WorkEffort").where("workEffortId", workEffortId).queryOne();
+    workEffort = delegator.findOne("WorkEffort", [workEffortId : workEffortId], false);
     if (workEffort) {
         if (!fixedAssetId) {
             fixedAssetId = workEffort.fixedAssetId;
         }
         // If this is a child workeffort, locate the "root" workeffort
-        parentWorkEffort = from("WorkEffortAssoc").where("workEffortIdTo", workEffortId).queryFirst();
+        parentWorkEffort = EntityUtil.getFirst(delegator.findList("WorkEffortAssoc", EntityCondition.makeCondition([workEffortIdTo : workEffortId]), null, null, null, false));
         while (parentWorkEffort) {
             rootWorkEffortId = parentWorkEffort.workEffortIdFrom;
-            parentWorkEffort = from("WorkEffortAssoc").where("workEffortIdTo", rootWorkEffortId).queryFirst();
+            parentWorkEffort = EntityUtil.getFirst(delegator.findList("WorkEffortAssoc", EntityCondition.makeCondition([workEffortIdTo : rootWorkEffortId]), null, null, null, false));
         }
     }
 }
@@ -63,7 +63,7 @@ if (!rootWorkEffortId) {
 }
 
 if (rootWorkEffortId) {
-    fixedAssetMaint = from("FixedAssetMaint").where("scheduleWorkEffortId", rootWorkEffortId).queryFirst();
+    fixedAssetMaint = EntityUtil.getFirst(delegator.findList("FixedAssetMaint", EntityCondition.makeCondition([scheduleWorkEffortId : rootWorkEffortId]), null, null, null, false));
     if (fixedAssetMaint) {
         maintHistSeqId = fixedAssetMaint.maintHistSeqId;
         if (!fixedAssetId) {
@@ -73,7 +73,7 @@ if (rootWorkEffortId) {
 }
 
 if (fixedAssetId) {
-    fixedAsset = from("FixedAsset").where("fixedAssetId", fixedAssetId).queryOne();
+    fixedAsset = delegator.findOne("FixedAsset", [fixedAssetId : fixedAssetId], false);
 }
 
 context.fixedAssetMaint = fixedAssetMaint;

@@ -29,10 +29,10 @@ function call_fieldlookup4(rootForumId, parentForumId ) {
 <#include "publishlib.ftl" />
 -->
 <#if !rootForumId?has_content>
-    <#assign rootForumId=requestParameters.rootForumId!/>
+    <#assign rootForumId=requestParameters.rootForumId?if_exists/>
 </#if>
 <#if !rootForumId?has_content>
-    <#assign rootForumId=defaultSiteId!/>
+    <#assign rootForumId=defaultSiteId?if_exists/>
 </#if>
 <@checkPermission entityOperation="_ADMIN" targetOperation="CONTENT_ADMIN" >
 <br />
@@ -47,7 +47,7 @@ function call_fieldlookup4(rootForumId, parentForumId ) {
           </td>
           <td valign="middle">
             <div class="boxhead">
-             <input type="text" name="rootForumId" size="20" value="${rootForumId!}"/>
+             <input type="text" name="rootForumId" size="20" value="${rootForumId?if_exists}"/>
             </div>
           </td>
           <td valign="middle" align="right">
@@ -109,7 +109,7 @@ function call_fieldlookup4(rootForumId, parentForumId ) {
 
 <#macro showSites forumId formAction="/enableSites"  indentIndex=0 catTrail=[]>
 
-<#local thisContentId=catTrail[indentIndex]!/>
+<#local thisContentId=catTrail[indentIndex]?if_exists/>
 
 <#local indent = "">
 <#if 0 < indentIndex >
@@ -121,10 +121,10 @@ function call_fieldlookup4(rootForumId, parentForumId ) {
 
 <@loopSubContent contentId=forumId viewIndex=0 viewSize=9999 contentAssocTypeId="SUBSITE" returnAfterPickWhen="1==1";>
        <tr>
-         <td >
+         <td class="tabletext" >
             ${indent}
             <#local plusMinus="-"/>
-            ${plusMinus} ${content.contentName!}
+            ${plusMinus} ${content.contentName?if_exists}
          </td >
          <td >
             <a class="buttontext" href="<@ofbizUrl>CMSSites?rootForumId=${rootForumId}&amp;moderatedSiteId=${content.contentId}</@ofbizUrl>">Moderate</a>
@@ -156,28 +156,28 @@ function call_fieldlookup4(rootForumId, parentForumId ) {
   <#list mostRecentList as content>
     <@checkPermission entityOperation="_ADMIN" targetOperation="CONTENT_PUBLISH" subContentId=forumId >
         <tr>
-          <td> <b>id:</b>${content.contentId} </td>
-          <td> <b>name:</b>${content.contentName} </td>
+          <td class="tabletext"> <b>id:</b>${content.contentId} </td>
+          <td class="tabletext"> <b>name:</b>${content.contentName} </td>
       <@injectNodeTrailCsv subContentId=content.contentId redo="true" contentAssocTypeId="PUBLISH_LINK">
           <td>
-  <a class="tabButton" href="<@ofbizUrl>CMSContentEdit?contentId=${content.contentId}&amp;nodeTrailCsv=${nodeTrailCsv!}</@ofbizUrl>" >View</a>
+  <a class="tabButton" href="<@ofbizUrl>CMSContentEdit?contentId=${content.contentId}&amp;nodeTrailCsv=${nodeTrailCsv?if_exists}</@ofbizUrl>" >View</a>
           </td>
-          <td>
+          <td class="tabletext">
           <b>submitted:</b>
           <input type="radio" name="statusId_o_${row}" value="CTNT_FINAL_DRAFT" checked="checked"/>
           </td>
-          <td>
+          <td class="tabletext">
           <b>publish:</b>
           <input type="radio" name="statusId_o_${row}" value="CTNT_PUBLISHED"/>
           </td>
-          <td>
+          <td class="tabletext">
           <b>reject:</b>
           <input type="radio" name="statusId_o_${row}" value="CTNT_DEACTIVATED"/>
           </td>
         </tr>
           <input type="hidden" name="contentId_o_${row}" value="${content.contentId}"/>
         <tr>
-          <td colspan="6">
+          <td colspan="6" class="tabletext">
           <b>content:</b><br />
             <@renderSubContentCache subContentId=content.contentId/>
           </td>
@@ -227,9 +227,9 @@ function call_fieldlookup4(rootForumId, parentForumId ) {
             <#list blogRoleIdList as roleTypeId>
               <#assign cappedSiteRole= Static["org.ofbiz.entity.model.ModelUtil"].dbNameToVarName(roleTypeId) />
               <td align="center">
-              <input type="checkbox" name="${cappedSiteRole}_o_${rowCount}" value="Y" <#if siteRoleMap[cappedSiteRole]! == "Y">checked="checked"</#if>/>
+              <input type="checkbox" name="${cappedSiteRole}_o_${rowCount}" value="Y" <#if siteRoleMap[cappedSiteRole]?if_exists == "Y">checked="checked"</#if>/>
               </td>
-          <input type="hidden" name="${cappedSiteRole}FromDate_o_${rowCount}" value="${siteRoleMap[cappedSiteRole + "FromDate"]!}"/>
+          <input type="hidden" name="${cappedSiteRole}FromDate_o_${rowCount}" value="${siteRoleMap[cappedSiteRole + "FromDate"]?if_exists}"/>
             </#list>
           </tr>
           <input type="hidden" name="contentId_o_${rowCount}" value="${forumId}"/>
@@ -238,7 +238,9 @@ function call_fieldlookup4(rootForumId, parentForumId ) {
         </#list>
         <tr>
           <td valign="middle">
-            <@htmlTemplate.lookupField formName="siteRoleForm" name="partyId_o_${rowCount}" id="partyId_o_${rowCount}" fieldFormName="LookupPerson"/><#-- FIXME check if should be changed -->
+            <div class="boxhead"><input type="text" name="partyId_o_${rowCount}" value=""/>
+            <a href="javascript:call_fieldlookup3('<@ofbizUrl>LookupPerson</@ofbizUrl>')"><img src="<@ofbizContentUrl>/images/fieldlookup.gif</@ofbizContentUrl>" width="16" height="16" border="0" alt="${uiLabelMap.CommonClickHereForFieldLookup}" /></a></div>
+            <#--@htmlTemplate.lookupField3 formName="siteRoleForm" name="partyId_o_${rowCount}" id="partyId_o_${rowCount}" fieldFormName="LookupPerson"/--><#-- FIXME check if should be changed -->
           </td>
             <#list blogRoleIdList as roleTypeId>
               <#assign cappedSiteRole= Static["org.ofbiz.entity.model.ModelUtil"].dbNameToVarName(roleTypeId) />

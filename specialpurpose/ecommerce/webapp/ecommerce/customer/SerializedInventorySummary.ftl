@@ -35,24 +35,24 @@ under the License.
             </thead>
             <tbody>
                 <#list inventoryItemList as inventoryItem>
-                    <#assign product = inventoryItem.getRelatedOne('Product', false)!>
+                    <#assign product = inventoryItem.getRelatedOne('Product')?if_exists>
                     <tr>
                         <td>${inventoryItem.inventoryItemId}</td>
                         <td>
                             <#if product?has_content>
                                 <#if product.isVariant?default('N') == 'Y'>
-                                    <#assign product = Static['org.ofbiz.product.product.ProductWorker'].getParentProduct(product.productId, delegator)!>
+                                    <#assign product = Static['org.ofbiz.product.product.ProductWorker'].getParentProduct(product.productId, delegator)?if_exists>
                                 </#if>
                                 <#if product?has_content>
-                                    <#assign productName = Static['org.ofbiz.product.product.ProductContentWrapper'].getProductContentAsText(product, 'PRODUCT_NAME', request)!>
+                                    <#assign productName = Static['org.ofbiz.product.product.ProductContentWrapper'].getProductContentAsText(product, 'PRODUCT_NAME', request)?if_exists>
                                     <a href="<@ofbizUrl>product?product_id=${product.productId}</@ofbizUrl>" class="linktext">${productName?default(product.productId)}</a>
                                 </#if>
                             </#if>
                         </td>
-                        <td>${inventoryItem.serialNumber!}</td>
-                        <td>${inventoryItem.softIdentifier!}</td>
-                        <td>${inventoryItem.activationNumber!}</td>
-                        <td>${inventoryItem.activationValidThru!}</td>
+                        <td>${inventoryItem.serialNumber?if_exists}</td>
+                        <td>${inventoryItem.softIdentifier?if_exists}</td>
+                        <td>${inventoryItem.activationNumber?if_exists}</td>
+                        <td>${inventoryItem.activationValidThru?if_exists}</td>
                     </tr>
                 </#list>
             </tbody>

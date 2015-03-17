@@ -66,6 +66,7 @@ under the License.
     <entity entity-name="Tenant" package-name="org.ofbiz.entity.tenant">
         <field name="tenantId" type="id-ne"/>
         <field name="tenantName" type="name"/>
+        <field name="domainName" type="long-varchar"/>
         <field name="initialPath" type="value"/>
         <field name="disabled" type="indicator"><description>Disabled if 'Y', defaults to 'N' (not disabled).</description></field>
         <prim-key field="tenantId"/>
@@ -104,23 +105,11 @@ under the License.
             <key-map field-name="tenantId"/>
         </relation>
     </entity>
-    <entity entity-name="TenantKeyEncryptingKey" package-name="org.ofbiz.entity.tenant">
-        <description>
-            There should be one record for each tenant and each group-map for the active delegator.
-            The jdbc fields will override the datasource -> inline-jdbc values for the per-tenant delegator.
-        </description>
-        <field name="tenantId" type="id-ne"/>
-        <field name="kekText" type="long-varchar"></field>
-        <prim-key field="tenantId"/>
-        <relation type="one" fk-name="TNTKEK_TNT" rel-entity-name="Tenant">
-            <key-map field-name="tenantId"/>
-        </relation>
-    </entity>
     <!-- may be no reason for this entity, user is authenticated inside the tenant and this would only be useful to 
     get a list of tenants per user
     <entity entity-name="TenantUserLogin" package-name="org.ofbiz.entity.tenant">
         <field name="tenantId" type="id-ne"/>
-        <field name="userLoginId" type="id-vlong-ne"/>
+        <field name="userLoginId" type="name"/>
         <field name="fromDate" type="date-time"/>
         <field name="thruDate" type="date-time"/>
         <prim-key field="tenantId"/>
@@ -132,33 +121,4 @@ under the License.
         <!- - NOTE: there is no FK to the UserLogin entity, which is in a higher-level component, and would normally be in a separate database - ->
     </entity>
     -->
-    <entity entity-name="Component" package-name="org.ofbiz.entity.tenant">
-        <description>Component Entity</description>
-        <field name="componentName" type="name"></field>
-        <field name="rootLocation" type="description"></field>
-        <prim-key field="componentName"/>
-    </entity>
-    <entity entity-name="TenantComponent" package-name="org.ofbiz.entity.tenant">
-        <description></description>
-        <field name="tenantId" type="id-ne"></field>
-        <field name="componentName" type="name"></field>
-        <field name="sequenceNum" type="numeric"></field>
-        <prim-key field="componentName"/>
-        <prim-key field="tenantId"/>
-        <relation type="one" fk-name="TNTCOMP_TNT" rel-entity-name="Tenant">
-            <key-map field-name="tenantId"/>
-        </relation>
-        <relation type="one" fk-name="COMP_CNT" rel-entity-name="Component">
-            <key-map field-name="componentName"/>
-        </relation>
-    </entity>
-    <entity entity-name="TenantDomainName" package-name="org.ofbiz.entity.tenant" 
-            title="Tenant and its Domain Name">
-        <field name="tenantId" type="id-ne"></field>
-        <field name="domainName" type="long-varchar"></field>
-        <prim-key field="domainName"/>
-        <relation type="one" fk-name="TNNT_DMNAM" rel-entity-name="Tenant">
-            <key-map field-name="tenantId"/>
-        </relation>
-    </entity>
 </entitymodel>

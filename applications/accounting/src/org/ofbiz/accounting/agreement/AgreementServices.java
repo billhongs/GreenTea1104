@@ -31,9 +31,10 @@ import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilNumber;
 import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.entity.Delegator;
+import org.ofbiz.entity.GenericEntity;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ModelService;
 import org.ofbiz.service.ServiceUtil;
@@ -96,27 +97,30 @@ public class AgreementServices {
 
             // Collect agreementItems applicable to this orderItem/returnItem
             // TODO: partyIds should be part of this query!
-            List<GenericValue> agreementItems = EntityQuery.use(delegator).from("AgreementItemAndProductAppl")
-                    .where("productId", productId, "agreementItemTypeId", "AGREEMENT_COMMISSION")
-                    .cache().filterByDate().queryList();
+            List<GenericValue> agreementItems = delegator.findByAndCache("AgreementItemAndProductAppl", UtilMisc.toMap(
+                    "productId", productId,
+                    "agreementItemTypeId", "AGREEMENT_COMMISSION"));
             // Try the first available virtual product if this is a variant product
             if (agreementItems.size() == 0) {
-                GenericValue productAssoc = EntityQuery.use(delegator).from("ProductAssoc")
-                        .where("productIdTo", productId, "productAssocTypeId", "PRODUCT_VARIANT")
-                        .cache().filterByDate().queryFirst();
-                if (productAssoc != null) {
-                    agreementItems = EntityQuery.use(delegator).from("AgreementItemAndProductAppl")
-                            .where("productId", productAssoc.getString("productId"), "agreementItemTypeId", "AGREEMENT_COMMISSION")
-                            .cache().filterByDate().queryList();
+                List<GenericValue> productAssocs = delegator.findByAndCache("ProductAssoc", UtilMisc.toMap(
+                        "productIdTo", productId,
+                        "productAssocTypeId", "PRODUCT_VARIANT"));
+                productAssocs = EntityUtil.filterByDate(productAssocs);
+                if (productAssocs.size() > 0) {
+                    GenericEntity productAssoc = EntityUtil.getFirst(productAssocs);
+                    agreementItems = delegator.findByAndCache("AgreementItemAndProductAppl", UtilMisc.toMap(
+                            "productId", productAssoc.getString("productId"),
+                            "agreementItemTypeId", "AGREEMENT_COMMISSION"));
                 }
             }
+            // this is not very efficient if there were many
+            agreementItems = EntityUtil.filterByDate(agreementItems);
 
             for (GenericValue agreementItem : agreementItems) {
-                List<GenericValue> terms = EntityQuery.use(delegator).from("AgreementTerm")
-                        .where("agreementId", agreementItem.getString("agreementId"),
-                                "agreementItemSeqId", agreementItem.getString("agreementItemSeqId"),
-                                "invoiceItemTypeId", invoiceItemTypeId)
-                                .cache().queryList();
+                List<GenericValue> terms = delegator.findByAndCache("AgreementTerm", UtilMisc.toMap(
+                        "agreementId", agreementItem.getString("agreementId"),
+                        "agreementItemSeqId", agreementItem.getString("agreementItemSeqId"),
+                        "invoiceItemTypeId", invoiceItemTypeId));
                 if (terms.size() > 0) {
                     BigDecimal commission = ZERO;
                     BigDecimal min = new BigDecimal("-1e12");   // Limit to 1 trillion commission

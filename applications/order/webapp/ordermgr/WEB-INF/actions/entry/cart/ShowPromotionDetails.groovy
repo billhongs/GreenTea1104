@@ -23,11 +23,11 @@ import org.ofbiz.order.shoppingcart.product.ProductPromoWorker;
 
 productPromoId = request.getParameter("productPromoId");
 if (!productPromoId) productPromoId = parameters.productPromoId;
-productPromo = from("ProductPromo").where("productPromoId", productPromoId).queryOne();
+productPromo = delegator.findByPrimaryKey("ProductPromo", [productPromoId : productPromoId]);
 
 promoAutoDescription = ProductPromoWorker.makeAutoDescription(productPromo, delegator, locale);
 
-productPromoCategoryList = from("ProductPromoCategory").where("productPromoId", productPromoId).cache(true).queryList();
+productPromoCategoryList = delegator.findByAndCache("ProductPromoCategory", [productPromoId : productPromoId]);
 productPromoCategoryIncludeList = EntityUtil.filterByAnd(productPromoCategoryList, [productPromoApplEnumId : "PPPA_INCLUDE"]);
 productPromoCategoryExcludeList = EntityUtil.filterByAnd(productPromoCategoryList, [productPromoApplEnumId : "PPPA_EXCLUDE"]);
 productPromoCategoryAlwaysList = EntityUtil.filterByAnd(productPromoCategoryList, [productPromoApplEnumId : "PPPA_ALWAYS"]);

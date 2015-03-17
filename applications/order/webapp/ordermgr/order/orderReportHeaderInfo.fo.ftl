@@ -17,13 +17,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 <#escape x as x?xml>
-                  <fo:table table-layout="fixed">
+                  <fo:table>
                     <fo:table-column column-width="2.0in"/>
                     <fo:table-column column-width="2.0in"/>
                     <fo:table-body>
                     <fo:table-row>
                       <fo:table-cell>
-                         <fo:block number-columns-spanned="2" font-weight="bold">${orderHeader.getRelatedOne("OrderType", false).get("description",locale)}</fo:block>
+                         <fo:block number-columns-spanned="2" font-weight="bold">${orderHeader.getRelatedOne("OrderType").get("description",locale)}</fo:block>
                       </fo:table-cell>
                     </fo:table-row>
 
@@ -43,7 +43,7 @@ under the License.
                       <fo:table-cell><fo:block>${uiLabelMap.OrderCurrentStatus}</fo:block></fo:table-cell>
                       <fo:table-cell><fo:block font-weight="bold">${currentStatus.get("description",locale)}</fo:block></fo:table-cell>
                     </fo:table-row>
-                    <#if orderItem.cancelBackOrderDate??>
+                    <#if orderItem.cancelBackOrderDate?exists>
                       <fo:table-row>
                         <fo:table-cell><fo:block>${uiLabelMap.FormFieldTitle_cancelBackOrderDate}</fo:block></fo:table-cell>
                         <#assign dateFormat = Static["java.text.DateFormat"].LONG>

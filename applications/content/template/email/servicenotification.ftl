@@ -22,11 +22,11 @@ The service : ${service.name}
 
 The Context :
   <#list serviceContext.keySet() as ckey>
-      ${ckey!} --> ${(serviceContext.get(ckey))!}
+      ${ckey?if_exists} --> ${(serviceContext.get(ckey))?if_exists}
   </#list>
 
 The Result :
   <#list serviceResult.keySet() as rkey>
-      ${rkey!} --> ${(serviceResult.get(rkey))!}
+      ${rkey?if_exists} --> ${(serviceResult.get(rkey))?if_exists}
   </#list>
 </pre>

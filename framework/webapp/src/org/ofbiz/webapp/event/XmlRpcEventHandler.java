@@ -27,13 +27,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Writer;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import javolution.util.FastMap;
 
 import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.XmlRpcHandler;
@@ -51,12 +52,11 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.service.DispatchContext;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ModelService;
-import org.ofbiz.service.ServiceContainer;
 import org.ofbiz.service.ServiceUtil;
-import org.ofbiz.webapp.control.ConfigXMLReader;
 import org.ofbiz.webapp.control.ConfigXMLReader.Event;
 import org.ofbiz.webapp.control.ConfigXMLReader.RequestMap;
 
@@ -75,7 +75,7 @@ public class XmlRpcEventHandler extends XmlRpcHttpServer implements EventHandler
     public void init(ServletContext context) throws EventHandlerException {
         String delegatorName = context.getInitParameter("entityDelegatorName");
         this.delegator = DelegatorFactory.getDelegator(delegatorName);
-        this.dispatcher = ServiceContainer.getLocalDispatcher(delegator.getDelegatorName(), delegator);
+        this.dispatcher = GenericDispatcher.getLocalDispatcher(delegator.getDelegatorName(), delegator);
         this.setHandlerMapping(new ServiceRpcHandler());
 
         String extensionsEnabledString = context.getInitParameter("xmlrpc.enabledForExtensions");
@@ -89,30 +89,21 @@ public class XmlRpcEventHandler extends XmlRpcHttpServer implements EventHandler
     }
 
     /**
-     * @see org.ofbiz.webapp.event.EventHandler#invoke(ConfigXMLReader.Event, ConfigXMLReader.RequestMap, javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+     * @see org.ofbiz.webapp.event.EventHandler#invoke(Event, org.ofbiz.webapp.control.ConfigXMLReader.RequestMap, HttpServletRequest, HttpServletResponse)
      */
     public String invoke(Event event, RequestMap requestMap, HttpServletRequest request, HttpServletResponse response) throws EventHandlerException {
         String report = request.getParameter("echo");
         if (report != null) {
-            BufferedReader reader = null;
             StringBuilder buf = new StringBuilder();
             try {
                 // read the inputstream buffer
                 String line;
-                reader = new BufferedReader(new InputStreamReader(request.getInputStream()));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()));
                 while ((line = reader.readLine()) != null) {
                     buf.append(line).append("\n");
                 }
             } catch (Exception e) {
                 throw new EventHandlerException(e.getMessage(), e);
-            } finally {
-                if (reader != null) {
-                    try {
-                        reader.close();
-                    } catch (IOException e) {
-                        throw new EventHandlerException(e.getMessage(), e);
-                    }
-                }
             }
             Debug.logInfo("Echo: " + buf.toString(), module);
 
@@ -189,7 +180,7 @@ public class XmlRpcEventHandler extends XmlRpcHttpServer implements EventHandler
                 String password = config.getBasicPassword();
 
                 // check the account
-                Map<String, Object> context = new HashMap<String, Object>();
+                Map<String, Object> context = FastMap.newInstance();
                 context.put("login.username", username);
                 context.put("login.password", password);
 
@@ -286,7 +277,7 @@ public class XmlRpcEventHandler extends XmlRpcHttpServer implements EventHandler
             }
 
             // context placeholder
-            Map<String, Object> context = new HashMap<String, Object>();
+            Map<String, Object> context = FastMap.newInstance();
 
             if (model != null) {
                 int parameterCount = xmlRpcReq.getParameterCount();

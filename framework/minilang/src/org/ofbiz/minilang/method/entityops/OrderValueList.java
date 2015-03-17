@@ -20,74 +20,61 @@ package org.ofbiz.minilang.method.entityops;
 
 import java.util.List;
 
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
 import org.ofbiz.entity.GenericEntity;
 import org.ofbiz.entity.util.EntityUtil;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
 import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;order-value-list&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cordervaluelist%3E}}">Mini-language Reference</a>
+ * Order the given list of GenericValue objects
  */
-public final class OrderValueList extends MethodOperation {
-
-    private final FlexibleMapAccessor<List<? extends GenericEntity>> listFma;
-    private final FlexibleMapAccessor<List<String>> orderByListFma;
-    private final FlexibleMapAccessor<List<? extends GenericEntity>> toListFma;
-
-    public OrderValueList(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-        super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "list", "order-by-list", "to-list");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "list", "order-by-list");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "list", "order-by-list", "to-list");
-            MiniLangValidate.noChildElements(simpleMethod, element);
+public class OrderValueList extends MethodOperation {
+    public static final class OrderValueListFactory implements Factory<OrderValueList> {
+        public OrderValueList createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new OrderValueList(element, simpleMethod);
         }
-        listFma = FlexibleMapAccessor.getInstance(element.getAttribute("list"));
-        orderByListFma = FlexibleMapAccessor.getInstance(element.getAttribute("order-by-list"));
-        String toListAttribute = element.getAttribute("to-list");
-        if (toListAttribute.isEmpty()) {
-            toListFma = listFma;
-        } else {
-            toListFma = FlexibleMapAccessor.getInstance(toListAttribute);
+
+        public String getName() {
+            return "order-value-list";
         }
     }
 
+    ContextAccessor<List<? extends GenericEntity>> listAcsr;
+    ContextAccessor<List<? extends GenericEntity>> toListAcsr;
+    ContextAccessor<List<String>> orderByListAcsr;
+
+    public OrderValueList(Element element, SimpleMethod simpleMethod) {
+        super(element, simpleMethod);
+        listAcsr = new ContextAccessor<List<? extends GenericEntity>>(element.getAttribute("list"), element.getAttribute("list-name"));
+        toListAcsr = new ContextAccessor<List<? extends GenericEntity>>(element.getAttribute("to-list"), element.getAttribute("to-list-name"));
+        if (toListAcsr.isEmpty()) {
+            toListAcsr = listAcsr;
+        }
+        orderByListAcsr = new ContextAccessor<List<String>>(element.getAttribute("order-by-list-name"));
+    }
+
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        List<String> orderByList = orderByListFma.get(methodContext.getEnvMap());
-        toListFma.put(methodContext.getEnvMap(), EntityUtil.orderBy(listFma.get(methodContext.getEnvMap()), orderByList));
+    public boolean exec(MethodContext methodContext) {
+        List<String> orderByList = null;
+
+        if (!orderByListAcsr.isEmpty()) {
+            orderByList = orderByListAcsr.get(methodContext);
+        }
+        toListAcsr.put(methodContext, EntityUtil.orderBy(listAcsr.get(methodContext), orderByList));
         return true;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<order-value-list ");
-        sb.append("list=\"").append(this.listFma).append("\" ");
-        sb.append("order-by-list=\"").append(this.orderByListFma).append("\" ");
-        sb.append("to-list=\"").append(this.toListFma).append("\" ");
-        sb.append("/>");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<order-value-list/>";
     }
-
-    /**
-     * A factory for the &lt;order-value-list&gt; element.
-     */
-    public static final class OrderValueListFactory implements Factory<OrderValueList> {
-        @Override
-        public OrderValueList createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new OrderValueList(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "order-value-list";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

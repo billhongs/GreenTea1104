@@ -19,23 +19,23 @@ under the License.
 <#escape x as x?xml>
 
 <#if orderHeader.getString("orderTypeId") == "PURCHASE_ORDER">
-    <#if supplierGeneralContactMechValueMap??>
+    <#if supplierGeneralContactMechValueMap?exists>
         <#assign contactMech = supplierGeneralContactMechValueMap.contactMech>
         <fo:block font-weight="bold">${uiLabelMap.OrderPurchasedFrom}:</fo:block>
         <#assign postalAddress = supplierGeneralContactMechValueMap.postalAddress>
         <#if postalAddress?has_content>
             <fo:block text-indent="0.2in">
                 <#if postalAddress.toName?has_content><fo:block>${postalAddress.toName}</fo:block></#if>
-                <#if postalAddress.attnName?has_content><fo:block>${postalAddress.attnName!}</fo:block></#if>
-                <fo:block>${postalAddress.address1!}</fo:block>
-                <#if postalAddress.address2?has_content><fo:block>${postalAddress.address2!}</fo:block></#if>
+                <#if postalAddress.attnName?has_content><fo:block>${postalAddress.attnName?if_exists}</fo:block></#if>
+                <fo:block>${postalAddress.address1?if_exists}</fo:block>
+                <#if postalAddress.address2?has_content><fo:block>${postalAddress.address2?if_exists}</fo:block></#if>
                 <fo:block>
-                    <#assign stateGeo = (delegator.findOne("Geo", {"geoId", postalAddress.stateProvinceGeoId!}, false))! />
-                    ${postalAddress.city}<#if stateGeo?has_content>, ${stateGeo.geoName!}</#if> ${postalAddress.postalCode!}
+                    <#assign stateGeo = (delegator.findOne("Geo", {"geoId", postalAddress.stateProvinceGeoId?if_exists}, false))?if_exists />
+                    ${postalAddress.city}<#if stateGeo?has_content>, ${stateGeo.geoName?if_exists}</#if> ${postalAddress.postalCode?if_exists}
                 </fo:block>
                 <fo:block>
-                    <#assign countryGeo = (delegator.findOne("Geo", {"geoId", postalAddress.countryGeoId!}, false))! />
-                    <#if countryGeo?has_content>${countryGeo.geoName!}</#if>
+                    <#assign countryGeo = (delegator.findOne("Geo", {"geoId", postalAddress.countryGeoId?if_exists}, false))?if_exists />
+                    <#if countryGeo?has_content>${countryGeo.geoName?if_exists}</#if>
                 </fo:block>
             </fo:block>                
         </#if>
@@ -57,17 +57,17 @@ under the License.
         <fo:block font-weight="bold">${contactMechPurpose.get("description",locale)}:</fo:block>
         <fo:block text-indent="0.2in">
             <#if postalAddress?has_content>
-                <#if postalAddress.toName?has_content><fo:block>${postalAddress.toName!}</fo:block></#if>
-                <#if postalAddress.attnName?has_content><fo:block>${postalAddress.attnName!}</fo:block></#if>
-                <fo:block>${postalAddress.address1!}</fo:block>
-                <#if postalAddress.address2?has_content><fo:block>${postalAddress.address2!}</fo:block></#if>
+                <#if postalAddress.toName?has_content><fo:block>${postalAddress.toName?if_exists}</fo:block></#if>
+                <#if postalAddress.attnName?has_content><fo:block>${postalAddress.attnName?if_exists}</fo:block></#if>
+                <fo:block>${postalAddress.address1?if_exists}</fo:block>
+                <#if postalAddress.address2?has_content><fo:block>${postalAddress.address2?if_exists}</fo:block></#if>
                 <fo:block>
-                    <#assign stateGeo = (delegator.findOne("Geo", {"geoId", postalAddress.stateProvinceGeoId!}, false))! />
-                    ${postalAddress.city}<#if stateGeo?has_content>, ${stateGeo.geoName!}</#if> ${postalAddress.postalCode!}
+                    <#assign stateGeo = (delegator.findOne("Geo", {"geoId", postalAddress.stateProvinceGeoId?if_exists}, false))?if_exists />
+                    ${postalAddress.city}<#if stateGeo?has_content>, ${stateGeo.geoName?if_exists}</#if> ${postalAddress.postalCode?if_exists}
                 </fo:block>
                 <fo:block>
-                    <#assign countryGeo = (delegator.findOne("Geo", {"geoId", postalAddress.countryGeoId!}, false))! />
-                    <#if countryGeo?has_content>${countryGeo.geoName!}</#if>
+                    <#assign countryGeo = (delegator.findOne("Geo", {"geoId", postalAddress.countryGeoId?if_exists}, false))?if_exists />
+                    <#if countryGeo?has_content>${countryGeo.geoName?if_exists}</#if>
                 </fo:block>
             </#if>
         </fo:block>
@@ -80,36 +80,36 @@ under the License.
     <fo:block font-weight="bold">${uiLabelMap.AccountingPaymentInformation}:</fo:block>
     <#list orderPaymentPreferences as orderPaymentPreference>
         <fo:block text-indent="0.2in">
-            <#assign paymentMethodType = orderPaymentPreference.getRelatedOne("PaymentMethodType", false)!>
-            <#if (orderPaymentPreference?? && (orderPaymentPreference.getString("paymentMethodTypeId") == "CREDIT_CARD") && (orderPaymentPreference.getString("paymentMethodId")?has_content))>
-                <#assign creditCard = orderPaymentPreference.getRelatedOne("PaymentMethod", false).getRelatedOne("CreditCard", false)>
+            <#assign paymentMethodType = orderPaymentPreference.getRelatedOne("PaymentMethodType")?if_exists>
+            <#if ((orderPaymentPreference != null) && (orderPaymentPreference.getString("paymentMethodTypeId") == "CREDIT_CARD") && (orderPaymentPreference.getString("paymentMethodId")?has_content))>
+                <#assign creditCard = orderPaymentPreference.getRelatedOne("PaymentMethod").getRelatedOne("CreditCard")>
                 ${Static["org.ofbiz.party.contact.ContactHelper"].formatCreditCard(creditCard)}
             <#else>
-                ${paymentMethodType.get("description",locale)!}
+                ${paymentMethodType.get("description",locale)?if_exists}
             </#if>
         </fo:block>
     </#list>
 </#if>
-<#if orderHeader.getString("orderTypeId") == "SALES_ORDER" && shipGroups?has_content>
+<#if orderHeader.getString("orderTypeId") == "SALES_ORDER" && shipGroups?exists?has_content>
     <fo:block font-weight="bold">${uiLabelMap.OrderShipmentInformation}:</fo:block>
     <#list shipGroups as shipGroup>
         <fo:block text-indent="0.2in">
             <#if shipGroups.size() gt 1>${shipGroup.shipGroupSeqId} - </#if>
-            <#if (shipGroup.shipmentMethodTypeId)??>
-                ${(shipGroup.getRelatedOne("ShipmentMethodType", false).get("description", locale))?default(shipGroup.shipmentMethodTypeId)}
+            <#if (shipGroup.shipmentMethodTypeId)?exists>
+                ${(shipGroup.getRelatedOne("ShipmentMethodType").get("description", locale))?default(shipGroup.shipmentMethodTypeId)}
             </#if>
-            <#if (shipGroup.shipAfterDate)?? || (shipGroup.shipByDate)??>
-                <#if (shipGroup.shipAfterDate)??> - ${uiLabelMap.OrderShipAfterDate}: ${Static["org.ofbiz.base.util.UtilDateTime"].toDateString(shipGroup.shipAfterDate)}</#if><#if (shipGroup.shipByDate)??> - ${uiLabelMap.OrderShipBeforeDate}: ${Static["org.ofbiz.base.util.UtilDateTime"].toDateString(shipGroup.shipByDate)}</#if>
+            <#if (shipGroup.shipAfterDate)?exists || (shipGroup.shipByDate)?exists>
+                <#if (shipGroup.shipAfterDate)?exists> - ${uiLabelMap.OrderShipAfterDate}: ${Static["org.ofbiz.base.util.UtilDateTime"].toDateString(shipGroup.shipAfterDate)}</#if><#if (shipGroup.shipByDate)?exists> - ${uiLabelMap.OrderShipBeforeDate}: ${Static["org.ofbiz.base.util.UtilDateTime"].toDateString(shipGroup.shipByDate)}</#if>
             </#if>
         </fo:block>
     </#list>
 </#if>
 
-<#if orderTerms?has_content && orderTerms.size() gt 0>
+<#if orderTerms?exists?has_content && orderTerms.size() gt 0>
     <fo:block font-weight="bold">${uiLabelMap.OrderOrderTerms}:</fo:block>
     <#list orderTerms as orderTerm>
         <fo:block text-indent="0.2in">
-            ${orderTerm.getRelatedOne("TermType", false).get("description",locale)} ${orderTerm.termValue?default("")} ${orderTerm.termDays?default("")} ${orderTerm.textValue?default("")}
+            ${orderTerm.getRelatedOne("TermType").get("description",locale)} ${orderTerm.termValue?default("")} ${orderTerm.termDays?default("")} ${orderTerm.textValue?default("")}
         </fo:block>
     </#list>
 </#if>

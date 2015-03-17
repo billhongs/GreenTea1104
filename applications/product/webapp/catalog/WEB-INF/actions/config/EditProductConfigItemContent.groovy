@@ -20,16 +20,12 @@
 import org.ofbiz.base.util.*
 import org.ofbiz.base.util.string.*
 import org.ofbiz.entity.*
-import org.ofbiz.entity.util.EntityUtilProperties;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*
 
 // make the image file formats
-context.tenantId = delegator.getDelegatorTenantId();
 imageFilenameFormat = "configitems/${configItemId}";
-imageServerPath = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.server.path", delegator), context);
-imageUrlPrefix = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.url.prefix",delegator), context);
-imageServerPath = imageServerPath.endsWith("/") ? imageServerPath.substring(0, imageServerPath.length()-1) : imageServerPath;
-imageUrlPrefix = imageUrlPrefix.endsWith("/") ? imageUrlPrefix.substring(0, imageUrlPrefix.length()-1) : imageUrlPrefix;
+imageServerPath = FlexibleStringExpander.expandString(UtilProperties.getPropertyValue("catalog", "image.server.path"), context);
+imageUrlPrefix = UtilProperties.getPropertyValue("catalog", "image.url.prefix");
 context.imageFilenameFormat = imageFilenameFormat;
 context.imageServerPath = imageServerPath;
 context.imageUrlPrefix = imageUrlPrefix;
@@ -40,13 +36,13 @@ context.imageNameSmall = imageUrlPrefix + "/" + filenameExpander.expandString([s
 // Start ProdConfItemContent stuff
 productContent = null;
 if (configItem) {
-    productContent = configItem.getRelated("ProdConfItemContent", null, ['confItemContentTypeId'], false);
+    productContent = configItem.getRelated("ProdConfItemContent", null, ['confItemContentTypeId']);
 }
 context.productContent = productContent;
 
 productContentDatas = [];
 productContent.each { productContent ->
-    content = productContent.getRelatedOne("Content", false);
+    content = productContent.getRelatedOne("Content");
     productContentDatas.add([productContent : productContent, content : content]);
 }
 

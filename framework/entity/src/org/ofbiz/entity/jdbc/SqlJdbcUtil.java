@@ -31,9 +31,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +39,8 @@ import java.util.TreeSet;
 
 import javax.sql.rowset.serial.SerialBlob;
 import javax.sql.rowset.serial.SerialClob;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.ObjectType;
@@ -52,11 +52,10 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericModelException;
 import org.ofbiz.entity.GenericNotImplementedException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityConditionParam;
-import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.condition.OrderByList;
-import org.ofbiz.entity.config.model.Datasource;
+import org.ofbiz.entity.config.DatasourceInfo;
+import org.ofbiz.entity.jdbc.JdbcValueHandler;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelField;
 import org.ofbiz.entity.model.ModelFieldType;
@@ -74,15 +73,15 @@ public class SqlJdbcUtil {
     public static final int CHAR_BUFFER_SIZE = 4096;
 
     /** Makes the FROM clause and when necessary the JOIN clause(s) as well */
-    public static String makeFromClause(ModelEntity modelEntity, ModelFieldTypeReader modelFieldTypeReader, Datasource datasourceInfo) throws GenericEntityException {
+    public static String makeFromClause(ModelEntity modelEntity, DatasourceInfo datasourceInfo) throws GenericEntityException {
         StringBuilder sql = new StringBuilder(" FROM ");
 
         if (modelEntity instanceof ModelViewEntity) {
             ModelViewEntity modelViewEntity = (ModelViewEntity) modelEntity;
 
-            if ("ansi".equals(datasourceInfo.getJoinStyle()) || "ansi-no-parenthesis".equals(datasourceInfo.getJoinStyle())) {
+            if ("ansi".equals(datasourceInfo.joinStyle) || "ansi-no-parenthesis".equals(datasourceInfo.joinStyle)) {
                 boolean useParenthesis = true;
-                if ("ansi-no-parenthesis".equals(datasourceInfo.getJoinStyle())) {
+                if ("ansi-no-parenthesis".equals(datasourceInfo.joinStyle)) {
                     useParenthesis = false;
                 }
 
@@ -120,7 +119,7 @@ public class SqlJdbcUtil {
 
                     if (i == 0) {
                         // this is the first referenced member alias, so keep track of it for future use...
-                        restOfStatement.append(makeViewTable(linkEntity, modelFieldTypeReader, datasourceInfo));
+                        restOfStatement.append(makeViewTable(linkEntity, datasourceInfo));
                         //another possible one that some dbs might need, but not sure of any yet: restOfStatement.append(" AS ");
                         restOfStatement.append(" ");
                         restOfStatement.append(viewLink.getEntityAlias());
@@ -141,7 +140,7 @@ public class SqlJdbcUtil {
                         restOfStatement.append(" INNER JOIN ");
                     }
 
-                    restOfStatement.append(makeViewTable(relLinkEntity, modelFieldTypeReader, datasourceInfo));
+                    restOfStatement.append(makeViewTable(relLinkEntity, datasourceInfo));
                     //another possible one that some dbs might need, but not sure of any yet: restOfStatement.append(" AS ");
                     restOfStatement.append(" ");
                     restOfStatement.append(viewLink.getRelEntityAlias());
@@ -166,26 +165,20 @@ public class SqlJdbcUtil {
 
                         condBuffer.append(viewLink.getEntityAlias());
                         condBuffer.append(".");
-                        condBuffer.append(linkField.getColName());
+                        condBuffer.append(filterColName(linkField.getColName()));
 
                         condBuffer.append(" = ");
 
                         condBuffer.append(viewLink.getRelEntityAlias());
                         condBuffer.append(".");
-                        condBuffer.append(relLinkField.getColName());
+                        condBuffer.append(filterColName(relLinkField.getColName()));
                     }
                     if (condBuffer.length() == 0) {
                         throw new GenericModelException("No view-link/join key-maps found for the " + viewLink.getEntityAlias() + " and the " + viewLink.getRelEntityAlias() + " member-entities of the " + modelViewEntity.getEntityName() + " view-entity.");
                     }
 
-                    ModelViewEntity.ViewEntityCondition viewEntityCondition = viewLink.getViewEntityCondition();
-                    if (viewEntityCondition != null) {
-                        EntityCondition whereCondition = viewEntityCondition.getWhereCondition(modelFieldTypeReader, null);
-                        if (whereCondition != null) {
-                            condBuffer.append(" AND ");
-                            condBuffer.append(whereCondition.makeWhereString(modelEntity, null, datasourceInfo));
-                        }
-                    }
+                    // TODO add expression from entity-condition on view-link
+
 
                     restOfStatement.append(condBuffer.toString());
 
@@ -205,14 +198,14 @@ public class SqlJdbcUtil {
                         if (!fromEmpty) sql.append(", ");
                         fromEmpty = false;
 
-                        sql.append(makeViewTable(fromEntity, modelFieldTypeReader, datasourceInfo));
+                        sql.append(makeViewTable(fromEntity, datasourceInfo));
                         sql.append(" ");
                         sql.append(aliasName);
                     }
                 }
 
 
-            } else if ("theta-oracle".equals(datasourceInfo.getJoinStyle()) || "theta-mssql".equals(datasourceInfo.getJoinStyle())) {
+            } else if ("theta-oracle".equals(datasourceInfo.joinStyle) || "theta-mssql".equals(datasourceInfo.joinStyle)) {
                 // FROM clause
                 Iterator<String> meIter = modelViewEntity.getMemberModelMemberEntities().keySet().iterator();
 
@@ -220,7 +213,7 @@ public class SqlJdbcUtil {
                     String aliasName = meIter.next();
                     ModelEntity fromEntity = modelViewEntity.getMemberModelEntity(aliasName);
 
-                    sql.append(makeViewTable(fromEntity, modelFieldTypeReader, datasourceInfo));
+                    sql.append(makeViewTable(fromEntity, datasourceInfo));
                     sql.append(" ");
                     sql.append(aliasName);
                     if (meIter.hasNext()) sql.append(", ");
@@ -228,7 +221,7 @@ public class SqlJdbcUtil {
 
                 // JOIN clause(s): none needed, all the work done in the where clause for theta-oracle
             } else {
-                throw new GenericModelException("The join-style " + datasourceInfo.getJoinStyle() + " is not yet supported");
+                throw new GenericModelException("The join-style " + datasourceInfo.joinStyle + " is not yet supported");
             }
         } else {
             sql.append(modelEntity.getTableName(datasourceInfo));
@@ -265,7 +258,7 @@ public class SqlJdbcUtil {
             ModelField modelField = null;
             if (item instanceof ModelField) {
                 modelField = (ModelField) item;
-                sb.append(modelField.getColValue());
+                sb.append(modelField.getColName());
                 name = modelField.getName();
             } else {
                 sb.append(item);
@@ -354,7 +347,7 @@ public class SqlJdbcUtil {
                         }
                         whereString.append(viewLink.getEntityAlias());
                         whereString.append(".");
-                        whereString.append(linkField.getColName());
+                        whereString.append(filterColName(linkField.getColName()));
 
                         // check to see whether the left or right members are optional, if so:
                         // oracle: use the (+) on the optional side
@@ -369,7 +362,7 @@ public class SqlJdbcUtil {
 
                         whereString.append(viewLink.getRelEntityAlias());
                         whereString.append(".");
-                        whereString.append(relLinkField.getColName());
+                        whereString.append(filterColName(relLinkField.getColName()));
                    }
                 }
             } else {
@@ -383,11 +376,11 @@ public class SqlJdbcUtil {
         return "";
     }
 
-    public static String makeOrderByClause(ModelEntity modelEntity, List<String> orderBy, Datasource datasourceInfo) throws GenericModelException {
+    public static String makeOrderByClause(ModelEntity modelEntity, List<String> orderBy, DatasourceInfo datasourceInfo) throws GenericModelException {
         return makeOrderByClause(modelEntity, orderBy, false, datasourceInfo);
     }
 
-    public static String makeOrderByClause(ModelEntity modelEntity, List<String> orderBy, boolean includeTablenamePrefix, Datasource datasourceInfo) throws GenericModelException {
+    public static String makeOrderByClause(ModelEntity modelEntity, List<String> orderBy, boolean includeTablenamePrefix, DatasourceInfo datasourceInfo) throws GenericModelException {
         StringBuilder sql = new StringBuilder("");
         //String fieldPrefix = includeTablenamePrefix ? (modelEntity.getTableName(datasourceInfo) + ".") : "";
 
@@ -401,7 +394,7 @@ public class SqlJdbcUtil {
         return sql.toString();
     }
 
-    public static String makeViewTable(ModelEntity modelEntity, ModelFieldTypeReader modelFieldTypeReader, Datasource datasourceInfo) throws GenericEntityException {
+    public static String makeViewTable(ModelEntity modelEntity, DatasourceInfo datasourceInfo) throws GenericEntityException {
         if (modelEntity instanceof ModelViewEntity) {
             StringBuilder sql = new StringBuilder("(SELECT ");
             Iterator<ModelField> fieldsIter = modelEntity.getFieldsIterator();
@@ -409,42 +402,22 @@ public class SqlJdbcUtil {
                 ModelField curField = fieldsIter.next();
                 sql.append(curField.getColValue());
                 sql.append(" AS ");
-                sql.append(curField.getColName());
+                sql.append(filterColName(curField.getColName()));
                 while (fieldsIter.hasNext()) {
                     curField = fieldsIter.next();
                     sql.append(", ");
                     sql.append(curField.getColValue());
                     sql.append(" AS ");
-                    sql.append(curField.getColName());
+                    sql.append(filterColName(curField.getColName()));
                 }
             }
-            sql.append(makeFromClause(modelEntity, modelFieldTypeReader, datasourceInfo));
-            String viewWhereClause = makeViewWhereClause(modelEntity, datasourceInfo.getJoinStyle());
-            ModelViewEntity modelViewEntity = (ModelViewEntity)modelEntity;
-            List<EntityCondition> whereConditions = new LinkedList<EntityCondition>();
-            List<EntityCondition> havingConditions = new LinkedList<EntityCondition>();
-            List<String> orderByList = new LinkedList<String>();
-
-            modelViewEntity.populateViewEntityConditionInformation(modelFieldTypeReader, whereConditions, havingConditions, orderByList, null);
-            String viewConditionClause;
-            if (!whereConditions.isEmpty()) {
-                viewConditionClause = EntityCondition.makeCondition(whereConditions, EntityOperator.AND).makeWhereString(modelViewEntity,  null, datasourceInfo);
-            } else {
-                viewConditionClause = null;
-            }
-            if (UtilValidate.isNotEmpty(viewWhereClause) || UtilValidate.isNotEmpty(viewConditionClause)) {
+            sql.append(makeFromClause(modelEntity, datasourceInfo));
+            String viewWhereClause = makeViewWhereClause(modelEntity, datasourceInfo.joinStyle);
+            if (UtilValidate.isNotEmpty(viewWhereClause)) {
                 sql.append(" WHERE ");
-                if (UtilValidate.isNotEmpty(viewWhereClause)) {
-                    sql.append("(").append(viewWhereClause).append(")");
-                    if (UtilValidate.isNotEmpty(viewConditionClause)) {
-                        sql.append(" AND ");
-                    }
-                }
-                if (UtilValidate.isNotEmpty(viewConditionClause)) {
-                    sql.append("(").append(viewConditionClause).append(")");
-                }
+                sql.append(viewWhereClause);
             }
-            // FIXME: handling HAVING, don't need ORDER BY for nested views
+            ModelViewEntity modelViewEntity = (ModelViewEntity)modelEntity;
             modelViewEntity.colNameString(modelViewEntity.getGroupBysCopy(), sql, " GROUP BY ", ", ", "", false);
 
             sql.append(")");
@@ -526,23 +499,12 @@ public class SqlJdbcUtil {
                     entity.getEntityName() + "." + curField.getName() + ".");
         }
 
-        ModelEntity model = entity.getModelEntity();
-        String encryptionKeyName = entity.getEntityName();
-        if (curField.getEncryptMethod().isEncrypted() && model instanceof ModelViewEntity) {
-            ModelViewEntity modelView = (ModelViewEntity) model;
-            encryptionKeyName = modelView.getAliasedEntity(modelView.getAlias(curField.getName()).getEntityAlias(), entity.getDelegator().getModelReader()).getEntityName();
-        }
-
         // ----- Try out the new handler code -----
 
         JdbcValueHandler<?> handler = mft.getJdbcValueHandler();
         if (handler != null) {
             try {
-                Object jdbcValue = handler.getValue(rs, ind);
-                if (jdbcValue instanceof String && curField.getEncryptMethod().isEncrypted()) {
-                    jdbcValue = entity.getDelegator().decryptFieldValue(encryptionKeyName, (String) jdbcValue);
-                }
-                entity.dangerousSetNoCheckButFast(curField, jdbcValue);
+                entity.dangerousSetNoCheckButFast(curField, handler.getValue(rs, ind));
                 return;
             } catch (Exception e) {
                 Debug.logError(e, module);
@@ -596,9 +558,6 @@ public class SqlJdbcUtil {
                         }
                     } else {
                         String value = rs.getString(ind);
-                        if (value instanceof String && curField.getEncryptMethod().isEncrypted()) {
-                            value = (String) entity.getDelegator().decryptFieldValue(encryptionKeyName, value);
-                        }
                         entity.dangerousSetNoCheckButFast(curField, value);
                     }
                     break;
@@ -791,10 +750,6 @@ public class SqlJdbcUtil {
 
         // ----- Try out the new handler code -----
 
-        ModelField.EncryptMethod encryptMethod = modelField.getEncryptMethod();
-        if (encryptMethod.isEncrypted()) {
-            fieldValue = sqlP.getDelegator().encryptFieldValue(entityName, encryptMethod, fieldValue);
-        }
         JdbcValueHandler<T> handler = UtilGenerics.cast(mft.getJdbcValueHandler());
         if (handler != null) {
             try {
@@ -913,7 +868,7 @@ public class SqlJdbcUtil {
         }
     }
 
-    protected static Map<String, Integer> fieldTypeMap = new HashMap<String, Integer>();
+    protected static Map<String, Integer> fieldTypeMap = FastMap.newInstance();
     static {
         fieldTypeMap.put("java.lang.String", 1);
         fieldTypeMap.put("String", 1);

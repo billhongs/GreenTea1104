@@ -41,12 +41,12 @@ if (newPaymentMethodId) {
 }
 
 if (orderPartyId && !orderPartyId.equals("_NA_")) {
-    orderParty = from("Party").where("partyId", orderPartyId).queryOne();
-    orderPerson = orderParty.getRelatedOne("Person", false);
+    orderParty = delegator.findByPrimaryKey("Party", [partyId : orderPartyId]);
+    orderPerson = orderParty.getRelatedOne("Person");
     context.orderParty = orderParty;
     context.orderPerson = orderPerson;
     if (orderParty) {
-        context.paymentMethodList = EntityUtil.filterByDate(orderParty.getRelated("PaymentMethod", null, null, false), true);
+        context.paymentMethodList = EntityUtil.filterByDate(orderParty.getRelated("PaymentMethod"), true);
 
         billingAccountList = BillingAccountWorker.makePartyBillingAccountList(userLogin, currencyUomId, orderPartyId, delegator, dispatcher);
         if (billingAccountList) {
@@ -58,7 +58,7 @@ if (orderPartyId && !orderPartyId.equals("_NA_")) {
 
 if (request.getParameter("useShipAddr") && cart.getShippingContactMechId()) {
     shippingContactMech = cart.getShippingContactMechId();
-    postalAddress = from("PostalAddress").where("contactMechId", shippingContactMech).queryOne();
+    postalAddress = delegator.findByPrimaryKey("PostalAddress", [contactMechId : shippingContactMech]);
     context.postalFields = postalAddress;
 } else {
     context.postalFields = UtilHttp.getParameterMap(request);
@@ -69,20 +69,20 @@ if (cart) {
         checkOutPaymentId = cart.getPaymentMethodIds().get(0);
         context.checkOutPaymentId = checkOutPaymentId;
         if (!orderParty) {
-            paymentMethod = from("PaymentMethod").where("paymentMethodId", checkOutPaymentId).queryOne();
+            paymentMethod = delegator.findByPrimaryKey("PaymentMethod", [paymentMethodId : checkOutPaymentId]);
             if ("CREDIT_CARD".equals(paymentMethod?.paymentMethodTypeId)) {
                 paymentMethodType = "CC";
-                account = paymentMethod.getRelatedOne("CreditCard", false);
+                account = paymentMethod.getRelatedOne("CreditCard");
                 context.creditCard = account;
                 context.paymentMethodType = paymentMethodType;
             } else if ("EFT_ACCOUNT".equals(paymentMethod.paymentMethodTypeId)) {
                 paymentMethodType = "EFT";
-                account = paymentMethod.getRelatedOne("EftAccount", false);
+                account = paymentMethod.getRelatedOne("EftAccount");
                 context.eftAccount = account;
                 context.paymentMethodType = paymentMethodType;
             }
             if (account) {
-                address = account.getRelatedOne("PostalAddress", false);
+                address = account.getRelatedOne("PostalAddress");
                 context.postalAddress = address;
             }
         }

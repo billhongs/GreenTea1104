@@ -39,7 +39,6 @@ import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelField;
 import org.ofbiz.entity.model.ModelFieldType;
 import org.ofbiz.entity.model.ModelReader;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.security.Security;
 
 /**
@@ -207,7 +206,7 @@ public class GenericWebEvent {
             GenericValue tempEntity = null;
 
             try {
-                tempEntity = EntityQuery.use(delegator).from(findByEntity.getEntityName()).where(findByEntity.getPrimaryKey()).queryOne();
+                tempEntity = delegator.findOne(findByEntity.getEntityName(), findByEntity.getPrimaryKey(), false);
             } catch (GenericEntityException e) {
                 String errMsg = UtilProperties.getMessage(GenericWebEvent.err_resource, "genericWebEvent.create_failed_by_check", locale) + ": " + e.toString();
                 Debug.logWarning(e, errMsg, module);
@@ -228,7 +227,8 @@ public class GenericWebEvent {
         while (fieldIter.hasNext()) {
             ModelField field = fieldIter.next();
 
-            for (String curValidate : field.getValidators()) {
+            for (int j = 0; j < field.getValidatorsSize(); j++) {
+                String curValidate = field.getValidator(j);
                 Class<?>[] paramTypes = new Class[] {String.class};
                 Object[] params = new Object[] {findByEntity.get(field.getName()).toString()};
 

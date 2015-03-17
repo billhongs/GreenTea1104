@@ -36,14 +36,14 @@ productIds = ProductSearch.parametricKeywordSearch(featureIdSet, null, delegator
 // get the product for each ID
 products = new ArrayList(productIds.size());
 productIds.each { productId ->
-    product = from("Product").where("productId", productId).cache(true).queryOne();
+    product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
     products.add(product);
 }
 
 productFeatureAndTypeDatas = new ArrayList(featureIdByType.size());
 featureIdByType.each { featureIdByTypeEntry ->
-    productFeatureType = from("ProductFeatureType").where("productFeatureTypeId", featureIdByTypeEntry.key).cache(true).queryOne();
-    productFeature = from("ProductFeature").where("productFeatureId", featureIdByTypeEntry.value).cache(true).queryOne();
+    productFeatureType = delegator.findByPrimaryKeyCache("ProductFeatureType", UtilMisc.toMap("productFeatureTypeId", featureIdByTypeEntry.key));
+    productFeature = delegator.findByPrimaryKeyCache("ProductFeature", UtilMisc.toMap("productFeatureId", featureIdByTypeEntry.value));
     productFeatureAndTypeData = [:];
     productFeatureAndTypeData.productFeatureType = productFeatureType;
     productFeatureAndTypeData.productFeature = productFeature;

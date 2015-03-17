@@ -24,10 +24,10 @@ under the License.
     </div>
     <div class="screenlet-body">
         <form name="idsearchform" method="post" action="<@ofbizUrl>FindProductById</@ofbizUrl>" style="margin: 0;">
-          <span class="label">${uiLabelMap.CommonId} ${uiLabelMap.CommonValue}:</span> <input type="text" name="idValue" size="20" maxlength="50" value="${idValue!}" />&nbsp;<a href="javascript:document.idsearchform.submit()" class="buttontext">${uiLabelMap.CommonFind}</a>
+          <span class="label">${uiLabelMap.CommonId} ${uiLabelMap.CommonValue}:</span> <input type="text" name="idValue" size="20" maxlength="50" value="${idValue?if_exists}" />&nbsp;<a href="javascript:document.idsearchform.submit()" class="buttontext">${uiLabelMap.CommonFind}</a>
         </form>
         <br />
-        <h1>${uiLabelMap.ProductSearchResultsWithIdValue}: ${idValue!}</h1>
+        <h1>${uiLabelMap.ProductSearchResultsWithIdValue}: ${idValue?if_exists}</h1>
         <#if !goodIdentifications?has_content && !idProduct?has_content>
           <br />
           <h2>&nbsp;${uiLabelMap.ProductNoResultsFound}.</h2>
@@ -41,7 +41,7 @@ under the License.
                 </td>
                 <td>&nbsp;&nbsp;</td>
                 <td>
-                    <a href="<@ofbizUrl>EditProduct?productId=${idProduct.productId}</@ofbizUrl>" class="buttontext">${(idProduct.internalName)!}</a>
+                    <a href="<@ofbizUrl>EditProduct?productId=${idProduct.productId}</@ofbizUrl>" class="buttontext">${(idProduct.internalName)?if_exists}</a>
                     (${uiLabelMap.ProductSearchResultsFound})
                 </td>
             </tr>
@@ -53,15 +53,15 @@ under the License.
                 <#else>
                   <#assign rowClass = "2">
                 </#if>
-                <#assign product = goodIdentification.getRelatedOne("Product", true)/>
-                <#assign goodIdentificationType = goodIdentification.getRelatedOne("GoodIdentificationType", true)/>
+                <#assign product = goodIdentification.getRelatedOneCache("Product")/>
+                <#assign goodIdentificationType = goodIdentification.getRelatedOneCache("GoodIdentificationType")/>
                 <tr valign="middle"<#if rowClass == "1"> class="alternate-row"</#if>>
                     <td>
                         ${product.productId}
                     </td>
                     <td>&nbsp;&nbsp;</td>
                     <td>
-                        <a href="<@ofbizUrl>EditProduct?productId=${product.productId}</@ofbizUrl>" class="buttontext">${(product.internalName)!}</a>
+                        <a href="<@ofbizUrl>EditProduct?productId=${product.productId}</@ofbizUrl>" class="buttontext">${(product.internalName)?if_exists}</a>
                         (${uiLabelMap.ProductSearchResultsFound} ${goodIdentificationType.get("description",locale)?default(goodIdentification.goodIdentificationTypeId)}.)
                     </td>
                 </tr>

@@ -38,7 +38,6 @@ if (productId) {
 
 // do not include configurable products
 conditionList.add(EntityCondition.makeCondition("productTypeId", EntityOperator.NOT_EQUAL, "AGGREGATED"));
-conditionList.add(EntityCondition.makeCondition("productTypeId", EntityOperator.NOT_EQUAL, "AGGREGATED_SERVICE"));
 
 // no virtual products: note that isVirtual could be null,
 // we consider those products to be non-virtual and hence addable to the order in bulk
@@ -50,5 +49,6 @@ conditions = EntityCondition.makeCondition(conditionList, EntityOperator.AND);
 
 mainConditionList.add(orConditions);
 mainConditionList.add(conditions);
+mainConditions = EntityCondition.makeCondition(mainConditionList, EntityOperator.AND);
 
-context.productList = select("productId", "brandName", "internalName").from("Product").where(mainConditionList).orderBy("productId").queryList();
+context.productList = delegator.findList("Product", mainConditions, ["productId", "brandName", "internalName"] as Set, ["productId"], null, false);

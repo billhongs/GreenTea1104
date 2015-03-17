@@ -40,7 +40,7 @@ under the License.
 
 <#macro renderHorizontalSeparator id style></#macro>
 <#macro renderLabel text id style>
-    <#if text??>
+    <#if text?exists>
         ${text}<#lt/>
     </#if>
 </#macro>
@@ -53,8 +53,3 @@ under the License.
 <#macro renderScreenletEnd></#macro>
 
 <#macro renderScreenletPaginateMenu lowIndex actualPageSize ofLabel listSize paginateLastStyle lastLinkUrl paginateLastLabel paginateNextStyle nextLinkUrl paginateNextLabel paginatePreviousStyle paginatePreviousLabel previousLinkUrl paginateFirstStyle paginateFirstLabel firstLinkUrl></#macro>
-
-<#macro renderColumnContainerBegin id style></#macro>
-<#macro renderColumnContainerEnd></#macro>
-<#macro renderColumnBegin id style></#macro>
-<#macro renderColumnEnd></#macro>

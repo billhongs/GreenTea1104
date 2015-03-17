@@ -21,7 +21,6 @@ package org.ofbiz.order.order;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
@@ -32,16 +31,15 @@ import javax.servlet.http.HttpSession;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralException;
 import org.ofbiz.base.util.UtilHttp;
+import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.content.data.DataResourceWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ServiceUtil;
-import org.ofbiz.webapp.website.WebSiteWorker;
 
 import javolution.util.FastMap;
 
@@ -61,18 +59,15 @@ public class OrderEvents {
 
         try {
             // has the userLogin.partyId ordered a product with DIGITAL_DOWNLOAD content associated for the given dataResourceId?
-            GenericValue orderRoleAndProductContentInfo = EntityQuery.use(delegator).from("OrderRoleAndProductContentInfo")
-                    .where("partyId", userLogin.get("partyId"),
-                            "dataResourceId", dataResourceId,
-                            "productContentTypeId", "DIGITAL_DOWNLOAD",
-                            "statusId", "ITEM_COMPLETED")
-                    .queryFirst();
+            List<GenericValue> orderRoleAndProductContentInfoList = delegator.findByAnd("OrderRoleAndProductContentInfo",
+                    UtilMisc.toMap("partyId", userLogin.get("partyId"), "dataResourceId", dataResourceId, "productContentTypeId", "DIGITAL_DOWNLOAD", "statusId", "ITEM_COMPLETED"));
 
-            if (orderRoleAndProductContentInfo == null) {
+            if (orderRoleAndProductContentInfoList.size() == 0) {
                 request.setAttribute("_ERROR_MESSAGE_", "No record of purchase for digital download found (dataResourceId=[" + dataResourceId + "]).");
                 return "error";
             }
 
+            GenericValue orderRoleAndProductContentInfo = orderRoleAndProductContentInfoList.get(0);
 
             // TODO: check validity based on ProductContent fields: useCountLimit, useTime/useTimeUomId
 
@@ -80,7 +75,7 @@ public class OrderEvents {
                 response.setContentType(orderRoleAndProductContentInfo.getString("mimeTypeId"));
             }
             OutputStream os = response.getOutputStream();
-            DataResourceWorker.streamDataResource(os, delegator, dataResourceId, "", WebSiteWorker.getWebSiteId(request), UtilHttp.getLocale(request), application.getRealPath("/"));
+            DataResourceWorker.streamDataResource(os, delegator, dataResourceId, "", application.getInitParameter("webSiteId"), UtilHttp.getLocale(request), application.getRealPath("/"));
             os.flush();
         } catch (GenericEntityException e) {
             String errMsg = "Error downloading digital product content: " + e.toString();
@@ -107,7 +102,6 @@ public class OrderEvents {
         Delegator delegator = (Delegator) request.getAttribute("delegator");
         HttpSession session = request.getSession();
         GenericValue userLogin = (GenericValue) session.getAttribute("userLogin");
-        Locale locale = UtilHttp.getLocale(request);
 
         Map<String, Object> resultMap = FastMap.newInstance();
         String  orderId = request.getParameter("orderId");
@@ -116,10 +110,10 @@ public class OrderEvents {
         if (orderItemSeqIds != null) {
             for (String orderItemSeqId : orderItemSeqIds) {
                 try {
-                    GenericValue orderItem = EntityQuery.use(delegator).from("OrderItem").where("orderId", orderId, "orderItemSeqId", orderItemSeqId).queryOne();
-                    List<GenericValue> orderItemShipGroupAssocs = orderItem.getRelated("OrderItemShipGroupAssoc", null, null, false);
+                    GenericValue orderItem = delegator.findOne("OrderItem", UtilMisc.toMap("orderId", orderId, "orderItemSeqId", orderItemSeqId), false);
+                    List<GenericValue> orderItemShipGroupAssocs = orderItem.getRelated("OrderItemShipGroupAssoc");
                     for (GenericValue orderItemShipGroupAssoc : orderItemShipGroupAssocs) {
-                        GenericValue orderItemShipGroup = orderItemShipGroupAssoc.getRelatedOne("OrderItemShipGroup", false);
+                        GenericValue orderItemShipGroup = orderItemShipGroupAssoc.getRelatedOne("OrderItemShipGroup");
                         String shipGroupSeqId = orderItemShipGroup.getString("shipGroupSeqId");
 
                         Map<String, Object> contextMap = FastMap.newInstance();
@@ -127,7 +121,6 @@ public class OrderEvents {
                         contextMap.put("orderItemSeqId", orderItemSeqId);
                         contextMap.put("shipGroupSeqId", shipGroupSeqId);
                         contextMap.put("userLogin", userLogin);
-                        contextMap.put("locale", locale);
                         try {
                             resultMap = dispatcher.runSync("cancelOrderItem", contextMap);
 
@@ -140,7 +133,7 @@ public class OrderEvents {
 
                         } catch (GenericServiceException e) {
                             Debug.logError(e, module);
-                            request.setAttribute("_ERROR_MESSAGE_", e.getMessage());
+                            request.setAttribute("_ERROR_MESSAGE_", resultMap.get("errorMessage"));
                             return "error";
                         }
                     }

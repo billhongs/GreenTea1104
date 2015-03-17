@@ -25,7 +25,6 @@ import org.ofbiz.base.util.cache.UtilCache;
 import org.ofbiz.base.util.*;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.Delegator;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.entity.model.ModelUtil;
 import org.ofbiz.entity.model.ModelEntity;
@@ -48,7 +47,7 @@ public class PartyContentWrapper implements ContentWrapper {
     public static final String module = PartyContentWrapper.class.getName();
     public static final String CACHE_KEY_SEPARATOR = "::";
 
-    private static final UtilCache<String, String> partyContentCache = UtilCache.createUtilCache("party.content.rendered", true);
+    public static UtilCache<String, String> partyContentCache = UtilCache.createUtilCache("party.content.rendered", true);
 
     protected LocalDispatcher dispatcher;
     protected GenericValue party;
@@ -136,11 +135,8 @@ public class PartyContentWrapper implements ContentWrapper {
         }
 
         try {
-            if (useCache) {
-                String cachedValue = partyContentCache.get(cacheKey);
-                if (cachedValue != null) {
-                    return cachedValue;
-                }
+            if (useCache && partyContentCache.get(cacheKey) != null) {
+                return partyContentCache.get(cacheKey);
             }
 
             Writer outWriter = new StringWriter();
@@ -148,7 +144,10 @@ public class PartyContentWrapper implements ContentWrapper {
 
             String outString = outWriter.toString();
             if (outString.length() > 0) {
-                return partyContentCache.putIfAbsentAndGet(cacheKey, outString);
+                if (partyContentCache != null) {
+                    partyContentCache.put(cacheKey, outString);
+                }
+                return outString;
             } else {
                 String candidateOut = party.getModelEntity().isField(candidateFieldName) ? party.getString(candidateFieldName): "";
                 return candidateOut == null ? "" : candidateOut;
@@ -188,7 +187,7 @@ public class PartyContentWrapper implements ContentWrapper {
             ModelEntity partyPersonModel = delegator.getModelEntity("PartyAndPerson");
             if (partyPersonModel != null && partyPersonModel.isField(candidateFieldName)) {
                 if (party == null) {
-                    party = EntityQuery.use(delegator).from("PartyAndPerson").where("partyId", partyId).cache().queryOne();
+                    party = delegator.findByPrimaryKeyCache("PartyAndPerson", UtilMisc.toMap("partyId", partyId));
                 }
                 if (party != null) {
                     String candidateValue = party.getString(candidateFieldName);
@@ -203,7 +202,7 @@ public class PartyContentWrapper implements ContentWrapper {
             ModelEntity partyGroupModel = delegator.getModelEntity("PartyAndGroup");
             if (partyGroupModel != null && partyGroupModel.isField(candidateFieldName)) {
                 if (party == null) {
-                    party = EntityQuery.use(delegator).from("PartyAndGroup").where("partyId", partyId).cache().queryOne();
+                    party = delegator.findByPrimaryKeyCache("PartyAndGroup", UtilMisc.toMap("partyId", partyId));
                 }
                 if (party != null) {
                     String candidateValue = party.getString(candidateFieldName);
@@ -218,7 +217,7 @@ public class PartyContentWrapper implements ContentWrapper {
         // otherwise a content field
         GenericValue partyContent;
         if (contentId != null) {
-            partyContent = EntityQuery.use(delegator).from("PartyContent").where("partyId", partyId, "contentId", contentId).cache().queryOne();
+            partyContent = delegator.findByPrimaryKeyCache("PartyContent", UtilMisc.toMap("partyId", partyId, "contentId", contentId));
         } else {
             partyContent = getFirstPartyContentByType(partyId, party, partyContentTypeId, delegator);
         }
@@ -232,12 +231,8 @@ public class PartyContentWrapper implements ContentWrapper {
     }
 
     public static List<String> getPartyContentTextList(GenericValue party, String partyContentTypeId, Locale locale, String mimeTypeId, Delegator delegator, LocalDispatcher dispatcher) throws GeneralException, IOException {
-        List<GenericValue> partyContentList = EntityQuery.use(delegator).from("PartyContent")
-                .where("partyId", party.getString("partyId"), "partyContentTypeId", partyContentTypeId)
-                .orderBy("-fromDate")
-                .cache(true)
-                .filterByDate()
-                .queryList();
+        List<GenericValue> partyContentList = delegator.findByAndCache("PartyContent", UtilMisc.toMap("partyId", party.getString("partyId"), "partyContentTypeId", partyContentTypeId), UtilMisc.toList("-fromDate"));
+        partyContentList = EntityUtil.filterByDate(partyContentList);
 
         List<String> contentList = FastList.newInstance();
         if (partyContentList != null) {
@@ -269,11 +264,7 @@ public class PartyContentWrapper implements ContentWrapper {
 
         List<GenericValue> partyContentList = null;
         try {
-            partyContentList = EntityQuery.use(delegator).from("PartyContent")
-                    .where("partyId", partyId, "partyContentTypeId", partyContentTypeId)
-                    .orderBy("-fromDate")
-                    .cache(true)
-                    .queryList();
+            partyContentList = delegator.findByAndCache("PartyContent", UtilMisc.toMap("partyId", partyId, "partyContentTypeId", partyContentTypeId), UtilMisc.toList("-fromDate"));
         } catch (GeneralException e) {
             Debug.logError(e, module);
         }

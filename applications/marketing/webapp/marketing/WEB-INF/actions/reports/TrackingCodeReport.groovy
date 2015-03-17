@@ -24,26 +24,30 @@ import org.ofbiz.entity.condition.EntityCondition
 import org.ofbiz.entity.condition.EntityConditionList
 import org.ofbiz.marketing.report.ReportHelper
 
+trackingCodeIdStr = request.getParameter("trackingCodeId");
 // query for both number of visits and number of orders
 
 visitConditionList = [] as LinkedList;
 orderConditionList = [] as LinkedList;
 
-if (fromDate) {
-    visitConditionList.add(EntityCondition.makeCondition("fromDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
-    orderConditionList.add(EntityCondition.makeCondition("orderDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
+if (parameters.fromDate) {
+    visitConditionList.add(EntityCondition.makeCondition("fromDate", EntityOperator.GREATER_THAN_EQUAL_TO, parameters.fromDate));
+    orderConditionList.add(EntityCondition.makeCondition("orderDate", EntityOperator.GREATER_THAN_EQUAL_TO, parameters.fromDate));
 }
-if (thruDate) {
-     visitConditionList.add(EntityCondition.makeCondition("fromDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
-     orderConditionList.add(EntityCondition.makeCondition("orderDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
+if (parameters.thruDate) {
+     visitConditionList.add(EntityCondition.makeCondition("fromDate", EntityOperator.LESS_THAN_EQUAL_TO, parameters.thruDate));
+     orderConditionList.add(EntityCondition.makeCondition("orderDate", EntityOperator.LESS_THAN_EQUAL_TO, parameters.thruDate));
 }
-if (trackingCodeId) {
-     visitConditionList.add(EntityCondition.makeCondition("trackingCodeId", EntityOperator.EQUALS, trackingCodeId));
-     orderConditionList.add(EntityCondition.makeCondition("trackingCodeId", EntityOperator.EQUALS, trackingCodeId));
+if (parameters.trackingCodeId) {
+     visitConditionList.add(EntityCondition.makeCondition("trackingCodeId", EntityOperator.EQUALS, parameters.trackingCodeId));
+     orderConditionList.add(EntityCondition.makeCondition("trackingCodeId", EntityOperator.EQUALS, parameters.trackingCodeId));
 }
 
-visits = select("trackingCodeId", "visitId").from("TrackingCodeAndVisit").where(visitConditionList).orderBy("trackingCodeId").queryList();
-orders = select("trackingCodeId", "orderId", "grandTotal").from("TrackingCodeAndOrderHeader").where(orderConditionList).orderBy("trackingCodeId").queryList();
+visitConditions = EntityCondition.makeCondition(visitConditionList, EntityOperator.AND);
+orderConditions = EntityCondition.makeCondition(orderConditionList, EntityOperator.AND);
+
+visits = delegator.findList("TrackingCodeAndVisit", visitConditions, ['trackingCodeId', 'visitId'] as Set, ['trackingCodeId'], null, false);
+orders = delegator.findList("TrackingCodeAndOrderHeader", orderConditions, ['trackingCodeId', 'orderId', 'grandTotal'] as Set, ['trackingCodeId'], null, false);
 
 // use this helper to build a List of visits, orders, order totals, and conversion rates
 trackingCodeVisitAndOrders = ReportHelper.calcConversionRates(visits, orders, "trackingCodeId");

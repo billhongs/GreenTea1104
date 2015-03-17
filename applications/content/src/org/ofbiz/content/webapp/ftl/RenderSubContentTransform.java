@@ -39,7 +39,6 @@ import org.ofbiz.content.content.ContentWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.webapp.website.WebSiteWorker;
 
 import freemarker.core.Environment;
 import freemarker.template.TemplateTransformModel;
@@ -135,7 +134,7 @@ public class RenderSubContentTransform implements TemplateTransformModel {
                 // Timestamp fromDate = UtilDateTime.nowTimestamp();
                 ServletContext servletContext = request.getSession().getServletContext();
                 String rootDir = servletContext.getRealPath("/");
-                String webSiteId = WebSiteWorker.getWebSiteId(request);
+                String webSiteId = (String) servletContext.getAttribute("webSiteId");
                 String https = (String) servletContext.getAttribute("https");
                 templateContext.put("webSiteId", webSiteId);
                 templateContext.put("https", https);

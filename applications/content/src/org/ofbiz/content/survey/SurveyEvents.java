@@ -28,7 +28,6 @@ import org.ofbiz.base.util.UtilHttp;
 import org.ofbiz.webapp.control.ConfigXMLReader;
 import org.ofbiz.webapp.control.RequestHandler;
 import org.ofbiz.webapp.control.ConfigXMLReader.RequestMap;
-import org.ofbiz.webapp.control.WebAppConfigurationException;
 import org.ofbiz.webapp.event.EventHandlerException;
 
 /**
@@ -44,12 +43,7 @@ public class SurveyEvents {
         RequestHandler rh = (RequestHandler) request.getAttribute("_REQUEST_HANDLER_");
         ConfigXMLReader.ControllerConfig controllerConfig = rh.getControllerConfig();
         String requestUri = (String) request.getAttribute("thisRequestUri");
-        RequestMap requestMap = null;
-        try {
-            requestMap = controllerConfig.getRequestMapMap().get(requestUri);
-        } catch (WebAppConfigurationException e) {
-            Debug.logError(e, "Exception thrown while parsing controller.xml file: ", module);
-        }
+        RequestMap requestMap = controllerConfig.getRequestMapMap().get(requestUri);
         String eventResponse = null;
         try {
             eventResponse = rh.runEvent(request, response, createSurveyResponseEvent, requestMap, null);

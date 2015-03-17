@@ -23,15 +23,15 @@
 import org.ofbiz.entity.util.EntityUtil;
 
 if (productCategoryIdPar) {
-    category = from("ProductCategory").where("productCategoryId", productCategoryIdPar).queryOne();
+    category = delegator.findByPrimaryKey("ProductCategory", [productCategoryId : productCategoryIdPar]);
     context.category = category;
 }
 if (productFeatureTypeIdPar) {
-    featureType = from("ProductFeatureType").where("productFeatureTypeId", productFeatureTypeIdPar).queryOne();
+    featureType = delegator.findByPrimaryKey("ProductFeatureType", [productFeatureTypeId : productFeatureTypeIdPar]);
     context.featureType = featureType;
 }
 
-allProductionRuns = from("WorkEffortAndGoods").where("workEffortName", planName).orderBy("productId").queryList();
+allProductionRuns = delegator.findByAnd("WorkEffortAndGoods", [workEffortName : planName], ["productId"]);
 productionRuns = [];
 features = [:];
 products = [:];
@@ -42,20 +42,22 @@ if (allProductionRuns) {
         if (productCategoryIdPar) {
             if (!isProductInCategory(delegator, productionRun.productId, productCategoryIdPar)) {
                 // the production run's product is not a member of the given category, skip it
-                return;
+                continue;
             }
         }
-        productionRunProduct = from("Product").where("productId", productionRun.productId).queryOne();
+        productionRunProduct = delegator.findByPrimaryKey("Product", [productId : productionRun.productId]);
         location = [:];
         if (productionRunProduct) {
-            location = form("ProductFacilityLocation").where(facilityId : productionRun.facilityId, productId : productionRun.productId).queryFirst();
+            locations = delegator.findByAnd("ProductFacilityLocation", [facilityId : productionRun.facilityId, productId : productionRun.productId]);
+            location = EntityUtil.getFirst(locations);
         }
         if (taskNamePar) {
             // select the production run's task of a given name (i.e. type) if any (based on the report's parameter)
-            productionRunTask = from("WorkEffort").where("workEffortParentId", productionRun.workEffortId , "workEffortName", taskNamePar).queryFirst();
+            productionRunTasks = delegator.findByAnd("WorkEffort", [workEffortParentId : productionRun.workEffortId , workEffortName : taskNamePar]);
+            productionRunTask = EntityUtil.getFirst(productionRunTasks);
             if (!productionRunTask) {
                 // the production run doesn't include the given task, skip it
-                return;
+                continue;
             }
         }
 

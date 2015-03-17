@@ -1,6 +1,6 @@
 /*
  * Translated default messages for the jQuery validation plugin.
- * Locale: KK (Kazakh; қазақ тілі)
+ * Locale: KK
  */
 jQuery.extend(jQuery.validator.messages, {
         required: "Бұл өрісті міндетті түрде толтырыңыз.",

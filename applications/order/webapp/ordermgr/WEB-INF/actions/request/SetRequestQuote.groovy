@@ -22,7 +22,8 @@ import org.ofbiz.entity.util.EntityUtil;
 
 custRequestId = parameters.custRequestId;
 if (custRequestId) {
-    requestQuote = from("QuoteItem").where("custRequestId", custRequestId).queryFirst();
+    requestQuotes = delegator.findByAnd("QuoteItem", [custRequestId : custRequestId]);
+    requestQuote = EntityUtil.getFirst(requestQuotes);
     if (requestQuote) {
         context.quoteId = requestQuote.quoteId;
     }

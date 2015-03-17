@@ -17,10 +17,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#if productCategory??>
+<#if productCategory?exists>
   <#if productCategoryMembers?has_content>
       <#list productCategoryMembers as productCategoryMember>
-        <#assign product = productCategoryMember.getRelatedOne("Product", true)>
+        <#assign product = productCategoryMember.getRelatedOneCache("Product")>
           <div>
             <a href='<@ofbizUrl>EditProduct?productId=${product.productId}</@ofbizUrl>' class='buttontext'>
               <#if product.internalName?has_content>

@@ -18,9 +18,9 @@
  *******************************************************************************/
 package org.ofbiz.service.group;
 
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.component.ComponentConfig;
 import org.ofbiz.base.config.GenericConfigException;
@@ -29,7 +29,6 @@ import org.ofbiz.base.config.ResourceHandler;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilXml;
 import org.ofbiz.service.config.ServiceConfigUtil;
-import org.ofbiz.service.config.model.ServiceGroups;
 import org.w3c.dom.Element;
 
 /**
@@ -40,19 +39,20 @@ public class ServiceGroupReader {
     public static final String module = ServiceGroupReader.class.getName();
 
     // using a cache is dangerous here because if someone clears it the groups won't work at all: public static UtilCache groupsCache = new UtilCache("service.ServiceGroups", 0, 0, false);
-    public static Map<String, GroupModel> groupsCache = new ConcurrentHashMap<String, GroupModel>();
+    public static Map<String, GroupModel> groupsCache = FastMap.newInstance();
 
     public static void readConfig() {
-        List<ServiceGroups> serviceGroupsList = null;
+        Element rootElement = null;
+
         try {
-            serviceGroupsList = ServiceConfigUtil.getServiceEngine().getServiceGroups();
+            rootElement = ServiceConfigUtil.getXmlRootElement();
         } catch (GenericConfigException e) {
-            // FIXME: Refactor API so exceptions can be thrown and caught.
-            Debug.logError(e, module);
-            throw new RuntimeException(e.getMessage());
+            Debug.logError(e, "Error getting Service Engine XML root element", module);
+            return;
         }
-        for (ServiceGroups serviceGroup : serviceGroupsList) {
-            ResourceHandler handler = new MainResourceHandler(ServiceConfigUtil.SERVICE_ENGINE_XML_FILENAME, serviceGroup.getLoader(), serviceGroup.getLocation());
+
+        for (Element serviceGroupElement: UtilXml.childElementList(rootElement, "service-groups")) {
+            ResourceHandler handler = new MainResourceHandler(ServiceConfigUtil.SERVICE_ENGINE_XML_FILENAME, serviceGroupElement);
             addGroupDefinitions(handler);
         }
 
@@ -78,14 +78,14 @@ public class ServiceGroupReader {
             groupsCache.put(groupName, new GroupModel(group));
             numDefs++;
         }
-        if (Debug.infoOn()) {
+        if (Debug.importantOn()) {
             String resourceLocation = handler.getLocation();
             try {
                 resourceLocation = handler.getURL().toExternalForm();
             } catch (GenericConfigException e) {
                 Debug.logError(e, "Could not get resource URL", module);
             }
-            Debug.logInfo("Loaded [" + numDefs + "] Group definitions from " + resourceLocation, module);
+            Debug.logImportant("Loaded [" + numDefs + "] Group definitions from " + resourceLocation, module);
         }
     }
 

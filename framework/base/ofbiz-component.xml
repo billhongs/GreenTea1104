@@ -22,29 +22,9 @@ under the License.
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/ofbiz-component.xsd">
     <resource-loader name="main" type="component"/>
-    <classpath type="dir" location="dtd"/>
     <classpath type="jar" location="build/lib/*"/>
     <classpath type="dir" location="config"/>
     <classpath type="jar" location="lib/*"/>
-    <classpath type="jar" location="lib/ant/*"/>
-    <classpath type="jar" location="lib/commons/*"/>
-    <classpath type="jar" location="lib/j2eespecs/*"/>
-    <classpath type="jar" location="lib/scripting/*"/>
 
     <test-suite loader="main" location="testdef/basetests.xml"/>
-
-    <!-- load the naming (JNDI) server -->
-    <container name="naming-container" loaders="rmi" class="org.ofbiz.base.container.NamingServiceContainer">
-        <property name="host" value="0.0.0.0"/>
-        <property name="port" value="1099"/>
-    </container>
-
-    <!-- load BeanShell remote telnet server -->
-    <!-- Commented out by default for security reasons -->
-    <!-- the port below and port-1 will be opened by Beanshell -->
-    <!--container name="beanshell-container" class="org.ofbiz.base.container.BeanShellContainer">
-        <property name="telnet-port" value="9990"/>
-        <property name="app-name" value="OFBiz"/>
-    </container-->
-
 </ofbiz-component>

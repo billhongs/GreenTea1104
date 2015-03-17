@@ -19,7 +19,21 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
+
+    <simple-method method-name="createPartyRole" short-description="Create Party Role">
+        <entity-one entity-name="PartyRole" value-field="partyRole"/>
+        <if-empty field="partyRole">
+            <make-value entity-name="PartyRole" value-field="newEntity"/>
+            <set-pk-fields map="parameters" value-field="newEntity"/>
+            <create-value value-field="newEntity"/>
+        </if-empty>
+    </simple-method>
+    <simple-method method-name="deletePartyRole" short-description="Delete a  PartyRole">
+        <entity-one entity-name="PartyRole" value-field="partyRole"/>
+        <remove-value value-field="partyRole"/>
+    </simple-method>
+
 
     <simple-method method-name="savePartyNameChange" short-description="Save Party Name Change">
         <!-- for special case in ecommerce, if no partyId is passed in use userLogin.partyId -->
@@ -74,8 +88,8 @@ under the License.
             </else-if>
         </if>
     </simple-method>
-
     <simple-method method-name="getPartyNameForDate" short-description="Get Party Name For Date">
+
         <entity-and entity-name="PartyNameHistory" list="partyNameHistoryList">
             <field-map field-name="partyId" from-field="parameters.partyId"/>
             <order-by field-name="-changeDate"/>
@@ -102,9 +116,6 @@ under the License.
                 <field-to-result field="person.lastName" result-name="lastName"/>
                 <if-not-empty field="person.personalTitle">
                     <field-to-result field="person.personalTitle" result-name="personalTitle"/>
-                </if-not-empty>
-                <if-not-empty field="person.gender">
-                    <field-to-result field="person.gender" result-name="gender"/>
                 </if-not-empty>
                 <if-not-empty field="person.suffix">
                     <field-to-result field="person.suffix" result-name="suffix"/>
@@ -140,9 +151,6 @@ under the License.
                     <if-not-empty field="partyNameHistoryCurrent.suffix">
                         <field-to-result field="partyNameHistoryCurrent.suffix" result-name="suffix"/>
                     </if-not-empty>
-                    <if-not-empty field="person.gender">
-                        <field-to-result field="person.gender" result-name="gender"/>
-                    </if-not-empty>
 
 
                     <if-compare field="parameters.lastNameFirst" operator="equals" value="Y">
@@ -165,6 +173,15 @@ under the License.
     </simple-method>
 
     <!-- PostalAddressBoundary methods -->
+    <simple-method method-name="createPostalAddressBoundary" short-description="Create Postal Address Boundary">
+        <make-value entity-name="PostalAddressBoundary" value-field="newEntity"/>
+        <set-pk-fields map="parameters" value-field="newEntity"/>
+        <create-value value-field="newEntity"/>
+    </simple-method>
+    <simple-method method-name="deletePostalAddressBoundary" short-description="Delete a  Postal Address Boundary">
+        <entity-one entity-name="PostalAddressBoundary" value-field="postalAddressBoundary"/>
+        <remove-value value-field="postalAddressBoundary"/>
+    </simple-method>
     <simple-method method-name="getPostalAddressBoundary" short-description="Get Postal Address Boundary">
         <make-value entity-name="PostalAddressBoundary" value-field="postalAddressBoundaryLookupMap"/>
         <set field="postalAddressBoundaryLookupMap.geoId" from-field="parameters.geoId"/>
@@ -177,14 +194,14 @@ under the License.
     </simple-method>
     
     <!-- PartyIdentification methods -->
-    <simple-method method-name="createPartyIdentifications" short-description="create mass party identification with association between value and type">
+    <simple-method method-name="createPartyIdentifications" short-description="create mass party identification with association between vale and type">
         <set field="partyIdentCtx.partyId" from-field="parameters.partyId"/>
         <iterate-map key="key" value="value" map="parameters.identifications">
             <entity-one value-field="identificationType" entity-name="PartyIdentificationType" use-cache="true">
-                <field-map field-name="partyIdentificationTypeId" from-field="value"/>
-            </entity-one>
-            <if-not-empty field="identificationType">
-                <set field="idValue" value="${parameters.identifications.${identificationType.partyIdentificationTypeId}}"/>
+                <field-map field-name="partyIdentificationTypeId" from-field="value"/>              
+            </entity-one>          
+            <if-not-empty field="identificationType">   
+                <set field="idValue" value="${parameters.identifications.${identificationType.partyIdentificationTypeId}}"/>          
                 <if-not-empty field="idValue">
                     <set field="partyIdentCtx.partyIdentificationTypeId" from-field="identificationType.partyIdentificationTypeId"/>
                     <set field="partyIdentCtx.idValue" from-field="idValue"/>
@@ -192,6 +209,77 @@ under the License.
                 </if-not-empty> 
             </if-not-empty>
         </iterate-map>
+    </simple-method>
+
+    <!-- PartyClassification methods -->
+    <simple-method method-name="createPartyClassification" short-description="create a PartyClassification">
+        <make-value entity-name="PartyClassification" value-field="newEntity"/>
+        <set-pk-fields map="parameters" value-field="newEntity"/>
+        <set-nonpk-fields map="parameters" value-field="newEntity"/>
+        <if-empty field="newEntity.fromDate"><now-timestamp field="newEntity.fromDate"/></if-empty>
+        <create-value value-field="newEntity"/>
+    </simple-method>
+    <simple-method method-name="updatePartyClassification" short-description="update a PartyClassification">
+        <entity-one entity-name="PartyClassification" value-field="lookedUpValue"/>
+        <set-nonpk-fields value-field="lookedUpValue" map="parameters"/>
+        <store-value value-field="lookedUpValue"/>
+    </simple-method>
+    <simple-method method-name="deletePartyClassification" short-description="delete a PartyClassification">
+        <entity-one entity-name="PartyClassification" value-field="lookedUpValue"/>
+        <remove-value value-field="lookedUpValue"/>
+    </simple-method>
+    <!-- PartyClassificationGroup methods -->
+    <simple-method method-name="createPartyClassificationGroup" short-description="create a PartyClassificationGroup">
+        <log level="verbose" message="in newEntity"/>
+        <make-value entity-name="PartyClassificationGroup" value-field="newEntity"/>
+        <sequenced-id sequence-name="PartyClassificationGroup" field="newEntity.partyClassificationGroupId"/>
+        <field-to-result field="newEntity.partyClassificationGroupId" result-name="partyClassificationGroupId"/>
+        <set-nonpk-fields map="parameters" value-field="newEntity"/>
+        <log level="verbose" message="newEntity:${newEntity}"/>
+        <create-value value-field="newEntity"/>
+    </simple-method>
+    <simple-method method-name="updatePartyClassificationGroup" short-description="update a PartyClassificationGroup">
+        <entity-one entity-name="PartyClassificationGroup" value-field="lookedUpValue"/>
+        <set-nonpk-fields value-field="lookedUpValue" map="parameters"/>
+        <store-value value-field="lookedUpValue"/>
+    </simple-method>
+    <simple-method method-name="deletePartyClassificationGroup" short-description="delete a PartyClassificationGroup">
+        <entity-one entity-name="PartyClassificationGroup" value-field="lookedUpValue"/>
+        <remove-value value-field="lookedUpValue"/>
+    </simple-method>
+
+    <!-- Vendor Party services -->
+    <simple-method method-name="createVendor" short-description="createVendor">
+        <make-value value-field="newEntity" entity-name="Vendor"/>
+        <set-pk-fields map="parameters" value-field="newEntity"/>
+        <set-nonpk-fields map="parameters" value-field="newEntity"/>
+        <create-value value-field="newEntity"/>
+    </simple-method>
+    <simple-method method-name="updateVendor" short-description="updateVendor">
+        <entity-one entity-name="Vendor" value-field="lookedUpValue"/>
+        <set-nonpk-fields map="parameters" value-field="lookedUpValue"/>
+        <store-value value-field="lookedUpValue"/>
+    </simple-method>
+    <simple-method method-name="deleteVendor" short-description="deleteVendor">
+        <entity-one entity-name="Vendor" value-field="lookedUpValue"/>
+        <remove-value value-field="lookedUpValue"/>
+    </simple-method>
+
+    <!-- party attribute services -->
+    <simple-method method-name="createPartyAttribute" short-description="createPartyAttribute">
+        <make-value value-field="newEntity" entity-name="PartyAttribute"/>
+        <set-pk-fields map="parameters" value-field="newEntity"/>
+        <set-nonpk-fields map="parameters" value-field="newEntity"/>
+        <create-value value-field="newEntity"/>
+    </simple-method>
+    <simple-method method-name="updatePartyAttribute" short-description="updatePartyAttribute">
+        <entity-one entity-name="PartyAttribute" value-field="lookedUpValue"/>
+        <set-nonpk-fields map="parameters" value-field="lookedUpValue"/>
+        <store-value value-field="lookedUpValue"/>
+    </simple-method>
+    <simple-method method-name="removePartyAttribute" short-description="removePartyAttribute">
+        <entity-one entity-name="PartyAttribute" value-field="lookedUpValue"/>
+        <remove-value value-field="lookedUpValue"/>
     </simple-method>
 
     <!-- party profile default -->
@@ -236,11 +324,7 @@ under the License.
             </if-not-empty>
         </if-empty>
        <if-not-empty field="parameters._uploadedFile_fileName">
-           <set field="absolute" value="true" type="Boolean"/>
-           <call-class-method method-name="getDataResourceContentUploadPath" class-name="org.ofbiz.content.data.DataResourceWorker" ret-field="uploadPath">
-               <field field="delegator" type="org.ofbiz.entity.Delegator"/>
-               <field field="absolute" type="boolean"/>
-           </call-class-method>
+           <call-class-method class-name="org.ofbiz.content.data.DataResourceWorker" method-name="getDataResourceContentUploadPath" ret-field="uploadPath"/>
            <log level="always" message="[createPartyContent] - Found Subdir : ${uploadPath}"/>
            <!-- locate the file extension to use based on mime-type -->
            <set from-field="parameters._uploadedFile_contentType" field="extenLookup.mimeTypeId"/>
@@ -330,11 +414,7 @@ under the License.
                <set from-field="content.dataResourceId" field="lookup.dataResourceId"/>
                <find-by-primary-key use-cache="true" entity-name="DataResource" value-field="dataResourceMap" map="lookup"/>
             <else>
-               <set field="absolute" value="true" type="Boolean"/>
-               <call-class-method method-name="getDataResourceContentUploadPath" class-name="org.ofbiz.content.data.DataResourceWorker" ret-field="uploadPath">
-                   <field field="delegator" type="org.ofbiz.entity.Delegator"/>
-                   <field field="absolute" type="boolean"/>
-               </call-class-method>
+               <call-class-method class-name="org.ofbiz.content.data.DataResourceWorker" method-name="getDataResourceContentUploadPath" ret-field="uploadPath"/>
                <log level="always" message="[createPartyContent] - Found Subdir : ${uploadPath}"/>
                <!-- locate the file extension to use based on mime-type -->
                <set from-field="parameters._uploadedFile_contentType" field="extenLookup.mimeTypeId"/>
@@ -841,22 +921,10 @@ under the License.
     <simple-method method-name="createPartyRelationshipContactAccount" short-description="create a company/contact relationship and add the related roles">
         <set field="roleMap.partyId" from-field="parameters.accountPartyId"/>
         <set field="roleMap.roleTypeId" value="ACCOUNT"/>
-        <entity-one value-field="partyRole" entity-name="PartyRole">
-            <field-map field-name="partyId" from-field="roleMap.partyId"/>
-            <field-map field-name="roleTypeId" from-field="roleMap.roleTypeId"/>
-        </entity-one>
-        <if-empty field="partyRole">
-            <call-service service-name="createPartyRole" in-map-name="roleMap"/>
-        </if-empty>
+        <call-service service-name="createPartyRole" in-map-name="roleMap"/>
         <set field="roleMap.partyId" from-field="parameters.contactPartyId"/>
         <set field="roleMap.roleTypeId" value="CONTACT"/>
-        <entity-one value-field="partyRole" entity-name="PartyRole">
-            <field-map field-name="partyId" from-field="roleMap.partyId"/>
-            <field-map field-name="roleTypeId" from-field="roleMap.roleTypeId"/>
-        </entity-one>
-        <if-empty field="partyRole">
-            <call-service service-name="createPartyRole" in-map-name="roleMap"/>
-        </if-empty>
+        <call-service service-name="createPartyRole" in-map-name="roleMap"/>
         <set field="relMap.partyIdFrom" from-field="parameters.accountPartyId"/>
         <set field="relMap.roleTypeIdFrom" value="ACCOUNT"/>
         <set field="relMap.partyIdTo" from-field="parameters.contactPartyId"/>
@@ -864,6 +932,23 @@ under the License.
         <set field="relMap.partyRelationshipTypeId" value="EMPLOYMENT"/>
         <set field="relMap.comments" from-field="parameters.comments"/> 
         <call-service service-name="createPartyRelationship" in-map-name="relMap"/>
+    </simple-method>
+    
+    <simple-method method-name="createPartyCarrierAccount" short-description="Create PartyCarrierAccount">
+        <make-value entity-name="PartyCarrierAccount" value-field="newEntity"/>
+        <set-pk-fields map="parameters" value-field="newEntity"/>
+        <set-nonpk-fields map="parameters" value-field="newEntity"/>
+        <if-empty field="newEntity.fromDate">
+            <now-timestamp field="nowTimeStamp"/>
+            <set field="newEntity.fromDate" from-field="nowTimeStamp"/>
+        </if-empty>
+        <create-value value-field="newEntity"/>
+    </simple-method>
+
+     <simple-method method-name="updatePartyCarrierAccount" short-description="Update a PartyCarrierAccount">
+        <entity-one entity-name="PartyCarrierAccount" value-field="lookedUpValue"/>
+        <set-nonpk-fields value-field="lookedUpValue" map="parameters"/>
+        <store-value value-field="lookedUpValue"/>
     </simple-method>
 
     <!-- send party creation email notification -->
@@ -1033,47 +1118,6 @@ under the License.
                 <field-map field-name="roleTypeId" from-field="mainRoleTypeId" />
             </entity-one>
             <field-to-result result-name="description" field="roleType.description" />
-        </if-not-empty>
-    </simple-method>
-    
-    <!-- send account activated email notification -->
-    <simple-method method-name="sendAccountActivatedEmailNotification" short-description="Notification email on account activated" login-required="false">
-        <map-to-map map="parameters" to-map="bodyParameters"/>
-        <set field="emailType" value="PRDS_CUST_ACTIVATED"/>
-        <set field="productStoreId" from-field="parameters.productStoreId" />
-        <entity-one entity-name="ProductStoreEmailSetting" value-field="storeEmail">
-            <field-map field-name="emailType"/>
-            <field-map field-name="productStoreId"/>
-        </entity-one>
-        <entity-and list="webSites" entity-name="WebSite">
-            <field-map field-name="productStoreId" from-field="storeEmail.productStoreId"/>
-        </entity-and>
-        <first-from-list entry="webSite" list="webSites"/>
-        <if-not-empty field="storeEmail.bodyScreenLocation">
-            <entity-one entity-name="UserLogin" value-field="userLoginParty"/>
-            <set field="parameters.partyId" from-field="userLoginParty.partyId"/>
-            <entity-condition entity-name="PartyContactDetailByPurpose" list="partyContactDetailByPurposes" filter-by-date="true">
-                <condition-list>
-                    <condition-expr field-name="contactMechPurposeTypeId" operator="equals" value="PRIMARY_EMAIL"/>
-                    <condition-expr field-name="partyId" operator="equals"  from-field="parameters.partyId"/>
-                </condition-list>
-            </entity-condition>
-            <first-from-list entry="partyContactDetailByPurpose" list="partyContactDetailByPurposes"/>
-            <entity-one entity-name="Person" value-field="person"/>
-            <set field="bodyParameters.person" from-field="person"/>
-            <set field="emailParams.bodyParameters" from-field="bodyParameters"/>
-            <set field="contactMechId" from-field="partyContactDetailByPurpose.contactMechId"/>
-            <entity-one entity-name="ContactMech" value-field="contactMech"/>
-            <set field="emailParams.sendTo" from-field="contactMech.infoString"/>
-            <set field="emailParams.subject" from-field="storeEmail.subject"/>
-            <set field="emailParams.sendFrom" from-field="storeEmail.fromAddress"/>
-            <set field="emailParams.sendCc" from-field="storeEmail.ccAddress"/>
-            <set field="emailParams.sendBcc" from-field="storeEmail.bccAddress"/>
-            <set field="emailParams.contentType" from-field="storeEmail.contentType"/>
-            <set field="emailParams.bodyScreenUri" from-field="storeEmail.bodyScreenLocation"/>
-            <set field="emailParams.webSiteId" from-field="webSite.webSiteId"/>
-            <set field="emailParams.emailType" from-field="emailType"/>
-            <call-service service-name="sendMailFromScreen" in-map-name="emailParams"/>
         </if-not-empty>
     </simple-method>
 </simple-methods>

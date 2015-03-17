@@ -229,8 +229,7 @@ under the License.
                 <set field="headerItem" value="request"/>
                 <set field="custRequestId" from-field="parameters.custRequestId"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="50"/>
                 <entity-one entity-name="CustRequest" value-field="custRequest"/>
                 <entity-and entity-name="CustRequestItem" list="custRequestItems">
                     <field-map from-field="custRequestId" field-name="custRequestId"/>
@@ -513,7 +512,7 @@ under the License.
     <screen name="IncomingCustRequests">
         <section>
             <actions>
-                <set field="custRequestSortField" from-field="parameters.custRequestSortField" default-value="-custRequestDate"/>
+                <set field="parameters.sortField" from-field="parameters.sortField" default-value="-custRequestDate"/>
                 <property-map resource="OrderUiLabels" map-name="uiLabelMap" global="true"/>
                 <entity-condition list="custRequests" entity-name="CustReqAndTypeAndPartyRel">
                     <condition-list combine="and">
@@ -523,7 +522,7 @@ under the License.
                             <condition-expr field-name="partyIdTo" operator="equals" from-field="userLogin.partyId"/>
                         </condition-list>
                     </condition-list>
-                    <order-by field-name="${custRequestSortField}"/>
+                    <order-by field-name="${parameters.sortField}"/>
                 </entity-condition>
             </actions>
             <widgets>
@@ -718,21 +717,5 @@ under the License.
             </fail-widgets>
         </section>
     </screen>
-
-    <screen name="ListCustReturns">
-        <section>
-            <actions>
-                <set field="partyId" from-field="userLogin.partyId"/>
-                <set field="screenletTitle" from-field="uiLabelMap.OrderMyReturns"/>
-                <entity-one entity-name="StatusItem" value-field="statusItem">
-                    <field-map field-name="statusId" from-field="statusId"/>
-                </entity-one>
-            </actions>
-            <widgets>
-                <screenlet title="${screenletTitle} (${statusItem.description})" navigation-form-name="ListCustReturns" >
-                    <include-form name="ListReturns" location="component://order/widget/ordermgr/CustRequestForms.xml"/>
-                </screenlet>
-            </widgets>
-        </section>
-    </screen>
+    
 </screens>

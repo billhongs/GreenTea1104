@@ -34,18 +34,20 @@ context.productStore = ProductStoreWorker.getProductStore(request);
 
 if (parameters.add_product_id) { // check if a parameter is passed
     add_product_id = parameters.add_product_id;
-    product = from("Product").where("productId", add_product_id).cache(true).queryOne();
+    product = delegator.findByPrimaryKeyCache("Product", [productId : add_product_id]);
     context.product = product;
 }
 
 // get all the possible gift wrap options
-allgiftWraps = from("ProductFeature").where("productFeatureTypeId", "GIFT_WRAP").orderBy("defaultSequenceNum").queryList();
+allgiftWraps = delegator.findByAnd("ProductFeature", [productFeatureTypeId : "GIFT_WRAP"], ["defaultSequenceNum"]);
 context.allgiftWraps = allgiftWraps;
 
 // get the shopping lists for the logged in user
 if (userLogin) {
-    allShoppingLists = from("ShoppingList").where(EntityCondition.makeCondition("partyId", EntityOperator.EQUALS, userLogin.partyId),
-                EntityCondition.makeCondition("listName", EntityOperator.NOT_EQUAL, "auto-save")).orderBy("listName").queryList();
+    exprList = [EntityCondition.makeCondition("partyId", EntityOperator.EQUALS, userLogin.partyId),
+                EntityCondition.makeCondition("listName", EntityOperator.NOT_EQUAL, "auto-save")];
+    condition = EntityCondition.makeCondition(exprList, EntityOperator.AND);
+    allShoppingLists = delegator.findList("ShoppingList", condition, null, ["listName"], null, false);
     context.shoppingLists = allShoppingLists;
 }
 
@@ -68,10 +70,10 @@ if(shoppingCartItems) {
             }
             context.parentProductId = parentProductId;
         }
-        productCategoryMembers = from("ProductCategoryMember").where("productId", parentProductId).queryList();
+        productCategoryMembers = delegator.findList("ProductCategoryMember", EntityCondition.makeCondition("productId", EntityOperator.EQUALS, parentProductId), null, null, null, false);
         if (productCategoryMembers) {
             productCategoryMember = EntityUtil.getFirst(productCategoryMembers);
-            productCategory = productCategoryMember.getRelatedOne("ProductCategory", false);
+            productCategory = productCategoryMember.getRelatedOne("ProductCategory");
             context.productCategory = productCategory;
         }
     }

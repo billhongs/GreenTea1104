@@ -29,7 +29,6 @@ import org.ofbiz.entity.GenericPK;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.util.DistributedCacheClear;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entityext.EntityServiceFactory;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
@@ -58,7 +57,7 @@ public class EntityCacheServices implements DistributedCacheClear {
     public GenericValue getAuthUserLogin() {
         GenericValue userLogin = null;
         try {
-            userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", userLoginId).cache().queryOne();
+            userLogin = delegator.findByPrimaryKeyCache("UserLogin", UtilMisc.toMap("userLoginId", userLoginId));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error finding the userLogin for distributed cache clear", module);
         }
@@ -166,9 +165,9 @@ public class EntityCacheServices implements DistributedCacheClear {
 
     /**
      * Clear All Entity Caches Service
-     * @param dctx The DispatchContext that this service is operating in
-     * @param context Map containing the input parameters
-     * @return Map with the result of the service, the output parameters
+     *@param ctx The DispatchContext that this service is operating in
+     *@param context Map containing the input parameters
+     *@return Map with the result of the service, the output parameters
      */
     public static Map<String, Object> clearAllEntityCaches(DispatchContext dctx, Map<String, ? extends Object> context) {
         Delegator delegator = dctx.getDelegator();
@@ -183,9 +182,9 @@ public class EntityCacheServices implements DistributedCacheClear {
 
     /**
      * Clear Cache Line Service: one of the following context parameters is required: value, dummyPK or primaryKey
-     * @param dctx The DispatchContext that this service is operating in
-     * @param context Map containing the input parameters
-     * @return Map with the result of the service, the output parameters
+     *@param ctx The DispatchContext that this service is operating in
+     *@param context Map containing the input parameters
+     *@return Map with the result of the service, the output parameters
      */
     public static Map<String, Object> clearCacheLine(DispatchContext dctx, Map<String, ? extends Object> context) {
         Delegator delegator = dctx.getDelegator();

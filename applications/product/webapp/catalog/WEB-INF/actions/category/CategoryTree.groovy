@@ -22,44 +22,69 @@
  * should not contain order component's specific code.
  */
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.base.util.*;
+import org.ofbiz.product.catalog.*;
+import org.ofbiz.product.category.*;
 import javolution.util.FastMap;
 import javolution.util.FastList;
+import javolution.util.FastList.*;
+import org.ofbiz.entity.*;
+import java.util.List;
 
 // Put the result of CategoryWorker.getRelatedCategories into the separateRootType function as attribute.
 // The separateRootType function will return the list of category of given catalog.
 // PLEASE NOTE : The structure of the list of separateRootType function is according to the JSON_DATA plugin of the jsTree.
 
+completedTree =  FastList.newInstance();
+
 List separateRootType(roots) {
     if(roots) {
-        prodRootTypeTree = [];
-        roots.each { root ->
-            prodCateMap = [:];
-            productCategory = root.getRelatedOne("ProductCategory", false);
-            prodCateMap.productCategoryId = productCategory.getString("productCategoryId");
-            prodCateMap.categoryName = productCategory.getString("categoryName");
-            prodCateMap.isCatalog = false;
-            prodCateMap.isCategoryType = true;
-            prodRootTypeTree.add(prodCateMap);
+         prodRootTypeTree = FastList.newInstance();
+         def i = 0;
+        for(root in roots) {
+            prodCatalogMap2 = FastMap.newInstance();
+             prodCatalogTree2 = FastList.newInstance();
+            prodCatalogCategories = FastList.newInstance();
+            prodCatalog = root.getRelatedOne("ProductCategory");
+            
+            productCat = root.getRelatedOne("ProductCategory");
+            prodCatalogId = productCat.getString("productCategoryId");
+            prodCatalogMap2.put("productCategoryId", prodCatalogId);
+            prodCatalogMap2.put("categoryName", productCat.getString("categoryName"));
+            prodCatalogMap2.put("isCatalog", false)
+            prodCatalogMap.put("isCategoryType", true);
+            
+            i++;
+            
+            prodRootTypeTree.add(prodCatalogMap2);
         }
         return prodRootTypeTree;
     }
 }
 
-completedTree =  [];
 // Get the Catalogs
-prodCatalogs = from("ProdCatalog").queryList();
-if (prodCatalogs) {
-    prodCatalogs.each { prodCatalog ->
-        prodCatalogMap = [:];
-        prodCatalogMap.productCategoryId = prodCatalog.getString("prodCatalogId");
-        prodCatalogMap.categoryName = prodCatalog.getString("catalogName");
-        prodCatalogMap.isCatalog = true;
-        prodCatalogMap.isCategoryType = false;
-        prodCatalogCategories = from("ProdCatalogCategory").where("prodCatalogId", prodCatalog.prodCatalogId).filterByDate().queryList();
+prodCatalogs = delegator.findByAnd("ProdCatalog");
+
+if (prodCatalogs.size() > 0) {
+    for (i = 0; i < prodCatalogs.size(); i++) {
+        
+        prodCatalogMap = FastMap.newInstance();
+        prodCatalog = prodCatalogs[i];
+        prodCatalogId = prodCatalog.getString("prodCatalogId");
+        prodCatalogMap.put("productCategoryId", prodCatalogId);
+        prodCatalogMap.put("categoryName", prodCatalog.getString("catalogName"));
+        prodCatalogMap.put("isCatalog", true);
+        prodCatalogMap.put("isCategoryType", false);
+        
+        prodCatalogCategories = EntityUtil.filterByDate(delegator.findByAnd("ProdCatalogCategory", ["prodCatalogId" : prodCatalog.prodCatalogId]));
+        
+        prodCatalogTree = FastList.newInstance();
+        
         if (prodCatalogCategories) {
-            prodCatalogMap.child = separateRootType(prodCatalogCategories);
+            prodCatalogTree = separateRootType(prodCatalogCategories);
+            prodCatalogMap.put("child", prodCatalogTree);
+            completedTree.add(prodCatalogMap);
         }
-        completedTree.add(prodCatalogMap);
     }
 }
 // The complete tree list for the category tree

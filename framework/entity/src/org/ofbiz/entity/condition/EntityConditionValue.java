@@ -25,7 +25,7 @@ import java.util.Map;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntity;
 import org.ofbiz.entity.GenericModelException;
-import org.ofbiz.entity.config.model.Datasource;
+import org.ofbiz.entity.config.DatasourceInfo;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelField;
 
@@ -36,58 +36,15 @@ import org.ofbiz.entity.model.ModelField;
 @SuppressWarnings("serial")
 public abstract class EntityConditionValue extends EntityConditionBase {
 
-    public static EntityConditionValue CONSTANT_NUMBER(Number value) { return new ConstantNumberValue(value); }
-    public static final class ConstantNumberValue extends EntityConditionValue {
-        private Number value;
-
-        private ConstantNumberValue(Number value) {
-            this.value = value;
-        }
-
-        @Override
-        public void accept(EntityConditionVisitor visitor) {
-            visitor.acceptEntityConditionValue(this);
-        }
-
-        @Override
-        public void addSqlValue(StringBuilder sql, Map<String, String> tableAliases, ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, boolean includeTableNamePrefix, Datasource datasourceinfo) {
-            sql.append(value);
-        }
-
-        @Override
-        public EntityConditionValue freeze() {
-            return this;
-        }
-
-        @Override
-        public ModelField getModelField(ModelEntity modelEntity) {
-            return null;
-        }
-
-        @Override
-        public Object getValue(Delegator delegator, Map<String, ? extends Object> map) {
-            return value;
-        }
-
-        @Override
-        public void validateSql(org.ofbiz.entity.model.ModelEntity modelEntity) {
-        }
-
-        @Override
-        public void visit(EntityConditionVisitor visitor) {
-            visitor.acceptObject(value);
-        }
-    }
-
     public abstract ModelField getModelField(ModelEntity modelEntity);
 
     public void addSqlValue(StringBuilder sql, ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, boolean includeTableNamePrefix,
-            Datasource datasourceinfo) {
+            DatasourceInfo datasourceinfo) {
         addSqlValue(sql, emptyAliases, modelEntity, entityConditionParams, includeTableNamePrefix, datasourceinfo);
     }
 
     public abstract void addSqlValue(StringBuilder sql, Map<String, String> tableAliases, ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams,
-            boolean includeTableNamePrefix, Datasource datasourceinfo);
+            boolean includeTableNamePrefix, DatasourceInfo datasourceinfo);
 
     public abstract void validateSql(ModelEntity modelEntity) throws GenericModelException;
 

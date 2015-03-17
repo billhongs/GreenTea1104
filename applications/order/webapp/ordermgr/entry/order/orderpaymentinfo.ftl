@@ -105,7 +105,7 @@ under the License.
             <td width="5">&nbsp;</td>
             <td valign="top" width="80%">
               <div>
-                #${billingAccount.billingAccountId!} - ${billingAccount.description!}
+                #${billingAccount.billingAccountId?if_exists} - ${billingAccount.description?if_exists}
               </div>
             </td>
           </tr>

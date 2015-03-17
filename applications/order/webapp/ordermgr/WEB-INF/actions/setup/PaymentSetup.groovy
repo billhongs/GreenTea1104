@@ -20,7 +20,7 @@
 import org.ofbiz.entity.*;
 import org.ofbiz.base.util.*;
 
-paymentSetup = from("WebSitePaymentSettingView").orderBy("webSiteId", "paymentMethodTypeId").queryList();
+paymentSetup = delegator.findList("WebSitePaymentSettingView", null, null, ["webSiteId", "paymentMethodTypeId"], null, false);
 context.paymentSetups = paymentSetup;
 
 webSiteId = parameters.webSiteId;
@@ -28,14 +28,14 @@ paymentMethodTypeId = parameters.paymentMethodTypeId;
 
 webSitePayment = null;
 if (webSiteId && paymentMethodTypeId) {
-    webSitePayment = from("WebSitePaymentSettingView").where("webSiteId", webSiteId, "paymentMethodTypeId", paymentMethodTypeId).queryOne();
+    webSitePayment = delegator.findByPrimaryKey("WebSitePaymentSettingView", [webSiteId : webSiteId, paymentMethodTypeId : paymentMethodTypeId]);
 }
 context.webSitePayment = webSitePayment;
 
-webSites = from("WebSite").orderBy("siteName").queryList();
+webSites = delegator.findList("WebSite", null, null, ["siteName"], null, false);
 context.webSites = webSites;
 
-paymentMethodTypes = from("PaymentMethodType").orderBy("description").queryList();
+paymentMethodTypes = delegator.findList("PaymentMethodType", null, null, ["description"], null, false);
 context.paymentMethodTypes = paymentMethodTypes;
 
 payInfo = UtilHttp.getParameterMap(request);

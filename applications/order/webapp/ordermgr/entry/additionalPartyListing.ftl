@@ -38,16 +38,16 @@ under the License.
               <td>
                 <div>
                   <#if partyData[party].type == "person">
-                    ${partyData[party].firstName!}
+                    ${partyData[party].firstName?if_exists}
                   <#else>
-                    ${partyData[party].groupName!}
+                    ${partyData[party].groupName?if_exists}
                   </#if>
                 </div>
               </td>
               <td>
                 <div>
                   <#if partyData[party].type == "person">
-                    ${partyData[party].lastName!}
+                    ${partyData[party].lastName?if_exists}
                   </#if>
                 </div>
               </td>

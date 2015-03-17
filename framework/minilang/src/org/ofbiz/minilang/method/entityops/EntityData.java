@@ -20,72 +20,76 @@ package org.ofbiz.minilang.method.entityops;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.LinkedList;
 import java.util.List;
+
+import javolution.util.FastList;
 
 import org.ofbiz.base.location.FlexibleLocation;
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
+import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.entity.Delegator;
+import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.util.EntityDataAssert;
 import org.ofbiz.entity.util.EntitySaxReader;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
+import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;entity-data&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Centitydata%3E}}">Mini-language Reference</a>
+ * Uses the delegator to find entity values by a primary key
  */
-public final class EntityData extends EntityOperation {
+public class EntityData extends MethodOperation {
+    public static final class EntityDataFactory implements Factory<EntityData> {
+        public EntityData createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new EntityData(element, simpleMethod);
+        }
+
+        public String getName() {
+            // FIXME: not in SimpleMethod
+            return "entity-data";
+        }
+    }
 
     public static final String module = EntityData.class.getName();
 
-    private final FlexibleMapAccessor<List<Object>> errorListFma;
-    private final FlexibleStringExpander locationFse;
-    private final String mode;
-    private final int timeout;
+    protected FlexibleStringExpander locationExdr;
+    protected FlexibleStringExpander delegatorNameExdr;
+    protected FlexibleStringExpander timeoutExdr;
+    protected ContextAccessor<List<Object>> errorListAcsr;
+    protected String mode;
 
-    public EntityData(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    public EntityData(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "location", "timeout", "delegator-name", "error-list-name", "mode");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "location");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "delegator-name");
-            MiniLangValidate.constantAttributes(simpleMethod, element, "timeout", "mode");
-            MiniLangValidate.noChildElements(simpleMethod, element);
+        locationExdr = FlexibleStringExpander.getInstance(element.getAttribute("location"));
+        delegatorNameExdr = FlexibleStringExpander.getInstance(element.getAttribute("delegator-name"));
+        timeoutExdr = FlexibleStringExpander.getInstance(element.getAttribute("timeout"));
+        errorListAcsr = new ContextAccessor<List<Object>>(element.getAttribute("error-list-name"), "error_list");
+
+        mode = element.getAttribute("mode");
+        if (UtilValidate.isEmpty(mode)) {
+            mode = "load";
         }
-        locationFse = FlexibleStringExpander.getInstance(element.getAttribute("location"));
-        mode = MiniLangValidate.checkAttribute(element.getAttribute("mode"), "load");
-        String timeoutAttribute = element.getAttribute("timeout");
-        if (!"load".equals(mode) && !timeoutAttribute.isEmpty()) {
-            MiniLangValidate.handleError("timeout attribute is valid only when mode=\"load\".", simpleMethod, element);
-        }
-        int timeout = -1;
-        if (!timeoutAttribute.isEmpty()) {
-            try {
-                timeout = Integer.parseInt(timeoutAttribute);
-            } catch (NumberFormatException e) {
-                MiniLangValidate.handleError("Exception thrown while parsing timeout attribute: " + e.getMessage(), simpleMethod, element);
-            }
-        }
-        this.timeout = timeout;
-        errorListFma = FlexibleMapAccessor.getInstance(MiniLangValidate.checkAttribute(element.getAttribute("error-list-name"), "error_list"));
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        List<Object> messages = errorListFma.get(methodContext.getEnvMap());
+    public boolean exec(MethodContext methodContext) {
+        List<Object> messages = errorListAcsr.get(methodContext);
         if (messages == null) {
-            messages = new LinkedList<Object>();
-            errorListFma.put(methodContext.getEnvMap(), messages);
+            messages = FastList.newInstance();
+            errorListAcsr.put(methodContext, messages);
         }
-        String location = this.locationFse.expandString(methodContext.getEnvMap());
-        Delegator delegator = getDelegator(methodContext);
+
+        String location = this.locationExdr.expandString(methodContext.getEnvMap());
+        String delegatorName = this.delegatorNameExdr.expandString(methodContext.getEnvMap());
+
+        Delegator delegator = methodContext.getDelegator();
+        if (UtilValidate.isNotEmpty(delegatorName)) {
+            delegator = DelegatorFactory.getDelegator(delegatorName);
+        }
+
         URL dataUrl = null;
         try {
             dataUrl = FlexibleLocation.resolveLocation(location, methodContext.getLoader());
@@ -95,19 +99,32 @@ public final class EntityData extends EntityOperation {
         if (dataUrl == null) {
             messages.add("Could not find Entity Data document in resource: " + location);
         }
+
+        String timeout = this.timeoutExdr.expandString(methodContext.getEnvMap());
+        int txTimeout = -1;
+        if (UtilValidate.isNotEmpty(timeout)) {
+            try {
+                txTimeout = Integer.parseInt(timeout);
+            } catch (NumberFormatException e) {
+                Debug.logWarning("Timeout not formatted properly in entity-data operation, defaulting to container default", module);
+            }
+        }
+
         if ("assert".equals(mode)) {
+            // load the XML file, read in one element at a time and check it against the database
             try {
                 EntityDataAssert.assertData(dataUrl, delegator, messages);
             } catch (Exception e) {
                 String xmlError = "Error checking/asserting XML Resource \"" + dataUrl.toExternalForm() + "\"; Error was: " + e.getMessage();
+                //Debug.logError(e, xmlError, module);
                 messages.add(xmlError);
-                Debug.logWarning(e, xmlError, module);
             }
         } else {
+            // again, default to load
             try {
                 EntitySaxReader reader = null;
-                if (timeout > 0) {
-                    reader = new EntitySaxReader(delegator, timeout);
+                if (txTimeout > 0) {
+                    reader = new EntitySaxReader(delegator, txTimeout);
                 } else {
                     reader = new EntitySaxReader(delegator);
                 }
@@ -115,35 +132,21 @@ public final class EntityData extends EntityOperation {
             } catch (Exception e) {
                 String xmlError = "Error loading XML Resource \"" + dataUrl.toExternalForm() + "\"; Error was: " + e.getMessage();
                 messages.add(xmlError);
-                Debug.logWarning(e, xmlError, module);
+                Debug.logError(e, xmlError, module);
             }
         }
         return true;
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<entity-data ");
-        sb.append("location=\"").append(this.locationFse).append("\" ");
-        sb.append("mode=\"").append(this.mode).append("\" ");
-        sb.append("timeout=\"").append(this.timeout).append("\" ");
-        sb.append("error-list-name=\"").append(this.errorListFma).append("\" ");
-        sb.append("/>");
-        return sb.toString();
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<entity-data/>";
     }
-
-    /**
-     * A factory for the &lt;entity-data&gt; element.
-     */
-    public static final class EntityDataFactory implements Factory<EntityData> {
-        @Override
-        public EntityData createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new EntityData(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "entity-data";
-        }
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }
+

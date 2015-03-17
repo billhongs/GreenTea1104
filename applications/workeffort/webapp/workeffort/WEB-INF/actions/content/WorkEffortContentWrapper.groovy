@@ -24,7 +24,7 @@
 
  workEffort = context.get("workEffort");
  if (workEffort == null && workEffortId != null) {
-    workEffort = from("WorkEffort").where("workEffortId", workEffortId).cache(true).queryOne();
+    workEffort = delegator.findByPrimaryKeyCache("WorkEffort", UtilMisc.toMap("workEffortId", workEffortId));
  }
 
  if (workEffort != null) {

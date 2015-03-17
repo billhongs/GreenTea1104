@@ -39,7 +39,8 @@ if (completeRequested) {
     exprsTo = [EntityCondition.makeCondition("facilityIdTo", EntityOperator.EQUALS, facilityId),
                EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "IXF_REQUESTED")];
 }
-toTransfers = from("InventoryTransfer").where(exprsTo).orderBy("sendDate").queryList();
+ecl = EntityCondition.makeCondition(exprsTo, EntityOperator.AND);
+toTransfers = delegator.findList("InventoryTransfer", ecl, null, ['sendDate'], null, false);
 if (toTransfers) {
     context.toTransfers = toTransfers;
 }
@@ -57,7 +58,7 @@ if (completeRequested) {
                  EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "IXF_REQUESTED")];
 }
 ecl = EntityCondition.makeCondition(exprsFrom, EntityOperator.AND);
-fromTransfers = from("InventoryTransfer").where(exprsFrom).orderBy("sendDate").queryList();
+fromTransfers = delegator.findList("InventoryTransfer", ecl, null, ['sendDate'], null, false);
 if (fromTransfers) {
     context.fromTransfers = fromTransfers;
 }

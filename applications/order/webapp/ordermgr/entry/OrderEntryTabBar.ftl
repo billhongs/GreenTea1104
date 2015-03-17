@@ -55,6 +55,5 @@ under the License.
       </#if>
       <li><a href="<@ofbizUrl>emptycart</@ofbizUrl>">${uiLabelMap.OrderClearOrder}</a></li>
     </ul>
-    <br class="clear">
   </div>
 </div>

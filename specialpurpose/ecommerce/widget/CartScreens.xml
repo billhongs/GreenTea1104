@@ -24,9 +24,6 @@ under the License.
     <!-- Column Included Screens -->
     <screen name="microcart">
         <section>
-            <actions>
-                <set field="initialLocaleComplete" type="String" value="${groovy:parameters?.userLogin?.lastLocale}" default-value="${groovy:locale.toString()}"/>
-            </actions>
             <widgets>
                 <platform-specific><html><html-template location="component://ecommerce/webapp/ecommerce/cart/microcart.ftl"/></html></platform-specific>
             </widgets>
@@ -68,8 +65,7 @@ under the License.
         <section>
             <actions>
                 <set field="leftbarScreenName" value="leftbar"/>
-                <set field="MainColumnStyle" value="center"/>
-                <!--set field="MainColumnStyle" value="leftonly"/-->
+                <set field="MainColumnStyle" value="leftonly"/>
 
                 <set field="titleProperty" value="PageTitleShoppingCart"/>
                 <set field="headerItem" value="Shopping Cart"/>

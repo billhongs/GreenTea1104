@@ -20,15 +20,16 @@ under the License.
 
 <screens xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/widget-screen.xsd">
-    
+
     <screen name="PromoCode">
         <section>
             <actions>
+                <set field="rightbarScreenName" value="rightbar_promo"/>
                 <set field="titleProperty" value="WebPosPageTitlePromoCode"/>
-                <set field="headerItem" value="Promo"/>
             </actions>
             <widgets>
-                <container>
+                <include-screen name="SearchProducts" location="component://webpos/widget/WebPosScreens.xml"/>
+                <container id="PromoCode">
                     <platform-specific><html><html-template location="component://webpos/webapp/webpos/promo/PromoCode.ftl"/></html></platform-specific>
                 </container>
             </widgets>

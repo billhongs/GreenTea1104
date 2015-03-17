@@ -21,8 +21,8 @@ under the License.
 <#macro contactList publicEmailContactLists>
   <select name="contactListId" class="selectBox" style="width:134px">
     <#list publicEmailContactLists as publicEmailContactList>
-      <#assign publicContactMechType = publicEmailContactList.contactList.getRelatedOne("ContactMechType", true)!>
-        <option value="${publicEmailContactList.contactList.contactListId}">${publicEmailContactList.contactListType.description!} - ${publicEmailContactList.contactList.contactListName!}</option>
+      <#assign publicContactMechType = publicEmailContactList.getRelatedOneCache("ContactMechType")?if_exists>
+        <option value="${publicEmailContactList.contactListId}">${publicEmailContactList.contactListName?if_exists}</option>
     </#list>
   </select>
 </#macro>
@@ -31,12 +31,6 @@ under the License.
     function unsubscribe() {
         var form = document.getElementById("signUpForContactListForm");
         form.action = "<@ofbizUrl>unsubscribeContactListParty</@ofbizUrl>"
-        document.getElementById("statusId").value = "CLPT_UNSUBS_PENDING";
-        form.submit();
-    }
-    function unsubscribeByContactMech() {
-        var form = document.getElementById("signUpForContactListForm");
-        form.action = "<@ofbizUrl>unsubscribeContactListPartyContachMech</@ofbizUrl>"
         document.getElementById("statusId").value = "CLPT_UNSUBS_PENDING";
         form.submit();
     }
@@ -56,8 +50,6 @@ under the License.
     <#-- They are logged in so lets present the form to sign up with their email address -->
       <form method="post" action="<@ofbizUrl>createContactListParty</@ofbizUrl>" name="signUpForContactListForm" id="signUpForContactListForm">
         <fieldset>
-          <#assign contextPath = request.getContextPath()>
-          <input type="hidden" name="baseLocation" value="${contextPath}"/>
           <input type="hidden" name="partyId" value="${partyId}"/>
           <input type="hidden" id="statusId" name="statusId" value="CLPT_PENDING"/>
           <p>${uiLabelMap.EcommerceSignUpForContactListComments}</p>
@@ -65,16 +57,15 @@ under the License.
             <@contactList publicEmailContactLists=publicEmailContactLists/>
           </div>
           <div>
-            <label for="preferredContactMechId">${uiLabelMap.CommonEmail} *</label>
-            <select id="preferredContactMechId" name="preferredContactMechId" class="selectBox">
+            <select name="preferredContactMechId" class="selectBox">
               <#list partyAndContactMechList as partyAndContactMech>
-                <option value="${partyAndContactMech.contactMechId}"><#if partyAndContactMech.infoString?has_content>${partyAndContactMech.infoString}<#elseif partyAndContactMech.tnContactNumber?has_content>${partyAndContactMech.tnCountryCode!}-${partyAndContactMech.tnAreaCode!}-${partyAndContactMech.tnContactNumber}<#elseif partyAndContactMech.paAddress1?has_content>${partyAndContactMech.paAddress1}, ${partyAndContactMech.paAddress2!}, ${partyAndContactMech.paCity!}, ${partyAndContactMech.paStateProvinceGeoId!}, ${partyAndContactMech.paPostalCode!}, ${partyAndContactMech.paPostalCodeExt!} ${partyAndContactMech.paCountryGeoId!}</#if></option>
+                <option value="${partyAndContactMech.contactMechId}"><#if partyAndContactMech.infoString?has_content>${partyAndContactMech.infoString}<#elseif partyAndContactMech.tnContactNumber?has_content>${partyAndContactMech.tnCountryCode?if_exists}-${partyAndContactMech.tnAreaCode?if_exists}-${partyAndContactMech.tnContactNumber}<#elseif partyAndContactMech.paAddress1?has_content>${partyAndContactMech.paAddress1}, ${partyAndContactMech.paAddress2?if_exists}, ${partyAndContactMech.paCity?if_exists}, ${partyAndContactMech.paStateProvinceGeoId?if_exists}, ${partyAndContactMech.paPostalCode?if_exists}, ${partyAndContactMech.paPostalCodeExt?if_exists} ${partyAndContactMech.paCountryGeoId?if_exists}</#if></option>
               </#list>
             </select>
           </div>
           <div>
             <input type="submit" value="${uiLabelMap.EcommerceSubscribe}"/>
-            <input type="button" value="${uiLabelMap.EcommerceUnsubscribe}" onclick="javascript:unsubscribeByContactMech();"/>
+            <input type="button" value="${uiLabelMap.EcommerceUnsubscribe}" onclick="javascript:unsubscribe();"/>
           </div>
         </fieldset>
       </form>
@@ -88,16 +79,13 @@ under the License.
   <#-- There is no party info so just offer an anonymous (non-partyId) related newsletter sign up -->
     <form method="post" action="<@ofbizUrl>signUpForContactList</@ofbizUrl>" name="signUpForContactListForm" id="signUpForContactListForm">
       <fieldset>
-        <#assign contextPath = request.getContextPath()>
-        <input type="hidden" name="baseLocation" value="${contextPath}"/>
         <input type="hidden" id="statusId" name="statusId"/>
         <div>
           <label>${uiLabelMap.EcommerceSignUpForContactListComments}</label>
           <@contactList publicEmailContactLists=publicEmailContactLists/>
         </div>
         <div>
-          <label for="email">${uiLabelMap.CommonEmail} *</label>
-          <input id="email" name="email" class="required" type="text"/>
+          <input name="email" class="inputBox" type="text"/>
         </div>
         <div>
           <input type="submit" value="${uiLabelMap.EcommerceSubscribe}"/>

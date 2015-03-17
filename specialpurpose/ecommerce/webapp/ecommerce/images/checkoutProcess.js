@@ -24,17 +24,17 @@ var isBillStepValidate = false;
 jQuery(document).ready(function(){
     // Cart
     var validateCart = jQuery("#cartForm");
-    validateCart.validate();
-
+    validateCart.validate(); 
+    
     var validateShip = jQuery("#shippingForm");
     validateShip.validate();
-
+    
     var validateShipOption = jQuery("#shippingOptionForm");
     validateShipOption.validate();
-
+    
     var validateBill = jQuery("#billingForm");
     validateBill.validate();
-
+    
     // Goto Edit Cart Panel
     jQuery('#openCartPanel').click(function() {
         showEditCartPanel();
@@ -258,30 +258,24 @@ function createUpdateCustomerAndShippingAddress() {
         async: false,
         data: jQuery('#shippingForm').serialize(),
         success: function(json) {
-                var serverError = getServerError(json);
-                if (!serverError) {
-                    jQuery('#shippingFormServerError').fadeOut('fast');
-                    // Process Shipping data response.
-                    jQuery('#shipToPartyId').val(json.partyId);
-                    jQuery('#billToPartyId').val(json.partyId);
-                    jQuery('#shipToContactMechId').val(json.contactMechId);
-                    jQuery('#shipToPhoneContactMechId').val(json.shipToPhoneContactMechId);
-                    jQuery('#emailContactMechId').val(json.emailContactMechId);
-                    //jQuery('#completedShippingMethod').html(json.shippingDescription);
-                    updateShippingSummary();
-                    getShipOptions();
-                    result = true;
-                } else {
-                    jQuery('#shippingFormServerError').html(serverError);
-                    result = false;
-                }
+            jQuery('#shippingFormServerError').fadeOut('fast');
+            // Process Shipping data response.
+            jQuery('#shipToPartyId').val(json.partyId);
+            jQuery('#billToPartyId').val(json.partyId);
+            jQuery('#shipToContactMechId').val(json.contactMechId);
+            jQuery('#shipToPhoneContactMechId').val(json.shipToPhoneContactMechId);
+            jQuery('#emailContactMechId').val(json.emailContactMechId);
+            //jQuery('#completedShippingMethod').html(json.shippingDescription);
+            updateShippingSummary();
+            getShipOptions();
+            result = true;
         },
         error: function(error) {
             if (error != "") {
-                jQuery('#shippingFormServerError').html(error);
+                jQuery('#shippingFormServerError').html(serverError);
             }
             result = false;
-        }
+        } 
     });
     return result;
 }
@@ -296,25 +290,19 @@ function getShipOptions() {
             type: 'POST',
             async: false,
             success: function(json) {
-                var serverError = getServerError(json);
-                if (!serverError) {
-                        jQuery('#shippingFormServerError').fadeOut('fast');
-                        isShipStepValidate = true;
-                        shipOptions = json.shippingOptions;
-                        var shipMethod = jQuery('#shipMethod');
-                        shipMethod.find("option").remove();
-                        jQuery.each(shipOptions, function(shipOption) {
-                            if (this.productStoreShipMethId){
-                                shipMethod.append(jQuery("<option value = " + this.shippingMethod + ":" + this.productStoreShipMethId + " > " + this.shippingDesc  + " </option>"));
-                            } else {
-                                shipMethod.append(jQuery("<option value = " + this.shippingMethod + " > " + this.shippingDesc  + " </option>"));
-                            }
-                        });
-                        result = true;
+                jQuery('#shippingFormServerError').fadeOut('fast');
+                isShipStepValidate = true;
+                shipOptions = json.shippingOptions;
+                var shipMethod = jQuery('#shipMethod');
+                shipMethod.find("option").remove();
+                jQuery.each(shipOptions, function(shipOption) {
+                    if (this.productStoreShipMethId){
+                        shipMethod.append(jQuery("<option value = " + this.shippingMethod + ":" + this.productStoreShipMethId + " > " + this.shippingDesc  + " </option>"));
                     } else {
-                        jQuery('#shippingFormServerError').html(serverError);
-                        result = false;
+                        shipMethod.append(jQuery("<option value = " + this.shippingMethod + " > " + this.shippingDesc  + " </option>"));
                     }
+                });
+                result = true;
             },
             error: function(error) {
                 if (error != "") {
@@ -341,8 +329,6 @@ function setShippingOption() {
         async: false,
         data: jQuery('#shippingOptionForm').serialize(),
         success: function(json) {
-            var serverError = getServerError(json);
-            if (!serverError) {
             shipTotal = json.shippingTotal;
                 isShipOptionStepValidate = true;
                 jQuery('#selectedShipmentOption').html(json.shippingDescription);
@@ -351,10 +337,6 @@ function setShippingOption() {
                 //jQuery('#cartGrandTotal').val(json.cartGrandTotal);
                 //jQuery('#totalSalesTax').val(json.totalSalesTax);
                 result = true;
-            } else {
-                jQuery('#shippingFormServerError').html(serverError);
-                result = false;
-            }
         },
         error: function(error) {
             if(error != "") {
@@ -393,19 +375,13 @@ function processBillingAndPayment() {
         data: jQuery('#billingForm').serialize(),
         async: false,
         success: function(json) {
-            var serverError = getServerError(json);
-            if (!serverError) {
-                    jQuery('#billingFormServerError').fadeOut('fast');
-                    isBillStepValidate = true;
-                    jQuery('#billToContactMechId').val(json.contactMechId);
-                    jQuery('#paymentMethodId').val(json.paymentMethodId);
-                    jQuery('#billToPhoneContactMechId').val(json.billToPhoneContactMechId);
-                    updateBillingSummary();
-                    result = true;
-                } else {
-                    jQuery('#billingFormServerError').html(serverError);
-                    result = false;
-                }
+            jQuery('#billingFormServerError').fadeOut('fast');
+            isBillStepValidate = true;
+            jQuery('#billToContactMechId').val(json.contactMechId);
+            jQuery('#paymentMethodId').val(json.paymentMethodId);
+            jQuery('#billToPhoneContactMechId').val(json.billToPhoneContactMechId);
+            updateBillingSummary();
+            result = true;
         },
         error: function(error) {
             if(error != "") {
@@ -455,14 +431,8 @@ function addPromoCode() {
         type: 'POST',
         data: {"productPromoCodeId" : jQuery('#productPromoCode').val()},
         success: function(json) {
-            var serverError = getServerError(json);
-            if (!serverError) {
-                jQuery('#cartFormServerError').fadeOut('fast');
-                updateCartData();
-            } else {
-                jQuery('#shippingFormServerError').html(serverError);
-                result = false;
-            }
+            jQuery('#cartFormServerError').fadeOut('fast');
+            updateCartData();
         },
         error: function(error) {
             if(error != "") {
@@ -483,12 +453,7 @@ function getProductLineItemIndex(event, productId) {
         async: false,
         data: formValues,
         success: function(json) {
-            var serverError = getServerError(json);
-            if (!serverError) {
-                itemIndex = json.itemIndex;
-            } else {
-                jQuery('#shippingFormServerError').html(serverError);
-            }
+            itemIndex = json.itemIndex;
         }
     });
     return itemIndex;
@@ -527,38 +492,32 @@ function updateCartData(elementId, formValues, itemQty, itemIndex) {
         type: 'POST',
         data: formValues,
         success: function(json) {
-            var serverError = getServerError(json);
-            if (!serverError) {
-                    if (json.totalQuantity == 0) {
-                        jQuery('#emptyCartCheckoutPanel').show();
-                        jQuery('#checkoutPanel').hide();
-                        jQuery('#microCartNotEmpty').hide();
-                        jQuery('#microCartEmpty').show();
-                        jQuery('#quickCheckoutEnabled').hide();
-                        jQuery('#quickCheckoutDisabled').show();
-                        jQuery('#onePageCheckoutEnabled').hide();
-                        jQuery('#onePageCheckoutDisabled').show();
-                        jQuery('#googleCheckoutEnabled').hide();
-                        jQuery('#googleCheckoutDisabled').show();
-                        jQuery('#microCartPayPalCheckout').hide();
-                    } else {
-                        // Replace whole cart panel with updated cart values for updating line item in case of gift item is added or remove in cart after applying coupon code
-                        // No need to calculate individual value for shopping cart when whole cart is updating
-                        jQuery.ajax({
-                            url: 'UpdateCart',
-                            type: 'POST',
-                            cache: false,
-                            success: function(data) {
-                                jQuery('#cartPanel').html(data);
-                                initCartProcessObservers();
-                            }
-                        });
+            if (json.totalQuantity == 0) {
+                jQuery('#emptyCartCheckoutPanel').show();
+                jQuery('#checkoutPanel').hide();
+                jQuery('#microCartNotEmpty').hide();
+                jQuery('#microCartEmpty').show();
+                jQuery('#quickCheckoutEnabled').hide();
+                jQuery('#quickCheckoutDisabled').show();
+                jQuery('#onePageCheckoutEnabled').hide();
+                jQuery('#onePageCheckoutDisabled').show();
+                jQuery('#googleCheckoutEnabled').hide();
+                jQuery('#googleCheckoutDisabled').show();
+                jQuery('#microCartPayPalCheckout').hide();
+            } else {
+                // Replace whole cart panel with updated cart values for updating line item in case of gift item is added or remove in cart after applying coupon code
+                // No need to calculate individual value for shopping cart when whole cart is updating
+                jQuery.ajax({
+                    url: 'UpdateCart',
+                    type: 'POST',
+                    cache: false,
+                    success: function(data) {
+                        jQuery('#cartPanel').html(data);
+                        initCartProcessObservers();
                     }
-                } else {
-                    jQuery('#shippingFormServerError').html(serverError);
-                    result = false;
-                }
+                });
             }
+        }
     });
 }
 function processOrder() {

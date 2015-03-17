@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#if tobrowser?? && tobrowser>
+<#if tobrowser?exists && tobrowser>
 <h1>${uiLabelMap.WebtoolsExportFromDataSource}</h1>
 <br />
 <p>This page can be used to export data from the database. The exported documents will have a root tag of "&lt;entity-engine-xml&gt;".</p>
@@ -41,10 +41,10 @@ under the License.
 
 <#if security.hasPermission("ENTITY_MAINT", session)>
   <h2>${uiLabelMap.WebtoolsResults}:</h2>
-  <#if parameters.filename?has_content && (numberOfEntities?number > 0)>
+  <#if Static["org.ofbiz.base.util.UtilValidate"].isNotEmpty(parameters.filename) && (numberOfEntities?number > 0)>
     <p>${uiLabelMap.WebtoolsWroteXMLForAllDataIn}</p>
     <p>${uiLabelMap.WebtoolsWroteNRecordsToXMLFile}</p>
-  <#elseif parameters.outpath?has_content && (numberOfEntities?number > 0)>
+  <#elseif Static["org.ofbiz.base.util.UtilValidate"].isNotEmpty(parameters.outpath) && (numberOfEntities?number > 0)>
     <#list results as result>
       <p>${result}</p>
     </#list>
@@ -59,7 +59,7 @@ under the License.
     <table class="basic-table">
       <tr>
         <td class="label">${uiLabelMap.WebtoolsOutputDirectory}</td>
-        <td><input type="text" size="60" name="outpath" value="${parameters.outpath!}"/></td>
+        <td><input type="text" size="60" name="outpath" value="${parameters.outpath?if_exists}"/></td>
       </tr>
       <tr>
         <td class="label">${uiLabelMap.WebtoolsMaxRecordsPerFile}</td>
@@ -67,7 +67,7 @@ under the License.
       </tr>
       <tr>
         <td class="label">${uiLabelMap.WebtoolsSingleFilename}</td>
-        <td><input type="text" size="60" name="filename" value="${parameters.filename!}"/></td>
+        <td><input type="text" size="60" name="filename" value="${parameters.filename?if_exists}"/></td>
       </tr>
       <tr>
         <td class="label">${uiLabelMap.WebtoolsRecordsUpdatedSince}</td>
@@ -82,7 +82,7 @@ under the License.
         </td>
       </tr>
       <tr>
-        <td class="label">${StringUtil.wrapString(uiLabelMap.WebtoolsOutToBrowser)}</td>
+        <td class="label">${uiLabelMap.WebtoolsOutToBrowser}</td>
         <td><input type="checkbox" name="tobrowser"<#if tobrowser?has_content> checked="checked"</#if> /></td>
       </tr>
     </table>
@@ -90,7 +90,7 @@ under the License.
     <p>${uiLabelMap.WebtoolsEntityNames}:</p>
     <@displayButtonBar/>
       <div>${uiLabelMap.WebtoolsEntitySyncDump}:
-        <input name="entitySyncId" size="30" value="${entitySyncId!}"/>
+        <input name="entitySyncId" size="30" value="${entitySyncId?if_exists}"/>
       </div>
       ${uiLabelMap.WebtoolsPreConfiguredSet}:
       <select name="preConfiguredSetName">

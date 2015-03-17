@@ -78,7 +78,7 @@ function getInvoiceRunningTotal() {
 
 function setServiceName(selection) {
     if ( selection.value == 'massInvoicesToApprove' || selection.value == 'massInvoicesToReceive' || selection.value == 'massInvoicesToReady' || selection.value == 'massInvoicesToPaid' || selection.value == 'massInvoicesToWriteoff' || selection.value == 'massInvoicesToCancel') {
-        document.listPurchaseInvoices.action = 'massChangeInvoiceStatus';
+        document.listPurchaseInvoices.action = jQuery('#invoiceStatusChange').value;
     } else {
         document.listPurchaseInvoices.action = selection.value;
     }
@@ -146,12 +146,12 @@ function runAction() {
     </div>
     <input type="hidden" name="invoiceStatusChange" id="invoiceStatusChange" value="<@ofbizUrl>massChangeInvoiceStatus</@ofbizUrl>"/>
     <input type="hidden" name="organizationPartyId" value="${organizationPartyId}"/>
-    <input type="hidden" name="partyIdFrom" value="${parameters.partyIdFrom!}"/>
-    <input type="hidden" name="statusId" id="statusId" value="${parameters.statusId!}"/>
-    <input type="hidden" name="fromInvoiceDate" value="${parameters.fromInvoiceDate!}"/>
-    <input type="hidden" name="thruInvoiceDate" value="${parameters.thruInvoiceDate!}"/>
-    <input type="hidden" name="fromDueDate" value="${parameters.fromDueDate!}"/>
-    <input type="hidden" name="thruDueDate" value="${parameters.thruDueDate!}"/>
+    <input type="hidden" name="partyIdFrom" value="${parameters.partyIdFrom?if_exists}"/>
+    <input type="hidden" name="statusId" id="statusId" value="${parameters.statusId?if_exists}"/>
+    <input type="hidden" name="fromInvoiceDate" value="${parameters.fromInvoiceDate?if_exists}"/>
+    <input type="hidden" name="thruInvoiceDate" value="${parameters.thruInvoiceDate?if_exists}"/>
+    <input type="hidden" name="fromDueDate" value="${parameters.fromDueDate?if_exists}"/>
+    <input type="hidden" name="thruDueDate" value="${parameters.thruDueDate?if_exists}"/>
     <div id="issueChecks" style="display: none;" align="right">
       <span class="label">${uiLabelMap.AccountingVendorPaymentMethod}</span>
       <select name="paymentMethodId">
@@ -175,6 +175,7 @@ function runAction() {
       <#-- Header Begins -->
       <tr class="header-row-2">
         <td>${uiLabelMap.FormFieldTitle_invoiceId}</td>
+        <td>${uiLabelMap.FormFieldTitle_invoiceTypeId}</td>
         <td>${uiLabelMap.AccountingInvoiceDate}</td>
         <td>${uiLabelMap.AccountingDueDate}</td>
         <td>${uiLabelMap.CommonStatus}</td>
@@ -191,17 +192,18 @@ function runAction() {
       <#assign alt_row = false>
       <#list invoices as invoice>
         <#assign invoicePaymentInfoList = dispatcher.runSync("getInvoicePaymentInfoList", Static["org.ofbiz.base.util.UtilMisc"].toMap("invoiceId", invoice.invoiceId, "userLogin", userLogin))/>
-        <#assign invoicePaymentInfo = invoicePaymentInfoList.get("invoicePaymentInfoList").get(0)!>
-          <#assign statusItem = invoice.getRelatedOne("StatusItem", true)>
+        <#assign invoicePaymentInfo = invoicePaymentInfoList.get("invoicePaymentInfoList").get(0)?if_exists>
+          <#assign statusItem = invoice.getRelatedOneCache("StatusItem")>
           <tr valign="middle"<#if alt_row> class="alternate-row"</#if>>
             <td><a class="buttontext" href="<@ofbizUrl>invoiceOverview?invoiceId=${invoice.invoiceId}</@ofbizUrl>">${invoice.get("invoiceId")}</a></td>
+            <td>${invoice.invoiceTypeDesc?default(invoice.invoiceTypeId)}</td>
             <td><#if invoice.get("invoiceDate")?has_content>${invoice.get("invoiceDate")?date}</td></#if>
             <td><#if invoice.get("dueDate")?has_content>${invoice.get("dueDate")?date}</td></#if>
             <td>${statusItem.description?default(invoice.statusId)}</td>
-            <td>${invoice.get("referenceNumber")!}</td>
-            <td>${(invoice.description)!}</td>
-            <td><a href="/partymgr/control/viewprofile?partyId=${invoice.partyIdFrom}">${Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, invoice.partyIdFrom, false)!} [${(invoice.partyIdFrom)!}] </a></td>
-            <td><a href="/partymgr/control/viewprofile?partyId=${invoice.partyId}">${Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, invoice.partyId, false)!} [${(invoice.partyId)!}]</a></td>
+            <td>${invoice.get("referenceNumber")?if_exists}</td>
+            <td>${(invoice.description)?if_exists}</td>
+            <td><a href="/partymgr/control/viewprofile?partyId=${invoice.partyIdFrom}">${Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, invoice.partyIdFrom, false)?if_exists} [${(invoice.partyIdFrom)?if_exists}] </a></td>
+            <td><a href="/partymgr/control/viewprofile?partyId=${invoice.partyId}">${Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, invoice.partyId, false)?if_exists} [${(invoice.partyId)?if_exists}]</a></td>
             <td><@ofbizCurrency amount=invoicePaymentInfo.amount isoCode=defaultOrganizationPartyCurrencyUomId/></td>
             <td><@ofbizCurrency amount=invoicePaymentInfo.paidAmount isoCode=defaultOrganizationPartyCurrencyUomId/></td>
             <td><@ofbizCurrency amount=invoicePaymentInfo.outstandingAmount isoCode=defaultOrganizationPartyCurrencyUomId/></td>

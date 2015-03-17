@@ -81,7 +81,7 @@ under the License.
                                  <#else>
                                      <#assign row="alternate-row">
                             </#if>
-                            <#assign partyNameView = delegator.findOne("PartyNameView", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", custRequestItemNoteViewList.partyId), false)!/>
+                            <#assign partyNameView = delegator.findOne("PartyNameView", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", custRequestItemNoteViewList.partyId), false)?if_exists/>
                             <tr class="${row}">
                                 <td>
                                 </td>
@@ -92,7 +92,7 @@ under the License.
                                    ${custRequestItemNoteViewList.noteInfo}
                                 </td>
                                 <td >
-                                   ${partyNameView.groupName!} ${partyNameView.firstName!} ${partyNameView.lastName!}
+                                   ${partyNameView.groupName?if_exists} ${partyNameView.firstName?if_exists} ${partyNameView.lastName?if_exists}
                                 </td>
                                 <td>
                                    ${custRequestItemNoteViewList.noteDateTime.toString().substring(0,10)}

@@ -22,9 +22,9 @@ import org.ofbiz.base.util.*;
 productId = request.getParameter("productId");
 productVariantId = productId + "_";
 productFeatureIds = "";
-product = from("Product").where("productId", productId).queryOne();
+product = delegator.findOne("Product", [productId : productId], false);
 
-result = runService('getProductFeaturesByType', [productId : productId, productFeatureApplTypeId : "SELECTABLE_FEATURE"]);
+result = dispatcher.runSync("getProductFeaturesByType", [productId : productId, productFeatureApplTypeId : "SELECTABLE_FEATURE"]);
 featureTypes = result.productFeatureTypes;
 featuresByTypes = result.productFeaturesByType;
 searchFeatures = [];
@@ -39,7 +39,7 @@ if (featureTypes) {
         if (selectedFeatureTypeValue) {
             featureTypeAndValues.selectedFeatureId = selectedFeatureTypeValue;
             selectedFeatureTypeValues.add(selectedFeatureTypeValue);
-            feature = from("ProductFeature").where("productFeatureId", selectedFeatureTypeValue).cache(true).queryOne();
+            feature = delegator.findOne("ProductFeature", [productFeatureId : selectedFeatureTypeValue], true);
             productVariantId += feature.getString("idCode") ?: "";
             productFeatureIds += "|" + selectedFeatureTypeValue;
         }
@@ -48,7 +48,7 @@ if (featureTypes) {
 
 variants = [];
 //if (selectedFeatureTypeValues) {
-    result = runService('getAllExistingVariants', [productId : productId, productFeatureAppls : selectedFeatureTypeValues]);
+    result = dispatcher.runSync("getAllExistingVariants", [productId : productId, productFeatureAppls : selectedFeatureTypeValues]);
     variants = result.variantProductIds;
 //}
 
@@ -56,7 +56,7 @@ variants = [];
 productFeatureIdsPar = request.getParameter("productFeatureIds");
 productVariantIdPar = request.getParameter("productVariantId");
 if (productVariantIdPar && productFeatureIdsPar) {
-    result = runService('quickAddVariant', [productId : productId, productFeatureIds : productFeatureIdsPar, productVariantId : productVariantIdPar]);
+    result = dispatcher.runSync("quickAddVariant", [productId : productId, productFeatureIds : productFeatureIdsPar, productVariantId : productVariantIdPar]);
 }
 
 context.product = product;
@@ -66,7 +66,7 @@ context.variants = variants;
 // also need the variant products themselves
 variantProducts = [];
 variants.each { variantId ->
-    variantProducts.add(from("Product").where("productId", variantId).cache(true).queryOne());
+    variantProducts.add(delegator.findOne("Product", [productId : variantId], true));
 }
 context.variantProducts = variantProducts;
 

@@ -19,29 +19,25 @@
 
 import org.ofbiz.base.util.*
 import org.ofbiz.base.util.string.*
-import org.ofbiz.entity.util.EntityUtilProperties
 
 if (productCategory) {
-    context.productCategoryType = productCategory.getRelatedOne("ProductCategoryType", false);
+    context.productCategoryType = productCategory.getRelatedOne("ProductCategoryType");
 }
 
 primaryParentCategory = null;
 primParentCatIdParam = request.getParameter("primaryParentCategoryId");
 if (productCategory) {
-    primaryParentCategory = productCategory.getRelatedOne("PrimaryParentProductCategory", false);
+    primaryParentCategory = productCategory.getRelatedOne("PrimaryParentProductCategory");
 } else if (primParentCatIdParam) {
-    primaryParentCategory = from("ProductCategory").where("productCategoryId", primParentCatIdParam).queryOne();
+    primaryParentCategory = delegator.findOne("ProductCategory", [productCategoryId : primParentCatIdParam], false);
 }
 context.primaryParentCategory = primaryParentCategory;
 
 
 // make the image file formats
-context.tenantId = delegator.getDelegatorTenantId();
-imageFilenameFormat = EntityUtilProperties.getPropertyValue("catalog", "image.filename.format", delegator);
-imageServerPath = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.server.path", delegator), context);
-imageUrlPrefix = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.url.prefix",delegator), context);
-imageServerPath = imageServerPath.endsWith("/") ? imageServerPath.substring(0, imageServerPath.length()-1) : imageServerPath;
-imageUrlPrefix = imageUrlPrefix.endsWith("/") ? imageUrlPrefix.substring(0, imageUrlPrefix.length()-1) : imageUrlPrefix;
+imageFilenameFormat = UtilProperties.getPropertyValue("catalog", "image.filename.format");
+imageServerPath = FlexibleStringExpander.expandString(UtilProperties.getPropertyValue("catalog", "image.server.path"), context);
+imageUrlPrefix = UtilProperties.getPropertyValue("catalog", "image.url.prefix");
 context.imageFilenameFormat = imageFilenameFormat;
 context.imageServerPath = imageServerPath;
 context.imageUrlPrefix = imageUrlPrefix;

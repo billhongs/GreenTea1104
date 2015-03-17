@@ -19,20 +19,20 @@
 package org.ofbiz.service.jms;
 
 import java.lang.reflect.Constructor;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
-import org.ofbiz.entity.Delegator;
+import org.ofbiz.base.util.UtilXml;
 import org.ofbiz.service.GenericServiceException;
+import org.ofbiz.service.ServiceDispatcher;
 import org.ofbiz.service.config.ServiceConfigUtil;
-import org.ofbiz.service.config.model.JmsService;
-import org.ofbiz.service.config.model.Server;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 /**
  * JmsListenerFactory
@@ -44,31 +44,32 @@ public class JmsListenerFactory implements Runnable {
     public static final String TOPIC_LISTENER_CLASS = "org.ofbiz.service.jms.JmsTopicListener";
     public static final String QUEUE_LISTENER_CLASS = "org.ofbiz.service.jms.JmsQueueListener";
 
-    protected static Map<String, GenericMessageListener> listeners = new ConcurrentHashMap<String, GenericMessageListener>();
-    protected static Map<String, Server> servers = new ConcurrentHashMap<String, Server>();
+    protected static Map<String, GenericMessageListener> listeners = FastMap.newInstance();
+    protected static Map<String, Element> servers = FastMap.newInstance();
 
-    private static final AtomicReference<JmsListenerFactory> jlFactoryRef = new AtomicReference<JmsListenerFactory>(null);
+    protected static JmsListenerFactory jlf = null;
 
-    protected Delegator delegator;
+    protected ServiceDispatcher dispatcher;
     protected boolean firstPass = true;
     protected int  loadable = 0;
     protected int connected = 0;
     protected Thread thread;
 
 
-    public static JmsListenerFactory getInstance(Delegator delegator){
-        JmsListenerFactory instance = jlFactoryRef.get();
-        if (instance == null) {
-            instance = new JmsListenerFactory(delegator);
-            if (!jlFactoryRef.compareAndSet(null, instance)) {
-                instance = jlFactoryRef.get();
+    public static JmsListenerFactory getInstance(ServiceDispatcher dispatcher){
+        if (jlf == null) {
+            synchronized (JmsListenerFactory.class) {
+                if (jlf == null) {
+                    jlf = new JmsListenerFactory(dispatcher);
+                }
             }
         }
-        return instance;
+
+        return jlf;
     }
 
-    public JmsListenerFactory(Delegator delegator) {
-        this.delegator = delegator;
+    public JmsListenerFactory(ServiceDispatcher dispatcher) {
+        this.dispatcher = dispatcher;
         thread = new Thread(this, this.toString());
         thread.setDaemon(false);
         thread.start();
@@ -79,10 +80,6 @@ public class JmsListenerFactory implements Runnable {
         while (firstPass || connected < loadable) {
             if (Debug.verboseOn()) Debug.logVerbose("First Pass: " + firstPass + " Connected: " + connected + " Available: " + loadable, module);
             this.loadListeners();
-            if (loadable == 0) {
-                // if there is nothing to do then we can break without sleeping
-                break;
-            }
             firstPass = false;
             try {
                 Thread.sleep(20000);
@@ -95,18 +92,23 @@ public class JmsListenerFactory implements Runnable {
     // Load the JMS listeners
     private void loadListeners() {
         try {
-            List<JmsService> jmsServices = ServiceConfigUtil.getServiceEngine().getJmsServices();
+            Element rootElement = ServiceConfigUtil.getXmlRootElement();
+            NodeList nodeList = rootElement.getElementsByTagName("jms-service");
 
-            if (Debug.verboseOn()) Debug.logVerbose("Loading JMS Listeners.", module);
-            for (JmsService service: jmsServices) {
+            if (Debug.verboseOn()) Debug.logVerbose("[ServiceDispatcher] : Loading JMS Listeners.", module);
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Element element = (Element) nodeList.item(i);
                 StringBuilder serverKey = new StringBuilder();
-                for (Server server: service.getServers()) {
+                for (Element server: UtilXml.childElementList(element, "server")) {
                     try {
-                        if (server.getListen()) {
+                        String listenerEnabled = server.getAttribute("listen");
+
+                        if (listenerEnabled.equalsIgnoreCase("true")) {
                             // create a server key
-                            serverKey.append(server.getJndiServerName() + ":");
-                            serverKey.append(server.getJndiName() + ":");
-                            serverKey.append(server.getTopicQueue());
+
+                            serverKey.append(server.getAttribute("jndi-server-name") + ":");
+                            serverKey.append(server.getAttribute("jndi-name") + ":");
+                            serverKey.append(server.getAttribute("topic-queue"));
                             // store the server element
                             servers.put(serverKey.toString(), server);
                             // load the listener
@@ -123,19 +125,21 @@ public class JmsListenerFactory implements Runnable {
                     }
                 }
             }
+        } catch (org.ofbiz.base.config.GenericConfigException gce) {
+            Debug.logError(gce, "Cannot get serviceengine.xml root element.", module);
         } catch (Exception e) {
-            Debug.logError(e, "Exception thrown while loading JMS listeners: ", module);
+            Debug.logError(e, "Uncaught exception.", module);
         }
     }
 
-    private GenericMessageListener loadListener(String serverKey, Server server) throws GenericServiceException {
-        String serverName = server.getJndiServerName();
-        String jndiName = server.getJndiName();
-        String queueName = server.getTopicQueue();
-        String type = server.getType();
-        String userName = server.getUsername();
-        String password = server.getPassword();
-        String className = server.getListenerClass();
+    private GenericMessageListener loadListener(String serverKey, Element server) throws GenericServiceException {
+        String serverName = server.getAttribute("jndi-server-name");
+        String jndiName = server.getAttribute("jndi-name");
+        String queueName = server.getAttribute("topic-queue");
+        String type = server.getAttribute("type");
+        String userName = server.getAttribute("username");
+        String password = server.getAttribute("password");
+        String className = server.getAttribute("listener-class");
 
         if (UtilValidate.isEmpty(className)) {
             if (type.equals("topic"))
@@ -154,9 +158,9 @@ public class JmsListenerFactory implements Runnable {
 
                     try {
                         Class<?> c = cl.loadClass(className);
-                        Constructor<GenericMessageListener> cn = UtilGenerics.cast(c.getConstructor(Delegator.class, String.class, String.class, String.class, String.class, String.class));
+                        Constructor<GenericMessageListener> cn = UtilGenerics.cast(c.getConstructor(ServiceDispatcher.class, String.class, String.class, String.class, String.class, String.class));
 
-                        listener = cn.newInstance(delegator, serverName, jndiName, queueName, userName, password);
+                        listener = cn.newInstance(dispatcher, serverName, jndiName, queueName, userName, password);
                     } catch (Exception e) {
                         throw new GenericServiceException(e.getMessage(), e);
                     }
@@ -181,7 +185,7 @@ public class JmsListenerFactory implements Runnable {
      * @throws GenericServiceException
      */
     public void loadListener(String serverKey) throws GenericServiceException {
-        Server server = servers.get(serverKey);
+        Element server = servers.get(serverKey);
 
         if (server == null)
             throw new GenericServiceException("No listener found with that serverKey.");

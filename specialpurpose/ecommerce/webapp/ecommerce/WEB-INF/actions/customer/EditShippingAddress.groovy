@@ -21,21 +21,21 @@ import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.party.contact.ContactHelper;
 
 if (userLogin) {
-    party = userLogin.getRelatedOne("Party", false);
+    party = userLogin.getRelatedOne("Party");
     context.partyId = party.partyId
     if ("PERSON".equals(party.partyTypeId)) {
-        person = from("Person").where("partyId", party.partyId).queryOne();
+        person = delegator.findByPrimaryKey("Person", [partyId : party.partyId]);
         context.firstName = person.firstName;
         context.lastName = person.lastName;
     } else {
-        group = from("PartyGroup").where("partyId", party.partyId).queryOne();
+        group = delegator.findByPrimaryKey("PartyGroup", [partyId : party.partyId]);    
         context.firstName = group.groupName;
         context.lastName = "";    
     }
 
     contactMech = EntityUtil.getFirst(ContactHelper.getContactMech(party, "SHIPPING_LOCATION", "POSTAL_ADDRESS", false));
     if (contactMech) {
-        postalAddress = contactMech.getRelatedOne("PostalAddress", false);
+        postalAddress = contactMech.getRelatedOne("PostalAddress");
         context.shipToContactMechId = postalAddress.contactMechId;
 
         context.shipToName = postalAddress.toName;
@@ -46,11 +46,11 @@ if (userLogin) {
         context.shipToPostalCode = postalAddress.postalCode;
         context.shipToStateProvinceGeoId = postalAddress.stateProvinceGeoId;
         context.shipToCountryGeoId = postalAddress.countryGeoId;
-        shipToStateProvinceGeo = from("Geo").where("geoId", postalAddress.stateProvinceGeoId).queryOne();
+        shipToStateProvinceGeo = delegator.findOne("Geo", [geoId : postalAddress.stateProvinceGeoId], false);
         if (shipToStateProvinceGeo) {
             context.shipToStateProvinceGeo =  shipToStateProvinceGeo.geoName;
         }
-        shipToCountryProvinceGeo = from("Geo").where("geoId", postalAddress.countryGeoId).queryOne();
+        shipToCountryProvinceGeo = delegator.findOne("Geo", [geoId : postalAddress.countryGeoId], false);
         if (shipToCountryProvinceGeo) {
             context.shipToCountryProvinceGeo =  shipToCountryProvinceGeo.geoName;
         }
@@ -60,16 +60,16 @@ if (userLogin) {
 
     shipToContactMechList = ContactHelper.getContactMech(party, "PHONE_SHIPPING", "TELECOM_NUMBER", false)
     if (shipToContactMechList) {
-        shipToTelecomNumber = (EntityUtil.getFirst(shipToContactMechList)).getRelatedOne("TelecomNumber", false);
-        pcm = EntityUtil.getFirst(shipToTelecomNumber.getRelated("PartyContactMech", null, null, false));
+        shipToTelecomNumber = (EntityUtil.getFirst(shipToContactMechList)).getRelatedOne("TelecomNumber");
+        pcm = EntityUtil.getFirst(shipToTelecomNumber.getRelated("PartyContactMech"));
         context.shipToTelecomNumber = shipToTelecomNumber;
         context.shipToExtension = pcm.extension;
     }
 
     shipToFaxNumberList = ContactHelper.getContactMech(party, "FAX_SHIPPING", "TELECOM_NUMBER", false)
     if (shipToFaxNumberList) {
-        shipToFaxNumber = (EntityUtil.getFirst(shipToFaxNumberList)).getRelatedOne("TelecomNumber", false);
-        faxPartyContactMech = EntityUtil.getFirst(shipToFaxNumber.getRelated("PartyContactMech", null, null, false));
+        shipToFaxNumber = (EntityUtil.getFirst(shipToFaxNumberList)).getRelatedOne("TelecomNumber");
+        faxPartyContactMech = EntityUtil.getFirst(shipToFaxNumber.getRelated("PartyContactMech"));
         context.shipToFaxNumber = shipToFaxNumber;
         context.shipToFaxExtension = faxPartyContactMech.extension;
     }

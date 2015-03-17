@@ -23,9 +23,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Map;
 
+import javolution.util.FastMap;
 import junit.framework.AssertionFailedError;
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -56,14 +56,14 @@ public class TestRunContainer implements Container {
     protected String testCase = null;
     protected String logLevel = null;
 
-    private String name;
-
-    @Override
-    public void init(String[] args, String name, String configFile) {
-        this.name = name;
+    /**
+     * @see org.ofbiz.base.container.Container#init(java.lang.String[], java.lang.String)
+     */
+    public void init(String[] args, String configFile) {
         this.configFile = configFile;
         if (args != null) {
-            for (String argument : args) {
+            for (int i = 0; i < args.length; i++) {
+                String argument = args[i];
                 // arguments can prefix w/ a '-'. Just strip them off
                 if (argument.startsWith("-")) {
                     int subIdx = 1;
@@ -157,7 +157,7 @@ public class TestRunContainer implements Container {
             Debug.logInfo("[JUNIT] Results for test suite: " + suite.getName(), module);
             Debug.logInfo("[JUNIT] Pass: " + results.wasSuccessful() + " | # Tests: " + results.runCount() + " | # Failed: " +
                     results.failureCount() + " # Errors: " + results.errorCount(), module);
-            if (Debug.importantOn() && !results.wasSuccessful()) {
+            if (Debug.importantOn()) {
                 Debug.logInfo("[JUNIT] ----------------------------- ERRORS ----------------------------- [JUNIT]", module);
                 Enumeration<?> err = results.errors();
                 if (!err.hasMoreElements()) {
@@ -198,13 +198,9 @@ public class TestRunContainer implements Container {
     public void stop() throws ContainerException {
     }
 
-    public String getName() {
-        return name;
-    }
-
     class JunitXmlListener extends XMLJUnitResultFormatter {
 
-        Map<String, Long> startTimes = new HashMap<String, Long>();
+        Map<String, Long> startTimes = FastMap.newInstance();
 
         public JunitXmlListener(OutputStream out) {
             this.setOutput(out);

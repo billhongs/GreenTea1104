@@ -20,7 +20,6 @@
 import org.ofbiz.base.util.ObjectType;
 import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.util.EntityUtilProperties;
 
 productId = parameters.productId;
 
@@ -60,7 +59,7 @@ if (lookupFlag) {
 
     if ( mainCond) {
     // do the lookup
-        inventoryList = from("MrpEvent").where(mainCond).orderBy("productId", "eventDate").queryList();
+        inventoryList = delegator.findList("MrpEvent", mainCond, null, ["productId", "eventDate"], null, false);
     }
 
     context.inventoryList = inventoryList;
@@ -69,7 +68,7 @@ context.paramList = paramList;
 
 // set the page parameters
 viewIndex = Integer.valueOf(parameters.VIEW_INDEX  ?: 0);
-viewSize = Integer.valueOf(parameters.VIEW_SIZE ?: EntityUtilProperties.getPropertyValue("widget", "widget.form.defaultViewSize", "20", delegator));
+viewSize = Integer.valueOf(parameters.VIEW_SIZE ?: 20);
 listSize = 0;
 if (inventoryList)
     listSize = inventoryList.size();

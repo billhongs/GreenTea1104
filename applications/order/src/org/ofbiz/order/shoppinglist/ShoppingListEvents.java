@@ -20,12 +20,11 @@ package org.ofbiz.order.shoppinglist;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -43,7 +42,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.order.shoppingcart.CartItemModifyException;
 import org.ofbiz.order.shoppingcart.ItemNotFoundException;
@@ -58,7 +56,6 @@ import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ModelService;
 import org.ofbiz.service.ServiceUtil;
-import org.ofbiz.webapp.website.WebSiteWorker;
 
 /**
  * Shopping cart events.
@@ -215,22 +212,24 @@ public class ShoppingListEvents {
         GenericValue shoppingList = null;
         List<GenericValue> shoppingListItems = null;
         try {
-            shoppingList = EntityQuery.use(delegator).from("ShoppingList").where("shoppingListId", shoppingListId).queryOne();
+            shoppingList = delegator.findByPrimaryKey("ShoppingList", UtilMisc.toMap("shoppingListId", shoppingListId));
             if (shoppingList == null) {
                 errMsg = UtilProperties.getMessage(resource_error,"shoppinglistevents.error_getting_shopping_list_and_items", cart.getLocale());
                 throw new IllegalArgumentException(errMsg);
             }
 
-            shoppingListItems = shoppingList.getRelated("ShoppingListItem", null, null, false);
+            shoppingListItems = shoppingList.getRelated("ShoppingListItem");
             if (shoppingListItems == null) {
                 shoppingListItems = FastList.newInstance();
             }
 
             // include all items of child lists if flagged to do so
             if (includeChild) {
-                List<GenericValue> childShoppingLists = shoppingList.getRelated("ChildShoppingList", null, null, false);
-                for (GenericValue v : childShoppingLists) {
-                    List<GenericValue> items = v.getRelated("ShoppingListItem", null, null, false);
+                List<GenericValue> childShoppingLists = shoppingList.getRelated("ChildShoppingList");
+                Iterator<GenericValue> ci = childShoppingLists.iterator();
+                while (ci.hasNext()) {
+                    GenericValue v = ci.next();
+                    List<GenericValue> items = v.getRelated("ShoppingListItem");
                     shoppingListItems.addAll(items);
                 }
             }
@@ -250,8 +249,6 @@ public class ShoppingListEvents {
         // check if we are to clear the cart first
         if (!append) {
             cart.clear();
-            // Prevent the system from creating a new shopping list every time the cart is restored for anonymous user.
-            cart.setAutoSaveListId(shoppingListId);
         }
 
         // get the survey info for all the items
@@ -259,7 +256,9 @@ public class ShoppingListEvents {
 
         // add the items
         StringBuilder eventMessage = new StringBuilder();
-        for (GenericValue shoppingListItem : shoppingListItems) {
+        Iterator<GenericValue> i = shoppingListItems.iterator();
+        while (i.hasNext()) {
+            GenericValue shoppingListItem = i.next();
             String productId = shoppingListItem.getString("productId");
             BigDecimal quantity = shoppingListItem.getBigDecimal("quantity");
             Timestamp reservStart = shoppingListItem.getTimestamp("reservStart");
@@ -280,7 +279,7 @@ public class ShoppingListEvents {
                 }
 
                 // check if we have existing survey responses to append
-                if (shoppingListSurveyInfo.containsKey(listId + "." + itemId) && UtilValidate.isNotEmpty(shoppingListSurveyInfo.get(listId + "." + itemId))) {
+                if (shoppingListSurveyInfo.containsKey(listId + "." + itemId)) {
                     attributes.put("surveyResponses", shoppingListSurveyInfo.get(listId + "." + itemId));
                 }
 
@@ -369,19 +368,18 @@ public class ShoppingListEvents {
         }
 
         String autoSaveListId = null;
-        GenericValue list = null;
         // TODO: add sorting, just in case there are multiple...
-        if (partyId != null) {
-            Map<String, Object> findMap = UtilMisc.<String, Object>toMap("partyId", partyId, "productStoreId", productStoreId, "shoppingListTypeId", "SLT_SPEC_PURP", "listName", PERSISTANT_LIST_NAME);
-            List<GenericValue> existingLists = EntityQuery.use(delegator).from("ShoppingList").where(findMap).queryList();
-            Debug.logInfo("Finding existing auto-save shopping list with:  \nfindMap: " + findMap + "\nlists: " + existingLists, module);
-    
-            if (UtilValidate.isNotEmpty(existingLists)) {
-                list = EntityUtil.getFirst(existingLists);
-                autoSaveListId = list.getString("shoppingListId");
-            }
+        Map<String, Object> findMap = UtilMisc.<String, Object>toMap("partyId", partyId, "productStoreId", productStoreId, "shoppingListTypeId", "SLT_SPEC_PURP", "listName", PERSISTANT_LIST_NAME);
+        List<GenericValue> existingLists = delegator.findByAnd("ShoppingList", findMap);
+        Debug.logInfo("Finding existing auto-save shopping list with:  \nfindMap: " + findMap + "\nlists: " + existingLists, module);
+
+        GenericValue list = null;
+        if (existingLists != null && !existingLists.isEmpty()) {
+            list = EntityUtil.getFirst(existingLists);
+            autoSaveListId = list.getString("shoppingListId");
         }
-        if (list == null && dispatcher != null) {
+
+        if (list == null && dispatcher != null && userLogin != null) {
             Map<String, Object> listFields = UtilMisc.<String, Object>toMap("userLogin", userLogin, "productStoreId", productStoreId, "shoppingListTypeId", "SLT_SPEC_PURP", "listName", PERSISTANT_LIST_NAME);
             Map<String, Object> newListResult = dispatcher.runSync("createShoppingList", listFields);
 
@@ -399,27 +397,14 @@ public class ShoppingListEvents {
     public static void fillAutoSaveList(ShoppingCart cart, LocalDispatcher dispatcher) throws GeneralException {
         if (cart != null && dispatcher != null) {
             GenericValue userLogin = ShoppingListEvents.getCartUserLogin(cart);
+            if (userLogin == null) return; //only save carts when a user is logged in....
             Delegator delegator = cart.getDelegator();
-            String autoSaveListId = cart.getAutoSaveListId();
-            if (autoSaveListId == null) {
-                autoSaveListId = getAutoSaveListId(delegator, dispatcher, null, userLogin, cart.getProductStoreId());
-                cart.setAutoSaveListId(autoSaveListId);
-            }
-            GenericValue shoppingList = EntityQuery.use(delegator).from("ShoppingList").where("shoppingListId", autoSaveListId).queryOne();
-            Integer currentListSize = 0;
-            if (UtilValidate.isNotEmpty(shoppingList)) {
-                List<GenericValue> shoppingListItems = shoppingList.getRelated("ShoppingListItem", null, null, false);
-                if (UtilValidate.isNotEmpty(shoppingListItems)) {
-                    currentListSize = shoppingListItems.size();
-                }
-            }
+            String autoSaveListId = getAutoSaveListId(delegator, dispatcher, null, userLogin, cart.getProductStoreId());
 
             try {
                 String[] itemsArray = makeCartItemsArray(cart);
                 if (itemsArray != null && itemsArray.length != 0) {
                     addBulkFromCart(delegator, dispatcher, cart, userLogin, autoSaveListId, null, itemsArray, false, false);
-                }else if(itemsArray.length == 0 && currentListSize != 0){
-                    clearListInfo(delegator, autoSaveListId);
                 }
             } catch (IllegalArgumentException e) {
                 throw new GeneralException(e.getMessage(), e);
@@ -461,13 +446,18 @@ public class ShoppingListEvents {
 
         // safety check for missing required parameter.
         if (cart.getWebSiteId() == null) {
-            cart.setWebSiteId(WebSiteWorker.getWebSiteId(request));
+            cart.setWebSiteId(CatalogWorker.getWebSiteId(request));
         }
 
         // locate the user's identity
         GenericValue userLogin = (GenericValue) session.getAttribute("userLogin");
         if (userLogin == null) {
             userLogin = (GenericValue) session.getAttribute("autoUserLogin");
+        }
+
+        if (userLogin == null) {
+            // not logged in; cannot identify the user
+            return "success";
         }
 
         // find the list ID
@@ -479,25 +469,6 @@ public class ShoppingListEvents {
                 Debug.logError(e, module);
             }
             cart.setAutoSaveListId(autoSaveListId);
-        } else if (userLogin != null) {
-            String existingAutoSaveListId = null;
-            try {
-                existingAutoSaveListId = getAutoSaveListId(delegator, dispatcher, null, userLogin, cart.getProductStoreId());
-            } catch (GeneralException e) {
-                Debug.logError(e, module);
-            }
-            if (existingAutoSaveListId != null) {
-                if (!existingAutoSaveListId.equals(autoSaveListId)) {
-                    // Replace with existing shopping list
-                    cart.setAutoSaveListId(existingAutoSaveListId);
-                    autoSaveListId = existingAutoSaveListId;
-                    cart.setLastListRestore(null);
-                } else {
-                    // CASE: User first login and logout and then re-login again. This condition does not require a restore at all
-                    // because at this point items in the cart and the items in the shopping list are same so just return.
-                    return "success";
-                }
-            }
         }
 
         // check to see if we are okay to load this list
@@ -506,7 +477,7 @@ public class ShoppingListEvents {
         if (!okayToLoad && lastLoad != null) {
             GenericValue shoppingList = null;
             try {
-                shoppingList = EntityQuery.use(delegator).from("ShoppingList").where("shoppingListId", autoSaveListId).queryOne();
+                shoppingList = delegator.findByPrimaryKey("ShoppingList", UtilMisc.toMap("shoppingListId", autoSaveListId));
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -527,7 +498,7 @@ public class ShoppingListEvents {
         if (okayToLoad) {
             String prodCatalogId = CatalogWorker.getCurrentCatalogId(request);
             try {
-                addListToCart(delegator, dispatcher, cart, prodCatalogId, autoSaveListId, false, false, userLogin != null ? true : false);
+                addListToCart(delegator, dispatcher, cart, prodCatalogId, autoSaveListId, false, false, false);
                 cart.setLastListRestore(UtilDateTime.nowTimestamp());
             } catch (IllegalArgumentException e) {
                 Debug.logError(e, module);
@@ -553,8 +524,10 @@ public class ShoppingListEvents {
      */
     public static int makeListItemSurveyResp(Delegator delegator, GenericValue item, List<String> surveyResps) throws GenericEntityException {
         if (UtilValidate.isNotEmpty(surveyResps)) {
+            Iterator<String> i = surveyResps.iterator();
             int count = 0;
-            for (String responseId : surveyResps) {
+            while (i.hasNext()) {
+                String responseId = i.next();
                 GenericValue listResp = delegator.makeValue("ShoppingListItemSurvey");
                 listResp.set("shoppingListId", item.getString("shoppingListId"));
                 listResp.set("shoppingListItemSeqId", item.getString("shoppingListItemSeqId"));
@@ -573,7 +546,9 @@ public class ShoppingListEvents {
     public static Map<String, List<String>> getItemSurveyInfos(List<GenericValue> items) {
         Map<String, List<String>> surveyInfos = FastMap.newInstance();
         if (UtilValidate.isNotEmpty(items)) {
-            for (GenericValue item : items) {
+            Iterator<GenericValue> itemIt = items.iterator();
+            while (itemIt.hasNext()) {
+                GenericValue item = itemIt.next();
                 String listId = item.getString("shoppingListId");
                 String itemId = item.getString("shoppingListItemSeqId");
                 surveyInfos.put(listId + "." + itemId, getItemSurveyInfo(item));
@@ -590,13 +565,15 @@ public class ShoppingListEvents {
         List<String> responseIds = FastList.newInstance();
         List<GenericValue> surveyResp = null;
         try {
-            surveyResp = item.getRelated("ShoppingListItemSurvey", null, null, false);
+            surveyResp = item.getRelated("ShoppingListItemSurvey");
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }
 
         if (UtilValidate.isNotEmpty(surveyResp)) {
-            for (GenericValue resp : surveyResp) {
+            Iterator<GenericValue> respIt = surveyResp.iterator();
+            while (respIt.hasNext()) {
+                GenericValue resp = respIt.next();
                 responseIds.add(resp.getString("surveyResponseId"));
             }
         }
@@ -619,81 +596,5 @@ public class ShoppingListEvents {
             arr[i] = Integer.toString(i);
         }
         return arr;
-    }
-    
-    /**
-     * Create the guest cookies for a shopping list
-     */
-    public static String createGuestShoppingListCookies (HttpServletRequest request, HttpServletResponse response){
-        Delegator delegator = (Delegator) request.getAttribute("delegator");
-        LocalDispatcher dispatcher = (LocalDispatcher) request.getAttribute("dispatcher");
-        HttpSession session = request.getSession(true);
-        ShoppingCart cart = (ShoppingCart) session.getAttribute("shoppingCart");
-        GenericValue userLogin = (GenericValue) session.getAttribute("userLogin");
-        Properties systemProps = System.getProperties();
-        String guestShoppingUserName = "GuestShoppingListId_" + systemProps.getProperty("user.name").replace(" ", "_");
-        String productStoreId = ProductStoreWorker.getProductStoreId(request);
-        int cookieAge = (60 * 60 * 24 * 30);
-        String autoSaveListId = null;
-        Cookie[] cookies = request.getCookies();
-        
-        // check userLogin
-        if (UtilValidate.isNotEmpty(userLogin)) {
-            String partyId = userLogin.getString("partyId");
-            if (UtilValidate.isEmpty(partyId)) {
-                return "success";
-            }
-        }
-        
-        // find shopping list ID
-        if (cookies != null) {
-            for (Cookie cookie: cookies) {
-                if (cookie.getName().equals(guestShoppingUserName)) {
-                    autoSaveListId = cookie.getValue();
-                    break;
-                }
-            }
-        }
-        
-        // clear the auto-save info
-        if (ProductStoreWorker.autoSaveCart(delegator, productStoreId)) {
-            if (UtilValidate.isEmpty(autoSaveListId)) {
-                try {
-                    Map<String, Object> listFields = UtilMisc.<String, Object>toMap("userLogin", userLogin, "productStoreId", productStoreId, "shoppingListTypeId", "SLT_SPEC_PURP", "listName", PERSISTANT_LIST_NAME);
-                    Map<String, Object> newListResult = dispatcher.runSync("createShoppingList", listFields);
-                    if (newListResult != null) {
-                        autoSaveListId = (String) newListResult.get("shoppingListId");
-                    }
-                } catch (GeneralException e) {
-                    Debug.logError(e, module);
-                }
-                Cookie guestShoppingListCookie = new Cookie(guestShoppingUserName, autoSaveListId);
-                guestShoppingListCookie.setMaxAge(cookieAge);
-                guestShoppingListCookie.setPath("/");
-                response.addCookie(guestShoppingListCookie);
-            } 
-        }
-        if (UtilValidate.isNotEmpty(autoSaveListId)) {
-            if (UtilValidate.isNotEmpty(cart)) {
-                cart.setAutoSaveListId(autoSaveListId);
-            } else {
-                cart = ShoppingCartEvents.getCartObject(request);
-                cart.setAutoSaveListId(autoSaveListId);
-            }
-        }
-        return "success";
-    }
-    
-    /**
-     * Clear the guest cookies for a shopping list
-     */
-    public static String clearGuestShoppingListCookies (HttpServletRequest request, HttpServletResponse response){
-        Properties systemProps = System.getProperties();
-        String guestShoppingUserName = "GuestShoppingListId_" + systemProps.getProperty("user.name").replace(" ", "_");
-        Cookie guestShoppingListCookie = new Cookie(guestShoppingUserName, null);
-        guestShoppingListCookie.setMaxAge(0);
-        guestShoppingListCookie.setPath("/");
-        response.addCookie(guestShoppingListCookie);
-        return "success";
     }
 }

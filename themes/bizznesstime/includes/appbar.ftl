@@ -16,11 +16,11 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#if (requestAttributes.externalLoginKey)??><#assign externalKeyParam = "?externalLoginKey=" + requestAttributes.externalLoginKey!></#if>
-<#if (externalLoginKey)??><#assign externalKeyParam = "?externalLoginKey=" + requestAttributes.externalLoginKey!></#if>
+<#if (requestAttributes.externalLoginKey)?exists><#assign externalKeyParam = "?externalLoginKey=" + requestAttributes.externalLoginKey?if_exists></#if>
+<#if (externalLoginKey)?exists><#assign externalKeyParam = "?externalLoginKey=" + requestAttributes.externalLoginKey?if_exists></#if>
 <#assign ofbizServerName = application.getAttribute("_serverId")?default("default-server")>
 <#assign contextPath = request.getContextPath()>
-<#assign displayApps = Static["org.ofbiz.webapp.control.LoginWorker"].getAppBarWebInfos(security, userLogin, ofbizServerName, "main")>
+<#assign displayApps = Static["org.ofbiz.base.component.ComponentConfig"].getAppBarWebInfos(ofbizServerName, "main")>
 
 <#if userLogin?has_content>
         <div id="main-nav">
@@ -30,19 +30,29 @@ under the License.
                 <li><h4>${uiLabelMap.CommonPrimaryApps}</h4></li>
             <#list displayApps as display>
               <#assign thisApp = display.getContextRoot()>
+              <#assign permission = true>
               <#assign selected = false>
-              <#if thisApp == contextPath || contextPath + "/" == thisApp>
-                <#assign selected = true>
-              </#if>
-              <#assign thisApp = StringUtil.wrapString(thisApp)>
-              <#assign thisURL = thisApp>
-              <#if thisApp != "/">
-                <#assign thisURL = thisURL + "/control/main">
-              </#if>
-              <#if layoutSettings.suppressTab?? && display.name == layoutSettings.suppressTab>
-                <!-- do not display this component-->
-              <#else>
-                <li><a href="${thisURL + externalKeyParam}" <#if uiLabelMap??> title="${uiLabelMap[display.description]}">${uiLabelMap[display.title]}<#else> title="${display.description}">${display.title}</#if></a></li>
+              <#assign permissions = display.getBasePermission()>
+              <#list permissions as perm>
+                <#if perm != "NONE" && !security.hasEntityPermission(perm, "_VIEW", session)>
+                  <#-- User must have ALL permissions in the base-permission list -->
+                  <#assign permission = false>
+                </#if>
+              </#list>
+              <#if permission == true>
+                <#if thisApp == contextPath || contextPath + "/" == thisApp>
+                  <#assign selected = true>
+                </#if>
+                <#assign thisApp = StringUtil.wrapString(thisApp)>
+                <#assign thisURL = thisApp>
+                <#if thisApp != "/">
+                  <#assign thisURL = thisURL + "/control/main">
+                </#if>
+                  <#if layoutSettings.suppressTab?exists && display.name == layoutSettings.suppressTab>
+                    <!-- do not display this component-->
+                  <#else>
+                    <li><a href="${thisURL + externalKeyParam}" <#if uiLabelMap?exists> title="${uiLabelMap[display.description]}">${uiLabelMap[display.title]}<#else> title="${display.description}">${display.title}</#if></a></li>
+                  </#if>
               </#if>
             </#list>
                 </ul>

@@ -27,7 +27,7 @@ under the License.
         </fo:simple-page-master>
     </fo:layout-master-set>
 
-<#if productionRuns??>
+<#if productionRuns?exists>
 
 <#list productionRuns as productionRun>
     <#assign componentList = productionRun.componentList>
@@ -187,12 +187,12 @@ under the License.
         </fo:table-cell>
         <fo:table-cell border-style="solid" border-color="black" border-width="1pt">
             <fo:block line-height="12pt" font-size="10pt" space-before.optimum="1.5pt" space-after.optimum="1.5pt" keep-together="always">
-                ${product.componentProduct.internalName!}
+                ${product.componentProduct.internalName?if_exists}
             </fo:block>
         </fo:table-cell>
         <fo:table-cell border-style="solid" border-color="black" border-width="1pt">
             <fo:block line-height="12pt" font-size="10pt" space-before.optimum="1.5pt" space-after.optimum="1.5pt" keep-together="always" text-align="end">
-                ${product.componentProduct.quantityUomId!}
+                ${product.componentProduct.quantityUomId?if_exists}
             </fo:block>
         </fo:table-cell>
         <fo:table-cell border-style="solid" border-color="black" border-width="1pt">

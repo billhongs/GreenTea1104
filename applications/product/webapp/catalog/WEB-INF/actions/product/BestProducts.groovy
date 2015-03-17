@@ -28,10 +28,14 @@ exprList.add(EntityCondition.makeCondition("orderDate", EntityOperator.GREATER_T
 exprList.add(EntityCondition.makeCondition("orderDate", EntityOperator.LESS_THAN_EQUAL_TO, UtilDateTime.getDayEnd(filterDate)));
 exprList.add(EntityCondition.makeCondition("orderTypeId", EntityOperator.EQUALS, "SALES_ORDER"));
 
-orderHeaderList = from("OrderHeader").where(exprList).queryList();
+orderHeaderList = delegator.findList("OrderHeader", EntityCondition.makeCondition(exprList, EntityOperator.AND), null, null, null, false);
 
 orderHeaderList.each { orderHeader ->
-    orderItemList = from("OrderItem").where("orderId", orderHeader.orderId, "orderItemTypeId", "PRODUCT_ORDER_ITEM", "isPromo", "N").queryList();
+    exprList = [];
+    exprList.add(EntityCondition.makeCondition("orderId", EntityOperator.EQUALS, orderHeader.orderId));
+    exprList.add(EntityCondition.makeCondition("orderItemTypeId", EntityOperator.EQUALS, "PRODUCT_ORDER_ITEM"));
+    exprList.add(EntityCondition.makeCondition("isPromo", EntityOperator.EQUALS, "N"));
+    orderItemList = delegator.findList("OrderItem", EntityCondition.makeCondition(exprList, EntityOperator.AND), null, null, null, false);
     
     orderItemList.each { orderItem ->
         orderItemDetail = [:];
@@ -45,7 +49,7 @@ orderHeaderList.each { orderHeader ->
         inListFlag = false
         
         bestSellingProducts.each { bestSellingProduct ->
-            if ((bestSellingProduct.productId).equals(orderItem.productId) && (bestSellingProduct.currencyUom).equals(orderHeader.currencyUom)) {
+            if ((bestSellingProduct.productId).equals(orderItem.productId)) {
                 inListFlag = true;
                 bestSellingProduct.amount += amount;
                 bestSellingProduct.qtyOrdered += qtyOrdered;
@@ -54,12 +58,11 @@ orderHeaderList.each { orderHeader ->
         
         if (inListFlag == false) {
             orderItemDetail.productId = orderItem.productId;
-            product = from("Product").where("productId", orderItem.productId).queryOne()
+            product = delegator.findOne("Product", [productId : orderItem.productId], false);
             contentWrapper = new ProductContentWrapper(product, request);
             orderItemDetail.productName = contentWrapper.get("PRODUCT_NAME");
             orderItemDetail.amount = amount;
             orderItemDetail.qtyOrdered = qtyOrdered;
-            orderItemDetail.currencyUom = orderHeader.currencyUom;
             bestSellingProducts.add(orderItemDetail);
         }
     }
@@ -83,9 +86,6 @@ while (itr <= 5) {
         }
     }
     if (!orderItemDetail.isEmpty()) {
-        if (orderItemDetail.amount) {
-            orderItemDetail.amount = orderItemDetail.amount.setScale(2, BigDecimal.ROUND_HALF_UP);
-        }
         topSellingProducts.add(orderItemDetail);
         bestSellingProducts.remove(orderItemDetail);
     }

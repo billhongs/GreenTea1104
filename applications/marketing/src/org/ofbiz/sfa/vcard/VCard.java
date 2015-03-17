@@ -27,10 +27,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import javolution.util.FastMap;
+
 import net.wimpi.pim.Pim;
 import net.wimpi.pim.contact.basicimpl.AddressImpl;
 import net.wimpi.pim.contact.basicimpl.EmailAddressImpl;
@@ -59,8 +61,7 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.entity.util.EntityUtilProperties;
+import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.party.party.PartyHelper;
 import org.ofbiz.party.party.PartyWorker;
 import org.ofbiz.service.DispatchContext;
@@ -115,19 +116,23 @@ public class VCard {
                     serviceCtx.put("city", workAddress.getCity());
                     serviceCtx.put("postalCode", workAddress.getPostalCode());
 
-                    GenericValue countryGeo = EntityQuery.use(delegator).from("Geo")
-                            .where(EntityCondition.makeCondition("geoTypeId", EntityOperator.EQUALS, "COUNTRY"),
-                                    EntityCondition.makeCondition("geoName", EntityOperator.LIKE, workAddress.getCountry()))
-                            .cache().queryFirst();
-                    if (countryGeo != null) {
+                    List<GenericValue> countryGeoList = null;
+                    List<GenericValue> stateGeoList = null;
+                    EntityCondition cond = EntityCondition.makeCondition(UtilMisc.toList(
+                                                        EntityCondition.makeCondition("geoTypeId", EntityOperator.EQUALS, "COUNTRY"),
+                                                        EntityCondition.makeCondition("geoName", EntityOperator.LIKE, workAddress.getCountry())), EntityOperator.AND);
+                    countryGeoList = delegator.findList("Geo", cond, null, null, null, true);
+                    if (!countryGeoList.isEmpty()) {
+                        GenericValue countryGeo = EntityUtil.getFirst(countryGeoList);
                         serviceCtx.put("countryGeoId", countryGeo.get("geoId"));
                     }
 
-                    GenericValue stateGeo = EntityQuery.use(delegator).from("Geo")
-                            .where(EntityCondition.makeCondition("geoTypeId", EntityOperator.EQUALS, "STATE"),
-                            EntityCondition.makeCondition("geoName", EntityOperator.LIKE, workAddress.getRegion()))
-                            .cache().queryFirst();
-                    if (stateGeo != null) {
+                    EntityCondition condition = EntityCondition.makeCondition(UtilMisc.toList(
+                            EntityCondition.makeCondition("geoTypeId", EntityOperator.EQUALS, "STATE"),
+                            EntityCondition.makeCondition("geoName", EntityOperator.LIKE, workAddress.getRegion())), EntityOperator.AND);
+                    stateGeoList = delegator.findList("Geo", condition, null, null, null, true);
+                    if (!stateGeoList.isEmpty()) {
+                        GenericValue stateGeo = EntityUtil.getFirst(stateGeoList);
                         serviceCtx.put("stateProvinceGeoId", stateGeo.get("geoId"));
                     }
                 }
@@ -162,10 +167,10 @@ public class VCard {
                         }
                         if (UtilValidate.isNotEmpty(phone)) {
                             String[] numberParts = phone.split("\\D");
-                            StringBuilder telNumber = new StringBuilder("");
+                            String telNumber = "";
                             for (String number: numberParts) {
                                 if (number != "") {
-                                    telNumber.append(number);
+                                    telNumber =  telNumber + number;
                                 }
                             }
                             serviceCtx.put("areaCode", telNumber.substring(0, 3));
@@ -193,7 +198,7 @@ public class VCard {
                 String serviceName = (String) context.get("serviceName");
                 Map<String, Object> serviceContext = UtilGenerics.cast(context.get("serviceContext"));
                 if(UtilValidate.isNotEmpty(serviceContext)) {
-                    for (Map.Entry<String, Object> entry : serviceContext.entrySet()) {
+                    for(Map.Entry<String, Object> entry : serviceContext.entrySet()) {
                         serviceCtx.put(entry.getKey(), entry.getValue());
                     }
                 }
@@ -234,13 +239,13 @@ public class VCard {
             address.setCity(postalAddress.getString("city"));
 
             address.setPostalCode(postalAddress.getString("postalCode"));
-            GenericValue state = postalAddress.getRelatedOne("StateProvinceGeo", false);
+            GenericValue state = postalAddress.getRelatedOne("StateProvinceGeo");
             if (UtilValidate.isNotEmpty(state)) {
                 address.setRegion(state.getString("geoName"));
             }
-            GenericValue countryGeo = postalAddress.getRelatedOne("CountryGeo", false);
+            GenericValue countryGeo = postalAddress.getRelatedOne("CountryGeo");
             if (UtilValidate.isNotEmpty(countryGeo)) {
-                String country = postalAddress.getRelatedOne("CountryGeo", false).getString("geoName");
+                String country = postalAddress.getRelatedOne("CountryGeo").getString("geoName");
                 address.setCountry(country);
                 address.setWork(true); // this can be better set by checking contactMechPurposeTypeId
             }
@@ -264,7 +269,7 @@ public class VCard {
             }
             ContactIOFactory ciof = Pim.getContactIOFactory();
             ContactMarshaller marshaller = ciof.createContactMarshaller();
-            String saveToDirectory = EntityUtilProperties.getPropertyValue("sfa.properties", "save.outgoing.directory", "", delegator);
+            String saveToDirectory = UtilProperties.getPropertyValue("sfa.properties", "save.outgoing.directory", "");
             if (UtilValidate.isEmpty(saveToDirectory)) {
                 saveToDirectory = System.getProperty("ofbiz.home");
             }

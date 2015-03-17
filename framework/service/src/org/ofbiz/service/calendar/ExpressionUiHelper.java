@@ -21,20 +21,19 @@ package org.ofbiz.service.calendar;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import com.ibm.icu.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import javolution.util.FastSet;
 
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.util.EntityQuery;
-
-import com.ibm.icu.util.Calendar;
 
 /** TemporalExpression UI artifacts worker. */
 public class ExpressionUiHelper {
@@ -43,7 +42,7 @@ public class ExpressionUiHelper {
     public static final int Occurrence[] = {1, 2, 3, 4, 5, -1, -2, -3, -4 -5};
 
     /** Returns a List of valid DayInMonth occurrence int values.
-     * @return returns a List of valid DayInMonth occurrence int values
+     * @return
      */
     public static List<?> getOccurrenceList() {
         return Arrays.asList(Occurrence);
@@ -141,18 +140,14 @@ public class ExpressionUiHelper {
      * @return Set of candidate tempExprId Strings
      */
     public static Set<String> getCandidateIncludeIds(Delegator delegator, String tempExprId) throws GenericEntityException {
-        List<GenericValue> findList = EntityQuery.use(delegator)
-                                                 .from("TemporalExpressionAssoc")
-                                                 .where("fromTempExprId", tempExprId)
-                                                 .cache(true)
-                                                 .queryList();
-        Set<String> excludedIds = new HashSet<String>();
+        List<GenericValue> findList = delegator.findList("TemporalExpressionAssoc", EntityCondition.makeCondition("fromTempExprId", tempExprId), null, null, null, true);
+        Set<String> excludedIds = FastSet.newInstance();
         for (GenericValue value : findList) {
             excludedIds.add(value.getString("toTempExprId"));
         }
         excludedIds.add(tempExprId);
-        findList = EntityQuery.use(delegator).from("TemporalExpression").cache(true).queryList();
-        Set<String> candidateIds = new HashSet<String>();
+        findList = delegator.findList("TemporalExpression", null, null, null, null, true);
+        Set<String> candidateIds = FastSet.newInstance();
         for (GenericValue value : findList) {
             candidateIds.add(value.getString("tempExprId"));
         }

@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
 
     <!-- ================================================================ -->
     <!-- Quote Services -->
@@ -33,7 +33,8 @@ under the License.
         <if-not-empty field="partyAcctgPreference">
            <get-related-one relation-name="QuoteCustomMethod" value-field="partyAcctgPreference" to-value-field="customMethod"/>
            <else>
-               <log level="warning" message="Acctg preference not defined for partyId [${parameters.partyId}]"/>
+               <property-to-field field="errorPartyPerf" resource="AccountingErrorUiLabels" property="AccountingPartyAcctgPreferenceNotDefine"/>
+               <log level="warning" message="errorPartyPerf" />
            </else>
            
         </if-not-empty>
@@ -42,7 +43,7 @@ under the License.
             <set field="customMethodName" from-field="customMethod.customMethodName"/>
             <else><!-- retreive service from deprecated enumeration -->
                 <if-compare operator="equals" value="QUOSQ_ENF_SEQ" field="partyAcctgPreference.oldQuoteSequenceEnumId">
-                    <set field="customMethodName" value="quoteSequenceEnforced"/>
+                    <set field="customMethodName" value="quoteSequence-enforced"/>
                 </if-compare>
             </else>
         </if-not-empty>
@@ -74,7 +75,7 @@ under the License.
         <field-to-result field="quoteId" result-name="quoteId"/>
     </simple-method>
 
-    <simple-method method-name="quoteSequenceEnforced" short-description="Enforced Sequence (no gaps, per organization)">
+    <simple-method method-name="quoteSequence-enforced" short-description="Enforced Sequence (no gaps, per organization)">
         <log level="info" message="In getNextQuoteId sequence enum Enforced"/> 
         <set field="partyAcctgPreference" from-field="parameters.partyAcctgPreference"/>
         <!-- this is sequential sequencing, we can't skip a number, also it must be a unique sequence per partyIdFrom -->
@@ -193,7 +194,6 @@ under the License.
         <call-service service-name="createQuote" in-map-name="createQuoteInMap">
             <result-to-field result-name="quoteId" field="quoteIdTo"/>
         </call-service>
-        <field-to-result field="quoteIdTo" result-name="quoteId"/>
         <if-compare field="parameters.copyQuoteItems" value="Y" operator="equals">
             <get-related value-field="quote" relation-name="QuoteItem" list="quoteItems"/>
             <iterate list="quoteItems" entry="quoteItem">
@@ -342,18 +342,10 @@ under the License.
         <if-empty field="parameters.quoteUnitPrice">
             <if-not-empty field="parameters.productId">
                 <entity-one entity-name="Product" value-field="product"/>
-                <if-compare operator="equals" value="Y" field="product.isVirtual">
-                    <add-error>
-                        <fail-property resource="OrderErrorUiLabels" property="OrderCannotAddVirtualProductToQuote"/>
-                    </add-error>
-                </if-compare>
                 <if>
                     <condition>
                         <and>
-                            <or>
-                                <if-compare operator="equals" value="AGGREGATED" field="product.productTypeId"/>
-                                <if-compare operator="equals" value="AGGREGATED_SERVICE" field="product.productTypeId"/>
-                            </or>
+                            <if-compare operator="equals" value="AGGREGATED" field="product.productTypeId"></if-compare>
                             <not><if-empty field="parameters.configId"></if-empty></not>
                         </and>
                     </condition>
@@ -979,22 +971,4 @@ under the License.
         <set-pk-fields map="parameters" value-field="newEntity"/>
         <remove-value value-field="newEntity"/>
     </simple-method>
-    <simple-method method-name="createQuoteNote" short-description="Create a new Note associated with a Quote">
-        <set-service-fields service-name="createNote" map="parameters" to-map="createNoteMap"/>
-        <!-- passed in field will be noteInfo, which matches entity, but service expects field called note -->
-        <set field="createNoteMap.note" from-field="parameters.noteInfo"/>
-        <call-service service-name="createNote" in-map-name="createNoteMap">
-           <result-to-field result-name="noteId"/>
-       </call-service>
-       <if-empty field="noteId">
-           <add-error>
-               <fail-property resource="OrderErrorUiLabels" property="OrderProblemCreatingTheNoteNoNoteIdReturned"/>
-           </add-error>
-       </if-empty>
-       <check-errors/>
-       <make-value value-field="newQuoteNote" entity-name="QuoteNote"/>
-       <set field="newQuoteNote.quoteId" from-field="parameters.quoteId"/>
-       <set field="newQuoteNote.noteId" from-field="noteId"/>
-       <create-value value-field="newQuoteNote"/>
-   </simple-method>
 </simple-methods>

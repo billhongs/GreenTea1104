@@ -29,7 +29,7 @@ under the License.
             document.products.action="<@ofbizUrl>ProductsExportToGoogle</@ofbizUrl>";
             document.products.submit();
         } else {
-            alert("${StringUtil.wrapString(uiLabelMap.productsExportToGoogle.missingProduct)}");
+            alert("You have to choose any product(s).");
         }
     }
 </script>

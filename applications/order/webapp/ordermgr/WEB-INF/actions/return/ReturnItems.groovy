@@ -31,32 +31,32 @@ context.returnId = returnId;
 orderId = parameters.orderId;
 context.orderId = orderId;
 
-returnHeader = from("ReturnHeader").where("returnId", returnId).queryOne();
+returnHeader = delegator.findByPrimaryKey("ReturnHeader", [returnId : returnId]);
 context.returnHeader = returnHeader;
 
 returnHeaderTypeId = returnHeader.returnHeaderTypeId;
 context.toPartyId = returnHeader.toPartyId;
 
-returnItems = from("ReturnItem").where("returnId", returnId).queryList();
+returnItems = delegator.findByAnd("ReturnItem", [returnId : returnId]);
 context.returnItems = returnItems;
 
 // these are just the adjustments not associated directly with a return item--the rest are gotten with a .getRelated on the returnItems in the .FTL
-returnAdjustments = from("ReturnAdjustment").where("returnId", returnId, "returnItemSeqId", "_NA_").orderBy("returnItemSeqId", "returnAdjustmentTypeId").queryList();
+returnAdjustments = delegator.findByAnd("ReturnAdjustment", [returnId : returnId, returnItemSeqId : "_NA_"], ["returnItemSeqId", "returnAdjustmentTypeId"]);
 context.returnAdjustments = returnAdjustments;
 
-returnTypes = from("ReturnType").orderBy("sequenceId").queryList();
+returnTypes = delegator.findList("ReturnType", null, null, ["sequenceId"], null, false);
 context.returnTypes = returnTypes;
 
-itemStatus = from("StatusItem").where("statusTypeId", "INV_SERIALIZED_STTS").orderBy("statusId", "description").queryList();
+itemStatus = delegator.findByAnd("StatusItem", [statusTypeId : "INV_SERIALIZED_STTS"], ["statusId", "description"]);
 context.itemStatus = itemStatus;
 
-returnReasons = from("ReturnReason").orderBy("sequenceId").queryList();
+returnReasons = delegator.findList("ReturnReason", null, null, ["sequenceId"], null, false);
 context.returnReasons = returnReasons;
 
-itemStts = from("StatusItem").where("statusTypeId", "INV_SERIALIZED_STTS").orderBy("sequenceId").queryList();
+itemStts = delegator.findByAnd("StatusItem", [statusTypeId : "INV_SERIALIZED_STTS"], ["sequenceId"]);
 context.itemStts = itemStts;
 
-returnItemTypeMap = from("ReturnItemTypeMap").where("returnHeaderTypeId", returnHeaderTypeId).queryList();
+returnItemTypeMap = delegator.findByAnd("ReturnItemTypeMap", [returnHeaderTypeId : returnHeaderTypeId]);
 typeMap = [:];
 returnItemTypeMap.each { value ->
     typeMap[value.returnItemMapKey] = value.returnItemTypeId;
@@ -64,8 +64,8 @@ returnItemTypeMap.each { value ->
 context.returnItemTypeMap = typeMap;
 
 if (orderId) {
-    order = from("OrderHeader").where("orderId", orderId).queryOne();
-    returnRes = runService('getReturnableItems', [orderId : orderId]);
+    order = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
+    returnRes = dispatcher.runSync("getReturnableItems", [orderId : orderId]);
     context.returnableItems = returnRes.returnableItems;
 
     orh = new OrderReadHelper(order);
@@ -73,7 +73,7 @@ if (orderId) {
     context.orderHeaderAdjustments = orh.getAvailableOrderHeaderAdjustments();
 
     // get the order shipping amount
-    shipRes = runService('getOrderShippingAmount', [orderId : orderId]);
+    shipRes = dispatcher.runSync("getOrderShippingAmount", [orderId : orderId]);
     shippingAmount = shipRes.shippingAmount;
     context.shippingAmount = shippingAmount;
 }
@@ -83,10 +83,12 @@ if (returnHeaderTypeId == "VENDOR_RETURN") {
     roleTypeId = "BILL_FROM_VENDOR";
     partyId = returnHeader.toPartyId;
 }
-partyOrders = from("OrderHeaderAndRoles").where("roleTypeId", roleTypeId, "partyId", partyId).orderBy("orderId").queryList();
+partyOrders = delegator.findByAnd("OrderHeaderAndRoles", [roleTypeId : roleTypeId, partyId : partyId], ["orderId"]);
 context.partyOrders = partyOrders;
 context.partyId = partyId;
 
 // get the list of return shipments associated to the return
-returnShipmentIds = select("shipmentId").from("ReturnItemShipment").where("returnId", returnId).distinct().cache(true).queryList();
+findOptions = new EntityFindOptions();
+findOptions.setDistinct(true);
+returnShipmentIds = delegator.findList("ReturnItemShipment", EntityCondition.makeCondition("returnId", returnId), ["shipmentId"] as Set, null, findOptions, true);
 context.returnShipmentIds = returnShipmentIds;

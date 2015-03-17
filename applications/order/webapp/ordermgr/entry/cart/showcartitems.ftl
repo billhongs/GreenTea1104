@@ -23,7 +23,7 @@ under the License.
   <#assign assocProduct = (delegator.findOne("Product", {"productId" : productAssoc.productIdTo}, false))/>
   <#if assocProduct?has_content>
     <td><a href="<@ofbizUrl>/product?product_id=${productAssoc.productIdTo}</@ofbizUrl>"class="buttontext">${productAssoc.productIdTo}</a></td>
-    <td>- ${(assocProduct.productName)!}<i>(${(productAssocType.description)?default("Unknown")})</i></td>
+    <td>- ${(assocProduct.productName)?if_exists}<i>(${(productAssocType.description)?default("Unknown")})</i></td>
   </#if>
 </#macro>
 <div class="screenlet">
@@ -77,11 +77,11 @@ under the License.
           <table border="0">
           <tr><td colspan="2">
                 <div>
-                  <#if cartLine.getProductId()??>
+                  <#if cartLine.getProductId()?exists>
                     <#-- product item -->
                     <a href="<@ofbizUrl>product?product_id=${cartLine.getProductId()}</@ofbizUrl>" class="buttontext">${cartLine.getProductId()}</a> -
                     <input size="60" type="text" name="description_${cartLineIndex}" value="${cartLine.getName()?default("")}"/><br />
-                    <i>${cartLine.getDescription()!}</i>
+                    <i>${cartLine.getDescription()?if_exists}</i>
                     <#if shoppingCart.getOrderType() != "PURCHASE_ORDER">
                       <#-- only applies to sales orders, not purchase orders -->
                       <#-- if inventory is not required check to see if it is out of stock and needs to have a message shown about that... -->
@@ -93,7 +93,7 @@ under the License.
                     </#if>
                   <#else>
                     <#-- this is a non-product item -->
-                    <b>${cartLine.getItemTypeDescription()!}</b> : ${cartLine.getName()!}
+                    <b>${cartLine.getItemTypeDescription()?if_exists}</b> : ${cartLine.getName()?if_exists}
                   </#if>
                     <#-- display the item's features -->
                    <#assign features = "">
@@ -109,7 +109,7 @@ under the License.
                     <#if cartLine.getAttribute("surveyResponses")?has_content>
                         <br />Surveys:
                        <#list cartLine.getAttribute("surveyResponses") as surveyResponseId>
-                        <a href="/content/control/ViewSurveyResponses?surveyResponseId=${surveyResponseId}${StringUtil.wrapString(externalKeyParam)}" class="buttontext" style="font-size: xx-small;">${surveyResponseId}</a>
+                        <a href="/content/control/ViewSurveyResponses?surveyResponseId=${surveyResponseId}&amp;externalLoginKey=${externalLoginKey}" class="buttontext" style="font-size: xx-small;">${surveyResponseId}</a>
                        </#list>
                     </#if>
                 </div>
@@ -117,7 +117,7 @@ under the License.
             <#if cartLine.getRequirementId()?has_content>
                 <tr>
                     <td colspan="2">
-                      <div><b>${uiLabelMap.OrderRequirementId}</b>: ${cartLine.getRequirementId()!}</div>
+                      <div><b>${uiLabelMap.OrderRequirementId}</b>: ${cartLine.getRequirementId()?if_exists}</div>
                     </td>
                 </tr>
             </#if>
@@ -125,23 +125,23 @@ under the License.
                 <#if cartLine.getQuoteItemSeqId()?has_content>
                   <tr>
                     <td colspan="2">
-                      <div><b>${uiLabelMap.OrderOrderQuoteId}</b>: ${cartLine.getQuoteId()!} - ${cartLine.getQuoteItemSeqId()!}</div>
+                      <div><b>${uiLabelMap.OrderOrderQuoteId}</b>: ${cartLine.getQuoteId()?if_exists} - ${cartLine.getQuoteItemSeqId()?if_exists}</div>
                     </td>
                   </tr>
                 </#if>
             </#if>
             <#if cartLine.getItemComment()?has_content>
               <tr><td><div>${uiLabelMap.CommonComment} : </div></td>
-                  <td><div>${cartLine.getItemComment()!}</div>
+                  <td><div>${cartLine.getItemComment()?if_exists}</div>
               </td></tr>
             </#if>
             <#if cartLine.getDesiredDeliveryDate()?has_content>
               <tr><td><div>${uiLabelMap.OrderDesiredDeliveryDate}: </div></td>
-                  <td><div>${cartLine.getDesiredDeliveryDate()!}</div>
+                  <td><div>${cartLine.getDesiredDeliveryDate()?if_exists}</div>
               </td></tr>
             </#if>
             <#-- inventory summary -->
-            <#if cartLine.getProductId()??>
+            <#if cartLine.getProductId()?exists>
               <#assign productId = cartLine.getProductId()>
               <#assign product = cartLine.getProduct()>
               <tr>
@@ -153,7 +153,7 @@ under the License.
                     ${uiLabelMap.ProductMarketingPackageATP} = ${mktgPkgATPMap.get(productId)}, ${uiLabelMap.ProductMarketingPackageQOH} = ${mktgPkgQOHMap.get(productId)}
                     <#if ( mktgPkgATPMap.get(cartLine.getProductId()) < cartLine.getQuantity()) && (shoppingCart.getOrderType() == 'SALES_ORDER')>
                       <#assign backOrdered = cartLine.getQuantity() - mktgPkgATPMap.get(cartLine.getProductId())/>
-                      <span style="color: red; font-size: 15px;">[${backOrdered!}&nbsp;${uiLabelMap.OrderBackOrdered}]</span>
+                      <span style="color: red; font-size: 15px;">[${backOrdered?if_exists}&nbsp;${uiLabelMap.OrderBackOrdered}]</span>
                     </#if>
                     </#if>
                     <#if (availableToPromiseMap.get(cartLine.getProductId()) <= 0) && (shoppingCart.getOrderType() == 'SALES_ORDER') && product.productTypeId! != "DIGITAL_GOOD" && product.productTypeId! != "MARKETING_PKG_AUTO" && product.productTypeId! != "MARKETING_PKG_PICK">
@@ -161,7 +161,7 @@ under the License.
                     <#else>
                       <#if (availableToPromiseMap.get(cartLine.getProductId()) < cartLine.getQuantity()) && (shoppingCart.getOrderType() == 'SALES_ORDER') && product.productTypeId != "DIGITAL_GOOD" && product.productTypeId != "MARKETING_PKG_AUTO" && product.productTypeId != "MARKETING_PKG_PICK">
                         <#assign backOrdered = cartLine.getQuantity() - availableToPromiseMap.get(cartLine.getProductId())/>
-                        <span style="color: red;">[${backOrdered!}&nbsp;${uiLabelMap.OrderBackOrdered}]</span>
+                        <span style="color: red;">[${backOrdered?if_exists}&nbsp;${uiLabelMap.OrderBackOrdered}]</span>
                       </#if>
                     </#if>
                   </div>
@@ -169,7 +169,7 @@ under the License.
               </tr>
             </#if>
             <#if shoppingCart.getOrderType() == "PURCHASE_ORDER">
-              <#assign currentOrderItemType = cartLine.getItemTypeGenericValue()!/>
+              <#assign currentOrderItemType = cartLine.getItemTypeGenericValue()?if_exists/>
                 <tr>
                   <td>
                     <div>
@@ -211,17 +211,16 @@ under the License.
             </tr>
 
             <#-- Show Associated Products (not for Variants) -->
-            <#if cartLine.getProductId()??>
-              <#assign itemProductAssocList = cartLine.getProduct().getRelated("MainProductAssoc", null, Static["org.ofbiz.base.util.UtilMisc"].toList("productAssocTypeId", "sequenceNum"), false)!/>
-            </#if>
-            <#if itemProductAssocList?? && itemProductAssocList?has_content>
+            <#assign itemProductAssocList = cartLine.getProduct().getRelated("MainProductAssoc",
+                Static["org.ofbiz.base.util.UtilMisc"].toList("productAssocTypeId", "sequenceNum"))?if_exists/>
+            <#if itemProductAssocList?exists && itemProductAssocList?has_content>
               <tr><td colspan="8"><hr /></td></tr>
               <tr>
                 <td>${uiLabelMap.OrderAssociatedProducts}</td>
-                <td><a href="<@ofbizUrl>LookupAssociatedProducts?productId=${cartLine.getProductId()!}</@ofbizUrl>" class="buttontext">${uiLabelMap.OrderQuickLookup}</a></td>
+                <td><a href="<@ofbizUrl>LookupAssociatedProducts?productId=${cartLine.getProductId()?if_exists}</@ofbizUrl>" class="buttontext">${uiLabelMap.OrderQuickLookup}</a></td>
               </tr>
               <#assign relatedProdCount = 0/>
-              <#list itemProductAssocList! as itemProductAssoc>
+              <#list itemProductAssocList?if_exists as itemProductAssoc>
                 <tr>
                   <#if "PRODUCT_VARIANT" != itemProductAssoc.productAssocTypeId>
                     <#assign relatedProdCount = relatedProdCount + 1/>
@@ -237,8 +236,8 @@ under the License.
                   <#-- Show alternate gifts if there are any... -->
                   <div>${uiLabelMap.OrderChooseFollowingForGift}:</div>
                   <#list cartLine.getAlternativeOptionProductIds() as alternativeOptionProductId>
-                    <#assign alternativeOptionProduct = delegator.findOne("Product", Static["org.ofbiz.base.util.UtilMisc"].toMap("productId", alternativeOptionProductId), true)>
-                    <#assign alternativeOptionName = Static["org.ofbiz.product.product.ProductContentWrapper"].getProductContentAsText(alternativeOptionProduct, "PRODUCT_NAME", locale, dispatcher)!>
+                    <#assign alternativeOptionProduct = delegator.findByPrimaryKeyCache("Product", Static["org.ofbiz.base.util.UtilMisc"].toMap("productId", alternativeOptionProductId))>
+                    <#assign alternativeOptionName = Static["org.ofbiz.product.product.ProductContentWrapper"].getProductContentAsText(alternativeOptionProduct, "PRODUCT_NAME", locale, dispatcher)?if_exists>
                     <div><a href="<@ofbizUrl>setDesiredAlternateGwpProductId?alternateGwpProductId=${alternativeOptionProductId}&amp;alternateGwpLine=${cartLineIndex}</@ofbizUrl>" class="buttontext">Select: ${alternativeOptionName?default(alternativeOptionProductId)}</a></div>
                   </#list>
                 </#if>
@@ -247,13 +246,13 @@ under the License.
             <#-- gift wrap option -->
             <#assign showNoGiftWrapOptions = false>
             <td nowrap="nowrap" align="right">
-              <#assign giftWrapOption = lineOptionalFeatures.GIFT_WRAP!>
-              <#assign selectedOption = cartLine.getAdditionalProductFeatureAndAppl("GIFT_WRAP")!>
+              <#assign giftWrapOption = lineOptionalFeatures.GIFT_WRAP?if_exists>
+              <#assign selectedOption = cartLine.getAdditionalProductFeatureAndAppl("GIFT_WRAP")?if_exists>
               <#if giftWrapOption?has_content>
                 <select name="option^GIFT_WRAP_${cartLineIndex}" onchange="javascript:document.cartform.submit()">
                   <option value="NO^">${uiLabelMap.OrderNoGiftWrap}</option>
                   <#list giftWrapOption as option>
-                    <option value="${option.productFeatureId}" <#if ((selectedOption.productFeatureId)?? && selectedOption.productFeatureId == option.productFeatureId)>selected="selected"</#if>>${option.description} : <@ofbizCurrency amount=option.amount?default(0) isoCode=currencyUomId/></option>
+                    <option value="${option.productFeatureId}" <#if ((selectedOption.productFeatureId)?exists && selectedOption.productFeatureId == option.productFeatureId)>selected="selected"</#if>>${option.description} : <@ofbizCurrency amount=option.amount?default(0) isoCode=currencyUomId/></option>
                   </#list>
                 </select>
               <#elseif showNoGiftWrapOptions>
@@ -267,7 +266,7 @@ under the License.
             <#-- end gift wrap option -->
             <td nowrap="nowrap" align="center">
               <div>
-                <#if cartLine.getIsPromo() || cartLine.getShoppingListId()??>
+                <#if cartLine.getIsPromo() || cartLine.getShoppingListId()?exists>
                     ${cartLine.getQuantity()?string.number}
                 <#else>
                     <input size="6" type="text" name="update_${cartLineIndex}" value="${cartLine.getQuantity()?string.number}"/>
@@ -305,11 +304,11 @@ under the License.
                 <td>&nbsp;</td>
               </tr>
             <#list shoppingCart.getAdjustments() as cartAdjustment>
-              <#assign adjustmentType = cartAdjustment.getRelatedOne("OrderAdjustmentType", true)>
+              <#assign adjustmentType = cartAdjustment.getRelatedOneCache("OrderAdjustmentType")>
               <tr>
                 <td colspan="4" nowrap="nowrap" align="right">
                   <div>
-                    <i>${uiLabelMap.OrderAdjustment}</i> - ${adjustmentType.get("description",locale)!}
+                    <i>${uiLabelMap.OrderAdjustment}</i> - ${adjustmentType.get("description",locale)?if_exists}
                     <#if cartAdjustment.productPromoId?has_content><a href="<@ofbizUrl>showPromotionDetails?productPromoId=${cartAdjustment.productPromoId}</@ofbizUrl>" class="buttontext">${uiLabelMap.CommonDetails}</a></#if>:
                   </div>
                 </td>

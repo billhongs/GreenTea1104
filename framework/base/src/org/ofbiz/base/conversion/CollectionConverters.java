@@ -20,11 +20,12 @@ package org.ofbiz.base.conversion;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javolution.util.FastList;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.util.StringUtil;
 import org.ofbiz.base.util.UtilGenerics;
@@ -61,7 +62,7 @@ public class CollectionConverters implements ConverterLoader {
         }
 
         public T convert(S obj) throws ConversionException {
-            List<Object> list = new LinkedList<Object>();
+            List<Object> list = FastList.newInstance();
             int len = Array.getLength(obj);
             for (int i = 0; i < len; i++) {
                 list.add(Array.get(obj, i));
@@ -110,7 +111,7 @@ public class CollectionConverters implements ConverterLoader {
         }
 
         public List<Map<K, V>> convert(Map<K, V> obj) throws ConversionException {
-            List<Map<K, V>> tempList = new LinkedList<Map<K, V>>();
+            List<Map<K, V>> tempList = FastList.newInstance();
             tempList.add(obj);
             return tempList;
         }
@@ -122,7 +123,7 @@ public class CollectionConverters implements ConverterLoader {
         }
 
         public Set<Map<K, V>> convert(Map<K, V> obj) throws ConversionException {
-            Set<Map<K, V>> tempSet = new HashSet<Map<K, V>>();
+            Set<Map<K, V>> tempSet = FastSet.newInstance();
             tempSet.add(obj);
             return tempSet;
         }

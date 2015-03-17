@@ -31,6 +31,7 @@ Boolean actualCurrency = new Boolean(context.actualCurrency);
 if (actualCurrency == null) {
     actualCurrency = true;
 }
+findOpts = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, true);
 
 invExprs =
     EntityCondition.makeCondition([
@@ -49,7 +50,7 @@ invExprs =
             ],EntityOperator.OR)
         ],EntityOperator.AND);
 
-invIterator = from("InvoiceAndType").where(invExprs).cursorScrollInsensitive().distinct().queryIterator();
+invIterator = delegator.find("InvoiceAndType", invExprs, null, null, null, findOpts);
 invoiceList = [];
 while (invoice = invIterator.next()) {
     unAppliedAmount = InvoiceWorker.getInvoiceNotApplied(invoice, actualCurrency).setScale(2,BigDecimal.ROUND_HALF_UP);

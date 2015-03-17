@@ -23,7 +23,7 @@ under the License.
       <li class="h3">${uiLabelMap.OrderOrderReceivedOn} ${Static["org.ofbiz.base.util.UtilDateTime"].toDateString(filterDate)}</li>
       <#assign listSize = state.getSize()>
       <#if (listSize > 10)>
-        <li><a href="/ordermgr/control/orderlist?viewIndex=${state.getViewIndex() + 1}&amp;viewSize=${state.getViewSize()}&amp;filterDate=${filterDate!}">${uiLabelMap.CommonMore}</a></li>
+        <li><a href="/ordermgr/control/orderlist?viewIndex=${state.getViewIndex() + 1}&amp;viewSize=${state.getViewSize()}&amp;filterDate=${filterDate?if_exists}">${uiLabelMap.CommonMore}</a></li>
       </#if>
       <#if orderHeaderList?has_content> 
         <li>1-${orderHeaderList.size()} ${uiLabelMap.CommonOf} ${state.getSize()}</li>
@@ -44,29 +44,29 @@ under the License.
         </tr>
         <#assign alt_row = false>
         <#list orderHeaderList as orderHeader>
-          <#assign status = orderHeader.getRelatedOne("StatusItem", true)>
+          <#assign status = orderHeader.getRelatedOneCache("StatusItem")>
           <#assign orh = Static["org.ofbiz.order.order.OrderReadHelper"].getHelper(orderHeader)>
-          <#assign billToParty = orh.getBillToParty()!>
+          <#assign billToParty = orh.getBillToParty()?if_exists>
           <#if billToParty?has_content>
             <#assign billToPartyNameResult = dispatcher.runSync("getPartyNameForDate", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", billToParty.partyId, "compareDate", orderHeader.orderDate, "userLogin", userLogin))/>
             <#assign billTo = billToPartyNameResult.fullName?default("[${uiLabelMap.OrderPartyNameNotFound}]")/>
           </#if>
-          <#assign productStore = orderHeader.getRelatedOne("ProductStore", true)! />
+          <#assign productStore = orderHeader.getRelatedOneCache("ProductStore")?if_exists />
           <tr<#if alt_row> class="alternate-row"</#if>>
             <#assign alt_row = !alt_row>
             <td><a href="/ordermgr/control/orderview?orderId=${orderHeader.orderId}" class="buttontext">${orderHeader.orderId}</a></td>
-            <td>${billTo!}</td>
+            <td>${billTo?if_exists}</td>
             <td><#if productStore?has_content>${productStore.storeName?default(productStore.productStoreId)}</#if></td>
             <td><@ofbizCurrency amount=orderHeader.grandTotal isoCode=orderHeader.currencyUom/></td>
             <td>
-              <#assign trackingCodes = orderHeader.getRelated("TrackingCodeOrder", null, null, false)>
+              <#assign trackingCodes = orderHeader.getRelated("TrackingCodeOrder")>
               <#list trackingCodes as trackingCode>
                 <#if trackingCode?has_content>
-                  <a href="/marketing/control/FindTrackingCodeOrders?trackingCodeId=${trackingCode.trackingCodeId}&amp;externalLoginKey=${requestAttributes.externalLoginKey!}">${trackingCode.trackingCodeId}</a><br />
+                  <a href="/marketing/control/FindTrackingCodeOrders?trackingCodeId=${trackingCode.trackingCodeId}&amp;externalLoginKey=${requestAttributes.externalLoginKey?if_exists}">${trackingCode.trackingCodeId}</a><br />
                 </#if>
               </#list>
             </td>
-            <td>${orderHeader.getRelatedOne("StatusItem", true).get("description",locale)}</td>
+            <td>${orderHeader.getRelatedOneCache("StatusItem").get("description",locale)}</td>
           </tr>
         </#list>
       </table>

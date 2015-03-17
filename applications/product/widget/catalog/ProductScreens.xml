@@ -36,49 +36,76 @@ under the License.
             </actions>
             <widgets>
                 <decorator-screen name="main-decorator" location="${parameters.mainDecoratorLocation}">
+                    <decorator-section name="pre-body">
+                        <section>
+                            <condition>
+                                    <and>
+                                        <if-has-permission permission="CATALOG" action="_VIEW"/>
+                                        <or>
+                                            <not><if-empty field="parameters.bypassIfNoProduct"/></not>
+                                            <not><if-empty field="product"/></not>
+                                        </or>
+                                    </and>
+                            </condition>
+                            <widgets>
+                                <include-menu name="ProductTabBar" location="component://product/widget/catalog/CatalogMenus.xml"/>
+                            </widgets>
+                        </section>
+                    </decorator-section>
                     <decorator-section name="left-column">
                         <include-screen name="leftbar" location="component://product/widget/catalog/CommonScreens.xml"/>
                     </decorator-section>
                     <decorator-section name="body">
                         <section>
+                            <!-- do check for CATALOG, _VIEW permission -->
                             <condition>
-                                <or>
-                                    <if-has-permission permission="CATALOG" action="_ADMIN"/>
-                                    <if-has-permission permission="CATALOG" action="_CREATE"/>
-                                    <if-has-permission permission="CATALOG" action="_UPDATE"/>
-                                    <if-has-permission permission="CATALOG" action="_VIEW"/>
-                                </or>
+                                <if-has-permission permission="CATALOG" action="_VIEW"/>
                             </condition>
-                            <actions>
-                                <set field="productId" from-field="parameters.productId"/>
-                                <entity-one entity-name="Product" value-field="product"/>
-                            </actions>
                             <widgets>
+                                <section>
+                                    <condition>
+                                        <or>
+                                            <not><if-empty field="parameters.bypassIfNoProduct"/></not>
+                                            <not><if-empty field="product"/></not>
+                                        </or>
+                                    </condition>
+                                    <widgets>
+                                        <container>
+                                            <label style="h1">${uiLabelMap[labelTitleProperty]} ${uiLabelMap.CommonFor}: ${product.internalName} [${uiLabelMap.CommonId}:${productId}]  ${${extraFunctionName}}</label>
+                                            <image src="${product.smallImageUrl}" height="40" width="40" url-mode="content" alt="${product.internalName}"/>
+                                        </container>
+
+                                        <!-- add Create Product and View Product (in ecommerce) links -->
+                                        <container style="button-bar">
+                                            <link target="EditProduct" text="${uiLabelMap.ProductNewProduct}" style="buttontext create"/>
+                                            <link target="CreateVirtualWithVariantsForm" text="${uiLabelMap.ProductNewVirtualProduct}" style="buttontext create"/>
+                                            <link target="/ecommerce/control/product" url-mode="inter-app" text="${uiLabelMap.ProductProductPage}" style="buttontext">
+                                                <parameter param-name="product_id" from-field="productId"/>
+                                            </link>
+                                            <link target="ProductBarCode.pdf" target-window="_blank" text="${uiLabelMap.ProductBarcode}" style="buttontext">
+                                                <parameter param-name="productId"/>
+                                            </link>
+
+                                            <link target="javascript:expandAll(true);"  text="${uiLabelMap.CommonExpandAll}" style="buttontext expand-all" url-mode="plain"/>
+                                            <link target="javascript:expandAll(false);" text="${uiLabelMap.CommonCollapseAll}" style="buttontext collapse-all" url-mode="plain"/>
+                                        </container>
+                                    </widgets>
+                                </section>
                                 <section>
                                     <condition>
                                         <or>
                                             <not><if-empty field="product"/></not>
                                             <not><if-empty field="parameters.bypassIfNoProduct"/></not>
+                                            <if-empty field="productId"/>
                                         </or>
                                     </condition>
                                     <widgets>
-                                        <include-menu name="ProductTabBar" location="component://product/widget/catalog/CatalogMenus.xml"/>
-                                        <include-menu name="ProductSubTabBar" location="component://product/widget/catalog/CatalogMenus.xml"/>
-                                        <image src="${product.smallImageUrl}" url-mode="content" alt="${product.internalName}" style="cssImgSmall"/>
-                                        <label style="h1">${uiLabelMap[labelTitleProperty]} ${uiLabelMap.CommonFor}: ${product.internalName} [${uiLabelMap.CommonId}:${productId}]  ${${extraFunctionName}}</label>
+                                        <decorator-section-include name="body"/>
                                     </widgets>
                                     <fail-widgets>
-                                        <section>
-                                            <condition>
-                                                <if-compare operator="not-equals" value="EditProduct" field="tabButtonItem"/>
-                                            </condition>
-                                            <widgets>
-                                                <include-menu name="ProductSubTabBar" location="component://product/widget/catalog/CatalogMenus.xml"/>
-                                            </widgets>
-                                        </section>
+                                        <label style="h3">${uiLabelMap.ProductNoExistingProductsFound}</label>
                                     </fail-widgets>
                                 </section>
-                                <decorator-section-include name="body"/>
                             </widgets>
                             <fail-widgets>
                                 <label style="h3">${uiLabelMap.ProductCatalogViewPermissionError}</label>
@@ -89,7 +116,7 @@ under the License.
             </widgets>
         </section>
     </screen>
-    
+
     <screen name="FindProduct">
         <section>
             <actions>
@@ -104,6 +131,11 @@ under the License.
                             </condition>
                             <widgets>
                                 <decorator-screen name="FindScreenDecorator" location="component://common/widget/CommonScreens.xml">
+                                    <decorator-section name="menu-bar">
+                                        <container style="button-bar">
+                                            <link target="EditProduct" text="${uiLabelMap.ProductNewProduct}" style="buttontext create"/>
+                                        </container>
+                                    </decorator-section>
                                     <decorator-section name="search-options">
                                         <include-form name="FindProduct" location="component://product/widget/catalog/ProductForms.xml"/>
                                     </decorator-section>
@@ -621,9 +653,9 @@ under the License.
                 <set field="labelTitleProperty" value="ProductKeywords"/>
                 <set field="productId" from-field="parameters.productId"/>
                 <entity-one entity-name="Product" value-field="product"/>
-                <entity-and entity-name="Enumeration" list="keywordTypeList">
-                    <field-map field-name="enumTypeId" value="KEYWORD_TYPE"/>
-                </entity-and>
+                <set field="orderByList[]" value="-relevancyWeight"/>
+                <set field="orderByList[]" value="keyword"/>
+                <get-related value-field="product" relation-name="ProductKeyword" list="productKeywords" order-by-list="orderByList"/>
             </actions>
             <widgets>
                 <decorator-screen name="CommonProductDecorator" location="${parameters.productDecoratorLocation}">
@@ -639,18 +671,9 @@ under the License.
                         <screenlet title="${uiLabelMap.ProductAddProductKeyword}">
                             <include-form name="AddProductKeyword" location="component://product/widget/catalog/ProductForms.xml"/>
                         </screenlet>
-                        <iterate-section entry="keywordType" list="keywordTypeList">
-                            <section>
-                                <actions>
-                                    <set field="keywordTypeId" from-field="keywordType.enumId"/>
-                                </actions>
-                                <widgets>
-                                    <screenlet title="${uiLabelMap.PageTitleEditProductKeywords} : ${keywordType.description}">
-                                        <include-form name="UpdateProductKeyword" location="component://product/widget/catalog/ProductForms.xml"/>
-                                    </screenlet>
-                                </widgets>
-                            </section>
-                        </iterate-section>
+                        <screenlet title="${uiLabelMap.PageTitleEditProductKeywords}">
+                            <include-form name="UpdateProductKeyword" location="component://product/widget/catalog/ProductForms.xml"/>
+                        </screenlet>
                     </decorator-section>
                 </decorator-screen>
             </widgets>
@@ -854,11 +877,7 @@ under the License.
 
                 <!-- default currency in framework/common/config/general.properties -->
                 <property-to-field field="defaultCurrencyUomId" resource="general" property="currency.uom.id.default" default="USD"/>
-                <set field="orderBy" from-field="parameters.sortField" default-value="partyId"/>
-                <entity-and entity-name="SupplierProduct" list="productSuppliers">
-                    <field-map field-name="productId" from-field="parameters.productId"/>
-                    <order-by field-name="${orderBy}"/>
-                </entity-and>
+
                 <entity-one entity-name="SupplierProduct" value-field="supplierProduct" auto-field-map="true"/>
             </actions>
             <widgets>
@@ -872,7 +891,7 @@ under the License.
                             <widgets>
                                 <link target="EditProductSuppliers" style="buttontext" text="${uiLabelMap.ProductNewProductSupplier}">
                                     <parameter param-name="productId"/>
-                                </link>
+                                 </link>
                             </widgets>
                         </section>
                         <screenlet title="${uiLabelMap.PageTitleAddProductSupplier}">
@@ -1046,8 +1065,7 @@ under the License.
                 <set field="productId" from-field="parameters.productId"/>
                 <entity-one entity-name="Product" value-field="product"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="50"/>
 
                 <script location="component://product/webapp/catalog/WEB-INF/actions/product/ApplyFeaturesFromCategory.groovy"/>
                 <script location="component://product/webapp/catalog/WEB-INF/actions/product/ApplyFeaturesFromGroup.groovy"/>
@@ -1235,9 +1253,10 @@ under the License.
                 <decorator-screen name="CommonProductDecorator" location="${parameters.productDecoratorLocation}">
                     <decorator-section name="body">
                         <screenlet title="${uiLabelMap.PageTitleEditProductParties}">
-                            <include-form name="UpdateProductRole" location="component://product/widget/catalog/ProductForms.xml"/>
+                            <platform-specific>
+                                <html><html-template location="component://product/webapp/catalog/product/EditProductParties.ftl"/></html>
+                            </platform-specific>
                         </screenlet>
-                        
                         <screenlet title="${uiLabelMap.ProductAssociatePartyToProduct}">
                             <include-form name="AddProductRole" location="component://product/widget/catalog/ProductForms.xml"/>
                         </screenlet>
@@ -1391,67 +1410,6 @@ under the License.
                         </link>
                         <screenlet title="${uiLabelMap.PageTitleProductPricesHistory}">
                             <include-form name="ListProductPriceHistory" location="component://product/widget/catalog/ProductForms.xml"/>
-                        </screenlet>
-                    </decorator-section>
-                </decorator-screen>
-            </widgets>
-        </section>
-    </screen>
-
-    <screen name="ViewProductGroupOrder">
-        <section>
-            <actions>
-                <set field="titleProperty" value="PageTitleViewProductGroupOrder"/>
-                <set field="tabButtonItem" value="ViewProductGroupOrder"/>
-                <set field="labelTitleProperty" value="ProductGroupOrder"/>
-                <set field="productId" from-field="parameters.productId"/>
-                <entity-and entity-name="ProductGroupOrder" list="productGroupOrders">
-                    <field-map field-name="productId" from-field="productId"/>
-                </entity-and>
-            </actions>
-            <widgets>
-                <decorator-screen name="CommonProductDecorator" location="${parameters.productDecoratorLocation}">
-                    <decorator-section name="body">
-                        <screenlet title="${uiLabelMap.ProductGroupOrder}">
-                            <include-form name="ListProductGroupOrder" location="component://product/widget/catalog/ProductForms.xml"/>
-                        </screenlet>
-                        <screenlet title="${uiLabelMap.ProductAddGroupOrder}">
-                            <include-form name="CreateProductGroupOrder" location="component://product/widget/catalog/ProductForms.xml"/>
-                        </screenlet>
-                    </decorator-section>
-                </decorator-screen>
-            </widgets>
-        </section>
-    </screen>
-
-    <screen name="EditProductGroupOrder">
-        <section>
-            <actions>
-                <set field="titleProperty" value="PageTitleEditProductGroupOrder"/>
-                <set field="tabButtonItem" value="EditProductGroupOrder"/>
-                <set field="labelTitleProperty" value="ProductGroupOrder"/>
-                <set field="productId" from-field="parameters.productId"/>
-                <entity-one entity-name="ProductGroupOrder" value-field="productGroupOrder"/>
-            </actions>
-            <widgets>
-                <decorator-screen name="CommonProductDecorator" location="${parameters.productDecoratorLocation}">
-                    <decorator-section name="body">
-                        <screenlet title="${uiLabelMap.ProductEditGroupOrder}">
-                            <include-form name="EditProductGroupOrder" location="component://product/widget/catalog/ProductForms.xml"/>
-                        </screenlet>
-                    </decorator-section>
-                </decorator-screen>
-            </widgets>
-        </section>
-    </screen>
-
-    <screen name="EditProductTag">
-        <section>
-            <widgets>
-                <decorator-screen name="CommonProductDecorator" location="${parameters.productDecoratorLocation}">
-                    <decorator-section name="body">
-                        <screenlet title="${uiLabelMap.PageTitleEditProductTags}">
-                            <include-form name="ListProductTag" location="component://product/widget/catalog/ProductForms.xml"/>
                         </screenlet>
                     </decorator-section>
                 </decorator-screen>

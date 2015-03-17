@@ -19,9 +19,9 @@ under the License.
     </div>
   </div>
   <div class="breadcrumbs-sep">
-    <#if titleProperty??>
+    <#if titleProperty?exists>
         ${uiLabelMap[titleProperty]}
-    <#else>${(page.title)!}
+    <#else>${(page.title)?if_exists}
     </#if>
   </div>
   <div class="breadcrumbs-end">
@@ -30,7 +30,7 @@ under the License.
 <div class="clear">
 </div>
 
-<#if userLogin??>
+<#if userLogin?exists>
 <script type="text/javascript">
   var mainmenu = new DropDownMenu(jQuery('#main-navigation'));
   var appmenu = new DropDownMenu(jQuery('#app-navigation'));

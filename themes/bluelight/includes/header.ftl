@@ -16,10 +16,10 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#assign externalKeyParam = "&amp;externalLoginKey=" + requestAttributes.externalLoginKey!>
+<#assign externalKeyParam = "&amp;externalLoginKey=" + requestAttributes.externalLoginKey?if_exists>
 
-<#if (requestAttributes.person)??><#assign person = requestAttributes.person></#if>
-<#if (requestAttributes.partyGroup)??><#assign partyGroup = requestAttributes.partyGroup></#if>
+<#if (requestAttributes.person)?exists><#assign person = requestAttributes.person></#if>
+<#if (requestAttributes.partyGroup)?exists><#assign partyGroup = requestAttributes.partyGroup></#if>
 <#assign docLangAttr = locale.toString()?replace("_", "-")>
 <#assign langDir = "ltr">
 <#if "ar.iw"?contains(docLangAttr?substring(0, 2))>
@@ -28,7 +28,7 @@ under the License.
 <html lang="${docLangAttr}" dir="${langDir}" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <title>${layoutSettings.companyName}: <#if (page.titleProperty)?has_content>${uiLabelMap[page.titleProperty]}<#else>${(page.title)!}</#if></title>
+    <title>${layoutSettings.companyName}: <#if (page.titleProperty)?has_content>${uiLabelMap[page.titleProperty]}<#else>${(page.title)?if_exists}</#if></title>
     <#if layoutSettings.shortcutIcon?has_content>
       <#assign shortcutIcon = layoutSettings.shortcutIcon/>
     <#elseif layoutSettings.VT_SHORTCUT_ICON?has_content>
@@ -80,33 +80,25 @@ under the License.
             ${extraHead}
         </#list>
     </#if>
-    <#if layoutSettings.WEB_ANALYTICS?has_content>
-      <script language="JavaScript" type="text/javascript">
-        <#list layoutSettings.WEB_ANALYTICS as webAnalyticsConfig>
-          ${StringUtil.wrapString(webAnalyticsConfig.webAnalyticsCode!)}
-        </#list>
-      </script>
-    </#if>
 </head>
-<#if layoutSettings.headerImageLinkUrl??>
+<#if layoutSettings.headerImageLinkUrl?exists>
   <#assign logoLinkURL = "${layoutSettings.headerImageLinkUrl}">
 <#else>
   <#assign logoLinkURL = "${layoutSettings.commonHeaderImageLinkUrl}">
 </#if>
-<#assign organizationLogoLinkURL = "${layoutSettings.organizationLogoLinkUrl!}">
 
 <#if person?has_content>
-  <#assign userName = (person.firstName!) + " " + (person.middleName!) + " " + person.lastName!>
+  <#assign userName = person.firstName?if_exists + " " + person.middleName?if_exists + " " + person.lastName?if_exists>
 <#elseif partyGroup?has_content>
-  <#assign userName = partyGroup.groupName!>
-<#elseif userLogin??>
+  <#assign userName = partyGroup.groupName?if_exists>
+<#elseif userLogin?exists>
   <#assign userName = userLogin.userLoginId>
 <#else>
   <#assign userName = "">
 </#if>
 
 <#if defaultOrganizationPartyGroupName?has_content>
-  <#assign orgName = " - " + defaultOrganizationPartyGroupName!>
+  <#assign orgName = " - " + defaultOrganizationPartyGroupName?if_exists>
 <#else>
   <#assign orgName = "">
 </#if>
@@ -124,44 +116,38 @@ under the License.
     <div id="masthead">
       <ul>
         <#if (userPreferences.COMPACT_HEADER)?default("N") == "Y">
+          <li class="logo-area">
             <#if shortcutIcon?has_content>
-                <#if organizationLogoLinkURL?has_content>
-                    <li><a href="<@ofbizUrl>${logoLinkURL}</@ofbizUrl>"><img alt="${layoutSettings.companyName}" src="<@ofbizContentUrl>${StringUtil.wrapString(organizationLogoLinkURL)}</@ofbizContentUrl>" height="16px" width="16px"></a></li>
-                    <#else>
-                    <li class="logo-area"><a href="<@ofbizUrl>${logoLinkURL}</@ofbizUrl>"><img src="<@ofbizContentUrl>${StringUtil.wrapString(shortcutIcon)}</@ofbizContentUrl>" height="16px" width="16px" alt="" /></a></li>
-                </#if>
-          </#if>
+              <a href="<@ofbizUrl>${logoLinkURL}</@ofbizUrl>"><img src="<@ofbizContentUrl>${StringUtil.wrapString(shortcutIcon)}</@ofbizContentUrl>" height="16px" width="16px" alt="" /></a>
+            </#if>
+          </li>
         <#else>
-          <#if layoutSettings.headerImageUrl??>
+          <#if layoutSettings.headerImageUrl?exists>
             <#assign headerImageUrl = layoutSettings.headerImageUrl>
-          <#elseif layoutSettings.commonHeaderImageUrl??>
+          <#elseif layoutSettings.commonHeaderImageUrl?exists>
             <#assign headerImageUrl = layoutSettings.commonHeaderImageUrl>
-          <#elseif layoutSettings.VT_HDR_IMAGE_URL??>
+          <#elseif layoutSettings.VT_HDR_IMAGE_URL?exists>
             <#assign headerImageUrl = layoutSettings.VT_HDR_IMAGE_URL.get(0)>
           </#if>
-          <#if headerImageUrl??>
-                <#if organizationLogoLinkURL?has_content>
-                    <li><a href="<@ofbizUrl>${logoLinkURL}</@ofbizUrl>"><img alt="${layoutSettings.companyName}" src="<@ofbizContentUrl>${StringUtil.wrapString(organizationLogoLinkURL)}</@ofbizContentUrl>"></a></li>
-                    <#else>
-                    <li class="logo-area"><a href="<@ofbizUrl>${logoLinkURL}</@ofbizUrl>"><img alt="${layoutSettings.companyName}" src="<@ofbizContentUrl>${StringUtil.wrapString(headerImageUrl)}</@ofbizContentUrl>"/></a></li>
-                </#if>
+          <#if headerImageUrl?exists>
+            <li class="logo-area"><a href="<@ofbizUrl>${logoLinkURL}</@ofbizUrl>"><img alt="${layoutSettings.companyName}" src="<@ofbizContentUrl>${StringUtil.wrapString(headerImageUrl)}</@ofbizContentUrl>"/></a></li>
           </#if>
           <#if layoutSettings.middleTopMessage1?has_content && layoutSettings.middleTopMessage1 != " ">
             <li>
             <div class="last-system-msg">
-            <center>${layoutSettings.middleTopHeader!}</center>
-            <a href="${layoutSettings.middleTopLink1!}">${layoutSettings.middleTopMessage1!}</a><br/>
-            <a href="${layoutSettings.middleTopLink2!}">${layoutSettings.middleTopMessage2!}</a><br/>
-            <a href="${layoutSettings.middleTopLink3!}">${layoutSettings.middleTopMessage3!}</a>
+            <center>${layoutSettings.middleTopHeader?if_exists}</center>
+            <a href="${layoutSettings.middleTopLink1?if_exists}">${layoutSettings.middleTopMessage1?if_exists}</a><br/>
+            <a href="${layoutSettings.middleTopLink2?if_exists}">${layoutSettings.middleTopMessage2?if_exists}</a><br/>
+            <a href="${layoutSettings.middleTopLink3?if_exists}">${layoutSettings.middleTopMessage3?if_exists}</a>
             </div>
             </li>
           </#if>
         </#if>
         <li class="control-area">
           <ul id="preferences-menu">
-            <#if userLogin??>
-              <#if userLogin.partyId??>
-                <li class="user"><a href="/partymgr/control/viewprofile?partyId=${userLogin.partyId}${externalKeyParam!}">${userName}</a></li>
+            <#if userLogin?exists>
+              <#if userLogin.partyId?exists>
+                <li class="user"><a href="/partymgr/control/viewprofile?partyId=${userLogin.partyId}${externalKeyParam?if_exists}">${userName}</a></li>
               <#else>
                 <li class="user">${userName}</li>
               </#if>
@@ -170,18 +156,17 @@ under the License.
               </#if>
             </#if>
             <li class="first"><a href="<@ofbizUrl>ListLocales</@ofbizUrl>">${uiLabelMap.CommonLanguageTitle} : ${locale.getDisplayName(locale)}</a></li>
-            <#if userLogin??>
+            <#if userLogin?exists>
               <li><a href="<@ofbizUrl>ListVisualThemes</@ofbizUrl>">${uiLabelMap.CommonVisualThemes}</a></li>
               <li><a href="<@ofbizUrl>logout</@ofbizUrl>">${uiLabelMap.CommonLogout}</a></li>
             <#else>
               <li><a href="<@ofbizUrl>${checkLoginUrl}</@ofbizUrl>">${uiLabelMap.CommonLogin}</a></li>
             </#if>
-            <#--if webSiteId?? && requestAttributes._CURRENT_VIEW_?? && helpTopic??-->
-            <#if parameters.componentName?? && requestAttributes._CURRENT_VIEW_?? && helpTopic??>
+            <#if webSiteId?exists && requestAttributes._CURRENT_VIEW_?exists && helpTopic?exists>
               <#include "component://common/webcommon/includes/helplink.ftl" />
-              <li><a class="help-link <#if pageAvail?has_content> alert</#if>" href="javascript:lookup_popup1('showHelp?helpTopic=${helpTopic}&amp;portalPageId=${parameters.portalPageId!}','help' ,500,500);" title="${uiLabelMap.CommonHelp}"></a></li>
+              <li><a class="help-link <#if pageAvail?has_content> alert</#if>" href="javascript:lookup_popup2('showHelp?helpTopic=${helpTopic}&amp;portalPageId=${parameters.portalPageId?if_exists}','help' ,500,500);" title="${uiLabelMap.CommonHelp}"></a></li>
             </#if>
-            <#if userLogin??>
+            <#if userLogin?exists>
               <#if (userPreferences.COMPACT_HEADER)?default("N") == "Y">
                 <li class="collapsed"><a href="javascript:document.setUserPreferenceCompactHeaderN.submit()">&nbsp;&nbsp;</a>
                 <form name="setUserPreferenceCompactHeaderN" method="post" action="<@ofbizUrl>setUserPreference</@ofbizUrl>">

@@ -20,13 +20,12 @@
 import org.ofbiz.base.util.*;
 import org.ofbiz.order.order.*;
 import org.ofbiz.entity.util.EntityUtil;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.entity.condition.EntityCondition;
 
 
 facilityId = parameters.facilityId;
 if (facilityId) {
-    facility = from("Facility").where("facilityId", facilityId).queryOne();
+    facility = delegator.findOne("Facility", [facilityId : facilityId], false);
     context.facilityId = facilityId;
     context.facility = facility;
 }
@@ -44,9 +43,9 @@ context.shipmentId = shipmentId;
 invoiceIds = null;
 if (shipmentId) {
     // Get the primaryOrderId from the shipment
-    shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+    shipment = delegator.findOne("Shipment",  [shipmentId : shipmentId], false);
     if (shipment && shipment.primaryOrderId) {
-        orderItemBillingList = from("OrderItemBilling").where("orderId", shipment.primaryOrderId).orderBy("invoiceId").queryList();
+        orderItemBillingList = delegator.findList("OrderItemBilling", EntityCondition.makeCondition([orderId : shipment.primaryOrderId]), null, ['invoiceId'], null, false);
         invoiceIds = EntityUtil.getFieldListFromEntityList(orderItemBillingList, "invoiceId", true);
         if (invoiceIds) {
             context.invoiceIds = invoiceIds;
@@ -95,12 +94,12 @@ if (!picklistBinId) {
     picklistBinId = packSession.getPicklistBinId();
 }
 if (picklistBinId) {
-    bin = from("PicklistBin").where("picklistBinId", picklistBinId).queryOne();
+    bin = delegator.findOne("PicklistBin", [picklistBinId : picklistBinId], false);
     if (bin) {
         orderId = bin.primaryOrderId;
         shipGroupSeqId = bin.primaryShipGroupSeqId;
-        packSession.addItemInfo(bin.getRelated("PicklistItem", [itemStatusId : 'PICKITEM_PENDING'], null, false));
-        //context.put("picklistItemInfos", bin.getRelated("PicklistItem", UtilMisc.toMap("itemStatusId", "PICKITEM_PENDING"), null, false));
+        packSession.addItemInfo(bin.getRelatedByAnd("PicklistItem", [itemStatusId : 'PICKITEM_PENDING']));
+        //context.put("picklistItemInfos", bin.getRelatedByAnd("PicklistItem", UtilMisc.toMap("itemStatusId", "PICKITEM_PENDING")));
     }
 } else {
     picklistBinId = null;
@@ -115,7 +114,7 @@ packSession.setFacilityId(facilityId);
 if (invoiceIds) {
     orderId = null;
 }
-shipment = from("Shipment").where("primaryOrderId", orderId, "statusId", "SHIPMENT_PICKED").queryFirst();
+shipment = EntityUtil.getFirst(delegator.findByAnd("Shipment", [primaryOrderId : orderId, statusId : "SHIPMENT_PICKED"]));
 context.shipment = shipment;
 
 context.packingSession = packSession;
@@ -125,7 +124,7 @@ context.picklistBinId = picklistBinId;
 
 // grab the order information
 if (orderId) {
-    orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
+    orderHeader = delegator.findOne("OrderHeader", [orderId : orderId], false);
     if (orderHeader) {
         OrderReadHelper orh = new OrderReadHelper(orderHeader);
         context.orderId = orderId;
@@ -134,35 +133,33 @@ if (orderId) {
         orderItemShipGroup = orh.getOrderItemShipGroup(shipGroupSeqId);
         context.orderItemShipGroup = orderItemShipGroup;
         carrierPartyId = orderItemShipGroup.carrierPartyId;
-            carrierShipmentBoxTypes = from("CarrierShipmentBoxType").where("partyId", carrierPartyId).queryList();
-            if (carrierShipmentBoxTypes) {
+        if ("USPS".equals(carrierPartyId)) {
+            carrierShipmentBoxTypes = delegator.findList("CarrierShipmentBoxType", EntityCondition.makeCondition([partyId : carrierPartyId]), null, null, null, false);
             context.carrierShipmentBoxTypes = carrierShipmentBoxTypes;
-            }
+        }
 
         if ("ORDER_APPROVED".equals(orderHeader.statusId)) {
             if (shipGroupSeqId) {
-                if (!shipment) {
-    
-                    // Generate the shipment cost estimate for the ship group
-                    productStoreId = orh.getProductStoreId();
-                    shippableItemInfo = orh.getOrderItemAndShipGroupAssoc(shipGroupSeqId);
-                    shippableItems = from("OrderItemAndShipGrpInvResAndItemSum").where("orderId", orderId, "shipGroupSeqId", shipGroupSeqId).queryList();
-                    shippableTotal = new Double(orh.getShippableTotal(shipGroupSeqId).doubleValue());
-                    shippableWeight = new Double(orh.getShippableWeight(shipGroupSeqId).doubleValue());
-                    shippableQuantity = new Double(orh.getShippableQuantity(shipGroupSeqId).doubleValue());
-                    if (orderItemShipGroup.contactMechId && orderItemShipGroup.shipmentMethodTypeId && orderItemShipGroup.carrierPartyId && orderItemShipGroup.carrierRoleTypeId) {
-                        shipmentCostEstimate = packSession.getShipmentCostEstimate(orderItemShipGroup, productStoreId, shippableItemInfo, shippableTotal, shippableWeight, shippableQuantity);
-                        context.shipmentCostEstimateForShipGroup = shipmentCostEstimate;
-                    }
-                    context.productStoreId = productStoreId;
-    
-                    if (!picklistBinId) {
-                        packSession.addItemInfo(shippableItems);
-                        //context.put("itemInfos", shippableItemInfo);
-                    }
-                } else {
-                    request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage("OrderErrorUiLabels", "OrderErrorOrderHasBeenAlreadyVerified", [orderId : orderId], locale));
+            if (!shipment) {
+
+                // Generate the shipment cost estimate for the ship group
+                productStoreId = orh.getProductStoreId();
+                shippableItemInfo = orh.getOrderItemAndShipGroupAssoc(shipGroupSeqId);
+                shippableItems = delegator.findList("OrderItemAndShipGrpInvResAndItemSum", EntityCondition.makeCondition([orderId : orderId, shipGroupSeqId : shipGroupSeqId]), null, null, null, false);
+                shippableTotal = new Double(orh.getShippableTotal(shipGroupSeqId).doubleValue());
+                shippableWeight = new Double(orh.getShippableWeight(shipGroupSeqId).doubleValue());
+                shippableQuantity = new Double(orh.getShippableQuantity(shipGroupSeqId).doubleValue());
+                shipmentCostEstimate = packSession.getShipmentCostEstimate(orderItemShipGroup, productStoreId, shippableItemInfo, shippableTotal, shippableWeight, shippableQuantity);
+                context.shipmentCostEstimateForShipGroup = shipmentCostEstimate;
+                context.productStoreId = productStoreId;
+
+                if (!picklistBinId) {
+                    packSession.addItemInfo(shippableItems);
+                    //context.put("itemInfos", shippableItemInfo);
                 }
+            } else {
+                request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage("OrderErrorUiLabels", "OrderErrorOrderHasBeenAlreadyVerified", [orderId : orderId], locale));
+            }
             } else {
                 request.setAttribute("errorMessageList", ['No ship group sequence ID. Cannot process.']);
             }
@@ -180,6 +177,6 @@ if (facility) {
     defaultWeightUomId = facility.defaultWeightUomId;
 }
 if (!defaultWeightUomId) {
-    defaultWeightUomId = EntityUtilProperties.getPropertyValue("shipment.properties", "shipment.default.weight.uom", "WT_kg", delegator);
+    defaultWeightUomId = UtilProperties.getPropertyValue("shipment.properties", "shipment.default.weight.uom", "WT_kg");
 }
 context.defaultWeightUomId = defaultWeightUomId;

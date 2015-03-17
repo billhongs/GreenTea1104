@@ -1,6 +1,6 @@
 /*
  * Translated default messages for the jQuery validation plugin.
- * Locale: FA (Persian; فارسی)
+ * Locale: FA
  */
 jQuery.extend(jQuery.validator.messages, {
        required: "تکمیل این فیلد اجباری است.",

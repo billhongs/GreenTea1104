@@ -16,7 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<#if productPromoId??>
+<#if productPromoId?exists>
     <div class="screenlet">
         <div class="screenlet-title-bar">
             <h3>${uiLabelMap.ProductPromotionUploadSetOfPromotionCodes}</h3>
@@ -53,15 +53,6 @@ under the License.
             <form method="post" action="<@ofbizUrl>createProductPromoCodeSet</@ofbizUrl>">
                 <input type="hidden" name="productPromoId" value="${productPromoId}"/>
                 <span class="label">${uiLabelMap.CommonQuantity}:</span><input type="text" size="5" name="quantity" />
-                <span class="label">${uiLabelMap.ProductPromoCodeLength}:</span><input type="text" size="12" name="codeLength" />
-                <span class="label">${uiLabelMap.ProductPromoCodeLayout}:</span>
-                    <select name="promoCodeLayout">
-                        <option value="smart">${uiLabelMap.ProductPromoLayoutSmart}</option>
-                        <option value="normal">${uiLabelMap.ProductPromoLayoutNormal}</option>
-                        <option value="sequence">${uiLabelMap.ProductPromoLayoutSeqNum}</option>
-                    </select>
-                <span class="tooltip">${uiLabelMap.ProductPromoCodeLayoutTooltip}</span>
-                <br />
                 <span class="label">${uiLabelMap.ProductPromoUserEntered}:</span>
                     <select name="userEntered">
                         <option value="Y">${uiLabelMap.CommonY}</option>

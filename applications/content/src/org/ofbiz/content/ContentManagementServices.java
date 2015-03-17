@@ -21,10 +21,13 @@ package org.ofbiz.content;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import javax.servlet.http.HttpSession;
 
 import javolution.util.FastList;
 import javolution.util.FastMap;
@@ -42,11 +45,13 @@ import org.ofbiz.content.content.ContentServices;
 import org.ofbiz.content.content.ContentWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
+import org.ofbiz.entity.GenericPK;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
+import org.ofbiz.entity.condition.EntityConditionList;
+import org.ofbiz.entity.condition.EntityExpr;
 import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.model.ModelUtil;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.security.Security;
 import org.ofbiz.service.DispatchContext;
@@ -128,6 +133,27 @@ public class ContentManagementServices {
     }
 
     /**
+     * addMostRecent
+     * A service for adding the most recently used of an entity class to the cache.
+     * Entities make it to the most recently used list primarily by being selected for editing,
+     * either by being created or being selected from a list.
+     */
+    public static Map<String, Object> addMostRecent(DispatchContext dctx, Map<String, ? extends Object> context) {
+        //Security security = dctx.getSecurity();
+        //Delegator delegator = dctx.getDelegator();
+        //LocalDispatcher dispatcher = dctx.getDispatcher();
+        //HttpServletRequest request = (HttpServletRequest)context.get("request");
+        //String suffix = (String) context.get("suffix");
+        GenericValue val = (GenericValue)context.get("pk");
+        GenericPK pk = val.getPrimaryKey();
+        HttpSession session = (HttpSession)context.get("session");
+
+        ContentManagementWorker.mruAdd(session, pk);
+        return ServiceUtil.returnSuccess();
+    }
+
+
+    /**
      * persistContentAndAssoc
      * A combination method that will create or update all or one of the following:
      * a Content entity, a ContentAssoc related to the Content, and
@@ -146,6 +172,7 @@ public class ContentManagementServices {
         Map<String, Object> context = UtilMisc.makeMapWritable(rcontext);
         Locale locale = (Locale) context.get("locale");
 
+        Debug.logInfo("=========== type:" + (String)context.get("dataresourceTypeId") , module);
         // Knowing why a request fails permission check is one of the more difficult
         // aspects of content management. Setting "displayFailCond" to true will
         // put an html table in result.errorMessage that will show what tests were performed
@@ -180,7 +207,6 @@ public class ContentManagementServices {
         }
 
         GenericValue content = delegator.makeValue("Content");
-        
         content.setPKFields(context);
         content.setNonPKFields(context);
         String contentId = (String) content.get("contentId");
@@ -196,10 +222,6 @@ public class ContentManagementServices {
         dataResource.setPKFields(context);
         dataResource.setNonPKFields(context);
         dataResource.setAllFields(context, false, "dr", null);
-        String isPublic = (String) context.get("isPublic");
-        if(UtilValidate.isEmpty(isPublic)){
-            dataResource.set("isPublic", "N");
-        }
         context.putAll(dataResource);
         String dataResourceId = (String) dataResource.get("dataResourceId");
         String dataResourceTypeId = (String) dataResource.get("dataResourceTypeId");
@@ -291,7 +313,7 @@ public class ContentManagementServices {
                 contentExists = false;
             } else {
                 try {
-                    GenericValue val = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+                    GenericValue val = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
                     if (val == null) contentExists = false;
                 } catch (GenericEntityException e) {
                     return ServiceUtil.returnError(e.toString());
@@ -334,13 +356,16 @@ public class ContentManagementServices {
             results.put("contentId", contentId);
             context.put("contentId", contentId);
             context.put("caContentIdTo", contentId);
+            contentAssoc.put("contentIdTo", contentId);
 
             // Add ContentPurposes if this is a create operation
             if (contentId != null && !contentExists) {
                 try {
                     if (contentPurposeList != null) {
                         Set<String> contentPurposeSet = UtilMisc.makeSetWritable(contentPurposeList);
-                        for (String contentPurposeTypeId : contentPurposeSet) {
+                        Iterator<String> iter = contentPurposeSet.iterator();
+                        while (iter.hasNext()) {
+                            String contentPurposeTypeId = iter.next();
                             GenericValue contentPurpose = delegator.makeValue("ContentPurpose", UtilMisc.toMap("contentId", contentId, "contentPurposeTypeId", contentPurposeTypeId));
                             contentPurpose.create();
                         }
@@ -380,7 +405,7 @@ public class ContentManagementServices {
             contentAssocContext.put("skipPermissionCheck", context.get("skipPermissionCheck"));
             Map<String, Object> thisResult = null;
             try {
-                GenericValue contentAssocExisting = EntityQuery.use(delegator).from("ContentAssoc").where(contentAssoc.getPrimaryKey()).queryOne();
+                GenericValue contentAssocExisting = delegator.findByPrimaryKey("ContentAssoc", contentAssoc.getPrimaryKey());
                 if (contentAssocExisting == null) {
                     ModelService contentAssocModel = dispatcher.getDispatchContext().getModelService("createContentAssoc");
                     Map<String, Object> ctx = contentAssocModel.makeValid(contentAssoc, "IN");
@@ -409,7 +434,7 @@ public class ContentManagementServices {
                     results.put("caSequenceNum", thisResult.get("sequenceNum"));
                 } else {
                     if (deactivateExisting) {
-                        contentAssocExisting.put("thruDate", UtilDateTime.nowTimestamp());
+                        contentAssoc.put("thruDate", UtilDateTime.nowTimestamp());
                     }
                     ModelService contentAssocModel = dispatcher.getDispatchContext().getModelService("updateContentAssoc");
                     Map<String, Object> ctx = contentAssocModel.makeValid(contentAssoc, "IN");
@@ -463,17 +488,19 @@ public class ContentManagementServices {
 
       List<GenericValue> siteRoles = null;
       try {
-          siteRoles = EntityQuery.use(delegator).from("RoleType").where("parentTypeId", "BLOG").cache().queryList();
+          siteRoles = delegator.findByAndCache("RoleType", UtilMisc.toMap("parentTypeId", "BLOG"));
       } catch (GenericEntityException e) {
           return ServiceUtil.returnError(e.toString());
       }
 
-      for (GenericValue roleType : siteRoles) {
+      Iterator<GenericValue> siteRoleIter = siteRoles.iterator();
+      while (siteRoleIter.hasNext()) {
           Map<String, Object> serviceContext = FastMap.newInstance();
           serviceContext.put("partyId", partyId);
           serviceContext.put("contentId", siteContentId);
           serviceContext.put("userLogin", userLogin);
           Debug.logInfo("updateSiteRoles, serviceContext(0):" + serviceContext, module);
+            GenericValue roleType = siteRoleIter.next();
           String siteRole = (String)roleType.get("roleTypeId"); // BLOG_EDITOR, BLOG_ADMIN, etc.
           String cappedSiteRole = ModelUtil.dbNameToVarName(siteRole);
           if (Debug.infoOn()) {
@@ -554,7 +581,7 @@ public class ContentManagementServices {
       Locale locale = (Locale) context.get("locale");
       Map<String, Object> result = FastMap.newInstance();
       try {
-          //GenericValue content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+          //GenericValue content = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
           ModelService checkPermModel = dispatcher.getDispatchContext().getModelService("checkContentPermission");
           Map<String, Object> ctx = checkPermModel.makeValid(context, "IN");
           Map<String, Object> thisResult = dispatcher.runSync("checkContentPermission", ctx);
@@ -611,7 +638,7 @@ public class ContentManagementServices {
           dataResourceExists = false;
       } else {
           try {
-              GenericValue val = EntityQuery.use(delegator).from("DataResource").where("dataResourceId", dataResourceId).queryOne();
+              GenericValue val = delegator.findByPrimaryKey("DataResource", UtilMisc.toMap("dataResourceId", dataResourceId));
               if (val == null) {
                   dataResourceExists = false;
               }
@@ -637,7 +664,7 @@ public class ContentManagementServices {
           newDrContext.put("mimeTypeId", mimeTypeId);
       }
 
-      if (!dataResourceExists) { // Create
+      if (!dataResourceExists) {
           Map<String, Object> thisResult = dispatcher.runSync("createDataResource", newDrContext);
           String errorMsg = ServiceUtil.getErrorMessage(thisResult);
           if (UtilValidate.isNotEmpty(errorMsg)) {
@@ -650,7 +677,29 @@ public class ContentManagementServices {
           dataResource = (GenericValue)thisResult.get("dataResource");
           Map<String, Object> fileContext = FastMap.newInstance();
           fileContext.put("userLogin", userLogin);
-          if (dataResourceTypeId.equals("IMAGE_OBJECT")) {
+          if (dataResourceTypeId.indexOf("_FILE") >=0) {
+              boolean hasData = false;
+              if (textData != null) {
+                  fileContext.put("textData", textData);
+                  hasData = true;
+              }
+              if (imageDataBytes != null) {
+                  fileContext.put("binData", imageDataBytes);
+                  hasData = true;
+              }
+              if (hasData) {
+                  fileContext.put("rootDir", context.get("rootDir"));
+                  fileContext.put("dataResourceTypeId", dataResourceTypeId);
+                  if (UtilValidate.isNotEmpty(dataResource) && UtilValidate.isNotEmpty(dataResource.get("objectInfo"))) {
+                      fileContext.put("objectInfo", dataResource.get("objectInfo"));
+                  }
+                  thisResult = dispatcher.runSync("createFile", fileContext);
+                  errorMsg = ServiceUtil.getErrorMessage(thisResult);
+                  if (UtilValidate.isNotEmpty(errorMsg)) {
+                      return ServiceUtil.returnError(errorMsg);
+                  }
+              }
+          } else if (dataResourceTypeId.equals("IMAGE_OBJECT")) {
               if (imageDataBytes != null) {
                   fileContext.put("dataResourceId", dataResourceId);
                   fileContext.put("imageData", imageDataBytes);
@@ -674,19 +723,46 @@ public class ContentManagementServices {
                   }
               }
           }
-      } else { // Update
+      } else {
           Map<String, Object> thisResult = dispatcher.runSync("updateDataResource", newDrContext);
           String errorMsg = ServiceUtil.getErrorMessage(thisResult);
           if (UtilValidate.isNotEmpty(errorMsg)) {
               return ServiceUtil.returnError(errorMsg);
           }
+          //Map thisResult = DataServices.updateDataResourceMethod(dctx, context);
+          if (Debug.infoOn()) {
+              Debug.logInfo("====in persist... thisResult.permissionStatus(0):" + thisResult.get("permissionStatus"), null);
+          }
+          //thisResult = DataServices.updateElectronicTextMethod(dctx, context);
           Map<String, Object> fileContext = FastMap.newInstance();
           fileContext.put("userLogin", userLogin);
           String forceElectronicText = (String)context.get("forceElectronicText");
-          if (dataResourceTypeId.equals("IMAGE_OBJECT")) {
+          Debug.logInfo("====dataResourceType" + dataResourceTypeId , module);
+          if (dataResourceTypeId.indexOf("_FILE") >=0) {
+              boolean hasData = false;
+              if (textData != null) {
+                  fileContext.put("textData", textData);
+                  hasData = true;
+              }
+              if (imageDataBytes != null) {
+                  fileContext.put("binData", imageDataBytes);
+                  hasData = true;
+              }
+              if (hasData || "true".equalsIgnoreCase(forceElectronicText)) {
+                  fileContext.put("rootDir", context.get("rootDir"));
+                  fileContext.put("dataResourceTypeId", dataResourceTypeId);
+                  fileContext.put("objectInfo", dataResource.get("objectInfo"));
+                  thisResult = dispatcher.runSync("updateFile", fileContext);
+                  errorMsg = ServiceUtil.getErrorMessage(thisResult);
+                  if (UtilValidate.isNotEmpty(errorMsg)) {
+                      return ServiceUtil.returnError(errorMsg);
+                  }
+              }
+          } else if (dataResourceTypeId.equals("IMAGE_OBJECT")) {
               if (imageDataBytes != null || "true".equalsIgnoreCase(forceElectronicText)) {
                   fileContext.put("dataResourceId", dataResourceId);
                   fileContext.put("imageData", imageDataBytes);
+                  Debug.logInfo("====trying to update image", module);
                   thisResult = dispatcher.runSync("updateImage", fileContext);
                   errorMsg = ServiceUtil.getErrorMessage(thisResult);
                   if (UtilValidate.isNotEmpty(errorMsg)) {
@@ -707,17 +783,6 @@ public class ContentManagementServices {
               }
           }
       }
-      if (dataResourceTypeId.indexOf("_FILE") >=0) {
-          Map<String, Object> uploadImage = FastMap.newInstance();
-          uploadImage.put("userLogin", userLogin);
-          uploadImage.put("dataResourceId", dataResourceId);
-          uploadImage.put("dataResourceTypeId", dataResourceTypeId);
-          uploadImage.put("rootDir", context.get("objectInfo"));
-          uploadImage.put("uploadedFile", imageDataBytes);
-          uploadImage.put("_uploadedFile_fileName", (String) context.get("_imageData_fileName"));
-          uploadImage.put("_uploadedFile_contentType", (String) context.get("_imageData_contentType"));
-          dispatcher.runSync("attachUploadToDataResource", uploadImage);
-      }
       result.put("dataResourceId", dataResourceId);
       result.put("drDataResourceId", dataResourceId);
       context.put("dataResourceId", dataResourceId);
@@ -725,8 +790,12 @@ public class ContentManagementServices {
     }
 
     public static void addRoleToUser(Delegator delegator, LocalDispatcher dispatcher, Map<String, Object> serviceContext) throws GenericServiceException, GenericEntityException {
-        List<GenericValue> userLoginList = EntityQuery.use(delegator).from("UserLogin").where("partyId", serviceContext.get("partyId")).queryList();
-        for (GenericValue partyUserLogin : userLoginList) {
+        String partyId = (String)serviceContext.get("partyId");
+        Map<String, Object> findMap = UtilMisc.<String, Object>toMap("partyId", partyId);
+        List<GenericValue> userLoginList = delegator.findByAnd("UserLogin", findMap);
+        Iterator<GenericValue> iter = userLoginList.iterator();
+        while (iter.hasNext()) {
+            GenericValue partyUserLogin = iter.next();
             String partyUserLoginId = partyUserLogin.getString("userLoginId");
             serviceContext.put("contentId", partyUserLoginId); // author contentId
             dispatcher.runSync("createContentRole", serviceContext);
@@ -752,11 +821,13 @@ public class ContentManagementServices {
 
         List<GenericValue> siteRoles = null;
         try {
-            siteRoles = EntityQuery.use(delegator).from("RoleType").where("parentTypeId", "BLOG").cache().queryList();
+            siteRoles = delegator.findByAndCache("RoleType", UtilMisc.toMap("parentTypeId", "BLOG"));
         } catch (GenericEntityException e) {
           return ServiceUtil.returnError(e.toString());
         }
-        for (GenericValue roleType : siteRoles) {
+        Iterator<GenericValue> siteRoleIter = siteRoles.iterator();
+        while (siteRoleIter.hasNext()) {
+            GenericValue roleType = siteRoleIter.next();
             String siteRole = (String)roleType.get("roleTypeId"); // BLOG_EDITOR, BLOG_ADMIN, etc.
             String cappedSiteRole = ModelUtil.dbNameToVarName(siteRole);
             //if (Debug.infoOn()) Debug.logInfo("updateSiteRoles, cappediteRole(1):" + cappedSiteRole, module);
@@ -834,7 +905,7 @@ public class ContentManagementServices {
             if (Debug.infoOn()) {
                 Debug.logInfo("in updateOrRemove, entityValuePK:" + entityValuePK, module);
             }
-            GenericValue entityValueExisting = EntityQuery.use(delegator).from(entityName).where(entityValuePK).cache().queryOne();
+            GenericValue entityValueExisting = delegator.findByPrimaryKeyCache(entityName, entityValuePK);
             if (Debug.infoOn()) {
                 Debug.logInfo("in updateOrRemove, entityValueExisting:" + entityValueExisting, module);
             }
@@ -883,16 +954,14 @@ public class ContentManagementServices {
         EntityCondition conditionType = EntityCondition.makeCondition("contentAssocTypeId", EntityOperator.IN, typeList);
         EntityCondition conditionMain = EntityCondition.makeCondition(UtilMisc.toList(EntityCondition.makeCondition("contentIdTo", EntityOperator.EQUALS, contentIdTo), conditionType), EntityOperator.AND);
         try {
-            List<GenericValue> listAll = EntityQuery.use(delegator).from("ContentAssoc")
-                    .where(conditionMain)
-                    .orderBy("sequenceNum", "fromDate", "createdDate")
-                    .filterByDate().queryList();
+            List<GenericValue> listAll = delegator.findList("ContentAssoc", conditionMain, null, UtilMisc.toList("sequenceNum", "fromDate", "createdDate"), null, false);
+            List<GenericValue> listFiltered = EntityUtil.filterByDate(listAll);
             String contentId = (String)context.get("contentId");
             String dir = (String)context.get("dir");
             int seqNum = seqIncrement;
             String thisContentId = null;
-            for (int i=0; i < listAll.size(); i++) {
-                GenericValue contentAssoc = listAll.get(i);
+            for (int i=0; i < listFiltered.size(); i++) {
+                GenericValue contentAssoc = listFiltered.get(i);
                 if (UtilValidate.isNotEmpty(contentId) && UtilValidate.isNotEmpty(dir)) {
                     // move targeted entry up or down
                     thisContentId = contentAssoc.getString("contentId");
@@ -901,7 +970,7 @@ public class ContentManagementServices {
                             if (i > 0) {
                                 // Swap with previous entry
                                 try {
-                                    GenericValue prevValue = listAll.get(i-1);
+                                    GenericValue prevValue = listFiltered.get(i-1);
                                     Long prevSeqNum = (Long)prevValue.get("sequenceNum");
                                     prevValue.put("sequenceNum", Long.valueOf(seqNum));
                                     prevValue.store();
@@ -912,9 +981,9 @@ public class ContentManagementServices {
                                 }
                             }
                         } else {
-                            if (i < listAll.size()) {
+                            if (i < listFiltered.size()) {
                                 // Swap with next entry
-                                GenericValue nextValue = listAll.get(i+1);
+                                GenericValue nextValue = listFiltered.get(i+1);
                                 nextValue.put("sequenceNum", Long.valueOf(seqNum));
                                 nextValue.store();
                                 seqNum += seqIncrement;
@@ -950,7 +1019,7 @@ public class ContentManagementServices {
         Locale locale = (Locale) context.get("locale");
         //int seqNum = 9999;
         try {
-            GenericValue content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+            GenericValue content = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
             if (content == null) {
                 Debug.logError("content was null", module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ContentNoContentFound", UtilMisc.toMap("contentId", ""), locale));
@@ -1035,7 +1104,7 @@ public class ContentManagementServices {
         String contentId = (String)context.get("contentId");
 
         try {
-            GenericValue thisContent = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+            GenericValue thisContent = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
             if (thisContent == null)
                 throw new RuntimeException("No entity found for id=" + contentId);
 
@@ -1052,12 +1121,13 @@ public class ContentManagementServices {
 
            EntityCondition conditionType = EntityCondition.makeCondition("contentAssocTypeId", EntityOperator.IN, typeList);
            EntityCondition conditionMain = EntityCondition.makeCondition(UtilMisc.toList(EntityCondition.makeCondition("contentId", EntityOperator.EQUALS, thisContentId), conditionType), EntityOperator.AND);
-            List listFiltered = EntityQuery.use(delegator).from("ContentAssoc").where(mainCondition).cache().filterByDate().queryList();
+            List listAll = delegator.findByConditionCache("ContentAssoc", conditionMain, null, null);
+            List listFiltered = EntityUtil.filterByDate(listAll);
             Iterator iter = listFiltered.iterator();
             while (iter.hasNext()) {
                 GenericValue contentAssoc = (GenericValue)iter.next();
                 String subContentId = contentAssoc.getString("contentId");
-                GenericValue contentTo = EntityQuery.use(delegator).from("Content").where("contentId", subContentId).cache().queryOne();
+                GenericValue contentTo = delegator.findByPrimaryKeyCache("Content", UtilMisc.toMap("contentId", subContentId));
                 Integer childBranchCount = (Integer)contentTo.get("childBranchCount");
                 int branchCount = (childBranchCount == null) ? 1 : childBranchCount.intValue();
                 if (mode != null && mode.equalsIgnoreCase("remove"))
@@ -1105,14 +1175,16 @@ public class ContentManagementServices {
             contentTypeId = "OUTLINE_NODE";
         GenericValue thisContent = null;
         try {
-            thisContent = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+            thisContent = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
             if (thisContent == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ContentNoContentFound", UtilMisc.toMap("contentId", contentId), locale));
             }
             thisContent.set("contentTypeId", contentTypeId);
             thisContent.store();
             List<GenericValue> kids = ContentWorker.getAssociatedContent(thisContent, "from", UtilMisc.toList("SUB_CONTENT"), null, null, null);
-            for (GenericValue kidContent : kids) {
+            Iterator<GenericValue> iter = kids.iterator();
+            while (iter.hasNext()) {
+                GenericValue kidContent = iter.next();
                 if (contentTypeId.equals("OUTLINE_NODE")) {
                     updateOutlineNodeChildren(kidContent, false, context);
                 } else {
@@ -1145,7 +1217,7 @@ public class ContentManagementServices {
         }
         GenericValue thisContent = null;
         try {
-            thisContent = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+            thisContent = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
             if (thisContent == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource,
                         "ContentNoContentFound", UtilMisc.toMap("contentId", contentId), locale));
@@ -1153,14 +1225,18 @@ public class ContentManagementServices {
             thisContent.set("contentTypeId", "OUTLINE_NODE");
             thisContent.store();
             List<GenericValue> kids = ContentWorker.getAssociatedContent(thisContent, "from", UtilMisc.toList("SUB_CONTENT"), null, null, null);
-            for (GenericValue kidContent : kids) {
+            Iterator<GenericValue> iter = kids.iterator();
+            while (iter.hasNext()) {
+                GenericValue kidContent = iter.next();
                 if (contentTypeId.equals("OUTLINE_NODE")) {
                     updateOutlineNodeChildren(kidContent, true, context);
                 } else {
                     kidContent.put("contentTypeId", "PAGE_NODE");
                     kidContent.store();
                     List<GenericValue> kids2 = ContentWorker.getAssociatedContent(kidContent, "from", UtilMisc.toList("SUB_CONTENT"), null, null, null);
-                    for (GenericValue kidContent2 : kids2) {
+                    Iterator<GenericValue> iter2 = kids2.iterator();
+                    while (iter2.hasNext()) {
+                        GenericValue kidContent2 = iter2.next();
                         updatePageNodeChildren(kidContent2, context);
                     }
                 }
@@ -1231,7 +1307,9 @@ public class ContentManagementServices {
 
         //if (contentTypeId == null || contentTypeId.equals("OUTLINE_DOCUMENT") || contentTypeId.equals("DOCUMENT")) {
         List<GenericValue> kids = ContentWorker.getAssociatedContent(content, "from", UtilMisc.toList("SUB_CONTENT"), null, null, null);
-        for (GenericValue kidContent : kids) {
+        Iterator<GenericValue> iter = kids.iterator();
+        while (iter.hasNext()) {
+            GenericValue kidContent = iter.next();
             updatePageNodeChildren(kidContent, context);
         }
         //}
@@ -1273,7 +1351,9 @@ public class ContentManagementServices {
         if (contentTypeId == null || contentTypeId.equals("DOCUMENT") || contentTypeId.equals("OUTLINE_NODE")) {
         //if (contentTypeId == null || contentTypeId.equals("DOCUMENT")) {
             List<GenericValue> kids = ContentWorker.getAssociatedContent(content, "from", UtilMisc.toList("SUB_CONTENT"), null, null, null);
-            for (GenericValue kidContent : kids) {
+            Iterator<GenericValue> iter = kids.iterator();
+            while (iter.hasNext()) {
+                GenericValue kidContent = iter.next();
                 updateOutlineNodeChildren(kidContent, forceOutline, context);
             }
         }
@@ -1283,13 +1363,16 @@ public class ContentManagementServices {
         Map<String, Object> results = FastMap.newInstance();
         Delegator delegator = dctx.getDelegator();
         String contentIdTo = (String)context.get("contentId");
-        try {
-             List<GenericValue> lst = EntityQuery.use(delegator).from("ContentAssocDataResourceViewFrom")
-                     .where("caContentIdTo", contentIdTo,
-                             "caContentAssocTypeId", "SUB_CONTENT",
-                             "caThruDate", null)
-                     .orderBy("caSequenceNum", "caFromDate", "createdDate")
-                     .queryList();
+        List<EntityExpr> condList = FastList.newInstance();
+        EntityExpr expr = EntityCondition.makeCondition("caContentIdTo", EntityOperator.EQUALS, contentIdTo);
+        condList.add(expr);
+        expr = EntityCondition.makeCondition("caContentAssocTypeId", EntityOperator.EQUALS, "SUB_CONTENT");
+        condList.add(expr);
+        expr = EntityCondition.makeCondition("caThruDate", EntityOperator.EQUALS, null);
+        condList.add(expr);
+        EntityConditionList<EntityExpr> entityCondList = EntityCondition.makeCondition(condList, EntityOperator.AND);
+         try {
+             List<GenericValue> lst = delegator.findList("ContentAssocDataResourceViewFrom", entityCondList, null, UtilMisc.toList("caSequenceNum", "caFromDate", "createdDate"), null, false);
              results.put("_LIST_", lst);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
@@ -1343,7 +1426,7 @@ public class ContentManagementServices {
         String contentAssocTypeId = (String)context.get("contentAssocTypeId");
 
         try {
-            GenericValue content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).cache().queryOne();
+            GenericValue content = delegator.findByPrimaryKeyCache("Content", UtilMisc.toMap("contentId", contentId));
             if (content == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ContentNoContentFound", UtilMisc.toMap("contentId", contentId), locale));
             }
@@ -1369,7 +1452,7 @@ public class ContentManagementServices {
         String contentAssocTypeId = (String)context.get("contentAssocTypeId");
 
         try {
-            GenericValue content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).cache().queryOne();
+            GenericValue content = delegator.findByPrimaryKeyCache("Content", UtilMisc.toMap("contentId", contentId));
             if (content == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ContentNoContentFound", UtilMisc.toMap("contentId", contentId), locale));
             }
@@ -1423,12 +1506,11 @@ public class ContentManagementServices {
         boolean hasExistingContentRole = false;
         GenericValue contentRole = null;
         try {
-            contentRole = EntityQuery.use(delegator).from("ContentRole")
-                    .where("partyId", partyId, "contentId", webPubPt, "roleTypeId", roleTypeId)
-                    .orderBy("fromDate DESC")
-                    .cache().filterByDate()
-                    .queryFirst();
-            if (contentRole != null) {
+            List<GenericValue> contentRoleList = delegator.findByAndCache("ContentRole", UtilMisc.toMap("partyId", partyId, "contentId", webPubPt, "roleTypeId", roleTypeId));
+            List<GenericValue> listFiltered = EntityUtil.filterByDate(contentRoleList, true);
+            List<GenericValue> listOrdered = EntityUtil.orderBy(listFiltered, UtilMisc.toList("fromDate DESC"));
+            if (listOrdered.size() > 0) {
+                contentRole = listOrdered.get(0);
                 hasExistingContentRole = true;
             }
         } catch (GenericEntityException e) {
@@ -1505,16 +1587,14 @@ public class ContentManagementServices {
         }
         GenericValue productContent = null;
            try {
-            List<GenericValue> lst = EntityQuery.use(delegator).from("ProductContent")
-                    .where("productId", productId, "productContentTypeId", "ONLINE_ACCESS")
-                    .orderBy("purchaseFromDate", "purchaseThruDate")
-                    .filterByDate("purchaseFromDate", "purchaseThruDate")
-                    .cache().queryList();
-            List<GenericValue> listThrusOnly = EntityUtil.filterOutByCondition(lst, EntityCondition.makeCondition("purchaseThruDate", EntityOperator.EQUALS, null));
+            List<GenericValue> lst = delegator.findByAndCache("ProductContent", UtilMisc.toMap("productId", productId, "productContentTypeId", "ONLINE_ACCESS"));
+            List<GenericValue> listFiltered = EntityUtil.filterByDate(lst, orderCreatedDate, "purchaseFromDate", "purchaseThruDate", true);
+            List<GenericValue> listOrdered = EntityUtil.orderBy(listFiltered, UtilMisc.toList("purchaseFromDate", "purchaseThruDate"));
+            List<GenericValue> listThrusOnly = EntityUtil.filterOutByCondition(listOrdered, EntityCondition.makeCondition("purchaseThruDate", EntityOperator.EQUALS, null));
             if (listThrusOnly.size() > 0) {
                 productContent = listThrusOnly.get(0);
-            } else if (lst.size() > 0) {
-                productContent = lst.get(0);
+            } else if (listOrdered.size() > 0) {
+                productContent = listOrdered.get(0);
             }
         } catch (GenericEntityException e) {
             Debug.logError(e.toString(), module);
@@ -1525,11 +1605,8 @@ public class ContentManagementServices {
             Debug.logError(msg, module);
             return ServiceUtil.returnError(msg);
         }
-        Long useTime = (Long) productContent.get("useTime");
-        Integer newUseTime = null;
-        if (UtilValidate.isNotEmpty(useTime)) {
-            newUseTime = Integer.valueOf(useTime.intValue() * qty.intValue());
-        }
+        Long useTime = (Long)productContent.get("useTime");
+        Integer newUseTime = Integer.valueOf(useTime.intValue() * qty.intValue());
         context.put("useTime", newUseTime);
         context.put("useTimeUomId", productContent.get("useTimeUomId"));
         context.put("useRoleTypeId", productContent.get("useRoleTypeId"));
@@ -1551,10 +1628,9 @@ public class ContentManagementServices {
 
         GenericValue orderHeader = null;
         try {
-            GenericValue orderRole = EntityQuery.use(delegator).from("OrderRole")
-                    .where("orderId", orderId, "roleTypeId", "END_USER_CUSTOMER")
-                    .queryFirst();
-            if (orderRole != null) {
+            List<GenericValue> orderRoleList = delegator.findByAnd("OrderRole", UtilMisc.toMap("orderId", orderId, "roleTypeId", "END_USER_CUSTOMER"));
+            if (orderRoleList.size() > 0) {
+                GenericValue orderRole = orderRoleList.get(0);
                 String partyId = (String) orderRole.get("partyId");
                 context.put("partyId", partyId);
             } else {
@@ -1562,22 +1638,23 @@ public class ContentManagementServices {
                 return ServiceUtil.returnFailure(msg);
 
             }
-            orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
+            orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
             if (orderHeader == null) {
                 String msg = "No OrderHeader found for orderId:" + orderId;
                 return ServiceUtil.returnError(msg);
             }
             Timestamp orderCreatedDate = (Timestamp) orderHeader.get("orderDate");
             context.put("orderCreatedDate", orderCreatedDate);
-            List<GenericValue> orderItemList = orderHeader.getRelated("OrderItem", null, null, false);
+            List<GenericValue> orderItemList = orderHeader.getRelated("OrderItem");
+            Iterator<GenericValue> orderItemIter = orderItemList.iterator();
             ModelService subscriptionModel = dispatcher.getDispatchContext().getModelService("updateContentSubscriptionByProduct");
-            for (GenericValue orderItem : orderItemList) {
+            while (orderItemIter.hasNext()) {
+                GenericValue orderItem = orderItemIter.next();
                 BigDecimal qty = orderItem.getBigDecimal("quantity");
                 String productId = (String) orderItem.get("productId");
-                long productContentCount = EntityQuery.use(delegator).from("ProductContent")
-                        .where("productId", productId, "productContentTypeId", "ONLINE_ACCESS")
-                        .filterByDate().queryCount();
-                if (productContentCount > 0) {
+                List<GenericValue> productContentList = delegator.findByAnd("ProductContent", UtilMisc.toMap("productId", productId, "productContentTypeId", "ONLINE_ACCESS"));
+                List<GenericValue> productContentListFiltered = EntityUtil.filterByDate(productContentList);
+                if (productContentListFiltered.size() > 0) {
                     context.put("productId", productId);
                     context.put("quantity", Integer.valueOf(qty.intValue()));
                     Map<String, Object> ctx = subscriptionModel.makeValid(context, "IN");
@@ -1616,7 +1693,7 @@ public class ContentManagementServices {
         ctx.put("contentAssocTypeIdList", contentAssocTypeIdList);
         try {
 
-            GenericValue content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+            GenericValue content = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
             result = followNodeChildrenMethod(content, dispatcher, serviceName, ctx);
         } catch (GenericEntityException e) {
             Debug.logError(e.toString(), module);
@@ -1646,7 +1723,9 @@ public class ContentManagementServices {
         result = dispatcher.runSync(serviceName, UtilMisc.toMap("content", content, "userLogin", userLogin));
 
         List<GenericValue> kids = ContentWorker.getAssociatedContent(content, "from", contentAssocTypeIdList, null, null, null);
-        for (GenericValue kidContent : kids) {
+        Iterator<GenericValue> iter = kids.iterator();
+        while (iter.hasNext()) {
+            GenericValue kidContent = iter.next();
             followNodeChildrenMethod(kidContent, dispatcher, serviceName, context);
         }
         return result;
@@ -1666,7 +1745,7 @@ public class ContentManagementServices {
       }
       if (UtilValidate.isNotEmpty(oldDataResourceId)) {
           try {
-              dataResource = EntityQuery.use(delegator).from("DataResource").where("dataResourceId", oldDataResourceId).queryOne();
+              dataResource = delegator.findByPrimaryKey("DataResource", UtilMisc.toMap("dataResourceId", oldDataResourceId));
           } catch (GenericEntityException e) {
               Debug.logError(e.toString(), module);
               return ServiceUtil.returnError(e.toString());

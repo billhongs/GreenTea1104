@@ -21,86 +21,71 @@ package org.ofbiz.minilang.method.entityops;
 import java.util.Map;
 
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
-import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangRuntimeException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
-import org.ofbiz.minilang.artifact.ArtifactInfoContext;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
+import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;remove-by-and&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cremovebyand%3E}}">Mini-language Reference</a>
+ * Uses the delegator to remove entity values constrained by anding the map fields
  */
-public final class RemoveByAnd extends EntityOperation {
+public class RemoveByAnd extends MethodOperation {
+    public static final class RemoveByAndFactory implements Factory<RemoveByAnd> {
+        public RemoveByAnd createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new RemoveByAnd(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "remove-by-and";
+        }
+    }
 
     public static final String module = RemoveByAnd.class.getName();
-    private final FlexibleStringExpander entityNameFse;
-    private final FlexibleMapAccessor<Map<String, ? extends Object>> mapFma;
 
-    public RemoveByAnd(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    String entityName;
+    ContextAccessor<Map<String, ? extends Object>> mapAcsr;
+    String doCacheClearStr;
+
+    public RemoveByAnd(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "entity-name", "map", "do-cache-clear", "delegator-name");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "entity-name", "map");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "map", "delegator-name");
-            MiniLangValidate.noChildElements(simpleMethod, element);
-        }
-        entityNameFse = FlexibleStringExpander.getInstance(element.getAttribute("entity-name"));
-        mapFma = FlexibleMapAccessor.getInstance(element.getAttribute("map"));
+        entityName = element.getAttribute("entity-name");
+        mapAcsr = new ContextAccessor<Map<String, ? extends Object>>(element.getAttribute("map"), element.getAttribute("map-name"));
+        doCacheClearStr = element.getAttribute("do-cache-clear");
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        @Deprecated
-        String entityName = entityNameFse.expandString(methodContext.getEnvMap());
-        if (entityName.isEmpty()) {
-            throw new MiniLangRuntimeException("Entity name not found.", this);
-        }
+    public boolean exec(MethodContext methodContext) {
+        boolean doCacheClear = !"false".equals(doCacheClearStr);
+        String entityName = methodContext.expandString(this.entityName);
+
         try {
-            Delegator delegator = getDelegator(methodContext);
-            delegator.removeByAnd(entityName, mapFma.get(methodContext.getEnvMap()));
+            methodContext.getDelegator().removeByAnd(entityName, mapAcsr.get(methodContext), doCacheClear);
         } catch (GenericEntityException e) {
-            String errMsg = "Exception thrown while removing entities: " + e.getMessage();
-            Debug.logWarning(e, errMsg, module);
-            simpleMethod.addErrorMessage(methodContext, errMsg);
+            Debug.logError(e, module);
+            String errMsg = "ERROR: Could not complete the " + simpleMethod.getShortDescription() + " process [problem removing the " + entityName + " entity by and: " + e.getMessage() + "]";
+
+            if (methodContext.getMethodType() == MethodContext.EVENT) {
+                methodContext.putEnv(simpleMethod.getEventErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getEventResponseCodeName(), simpleMethod.getDefaultErrorCode());
+            } else if (methodContext.getMethodType() == MethodContext.SERVICE) {
+                methodContext.putEnv(simpleMethod.getServiceErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getServiceResponseMessageName(), simpleMethod.getDefaultErrorCode());
+            }
             return false;
         }
         return true;
     }
 
     @Override
-    public void gatherArtifactInfo(ArtifactInfoContext aic) {
-        aic.addEntityName(entityNameFse.toString());
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<remove-by-and/>";
     }
-
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<remove-by-and ");
-        sb.append("entity-name=\"").append(this.entityNameFse).append("\" ");
-        sb.append("map=\"").append(this.mapFma).append("\" ");
-        sb.append("/>");
-        return sb.toString();
-    }
-
-    /**
-     * A factory for the &lt;remove-by-and&gt; element.
-     */
-    public static final class RemoveByAndFactory implements Factory<RemoveByAnd> {
-        @Override
-        public RemoveByAnd createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new RemoveByAnd(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "remove-by-and";
-        }
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

@@ -42,7 +42,7 @@ if (facilityId && locationSeqId) {
         context.geoChart = geoChart;
     }
     if (latestGeoPoint && latestGeoPoint.elevationUomId) {
-        elevationUom = from("Uom").where("uomId", latestGeoPoint.elevationUomId).queryOne();
+        elevationUom = delegator.findOne("Uom", [uomId : latestGeoPoint.elevationUomId], false);
         context.elevationUomAbbr = elevationUom.abbreviation;
     }
 }

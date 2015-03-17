@@ -17,8 +17,12 @@
  * under the License.
  */
 
+import org.ofbiz.entity.transaction.TransactionUtil
+import org.ofbiz.entity.util.EntityListIterator
 import org.ofbiz.entity.condition.EntityOperator
+import org.ofbiz.entity.condition.EntityExpr
 import org.ofbiz.entity.condition.EntityCondition
+import org.ofbiz.entity.condition.EntityConditionList
 import org.ofbiz.marketing.report.ReportHelper
 
 //query for both number of visits and number of orders
@@ -40,8 +44,11 @@ if (marketingCampaignId) {
     orderConditionList.add(EntityCondition.makeCondition("marketingCampaignId", EntityOperator.EQUALS, marketingCampaignId));
 }
 
-visits = select("marketingCampaignId", "visitId").from("MarketingCampaignAndVisit").where(visitConditionList).orderBy("marketingCampaignId").queryList();
-orders = select("marketingCampaignId", "orderId", "grandTotal").from("MarketingCampaignAndOrderHeader").where(orderConditionList).orderBy("marketingCampaignId").queryList();
+visitConditions = EntityCondition.makeCondition(visitConditionList, EntityOperator.AND);
+orderConditions = EntityCondition.makeCondition(orderConditionList, EntityOperator.AND);
+
+visits = delegator.findList("MarketingCampaignAndVisit", visitConditions, ['marketingCampaignId', 'visitId'] as Set, ['marketingCampaignId'], null, false);
+orders = delegator.findList("MarketingCampaignAndOrderHeader", orderConditions, ['marketingCampaignId', 'orderId', 'grandTotal'] as Set, ['marketingCampaignId'], null, false);
 
 //use this helper to build a List of visits, orders, order totals, and conversion rates
 marketingCampaignVisitAndOrders = ReportHelper.calcConversionRates(visits, orders, "marketingCampaignId");

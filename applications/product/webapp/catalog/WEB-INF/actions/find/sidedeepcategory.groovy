@@ -20,7 +20,6 @@
 import org.ofbiz.base.util.*
 import org.ofbiz.entity.*
 import org.ofbiz.product.category.*
-import org.ofbiz.entity.util.EntityUtilProperties;
 
 state = request.getParameter("BrowseCategoriesState");
 isOpen = true;
@@ -36,12 +35,12 @@ if (state) {
 context.isOpen = isOpen;
 
 requestParameters = UtilHttp.getParameterMap(request);
-defaultTopCategoryId = requestParameters.TOP_CATEGORY ? requestParameters.TOP_CATEGORY : EntityUtilProperties.getPropertyValue("catalog", "top.category.default", delegator);
+defaultTopCategoryId = requestParameters.TOP_CATEGORY ? requestParameters.TOP_CATEGORY : UtilProperties.getPropertyValue("catalog", "top.category.default");
 currentTopCategoryId = CategoryWorker.getCatalogTopCategory(request, defaultTopCategoryId);
 currentTopCategory = null;
 if (isOpen) {
     CategoryWorker.getRelatedCategories(request, "topLevelList", currentTopCategoryId, false);
-    currentTopCategory = from("ProductCategory").where("productCategoryId", currentTopCategoryId).cache(true).queryOne();
+    currentTopCategory = delegator.findOne("ProductCategory", [productCategoryId : currentTopCategoryId], true);
     context.topLevelList = request.getAttribute("topLevelList");
 }
 curCategoryId = UtilFormatOut.checkNull(requestParameters.productCategoryId);

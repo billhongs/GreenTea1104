@@ -28,10 +28,6 @@ public class RequestHandlerException extends org.ofbiz.base.util.GeneralExceptio
         super(str, t);
     }
 
-    public RequestHandlerException(Throwable t) {
-        super(t);
-    }
-
     public RequestHandlerException(String str) {
         super(str);
     }

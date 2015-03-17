@@ -20,13 +20,16 @@ package org.ofbiz.base.util.collections;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import javolution.context.ObjectFactory;
+import javolution.lang.Reusable;
+import javolution.util.FastList;
+import javolution.util.FastMap;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.util.UtilGenerics;
 
@@ -35,12 +38,19 @@ import org.ofbiz.base.util.UtilGenerics;
  * Map Stack
  *
  */
-public class MapContext<K, V> implements Map<K, V>, LocalizedMap<V> {
+public class MapContext<K, V> implements Map<K, V>, Reusable, LocalizedMap<V> {
 
     public static final String module = MapContext.class.getName();
 
+    protected static final ObjectFactory<MapContext<?, ?>> mapStackFactory = new ObjectFactory<MapContext<?, ?>>() {
+        @Override
+        protected MapContext<?, ?> create() {
+            return new MapContext<Object, Object>();
+        }
+    };
+
     public static final <K, V> MapContext<K, V> getMapContext() {
-        return new MapContext<K, V>();
+        return (MapContext<K, V>) UtilGenerics.<K, V>checkMap(mapStackFactory.object());
     }
 
     public static <K, V> MapContext<K, V> createMapContext() {
@@ -72,15 +82,15 @@ public class MapContext<K, V> implements Map<K, V>, LocalizedMap<V> {
         super();
     }
 
-    protected List<Map<K, V>> stackList = new LinkedList<Map<K, V>>();
+    protected List<Map<K, V>> stackList = FastList.newInstance();
 
     public void reset() {
-        stackList = new LinkedList<Map<K, V>>();
+        stackList = FastList.newInstance();
     }
 
     /** Puts a new Map on the top of the stack */
     public void push() {
-        Map<K, V> newMap = new HashMap<K, V>();
+        Map<K, V> newMap = FastMap.newInstance();
         this.stackList.add(0,newMap);
     }
 
@@ -174,7 +184,7 @@ public class MapContext<K, V> implements Map<K, V>, LocalizedMap<V> {
      */
     public boolean containsValue(Object value) {
         // walk the stackList and the entries for each Map and if nothing is in for the current key, consider it an option, otherwise ignore
-        Set<K> resultKeySet = new HashSet<K>();
+        Set<K> resultKeySet = FastSet.newInstance();
         for (Map<K, V> curMap: this.stackList) {
             for (Map.Entry<K, V> curEntry: curMap.entrySet()) {
                 if (!resultKeySet.contains(curEntry.getKey())) {
@@ -267,7 +277,7 @@ public class MapContext<K, V> implements Map<K, V>, LocalizedMap<V> {
      */
     public Set<K> keySet() {
         // walk the stackList and aggregate all keys
-        Set<K> resultSet = new HashSet<K>();
+        Set<K> resultSet = FastSet.newInstance();
         for (Map<K, V> curMap: this.stackList) {
             resultSet.addAll(curMap.keySet());
         }
@@ -279,8 +289,8 @@ public class MapContext<K, V> implements Map<K, V>, LocalizedMap<V> {
      */
     public Collection<V> values() {
         // walk the stackList and the entries for each Map and if nothing is in for the current key, put it in
-        Set<K> resultKeySet = new HashSet<K>();
-        List<V> resultValues = new LinkedList<V>();
+        Set<K> resultKeySet = FastSet.newInstance();
+        List<V> resultValues = FastList.newInstance();
         for (Map<K, V> curMap: this.stackList) {
             for (Map.Entry<K, V> curEntry: curMap.entrySet()) {
                 if (!resultKeySet.contains(curEntry.getKey())) {
@@ -297,8 +307,8 @@ public class MapContext<K, V> implements Map<K, V>, LocalizedMap<V> {
      */
     public Set<Map.Entry<K, V>> entrySet() {
         // walk the stackList and the entries for each Map and if nothing is in for the current key, put it in
-        Set<K> resultKeySet = new HashSet<K>();
-        Set<Map.Entry<K, V>> resultEntrySet = new HashSet<Map.Entry<K, V>>();
+        Set<K> resultKeySet = FastSet.newInstance();
+        Set<Map.Entry<K, V>> resultEntrySet = FastSet.newInstance();
         for (Map<K, V> curMap: this.stackList) {
             for (Map.Entry<K, V> curEntry: curMap.entrySet()) {
                 if (!resultKeySet.contains(curEntry.getKey())) {

@@ -23,31 +23,39 @@ import org.ofbiz.entity.util.*
 
 if (content) {
     // lookup assoc content
-    title = from("ContentAssoc").where("contentId", contentId, "mapKey", "title").orderBy("-fromDate").filterByDate().queryFirst();
+    titles = delegator.findList("ContentAssoc", EntityCondition.makeCondition([contentId : contentId, mapKey : 'title']), null, ['-fromDate'], null, false);
+    titles = EntityUtil.filterByDate(titles);
+    title = EntityUtil.getFirst(titles);
     if (title) {
-        tc = title.getRelatedOne("ToContent", false);
-        tcdr = tc.getRelatedOne("DataResource", false);
+        tc = title.getRelatedOne("ToContent");
+        tcdr = tc.getRelatedOne("DataResource");
         context.title = tcdr;
     }
 
-    titleProp = from("ContentAssoc").where("contentId", contentId, "mapKey", "titleProperty").orderBy("-fromDate").filterByDate().queryFirst();
+    titleProps = delegator.findList("ContentAssoc", EntityCondition.makeCondition([contentId : contentId, mapKey : 'titleProperty']), null, ['-fromDate'], null, false);
+    titleProps = EntityUtil.filterByDate(titleProps);
+    titleProp = EntityUtil.getFirst(titleProps);
     if (titleProp) {
-        tpc = titleProp.getRelatedOne("ToContent", false);
-        tpcdr = tpc.getRelatedOne("DataResource", false);
+        tpc = titleProp.getRelatedOne("ToContent");
+        tpcdr = tpc.getRelatedOne("DataResource");
         context.titleProperty = tpcdr;
     }
 
-    metaDesc = from("ContentAssoc").where("contentId", contentId, "mapKey", "metaDescription").orderBy("-fromDate").filterByDate().queryFirst();
+    metaDescs = delegator.findList("ContentAssoc", EntityCondition.makeCondition([contentId : contentId, mapKey : 'metaDescription']), null, ['-fromDate'], null, false);
+    metaDescs = EntityUtil.filterByDate(metaDescs);
+    metaDesc = EntityUtil.getFirst(metaDescs);
     if (metaDesc) {
-        mdc = metaDesc.getRelatedOne("ToContent", false);
-        mdcdr = mdc.getRelatedOne("DataResource", false);
+        mdc = metaDesc.getRelatedOne("ToContent");
+        mdcdr = mdc.getRelatedOne("DataResource");
         context.metaDescription = mdcdr;
     }
 
-    metaKey = from("ContentAssoc").where("contentId", contentId, "mapKey", "metaKeywords").orderBy("-fromDate").filterByDate().queryFirst();
+    metaKeys = delegator.findList("ContentAssoc", EntityCondition.makeCondition([contentId : contentId, mapKey : 'metaKeywords']), null, ['-fromDate'], null, false);
+    metaKeys = EntityUtil.filterByDate(metaKeys);
+    metaKey = EntityUtil.getFirst(metaKeys);
     if (metaKey) {
-        mkc = metaKey.getRelatedOne("ToContent", false);
-        mkcdr = mkc.getRelatedOne("DataResource", false);
+        mkc = metaKey.getRelatedOne("ToContent");
+        mkcdr = mkc.getRelatedOne("DataResource");
         context.metaKeywords = mkcdr;
     }
 }

@@ -18,6 +18,10 @@
  */
 package org.ofbiz.ebaystore;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.io.Writer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -28,6 +32,7 @@ import javax.servlet.http.HttpSession;
 
 import javolution.util.FastList;
 import javolution.util.FastMap;
+import net.sf.json.JSONObject;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilHttp;
@@ -111,7 +116,7 @@ public class EbayStoreOptions {
                                     storeColorSchemeMap.put("storeFontTypeDescColor",storeFontType.getDescColor());
                                     storeColorSchemeMap.put("storeFontTypeFontDescValue",storeFontType.getDescFace().value());
                                     storeColorSchemeMap.put("storeDescSizeValue",storeFontType.getDescSize().value());
-                                    request.setAttribute("storeColorSchemeMap", storeColorSchemeMap);
+                                    toJsonObject(storeColorSchemeMap,response);
 
                                     break;
                                 }
@@ -132,31 +137,63 @@ public class EbayStoreOptions {
         } catch (SdkException e) {
             e.printStackTrace();
             return "error";
+        } catch (EventHandlerException e) {
+            e.printStackTrace();
+            return "error";
         }
         return "success";
     }
 
+    public static void toJsonObject(Map<String,Object> attrMap, HttpServletResponse response) throws EventHandlerException {
+        JSONObject json = JSONObject.fromObject(attrMap);
+        String jsonStr = json.toString();
+        if (jsonStr == null) {
+            throw new EventHandlerException("JSON Object was empty; fatal error!");
+        }
+        // set the X-JSON content type
+        response.setContentType("application/json");
+        // jsonStr.length is not reliable for unicode characters
+        try {
+            response.setContentLength(jsonStr.getBytes("UTF8").length);
+        } catch (UnsupportedEncodingException e) {
+            throw new EventHandlerException("Problems with Json encoding", e);
+        }
+        // return the JSON String
+        Writer out;
+        try {
+            out = response.getWriter();
+            out.write(jsonStr);
+            out.flush();
+        } catch (IOException e) {
+            throw new EventHandlerException("Unable to get response writer", e);
+        }
+    }
+
     public static String retrieveItemTemplateByTemplateGroupId(HttpServletRequest request,HttpServletResponse response) {
         Map<String, Object> paramMap = UtilHttp.getCombinedMap(request);
-        if (paramMap.get("productStoreId") != null) {
-            String temGroupId = (String)paramMap.get("templateGroupId");
-            Map<String,Object> addItemObj = EbayEvents.getAddItemListingObject(request, EbayEvents.getApiContext(request));
-            if (UtilValidate.isNotEmpty(addItemObj)) {
-                String refName = "itemCateFacade_".concat((String) paramMap.get("pkCategoryId"));
-                if (UtilValidate.isNotEmpty(addItemObj.get(refName))) {
-                    EbayStoreCategoryFacade cf = (EbayStoreCategoryFacade) addItemObj.get(refName);
-                    List<Map<String,Object>> theme = cf.getAdItemTemplates(temGroupId);
-                    if (theme.size() > 0) {
-                        request.setAttribute("itemTemplates", theme);
+        try {
+            if (paramMap.get("productStoreId") != null) {
+                String temGroupId = (String)paramMap.get("templateGroupId");
+                Map<String,Object> addItemObj = EbayEvents.getAddItemListingObject(request, EbayEvents.getApiContext(request));
+                if (UtilValidate.isNotEmpty(addItemObj)) {
+                    String refName = "itemCateFacade_".concat((String) paramMap.get("pkCategoryId"));
+                    if (UtilValidate.isNotEmpty(addItemObj.get(refName))) {
+                        EbayStoreCategoryFacade cf = (EbayStoreCategoryFacade) addItemObj.get(refName);
+                        List<Map<String,Object>> theme = cf.getAdItemTemplates(temGroupId);
+                        if (theme.size() > 0) {
+                            toJsonObjectList(theme,response);
+                        }
                     }
                 }
             }
+        } catch (EventHandlerException e) {
+            Debug.logError(e.getMessage(), module);
         }
         return "success";
     }
 
     public static String retrieveEbayCategoryByParent(HttpServletRequest request, HttpServletResponse response) {
-        List<CategoryType> results;
+        List<CategoryType> results = FastList.newInstance();
         try {
             Map<String, Object> paramMap = UtilHttp.getCombinedMap(request);
             if (paramMap.get("productStoreId") != null) {
@@ -188,7 +225,7 @@ public class EbayStoreOptions {
                         categories.add(context);
                     }
                     if (categories.size() > 0) {
-                        request.setAttribute("categories", categories);
+                        toJsonObjectList(categories,response);
                     }
                 }
             }
@@ -206,10 +243,45 @@ public class EbayStoreOptions {
         return "success";
     }
 
+    public static void toJsonObjectList(List<Map<String,Object>> list, HttpServletResponse response) throws EventHandlerException {
+        JSONObject json = null;
+        List<JSONObject> jsonList = new ArrayList<JSONObject>();
+        if (list != null) {
+            for (Map<String,Object> val : list) {
+                json = new JSONObject();
+                for (String rowKey: val.keySet()) {
+                    json.put(rowKey, val.get(rowKey));
+                }
+                jsonList.add(json);
+            }
+            String jsonStr = jsonList.toString();
+            if (jsonStr == null) {
+                throw new EventHandlerException("JSON Object was empty; fatal error!");
+            }
+            // set the X-JSON content type
+            response.setContentType("application/json");
+            // jsonStr.length is not reliable for unicode characters
+            try {
+                response.setContentLength(jsonStr.getBytes("UTF8").length);
+            } catch (UnsupportedEncodingException e) {
+                throw new EventHandlerException("Problems with Json encoding", e);
+            }
+            // return the JSON String
+            Writer out;
+            try {
+                out = response.getWriter();
+                out.write(jsonStr);
+                out.flush();
+            } catch (IOException e) {
+                throw new EventHandlerException("Unable to get response writer", e);
+            } 
+        }
+    }
+    
     public static String retrieveEbayStoreCategoryByParent(HttpServletRequest request, HttpServletResponse response) {
-        List<StoreCustomCategoryType> results;
+        List<StoreCustomCategoryType> results = FastList.newInstance();
         try {
-            Map<String, Object> paramMap = UtilHttp.getCombinedMap(request);
+            Map paramMap = UtilHttp.getCombinedMap(request);
             if (paramMap.get("productStoreId") != null) {
                 String ebayStoreCategory = (String)paramMap.get("ebayCategoryId");
                 // when change category should be remove old category from session
@@ -227,6 +299,8 @@ public class EbayStoreOptions {
                 }
                 request.setAttribute("productStoreId", paramMap.get("productStoreId"));
                 request.setAttribute("categoryId", ebayStoreCategory);
+                ApiContext apiContext = EbayEvents.getApiContext(request);
+                EbayStoreSiteFacade sf = EbayEvents.getSiteFacade(apiContext,request);
                 results = EbayEvents.getStoreChildCategories(request);
                 if (UtilValidate.isNotEmpty(results)) {
                     List<Map<String,Object>> categories = FastList.newInstance();
@@ -240,11 +314,12 @@ public class EbayStoreOptions {
                         } else {
                             isLeaf = "false";
                         }
+                        //String isLeaf = String.valueOf(category.getChildCategory().!= null ? "true" : "false");
                         context.put("IsLeafCategory", isLeaf);
                         categories.add(context);
                     }
                     if (categories.size() > 0) {
-                        request.setAttribute("categories", categories);
+                        toJsonObjectList(categories,response);
                     }
                 }
             }

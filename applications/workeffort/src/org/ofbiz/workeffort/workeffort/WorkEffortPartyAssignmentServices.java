@@ -26,7 +26,6 @@ import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ModelService;
@@ -44,7 +43,7 @@ public class WorkEffortPartyAssignmentServices {
         GenericValue workEffort = null;
 
         try {
-            workEffort = EntityQuery.use(delegator).from("WorkEffort").where("workEffortId", wepa.get("workEffortId")).queryOne();
+            workEffort = delegator.findOne("WorkEffort", false, "workEffortId", wepa.get("workEffortId"));
         } catch (GenericEntityException e) {
             Debug.logWarning(e, module);
         }

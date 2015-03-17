@@ -18,16 +18,7 @@ under the License.
 -->
 <html xmlns="http://www.w3.org/1999/xhtml">
   <body>
-    <p>Hello ${partyName.firstName!} ${partyName.lastName!} ${partyName.groupName!}!</p>
-    <p>Successfully unsubscribed from ${contactList.contactListName} contact list.</p>
-
-    <#--assign verifyUrl = baseEcommerceSecureUrl +'updateContactListPartyNoUserLogin?contactListId='+contactListParty.contactListId+'&amp;partyId='+contactListParty.partyId+'&amp;fromDate='+contactListParty.fromDate+'&amp;statusId=CLPT_SUBS_PENDING&amp;optInVerifyCode='+contactListPartyStatus.optInVerifyCode+'&amp;baseLocation='+baseLocation!>
-    <#if (contactListParty.preferredContactMechId)??>
-        <#assign verifyUrl= verifyUrl+"&amp;preferredContactMechId="+contactListParty.preferredContactMechId>
-    </#if>
-    <a href="${verifyUrl}">If this was by mistake, click here subscribe again.</a-->
-
-
-
+    <p class="tabletext">Hello ${partyName.firstName?if_exists} ${partyName.lastName?if_exists} ${partyName.groupName?if_exists}!</p>
+    <p class="tabletext">Successfully unsubscribed from ${contactList.contactListName} contact list.</p>
   </body>
 </html>

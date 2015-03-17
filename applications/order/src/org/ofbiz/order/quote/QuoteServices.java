@@ -19,6 +19,7 @@
 package org.ofbiz.order.quote;
 
 import java.sql.Timestamp;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,7 +34,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -64,7 +64,7 @@ public class QuoteServices {
         // get the quote and store
         GenericValue quote = null;
         try {
-            quote = EntityQuery.use(delegator).from("Quote").where("quoteId", quoteId).queryOne();
+            quote = delegator.findByPrimaryKey("Quote", UtilMisc.toMap("quoteId", quoteId));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting Quote", module);
         }
@@ -77,7 +77,7 @@ public class QuoteServices {
 
         GenericValue productStoreEmail = null;
         try {
-            productStoreEmail = EntityQuery.use(delegator).from("ProductStoreEmailSetting").where("productStoreId", quote.get("productStoreId"), "emailType", emailType).queryOne();
+            productStoreEmail = delegator.findByPrimaryKey("ProductStoreEmailSetting", UtilMisc.toMap("productStoreId", quote.get("productStoreId"), "emailType", emailType));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting the ProductStoreEmailSetting for productStoreId=" + quote.get("productStoreId") + " and emailType=" + emailType, module);
         }
@@ -192,7 +192,9 @@ public class QuoteServices {
 
                 // create Quote Items
                 if (UtilValidate.isNotEmpty(quoteItems)) {
-                    for (GenericValue quoteItem : quoteItems) {
+                    Iterator<GenericValue> quoteIt = quoteItems.iterator();
+                    while (quoteIt.hasNext()) {
+                        GenericValue quoteItem = quoteIt.next();
                         quoteItem.set("quoteId", quoteId);
                         Map<String, Object> quoteItemIn = quoteItem.getAllFields();
                         quoteItemIn.put("userLogin", userLogin);
@@ -203,7 +205,9 @@ public class QuoteServices {
 
                 // create Quote Attributes
                 if (UtilValidate.isNotEmpty(quoteAttributes)) {
-                    for (GenericValue quoteAttr : quoteAttributes) {
+                    Iterator<GenericValue> quoteAttrIt = quoteAttributes.iterator();
+                    while (quoteAttrIt.hasNext()) {
+                        GenericValue quoteAttr = quoteAttrIt.next();
                         quoteAttr.set("quoteId", quoteId);
                         Map<String, Object> quoteAttrIn = quoteAttr.getAllFields();
                         quoteAttrIn.put("userLogin", userLogin);
@@ -214,7 +218,9 @@ public class QuoteServices {
 
                 // create Quote Coefficients
                 if (UtilValidate.isNotEmpty(quoteCoefficients)) {
-                    for (GenericValue quoteCoefficient : quoteCoefficients) {
+                    Iterator<GenericValue> quoteCoefficientIt = quoteCoefficients.iterator();
+                    while (quoteCoefficientIt.hasNext()) {
+                        GenericValue quoteCoefficient = quoteCoefficientIt.next();
                         quoteCoefficient.set("quoteId", quoteId);
                         Map<String, Object> quoteCoefficientIn = quoteCoefficient.getAllFields();
                         quoteCoefficientIn.put("userLogin", userLogin);
@@ -225,7 +231,9 @@ public class QuoteServices {
 
                 // create Quote Roles
                 if (UtilValidate.isNotEmpty(quoteRoles)) {
-                    for (GenericValue quoteRole : quoteRoles) {
+                    Iterator<GenericValue> quoteRoleIt = quoteRoles.iterator();
+                    while (quoteRoleIt.hasNext()) {
+                        GenericValue quoteRole = quoteRoleIt.next();
                         quoteRole.set("quoteId", quoteId);
                         Map<String, Object> quoteRoleIn = quoteRole.getAllFields();
                         quoteRoleIn.put("userLogin", userLogin);
@@ -236,7 +244,9 @@ public class QuoteServices {
 
                 // create Quote WorkEfforts
                 if (UtilValidate.isNotEmpty(quoteWorkEfforts)) {
-                    for (GenericValue quoteWorkEffort : quoteWorkEfforts) {
+                    Iterator<GenericValue> quoteWorkEffortIt = quoteWorkEfforts.iterator();
+                    while (quoteWorkEffortIt.hasNext()) {
+                        GenericValue quoteWorkEffort = quoteWorkEffortIt.next();
                         quoteWorkEffort.set("quoteId", quoteId);
                         Map<String, Object> quoteWorkEffortIn = quoteWorkEffort.getAllFields();
                         quoteWorkEffortIn.put("userLogin", userLogin);
@@ -247,7 +257,9 @@ public class QuoteServices {
 
                 // create Quote Adjustments
                 if (UtilValidate.isNotEmpty(quoteAdjustments)) {
-                    for (GenericValue quoteAdjustment : quoteAdjustments) {
+                    Iterator<GenericValue> quoteAdjustmentIt = quoteAdjustments.iterator();
+                    while (quoteAdjustmentIt.hasNext()) {
+                        GenericValue quoteAdjustment = quoteAdjustmentIt.next();
                         quoteAdjustment.set("quoteId", quoteId);
                         Map<String, Object> quoteAdjustmentIn = quoteAdjustment.getAllFields();
                         quoteAdjustmentIn.put("userLogin", userLogin);

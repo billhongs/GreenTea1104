@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericPK;
 import org.ofbiz.entity.GenericValue;
@@ -90,11 +89,11 @@ public interface GenericHelper {
      *@return EntityListIterator representing the result of the query: NOTE THAT THIS MUST BE CLOSED WHEN YOU ARE
      *      DONE WITH IT, AND DON'T LEAVE IT OPEN TOO LONG BEACUSE IT WILL MAINTAIN A DATABASE CONNECTION.
      */
-    public EntityListIterator findListIteratorByCondition(Delegator delegator, ModelEntity modelEntity, EntityCondition whereEntityCondition,
+    public EntityListIterator findListIteratorByCondition(ModelEntity modelEntity, EntityCondition whereEntityCondition,
         EntityCondition havingEntityCondition, Collection<String> fieldsToSelect, List<String> orderBy, EntityFindOptions findOptions)
         throws GenericEntityException;
 
-    public long findCountByCondition(Delegator delegator, ModelEntity modelEntity, EntityCondition whereEntityCondition,
+    public long findCountByCondition(ModelEntity modelEntity, EntityCondition whereEntityCondition,
             EntityCondition havingEntityCondition, EntityFindOptions findOptions) throws GenericEntityException;
 
     /** Removes/deletes Generic Entity records found by all the specified condition
@@ -102,7 +101,7 @@ public interface GenericHelper {
      *@param condition The condition that restricts the list of removed values
      *@return int representing number of rows effected by this operation
      */
-    public int removeByCondition(Delegator delegator, ModelEntity modelEntity, EntityCondition condition) throws GenericEntityException;
+    public int removeByCondition(ModelEntity modelEntity, EntityCondition condition) throws GenericEntityException;
 
     /** Stores a group of values in a single query
      *@param modelEntity The ModelEntity of the Entity as defined in the entity XML file
@@ -111,7 +110,7 @@ public interface GenericHelper {
      *@return int representing number of rows effected by this operation
      *@throws GenericEntityException
      */
-    public int storeByCondition(Delegator delegator, ModelEntity modelEntity, Map<String, ? extends Object> fieldsToSet, EntityCondition condition) throws GenericEntityException;
+    public int storeByCondition(ModelEntity modelEntity, Map<String, ? extends Object> fieldsToSet, EntityCondition condition) throws GenericEntityException;
 
     /** Store the Entity from the GenericValue to the persistent store
      *@param value GenericValue instance containing the entity

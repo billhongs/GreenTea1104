@@ -1,6 +1,6 @@
 /*
  * Translated default messages for the jQuery validation plugin.
- * Locale: EL (Greek; ελληνικά)
+ * Locale: EL
  */
 jQuery.extend(jQuery.validator.messages, {
 	required: "Αυτό το πεδίο είναι υποχρεωτικό.",

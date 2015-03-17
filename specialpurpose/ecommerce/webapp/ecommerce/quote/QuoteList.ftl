@@ -23,53 +23,53 @@ under the License.
         <table>
             <tr>
                 <td width="10%">
-                    <div><span style="white-space: nowrap;">${uiLabelMap.OrderQuote} ${uiLabelMap.CommonNbr}</span></div>
+                    <div class="tabletext"><span style="white-space: nowrap;">${uiLabelMap.OrderQuote} ${uiLabelMap.CommonNbr}</span></div>
                 </td>
                 <td width="10">&nbsp;</td>
                 <td width="20%">
-                    <div>${uiLabelMap.CommonName}</div>
+                    <div class="tabletext">${uiLabelMap.CommonName}</div>
                 </td>
                 <td width="10">&nbsp;</td>
                 <td width="40%">
-                    <div>${uiLabelMap.CommonDescription}</div>
+                    <div class="tabletext">${uiLabelMap.CommonDescription}</div>
                 </td>
                 <td width="10">&nbsp;</td>
                 <td width="10%">
-                    <div>${uiLabelMap.CommonStatus}</div>
+                    <div class="tabletext">${uiLabelMap.CommonStatus}</div>
                 </td>
                 <td width="10">&nbsp;</td>
                 <td width="20%">
-                    <div>${uiLabelMap.OrderOrderQuoteIssueDate}</div>
-                    <div>${uiLabelMap.CommonValidFromDate}</div>
-                    <div>${uiLabelMap.CommonValidThruDate}</div>
+                    <div class="tabletext">${uiLabelMap.OrderOrderQuoteIssueDate}</div>
+                    <div class="tabletext">${uiLabelMap.CommonValidFromDate}</div>
+                    <div class="tabletext">${uiLabelMap.CommonValidThruDate}</div>
                 </td>
                 <td width="10">&nbsp;</td>
                 <td width="10">&nbsp;</td>
             </tr>
             <#list quoteList as quote>
-                <#assign status = quote.getRelatedOne("StatusItem", true)>
+                <#assign status = quote.getRelatedOneCache("StatusItem")>
                 
                 <tr>
                     <td>
-                        <div>${quote.quoteId}</div>
+                        <div class="tabletext">${quote.quoteId}</div>
                     </td>
                     <td width="10">&nbsp;</td>
                     <td>
-                        <div>${quote.quoteName!}</div>
+                        <div class="tabletext">${quote.quoteName?if_exists}</div>
                     </td>
                     <td width="10">&nbsp;</td>
                     <td>
-                        <div>${quote.description!}</div>
+                        <div class="tabletext">${quote.description?if_exists}</div>
                     </td>
                     <td width="10">&nbsp;</td>
                     <td>
-                        <div>${status.get("description",locale)}</div>
+                        <div class="tabletext">${status.get("description",locale)}</div>
                     </td>
                     <td width="10">&nbsp;</td>
                     <td>
-                        <div><span style="white-space: nowrap;">${quote.issueDate!}</span></div>
-                        <div><span style="white-space: nowrap;">${quote.validFromDate!}</span></div>
-                        <div><span style="white-space: nowrap;">${quote.validThruDate!}</span></div>
+                        <div class="tabletext"><span style="white-space: nowrap;">${quote.issueDate?if_exists}</span></div>
+                        <div class="tabletext"><span style="white-space: nowrap;">${quote.validFromDate?if_exists}</span></div>
+                        <div class="tabletext"><span style="white-space: nowrap;">${quote.validThruDate?if_exists}</span></div>
                     </td>
                     <td width="10">&nbsp;</td>
                     <td align="right">

@@ -23,6 +23,7 @@
     <screen name="TrainingCalendar">
         <section>
             <actions>
+                <set field="titleProperty" value="PageTitleFindTrainingCalendar"/>
                 <set field="parameters.period" from-field="parameters.period" default-value="${initialView}"/>
             </actions>
             <widgets>
@@ -139,7 +140,7 @@
                                     <if-compare field="workEffort.currentStatusId" operator="not-equals" value="CAL_CANCELLED"/>
                                 </and>
                                 <if-empty field="workEffort"/>
-                                <if-has-permission permission="WORKEFFORTMGR" action="_ADMIN"/>
+                                <if-has-permission permission="WORKEFFORTMGR" action="ADMIN"/>
                             </or>
                             <if-compare field="parameters.form" operator="equals" value="edit"/>
                         </and>

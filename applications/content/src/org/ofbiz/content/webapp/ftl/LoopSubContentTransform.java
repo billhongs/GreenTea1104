@@ -37,7 +37,6 @@ import org.ofbiz.content.content.ContentWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.webapp.ftl.LoopWriter;
 
@@ -95,7 +94,7 @@ public class LoopSubContentTransform implements TemplateTransformModel {
         ctx.put("subContentDataResourceView", subContentDataResourceView);
         GenericValue electronicText = null;
         try {
-            electronicText = subContentDataResourceView.getRelatedOne("ElectronicText", false);
+            electronicText = subContentDataResourceView.getRelatedOne("ElectronicText");
         } catch (GenericEntityException e) {
             throw new RuntimeException(e.getMessage());
         }
@@ -117,7 +116,7 @@ public class LoopSubContentTransform implements TemplateTransformModel {
             String parentContentId = (String)ctx.get("contentId");
             if (UtilValidate.isEmpty(mimeTypeId) && UtilValidate.isNotEmpty(parentContentId)) { // will need these below
                 try {
-                    GenericValue parentContent = EntityQuery.use(delegator).from("Content").where("contentId", parentContentId).queryOne();
+                    GenericValue parentContent = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", parentContentId));
                     if (parentContent != null) {
                         mimeTypeId = (String) parentContent.get("mimeTypeId");
                         ctx.put("parentContent", parentContent);

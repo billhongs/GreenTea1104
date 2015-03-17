@@ -19,7 +19,6 @@
 package org.ofbiz.base.util;
 
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -29,14 +28,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URL;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.InvalidPropertiesFormatException;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,6 +38,9 @@ import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
+
+import javolution.util.FastList;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.location.FlexibleLocation;
 import org.ofbiz.base.util.cache.UtilCache;
@@ -71,14 +68,16 @@ public class UtilProperties implements Serializable {
     /** An instance of the generic cache for storing the non-locale-specific properties.
      *  Each Properties instance is keyed by the resource String.
      */
-    private static final UtilCache<String, Properties> resourceCache = UtilCache.createUtilCache("properties.UtilPropertiesResourceCache");
+    protected static UtilCache<String, Properties> resourceCache = UtilCache.createUtilCache("properties.UtilPropertiesResourceCache");
 
     /** An instance of the generic cache for storing the non-locale-specific properties.
      *  Each Properties instance is keyed by the file's URL.
      */
-    private static final UtilCache<String, Properties> urlCache = UtilCache.createUtilCache("properties.UtilPropertiesUrlCache");
+    protected static UtilCache<String, Properties> urlCache = UtilCache.createUtilCache("properties.UtilPropertiesUrlCache");
 
-    protected static Set<String> propertiesNotFound = new HashSet<String>();
+    protected static Locale fallbackLocale = null;
+    protected static Set<Locale> defaultCandidateLocales = null;
+    protected static Set<String> propertiesNotFound = FastSet.newInstance();
 
     /** Compares the specified property to the compareString, returns true if they are the same, false otherwise
      * @param resource The name of the resource - if the properties file is 'webevent.properties', the resource name is 'webevent'
@@ -303,13 +302,8 @@ public class UtilProperties implements Serializable {
 
                 if (url == null)
                     return null;
-                String fileName = url.getFile();
-                File file = new File(fileName);
-                if (file.isDirectory()) {
-                    Debug.logError(fileName + " is (also?) a directory! No properties assigned.", module);
-                    return null;
-                }
-                properties = resourceCache.putIfAbsentAndGet(cacheKey, getProperties(url));
+                properties = getProperties(url);
+                resourceCache.put(cacheKey, properties);
             } catch (MissingResourceException e) {
                 Debug.logInfo(e, module);
             }
@@ -591,8 +585,8 @@ public class UtilProperties implements Serializable {
      * to the given locale and replacing argument place holders with the given arguments using the MessageFormat class
      * @param resource The name of the resource - can be a file, class, or URL
      * @param name The name of the property in the properties file
-     * @param arguments An array of Objects to insert into the message argument place holders
      * @param locale The locale that the given resource will correspond to
+     * @param arguments An array of Objects to insert into the message argument place holders
      * @return The value of the property in the properties file
      */
     public static String getMessage(String resource, String name, Object[] arguments, Locale locale) {
@@ -612,8 +606,8 @@ public class UtilProperties implements Serializable {
      * to the given locale and replacing argument place holders with the given arguments using the MessageFormat class
      * @param resource The name of the resource - can be a file, class, or URL
      * @param name The name of the property in the properties file
-     * @param arguments A List of Objects to insert into the message argument place holders
      * @param locale The locale that the given resource will correspond to
+     * @param arguments A List of Objects to insert into the message argument place holders
      * @return The value of the property in the properties file
      */
     public static <E> String getMessage(String resource, String name, List<E> arguments, Locale locale) {
@@ -637,8 +631,8 @@ public class UtilProperties implements Serializable {
      * to the given locale and replacing argument place holders with the given arguments using the FlexibleStringExpander class
      * @param resource The name of the resource - can be a file, class, or URL
      * @param name The name of the property in the properties file
-     * @param context A Map of Objects to insert into the message place holders using the ${} syntax of the FlexibleStringExpander
      * @param locale The locale that the given resource will correspond to
+     * @param context A Map of Objects to insert into the message place holders using the ${} syntax of the FlexibleStringExpander
      * @return The value of the property in the properties file
      */
     public static String getMessage(String resource, String name, Map<String, ? extends Object> context, Locale locale) {
@@ -658,7 +652,7 @@ public class UtilProperties implements Serializable {
         return getMessage(resource, name, UtilGenerics.toMap(String.class, context), locale);
     }
 
-    protected static Set<String> resourceNotFoundMessagesShown = new HashSet<String>();
+    protected static Set<String> resourceNotFoundMessagesShown = FastSet.newInstance();
     /** Returns the specified resource/properties file as a ResourceBundle
      * @param resource The name of the resource - can be a file, class, or URL
      * @param locale The locale that the given resource will correspond to
@@ -745,31 +739,29 @@ public class UtilProperties implements Serializable {
 
     // ========= Classes and Methods for expanded Properties file support ========== //
 
-    // Private lazy-initializer class
-    private static class FallbackLocaleHolder {
-        private static final Locale fallbackLocale = getFallbackLocale();
-
-        private static Locale getFallbackLocale() {
-            Locale fallbackLocale = null;
-            String locale = getPropertyValue("general", "locale.properties.fallback");
-            if (UtilValidate.isNotEmpty(locale)) {
-                fallbackLocale = UtilMisc.parseLocale(locale);
-            }
-            if (fallbackLocale == null) {
-                fallbackLocale = Locale.ENGLISH;
-            }
-            return fallbackLocale;
-        }
-    }
-
     /** Returns the configured fallback locale. UtilProperties uses this locale
      * to resolve locale-specific XML properties.<p>The fallback locale can be
      * configured using the <code>locale.properties.fallback</code> property in
      * <code>general.properties</code>.
      * @return The configured fallback locale
+     * @deprecated Use <code>java.util.ResourceBundle.Control.getFallbackLocale(...)</code>
      */
+    @Deprecated
     public static Locale getFallbackLocale() {
-        return FallbackLocaleHolder.fallbackLocale;
+        if (fallbackLocale == null) {
+            synchronized (UtilProperties.class) {
+                if (fallbackLocale == null) {
+                    String locale = getPropertyValue("general", "locale.properties.fallback");
+                    if (UtilValidate.isNotEmpty(locale)) {
+                        fallbackLocale = UtilMisc.parseLocale(locale);
+                    }
+                    if (fallbackLocale == null) {
+                        fallbackLocale = UtilMisc.parseLocale("en");
+                    }
+                }
+            }
+        }
+        return fallbackLocale;
     }
 
     /** Converts a Locale instance to a candidate Locale list. The list
@@ -779,7 +771,7 @@ public class UtilProperties implements Serializable {
      * @return A list of candidate locales.
      */
     public static List<Locale> localeToCandidateList(Locale locale) {
-        List<Locale> localeList = new LinkedList<Locale>();
+        List<Locale> localeList = FastList.newInstance();
         localeList.add(locale);
         String localeString = locale.toString();
         int pos = localeString.lastIndexOf("_", localeString.length());
@@ -791,26 +783,23 @@ public class UtilProperties implements Serializable {
         return localeList;
     }
 
-    // Private lazy-initializer class
-    private static class CandidateLocalesHolder {
-        private static Set<Locale> defaultCandidateLocales = getDefaultCandidateLocales();
-
-        private static Set<Locale> getDefaultCandidateLocales() {
-            Set<Locale> defaultCandidateLocales = new LinkedHashSet<Locale>();
-            defaultCandidateLocales.addAll(localeToCandidateList(Locale.getDefault()));
-            defaultCandidateLocales.addAll(localeToCandidateList(getFallbackLocale()));
-            defaultCandidateLocales.add(Locale.ROOT);
-            return Collections.unmodifiableSet(defaultCandidateLocales);
-        }
-    }
-
     /** Returns the default candidate Locale list. The list is populated
      * with the JVM's default locale, the OFBiz fallback locale, and
      * the <code>LOCALE_ROOT</code> (empty) locale - in that order.
      * @return A list of default candidate locales.
      */
     public static Set<Locale> getDefaultCandidateLocales() {
-        return CandidateLocalesHolder.defaultCandidateLocales;
+        if (defaultCandidateLocales == null) {
+            synchronized (UtilProperties.class) {
+                if (defaultCandidateLocales == null) {
+                    defaultCandidateLocales = FastSet.newInstance();
+                    defaultCandidateLocales.addAll(localeToCandidateList(Locale.getDefault()));
+                    defaultCandidateLocales.addAll(localeToCandidateList(getFallbackLocale()));
+                    defaultCandidateLocales.add(Locale.ROOT);
+                }
+            }
+        }
+        return defaultCandidateLocales;
     }
 
     /** Returns a list of candidate locales based on a supplied locale.
@@ -819,16 +808,19 @@ public class UtilProperties implements Serializable {
      * - in that order.
      * @param locale The desired locale
      * @return A list of candidate locales
+     * @deprecated Use <code>java.util.ResourceBundle.Control.getCandidateLocales(...)</code>
      */
+    @Deprecated
     public static List<Locale> getCandidateLocales(Locale locale) {
         // Java 6 conformance
         if (Locale.ROOT.equals(locale)) {
             return UtilMisc.toList(locale);
         }
-        Set<Locale> localeSet = new LinkedHashSet<Locale>();
+        Set<Locale> localeSet = FastSet.newInstance();
         localeSet.addAll(localeToCandidateList(locale));
         localeSet.addAll(getDefaultCandidateLocales());
-        List<Locale> localeList = new ArrayList<Locale>(localeSet);
+        List<Locale> localeList = FastList.newInstance();
+        localeList.addAll(localeSet);
         return localeList;
     }
 
@@ -857,7 +849,7 @@ public class UtilProperties implements Serializable {
     }
 
     public static boolean isPropertiesResourceNotFound(String resource, Locale locale, boolean removeExtension) {
-        return propertiesNotFound.contains(createResourceName(resource, locale, removeExtension));
+        return propertiesNotFound.contains(UtilProperties.createResourceName(resource, locale, removeExtension));
     }
 
     /** Resolve a properties file URL.
@@ -972,14 +964,8 @@ public class UtilProperties implements Serializable {
                 throw new IllegalArgumentException("locale cannot be null");
             }
             String localeString = locale.toString();
-            String correctedLocaleString = localeString.replace('_','-');
             for (Element property : propertyList) {
-                // Support old way of specifying xml:lang value.
-                // Old way: en_AU, new way: en-AU
-                Element value = UtilXml.firstChildElement(property, "value", "xml:lang", correctedLocaleString);
-                if( value == null ) {
-                    value = UtilXml.firstChildElement(property, "value", "xml:lang", localeString);
-                }
+                Element value = UtilXml.firstChildElement(property, "value", "xml:lang", localeString);
                 if (value != null) {
                     if (properties == null) {
                         properties = new Properties();
@@ -1014,7 +1000,7 @@ public class UtilProperties implements Serializable {
      * properties file format.
      */
     public static class UtilResourceBundle extends ResourceBundle {
-        private static final UtilCache<String, UtilResourceBundle> bundleCache = UtilCache.createUtilCache("properties.UtilPropertiesBundleCache");
+        protected static UtilCache<String, UtilResourceBundle> bundleCache = UtilCache.createUtilCache("properties.UtilPropertiesBundleCache");
         protected Properties properties = null;
         protected Locale locale = null;
         protected int hashCode = hashCode();
@@ -1038,11 +1024,11 @@ public class UtilProperties implements Serializable {
             if (bundle == null) {
                 synchronized (bundleCache) {
                     double startTime = System.currentTimeMillis();
-                    List<Locale> candidateLocales = (List<Locale>) getCandidateLocales(locale);
+                    FastList<Locale> candidateLocales = (FastList<Locale>) getCandidateLocales(locale);
                     UtilResourceBundle parentBundle = null;
                     int numProperties = 0;
                     while (candidateLocales.size() > 0) {
-                        Locale candidateLocale = candidateLocales.remove(candidateLocales.size() -1);
+                        Locale candidateLocale = candidateLocales.removeLast();
                         // ResourceBundles are connected together as a singly-linked list
                         String lookupName = createResourceName(resource, candidateLocale, true);
                         UtilResourceBundle lookupBundle = bundleCache.get(lookupName);
@@ -1067,9 +1053,7 @@ public class UtilProperties implements Serializable {
                         bundle = new UtilResourceBundle(bundle.properties, locale, parentBundle);
                     }
                     double totalTime = System.currentTimeMillis() - startTime;
-                    if (Debug.infoOn()) {
-                        Debug.logInfo("ResourceBundle " + resource + " (" + locale + ") created in " + totalTime/1000.0 + "s with " + numProperties + " properties", module);
-                    }
+                    Debug.logInfo("ResourceBundle " + resource + " (" + locale + ") created in " + totalTime/1000.0 + "s with " + numProperties + " properties", module);
                     bundleCache.put(resourceName, bundle);
                 }
             }

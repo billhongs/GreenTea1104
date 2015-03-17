@@ -36,10 +36,9 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.service.ServiceContainer;
 import org.ofbiz.service.ServiceUtil;
 
 @SuppressWarnings("serial")
@@ -72,7 +71,7 @@ public class VerifyPickSession implements Serializable {
 
     public LocalDispatcher getDispatcher() {
         if (_dispatcher == null) {
-            _dispatcher = ServiceContainer.getLocalDispatcher(dispatcherName, this.getDelegator());
+            _dispatcher = GenericDispatcher.getLocalDispatcher(dispatcherName, this.getDelegator());
         }
         return _dispatcher;
     }
@@ -95,7 +94,7 @@ public class VerifyPickSession implements Serializable {
         inventoryLookupMap.put("orderId", orderId);
         inventoryLookupMap.put("orderItemSeqId", orderItemSeqId);
         inventoryLookupMap.put("shipGroupSeqId", shipGroupSeqId);
-        List<GenericValue> reservations = this.getDelegator().findByAnd("OrderItemShipGrpInvRes", inventoryLookupMap, UtilMisc.toList("quantity DESC"), false);
+        List<GenericValue> reservations = this.getDelegator().findByAnd("OrderItemShipGrpInvRes", inventoryLookupMap, UtilMisc.toList("quantity DESC"));
 
         // no reservations we cannot add this item
         if (UtilValidate.isEmpty(reservations)) {
@@ -113,7 +112,7 @@ public class VerifyPickSession implements Serializable {
 
             for (GenericValue reservation : reservations) {
                 if (qtyRemain.compareTo(ZERO) > 0) {
-                    if (!productId.equals(reservation.getRelatedOne("InventoryItem", false).getString("productId"))) {
+                    if (!productId.equals(reservation.getRelatedOne("InventoryItem").getString("productId"))) {
                         continue;
                     }
                     BigDecimal reservedQty = reservation.getBigDecimal("quantity");
@@ -161,7 +160,7 @@ public class VerifyPickSession implements Serializable {
         orderItemLookupMap.put("statusId", "ITEM_APPROVED");
         orderItemLookupMap.put("shipGroupSeqId", shipGroupSeqId);
 
-        List<GenericValue> orderItems = this.getDelegator().findByAnd("OrderItemAndShipGroupAssoc", orderItemLookupMap, null, false);
+        List<GenericValue> orderItems = this.getDelegator().findByAnd("OrderItemAndShipGroupAssoc", orderItemLookupMap);
 
         String orderItemSeqId = null;
         if (orderItems != null) {
@@ -171,7 +170,7 @@ public class VerifyPickSession implements Serializable {
                 inventoryLookupMap.put("orderId", orderId);
                 inventoryLookupMap.put("orderItemSeqId", orderItem.getString("orderItemSeqId"));
                 inventoryLookupMap.put("shipGroupSeqId", shipGroupSeqId);
-                List<GenericValue> reservations = this.getDelegator().findByAnd("OrderItemShipGrpInvRes", inventoryLookupMap, null, false);
+                List<GenericValue> reservations = this.getDelegator().findByAnd("OrderItemShipGrpInvRes", inventoryLookupMap);
                 for (GenericValue reservation : reservations) {
                     BigDecimal qty = reservation.getBigDecimal("quantity");
                     if (quantity.compareTo(qty) <= 0) {
@@ -336,7 +335,7 @@ public class VerifyPickSession implements Serializable {
     public BigDecimal getReservedQty(String orderId, String orderItemSeqId, String shipGroupSeqId) {
         BigDecimal reservedQty = ZERO;
         try {
-            GenericValue reservation = EntityUtil.getFirst(this.getDelegator().findByAnd("OrderItemAndShipGrpInvResAndItemSum", UtilMisc.toMap("orderId", orderId, "orderItemSeqId", orderItemSeqId, "shipGroupSeqId", shipGroupSeqId), null, false));
+            GenericValue reservation = EntityUtil.getFirst(this.getDelegator().findByAnd("OrderItemAndShipGrpInvResAndItemSum", UtilMisc.toMap("orderId", orderId, "orderItemSeqId", orderItemSeqId, "shipGroupSeqId", shipGroupSeqId)));
             reservedQty = reservation.getBigDecimal("totQuantityAvailable");
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
@@ -349,7 +348,7 @@ public class VerifyPickSession implements Serializable {
         BigDecimal verifiedQty = ZERO;
         BigDecimal orderedQty = ZERO;
 
-        List<GenericValue> orderItems = this.getDelegator().findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId, "statusId", "ITEM_APPROVED"), null, false);
+        List<GenericValue> orderItems = this.getDelegator().findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId, "statusId", "ITEM_APPROVED"));
         for (GenericValue orderItem : orderItems) {
             orderedQty = orderedQty.add(orderItem.getBigDecimal("quantity"));
         }
@@ -394,26 +393,26 @@ public class VerifyPickSession implements Serializable {
         newShipment.put("shipmentTypeId", "OUTGOING_SHIPMENT");
         newShipment.put("statusId", "SHIPMENT_SCHEDULED");
         newShipment.put("userLogin", this.getUserLogin());
-        GenericValue orderRoleShipTo = EntityQuery.use(delegator).from("OrderRole").where("orderId", orderId, "roleTypeId", "SHIP_TO_CUSTOMER").queryFirst();
+        GenericValue orderRoleShipTo = EntityUtil.getFirst(delegator.findByAnd("OrderRole", UtilMisc.toMap("orderId", orderId, "roleTypeId", "SHIP_TO_CUSTOMER")));
         if (UtilValidate.isNotEmpty(orderRoleShipTo)) {
             newShipment.put("partyIdTo", orderRoleShipTo.getString("partyId"));
         }
         String partyIdFrom = null;
-        GenericValue orderItemShipGroup = EntityQuery.use(delegator).from("OrderItemShipGroup").where("orderId", orderId, "shipGroupSeqId", line.getShipGroupSeqId()).queryFirst();
+        GenericValue orderItemShipGroup = EntityUtil.getFirst(delegator.findByAnd("OrderItemShipGroup", UtilMisc.toMap("orderId", orderId, "shipGroupSeqId", line.getShipGroupSeqId())));
         if (UtilValidate.isNotEmpty(orderItemShipGroup.getString("vendorPartyId"))) {
             partyIdFrom = orderItemShipGroup.getString("vendorPartyId");
         } else if (UtilValidate.isNotEmpty(orderItemShipGroup.getString("facilityId"))) {
-            GenericValue facility = EntityQuery.use(delegator).from("Facility").where("facilityId", orderItemShipGroup.getString("facilityId")).queryOne();
+            GenericValue facility = delegator.findOne("Facility", UtilMisc.toMap("facilityId", orderItemShipGroup.getString("facilityId")), false);
             if (UtilValidate.isNotEmpty(facility.getString("ownerPartyId"))) {
                 partyIdFrom = facility.getString("ownerPartyId");
             }
         }
         if (UtilValidate.isEmpty(partyIdFrom)) {
-            GenericValue orderRoleShipFrom = EntityQuery.use(delegator).from("OrderRole").where("orderId", orderId, "roleTypeId", "SHIP_FROM_VENDOR").queryFirst();
+            GenericValue orderRoleShipFrom = EntityUtil.getFirst(delegator.findByAnd("OrderRole", UtilMisc.toMap("orderId", orderId, "roleTypeId", "SHIP_FROM_VENDOR")));
             if (UtilValidate.isNotEmpty(orderRoleShipFrom)) {
                 partyIdFrom = orderRoleShipFrom.getString("partyId");
             } else {
-                orderRoleShipFrom = EntityQuery.use(delegator).from("OrderRole").where("orderId", orderId, "roleTypeId", "BILL_FROM_VENDOR").queryFirst();
+                orderRoleShipFrom = EntityUtil.getFirst(delegator.findByAnd("OrderRole", UtilMisc.toMap("orderId", orderId, "roleTypeId", "BILL_FROM_VENDOR")));
                 partyIdFrom = orderRoleShipFrom.getString("partyId");
             }
         }

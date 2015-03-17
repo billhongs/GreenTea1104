@@ -45,11 +45,15 @@ for(i in 0..limit){
     exprs.add(EntityCondition.makeCondition("statusId",EntityOperator.EQUALS, "IM_APPROVED"))
     exprs.add(EntityCondition.makeCondition("purchaseFromDate", EntityOperator.GREATER_THAN_EQUAL_TO, timeStampDate1))
     exprs.add(EntityCondition.makeCondition("purchaseFromDate", EntityOperator.LESS_THAN, timeStampDate2))
+    def fieldsToSelect = UtilMisc.toSet("productId")
+    def findOptions = new EntityFindOptions()
+    findOptions.setDistinct(true)
     // query result
-    def productContentAndInfoList = select("productId").from("ProductContentAndInfo").where(exprs).distinct().queryList();
+    def productContentAndInfoList = delegator.findList("ProductContentAndInfo", EntityCondition.makeCondition(exprs, EntityOperator.AND), fieldsToSelect, null, findOptions, false)
     
     // finding time
-    def timeList = from("ProductContentAndInfo").where(exprs).orderBy("productId").queryList();
+    def orderBy = UtilMisc.toList("productId")
+    def timeList = delegator.findList("ProductContentAndInfo", EntityCondition.makeCondition(exprs, EntityOperator.AND), null, orderBy, null, false)
     def groupByTimeList =  timeList.groupBy{it.productId}
     def tempTimeList = []
     groupByTimeList.each() {

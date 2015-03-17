@@ -18,14 +18,13 @@
  *******************************************************************************/
 package org.ofbiz.service;
 
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import javax.transaction.Transaction;
+
+import javolution.util.FastList;
+import javolution.util.FastMap;
 
 import org.ofbiz.base.config.GenericConfigException;
 import org.ofbiz.base.util.Debug;
@@ -34,6 +33,8 @@ import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilTimer;
 import org.ofbiz.base.util.UtilValidate;
+import org.ofbiz.base.util.UtilXml;
+import org.ofbiz.base.util.collections.LRUMap;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericDelegator;
@@ -45,8 +46,9 @@ import org.ofbiz.entity.transaction.TransactionUtil;
 import org.ofbiz.security.Security;
 import org.ofbiz.security.SecurityConfigurationException;
 import org.ofbiz.security.SecurityFactory;
+import org.ofbiz.security.authz.Authorization;
+import org.ofbiz.security.authz.AuthorizationFactory;
 import org.ofbiz.service.config.ServiceConfigUtil;
-import org.ofbiz.service.config.model.StartupService;
 import org.ofbiz.service.eca.ServiceEcaRule;
 import org.ofbiz.service.eca.ServiceEcaUtil;
 import org.ofbiz.service.engine.GenericEngine;
@@ -56,12 +58,10 @@ import org.ofbiz.service.jms.JmsListenerFactory;
 import org.ofbiz.service.job.JobManager;
 import org.ofbiz.service.job.JobManagerException;
 import org.ofbiz.service.semaphore.ServiceSemaphore;
-
-import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
+import org.w3c.dom.Element;
 
 /**
- * The global service dispatcher. This is the "engine" part of the
- * Service Engine.
+ * Global Service Dispatcher
  */
 public class ServiceDispatcher {
 
@@ -69,49 +69,40 @@ public class ServiceDispatcher {
     public static final int lruLogSize = 200;
     public static final int LOCK_RETRIES = 3;
 
-    protected static final Map<RunningService, ServiceDispatcher> runLog = new ConcurrentLinkedHashMap.Builder<RunningService, ServiceDispatcher>().maximumWeightedCapacity(lruLogSize).build();
-    protected static ConcurrentHashMap<String, ServiceDispatcher> dispatchers = new ConcurrentHashMap<String, ServiceDispatcher>();
-    // FIXME: These fields are not thread-safe. They are modified by EntityDataLoadContainer.
-    // We need a better design - like have this class query EntityDataLoadContainer if data is being loaded.
+    protected static final Map<RunningService, ServiceDispatcher> runLog = new LRUMap<RunningService, ServiceDispatcher>(lruLogSize);
+    protected static Map<String, ServiceDispatcher> dispatchers = FastMap.newInstance();
     protected static boolean enableJM = true;
     protected static boolean enableJMS = true;
     protected static boolean enableSvcs = true;
 
     protected Delegator delegator = null;
     protected GenericEngineFactory factory = null;
+    protected Authorization authz = null;
     protected Security security = null;
-    protected Map<String, DispatchContext> localContext = new HashMap<String, DispatchContext>();
-    protected Map<String, List<GenericServiceCallback>> callbacks = new HashMap<String, List<GenericServiceCallback>>();
+    protected Map<String, DispatchContext> localContext = null;
+    protected Map<String, List<GenericServiceCallback>> callbacks = null;
     protected JobManager jm = null;
     protected JmsListenerFactory jlf = null;
 
     protected ServiceDispatcher(Delegator delegator, boolean enableJM, boolean enableJMS, boolean enableSvcs) {
+        Debug.logInfo("[ServiceDispatcher] : Creating new instance.", module);
         factory = new GenericEngineFactory(this);
         ServiceGroupReader.readConfig();
         ServiceEcaUtil.readConfig();
 
         this.delegator = delegator;
+        this.localContext = FastMap.newInstance();
+        this.callbacks = FastMap.newInstance();
 
         if (delegator != null) {
             try {
+                this.authz = AuthorizationFactory.getInstance(delegator);
                 this.security = SecurityFactory.getInstance(delegator);
             } catch (SecurityConfigurationException e) {
                 Debug.logError(e, "[ServiceDispatcher.init] : No instance of security implementation found.", module);
             }
         }
 
-        // clean up the service semaphores of same instance
-        if (delegator != null) {
-            try {
-                int rn = delegator.removeByAnd("ServiceSemaphore", "lockedByInstanceId", JobManager.instanceId);
-                if (rn > 0) {
-                    Debug.logInfo("[ServiceDispatcher.init] : Clean up " + rn + " service semaphors." , module);
-                }
-            } catch (GenericEntityException e) {
-                Debug.logError(e, module);
-            }
-        }
-        
         // job manager needs to always be running, but the poller thread does not
         try {
             Delegator origDelegator = this.delegator;
@@ -125,7 +116,7 @@ public class ServiceDispatcher {
 
         // make sure we haven't disabled these features from running
         if (enableJMS) {
-            this.jlf = JmsListenerFactory.getInstance(delegator);
+            this.jlf = JmsListenerFactory.getInstance(this);
         }
 
         if (enableSvcs) {
@@ -139,48 +130,57 @@ public class ServiceDispatcher {
 
     /**
      * Returns a pre-registered instance of the ServiceDispatcher associated with this delegator.
-     * @param name the name of the DispatchContext
-     * @param delegator the local delegator
-     * @return A reference to the LocalDispatcher associated with the DispatchContext
-     */
-    public static LocalDispatcher getLocalDispatcher(String name, Delegator delegator) {
-        // get the ServiceDispatcher associated to the delegator (if not found in the cache, it will be created and added to the cache)
-        ServiceDispatcher sd = getInstance(delegator);
-        // if a DispatchContext has already been already registered as "name" then return the LocalDispatcher associated with it
-        if (sd.containsContext(name)) {
-            return sd.getLocalDispatcher(name);
-        }
-        // otherwise return null
-        return null;
-    }
-
-    /**
-     * Returns an instance of the ServiceDispatcher associated with this delegator.
      * @param delegator the local delegator
      * @return A reference to this global ServiceDispatcher
      */
-    public static ServiceDispatcher getInstance(Delegator delegator) {
+    public static ServiceDispatcher getInstance(String name, Delegator delegator) {
+        ServiceDispatcher sd = getInstance(null, null, delegator);
+
+        if (!sd.containsContext(name)) {
+            return null;
+        }
+        return sd;
+    }
+
+    /**
+     * Returns an instance of the ServiceDispatcher associated with this delegator and registers the loader.
+     * @param name the local dispatcher
+     * @param context the context of the local dispatcher
+     * @param delegator the local delegator
+     * @return A reference to this global ServiceDispatcher
+     */
+    public static ServiceDispatcher getInstance(String name, DispatchContext context, Delegator delegator) {
         ServiceDispatcher sd;
+
         String dispatcherKey = delegator != null ? delegator.getDelegatorName() : "null";
         sd = dispatchers.get(dispatcherKey);
         if (sd == null) {
-            if (Debug.verboseOn())
-                Debug.logVerbose("[ServiceDispatcher.getInstance] : No instance found (" + dispatcherKey + ").", module);
-            sd = new ServiceDispatcher(delegator);
-            dispatchers.putIfAbsent(dispatcherKey, sd);
-            sd = dispatchers.get(dispatcherKey);
+            synchronized (ServiceDispatcher.class) {
+                if (Debug.verboseOn()) Debug.logVerbose("[ServiceDispatcher.getInstance] : No instance found (" + dispatcherKey + ").", module);
+                sd = dispatchers.get(dispatcherKey);
+                if (sd == null) {
+                    sd = new ServiceDispatcher(delegator);
+                    dispatchers.put(dispatcherKey, sd);
+                }
+            }
+        }
+
+        if (name != null && context != null) {
+            sd.register(name, context);
         }
         return sd;
     }
 
     /**
      * Registers the loader with this ServiceDispatcher
+     * @param name the local dispatcher
      * @param context the context of the local dispatcher
      */
-    public void register(DispatchContext context) {
-        if (Debug.infoOn()) Debug.logInfo("Registering dispatcher: " + context.getName(), module);
-        this.localContext.put(context.getName(), context);
+    public void register(String name, DispatchContext context) {
+        if (Debug.verboseOn()) Debug.logVerbose("Registered dispatcher: " + context.getName(), module);
+        this.localContext.put(name, context);
     }
+
     /**
      * De-Registers the loader with this ServiceDispatcher
      * @param local the LocalDispatcher to de-register
@@ -188,19 +188,19 @@ public class ServiceDispatcher {
     public void deregister(LocalDispatcher local) {
         if (Debug.infoOn()) Debug.logInfo("De-Registering dispatcher: " + local.getName(), module);
         localContext.remove(local.getName());
-        if (localContext.size() == 0) {
-            try {
+         if (localContext.size() == 1) { // 1 == the JMSDispatcher
+             try {
                  this.shutdown();
              } catch (GenericServiceException e) {
                  Debug.logError(e, "Trouble shutting down ServiceDispatcher!", module);
              }
-        }
+         }
     }
 
     public synchronized void registerCallback(String serviceName, GenericServiceCallback cb) {
         List<GenericServiceCallback> callBackList = callbacks.get(serviceName);
         if (callBackList == null) {
-            callBackList = new LinkedList<GenericServiceCallback>();
+            callBackList = FastList.newInstance();
         }
         callBackList.add(cb);
         callbacks.put(serviceName, callBackList);
@@ -241,7 +241,7 @@ public class ServiceDispatcher {
      * Run the service synchronously and return the result.
      * @param localName Name of the context to use.
      * @param modelService Service model object.
-     * @param params Map of name, value pairs composing the parameters.
+     * @param context Map of name, value pairs composing the context.
      * @param validateOut Validate OUT parameters
      * @return Map of name, value pairs composing the result.
      * @throws ServiceAuthException
@@ -249,47 +249,54 @@ public class ServiceDispatcher {
      * @throws GenericServiceException
      */
     public Map<String, Object> runSync(String localName, ModelService modelService, Map<String, ? extends Object> params, boolean validateOut) throws ServiceAuthException, ServiceValidationException, GenericServiceException {
-        long serviceStartTime = System.currentTimeMillis();
-        Map<String, Object> result = new HashMap<String, Object>();
+        // check for semaphore and aquire a lock
         ServiceSemaphore lock = null;
-        Map<String, List<ServiceEcaRule>> eventMap = null;
-        Map<String, Object> ecaContext = null;
-        RunningService rs = null;
-        DispatchContext ctx = localContext.get(localName);
-        GenericEngine engine = null;
-        Transaction parentTransaction = null;
+        if ("wait".equals(modelService.semaphore) || "fail".equals(modelService.semaphore)) {
+            lock = new ServiceSemaphore(delegator, modelService);
+            lock.acquire();
+        }
+
+        long serviceStartTime = System.currentTimeMillis();
+        boolean debugging = checkDebug(modelService, 1, true);
+        if (Debug.verboseOn()) {
+            Debug.logVerbose("[ServiceDispatcher.runSync] : invoking service " + modelService.name + " [" + modelService.location +
+                "/" + modelService.invoke + "] (" + modelService.engineName + ")", module);
+        }
+
+        Map<String, Object> context = FastMap.newInstance();
+        if (params != null) {
+            context.putAll(params);
+        }
+
+        // setup the result map and other initial settings
+        Map<String, Object> result = FastMap.newInstance();
         boolean isFailure = false;
         boolean isError = false;
+
+        // set up the running service log
+        RunningService rs = this.logService(localName, modelService, GenericEngine.SYNC_MODE);
+
+        // get eventMap once for all calls for speed, don't do event calls if it is null
+        Map<String, List<ServiceEcaRule>> eventMap = ServiceEcaUtil.getServiceEventMap(modelService.name);
+
+        // check the locale
+        Locale locale = this.checkLocale(context);
+
+        // setup the engine and context
+        DispatchContext ctx = localContext.get(localName);
+        GenericEngine engine = this.getGenericEngine(modelService.engineName);
+
+        // set IN attributes with default-value as applicable
+        modelService.updateDefaultValues(context, ModelService.IN_PARAM);
+
+        Map<String, Object> ecaContext = null;
+
+        // for isolated transactions
+        Transaction parentTransaction = null;
+
+        // start the transaction
         boolean beganTrans = false;
         try {
-            // check for semaphore and aquire a lock
-            if ("wait".equals(modelService.semaphore) || "fail".equals(modelService.semaphore)) {
-                lock = new ServiceSemaphore(delegator, modelService);
-                lock.acquire();
-            }
-
-            if (Debug.verboseOn() || modelService.debug) {
-                Debug.logVerbose("[ServiceDispatcher.runSync] : invoking service " + modelService.name + " [" + modelService.location +
-                    "/" + modelService.invoke + "] (" + modelService.engineName + ")", module);
-            }
-
-            Map<String, Object> context = new HashMap<String, Object>();
-            if (params != null) {
-                context.putAll(params);
-            }
-            // check the locale
-            Locale locale = this.checkLocale(context);
-
-            // set up the running service log
-            rs = this.logService(localName, modelService, GenericEngine.SYNC_MODE);
-
-            // get eventMap once for all calls for speed, don't do event calls if it is null
-            eventMap = ServiceEcaUtil.getServiceEventMap(modelService.name);
-            engine = this.getGenericEngine(modelService.engineName);
-
-
-            // set IN attributes with default-value as applicable
-            modelService.updateDefaultValues(context, ModelService.IN_PARAM);
             //Debug.logInfo("=========================== " + modelService.name + " 1 tx status =" + TransactionUtil.getStatusString() + ", modelService.requireNewTransaction=" + modelService.requireNewTransaction + ", modelService.useTransaction=" + modelService.useTransaction + ", TransactionUtil.isTransactionInPlace()=" + TransactionUtil.isTransactionInPlace(), module);
             if (modelService.useTransaction) {
                 if (TransactionUtil.isTransactionInPlace()) {
@@ -306,7 +313,7 @@ public class ServiceDispatcher {
                     beganTrans = TransactionUtil.begin(modelService.transactionTimeout);
                 }
                 // enlist for XAResource debugging
-                if (beganTrans && TransactionUtil.debugResources()) {
+                if (beganTrans && TransactionUtil.debugResources) {
                     DebugXaResource dxa = new DebugXaResource(modelService.name);
                     try {
                         dxa.enlist();
@@ -321,9 +328,6 @@ public class ServiceDispatcher {
                 boolean needsLockRetry = false;
 
                 do {
-                    // Ensure this is reset to false on each pass
-                    needsLockRetry = false;
-
                     lockRetriesRemaining--;
 
                     // NOTE: general pattern here is to do everything up to the main service call, and retry it all if
@@ -430,7 +434,7 @@ public class ServiceDispatcher {
 
                             beganTrans = TransactionUtil.begin(modelService.transactionTimeout);
                             // enlist for XAResource debugging
-                            if (beganTrans && TransactionUtil.debugResources()) {
+                            if (beganTrans && TransactionUtil.debugResources) {
                                 DebugXaResource dxa = new DebugXaResource(modelService.name);
                                 try {
                                     dxa.enlist();
@@ -447,7 +451,7 @@ public class ServiceDispatcher {
                                 needsLockRetry = true;
 
                                 // reset state variables
-                                result = new HashMap<String, Object>();
+                                result = FastMap.newInstance();
                                 isFailure = false;
                                 isError = false;
 
@@ -466,7 +470,7 @@ public class ServiceDispatcher {
                 } while (needsLockRetry && lockRetriesRemaining > 0);
 
                 // create a new context with the results to pass to ECA services; necessary because caller may reuse this context
-                ecaContext = new HashMap<String, Object>();
+                ecaContext = FastMap.newInstance();
                 ecaContext.putAll(context);
                 // copy all results: don't worry parameters that aren't allowed won't be passed to the ECA services
                 ecaContext.putAll(result);
@@ -510,6 +514,7 @@ public class ServiceDispatcher {
                 } catch (GenericTransactionException te) {
                     Debug.logError(te, "Cannot rollback transaction", module);
                 }
+                checkDebug(modelService, 0, debugging);
                 rs.setEndStamp();
                 if (t instanceof ServiceAuthException) {
                     throw (ServiceAuthException) t;
@@ -537,7 +542,6 @@ public class ServiceDispatcher {
                     try {
                         TransactionUtil.commit(beganTrans);
                     } catch (GenericTransactionException e) {
-                        GenericDelegator.popUserIdentifier();
                         String errMsg = "Could not commit transaction for service [" + modelService.name + "] call";
                         Debug.logError(e, errMsg, module);
                         if (e.getMessage() != null) {
@@ -557,13 +561,9 @@ public class ServiceDispatcher {
             Debug.logError(te, "Problems with the transaction", module);
             throw new GenericServiceException("Problems with the transaction.", te.getNested());
         } finally {
+            // release the semaphore lock
             if (lock != null) {
-                // release the semaphore lock
-                try {
-                    lock.release();
-                } catch (GenericServiceException e) {
-                    Debug.logWarning(e, "Exception thrown while unlocking semaphore: ", module);
-                }
+                lock.release();
             }
 
             // resume the parent transaction
@@ -580,28 +580,26 @@ public class ServiceDispatcher {
         // pre-return ECA
         if (eventMap != null) ServiceEcaUtil.evalRules(modelService.name, eventMap, "return", ctx, ecaContext, result, isError, isFailure);
 
+        checkDebug(modelService, 0, debugging);
         rs.setEndStamp();
 
         long timeToRun = System.currentTimeMillis() - serviceStartTime;
-        long showServiceDurationThreshold = UtilProperties.getPropertyAsLong("service", "showServiceDurationThreshold", 0);
-        long showSlowServiceThreshold = UtilProperties.getPropertyAsLong("service", "showSlowServiceThreshold", 1000);
-                
-        if (Debug.timingOn() && timeToRun > showServiceDurationThreshold) {
-            Debug.logTiming("Sync service [" + localName + "/" + modelService.name + "] finished in [" + timeToRun + "] milliseconds", module);
-        } else if (Debug.infoOn() && timeToRun > showSlowServiceThreshold) {
-            Debug.logTiming("Slow sync service execution detected: service [" + localName + "/" + modelService.name + "] finished in [" + timeToRun + "] milliseconds", module);
-        }
-        if ((Debug.verboseOn() || modelService.debug) && timeToRun > 50 && !modelService.hideResultInLog) {
+        if (Debug.timingOn() && timeToRun > 50) {
             // Sanity check - some service results can be multiple MB in size. Limit message size to 10K.
             String resultStr = result.toString();
             if (resultStr.length() > 10240) {
                 resultStr = resultStr.substring(0, 10226) + "...[truncated]";
             }
-            Debug.logVerbose("Sync service [" + localName + "/" + modelService.name + "] finished with response [" + resultStr + "]", module);
+            Debug.logTiming("Sync service [" + localName + "/" + modelService.name + "] finished in [" + timeToRun + "] milliseconds with response [" + resultStr + "]", module);
+        } else if (timeToRun > 200 && Debug.infoOn()) {
+            // Sanity check - some service results can be multiple MB in size. Limit message size to 10K.
+            String resultStr = result.toString();
+            if (resultStr.length() > 10240) {
+                resultStr = resultStr.substring(0, 10226) + "...[truncated]";
+            }
+            Debug.logInfo("Sync service [" + localName + "/" + modelService.name + "] finished in [" + timeToRun + "] milliseconds with response [" + resultStr + "]", module);
         }
-        if (modelService.metrics != null) {
-            modelService.metrics.recordServiceRate(1, timeToRun);
-        }
+
         return result;
     }
 
@@ -609,7 +607,7 @@ public class ServiceDispatcher {
      * Run the service asynchronously, passing an instance of GenericRequester that will receive the result.
      * @param localName Name of the context to use.
      * @param service Service model object.
-     * @param params Map of name, value pairs composing the parameters.
+     * @param context Map of name, value pairs composing the context.
      * @param requester Object implementing GenericRequester interface which will receive the result.
      * @param persist True for store/run; False for run.
      * @throws ServiceAuthException
@@ -620,17 +618,18 @@ public class ServiceDispatcher {
         if (Debug.timingOn()) {
             UtilTimer.timerLog(localName + " / " + service.name, "ASync service started...", module);
         }
-        if (Debug.verboseOn() || service.debug) {
+        boolean debugging = checkDebug(service, 1, true);
+        if (Debug.verboseOn()) {
             Debug.logVerbose("[ServiceDispatcher.runAsync] : preparing service " + service.name + " [" + service.location + "/" + service.invoke +
                 "] (" + service.engineName + ")", module);
         }
 
-        Map<String, Object> context = new HashMap<String, Object>();
+        Map<String, Object> context = FastMap.newInstance();
         if (params != null) {
             context.putAll(params);
         }
         // setup the result map
-        Map<String, Object> result = new HashMap<String, Object>();
+        Map<String, Object> result = FastMap.newInstance();
         boolean isFailure = false;
         boolean isError = false;
 
@@ -662,7 +661,7 @@ public class ServiceDispatcher {
                     beganTrans = TransactionUtil.begin(service.transactionTimeout);
                 }
                 // enlist for XAResource debugging
-                if (beganTrans && TransactionUtil.debugResources()) {
+                if (beganTrans && TransactionUtil.debugResources) {
                     DebugXaResource dxa = new DebugXaResource(service.name);
                     try {
                         dxa.enlist();
@@ -716,6 +715,7 @@ public class ServiceDispatcher {
                 if (Debug.timingOn()) {
                     UtilTimer.closeTimer(localName + " / " + service.name, "ASync service finished...", module);
                 }
+                checkDebug(service, 0, debugging);
             } catch (Throwable t) {
                 if (Debug.timingOn()) {
                     UtilTimer.closeTimer(localName + " / " + service.name, "ASync service failed...", module);
@@ -728,6 +728,7 @@ public class ServiceDispatcher {
                 } catch (GenericTransactionException te) {
                     Debug.logError(te, "Cannot rollback transaction", module);
                 }
+                checkDebug(service, 0, debugging);
                 if (t instanceof ServiceAuthException) {
                     throw (ServiceAuthException) t;
                 } else if (t instanceof ServiceValidationException) {
@@ -810,9 +811,18 @@ public class ServiceDispatcher {
     }
 
     /**
+     * Gets the Authorization object associated with this dispatcher
+     * @return Authorization object associated with this dispatcher
+     */
+    public Authorization getAuthorization() {
+        return this.authz;
+    }
+
+    /**
      * Gets the Security object associated with this dispatcher
      * @return Security object associated with this dispatcher
      */
+    @Deprecated
     public Security getSecurity() {
         return this.security;
     }
@@ -845,20 +855,15 @@ public class ServiceDispatcher {
 
     protected void shutdown() throws GenericServiceException {
         Debug.logImportant("Shutting down the service engine...", module);
-        if (jlf != null) {
-            // shutdown JMS listeners
-            jlf.closeListeners();
-        }
+        // shutdown JMS listeners
+        jlf.closeListeners();
+        // shutdown the job scheduler
+        jm.shutdown();
     }
 
     // checks if parameters were passed for authentication
     private Map<String, Object> checkAuth(String localName, Map<String, Object> context, ModelService origService) throws ServiceAuthException, GenericServiceException {
-        String service = null;
-        try {
-            service = ServiceConfigUtil.getServiceEngine().getAuthorization().getServiceName();
-        } catch (GenericConfigException e) {
-            throw new GenericServiceException(e.getMessage(), e);
-        }
+        String service = ServiceConfigUtil.getElementAttr("authorization", "service-name");
 
         if (service == null) {
             throw new GenericServiceException("No Authentication Service Defined");
@@ -891,7 +896,7 @@ public class ServiceDispatcher {
                 //The old way: GenericValue newUserLogin = getLoginObject(service, localName, userLogin.getString("userLoginId"), userLogin.getString("currentPassword"), (Locale) context.get("locale"));
                 GenericValue newUserLogin = null;
                 try {
-                    newUserLogin = this.getDelegator().findOne("UserLogin", true, "userLoginId", userLogin.get("userLoginId"));
+                    newUserLogin = this.getDelegator().findByPrimaryKeyCache("UserLogin", "userLoginId", userLogin.get("userLoginId"));
                 } catch (GenericEntityException e) {
                     Debug.logError(e, "Error looking up service authentication UserLogin: " + e.toString(), module);
                     // leave newUserLogin null, will be handled below
@@ -942,7 +947,8 @@ public class ServiceDispatcher {
 
     // gets a value object from name/password pair
     private GenericValue getLoginObject(String service, String localName, String username, String password, Locale locale) throws GenericServiceException {
-        Map<String, Object> context = UtilMisc.toMap("login.username", username, "login.password", password, "isServiceAuth", true, "locale", locale);
+        Map<String, Object> context = FastMap.newInstance();
+        context.putAll(UtilMisc.toMap("login.username", username, "login.password", password, "isServiceAuth", true, "locale", locale));
 
         if (Debug.verboseOn()) Debug.logVerbose("[ServiceDispathcer.authenticate] : Invoking UserLogin Service", module);
 
@@ -979,36 +985,71 @@ public class ServiceDispatcher {
         return newLocale;
     }
 
+    // mode 1 = beginning (turn on) mode 0 = end (turn off)
+    private boolean checkDebug(ModelService model, int mode, boolean enable) {
+        boolean debugOn = Debug.verboseOn();
+        switch (mode) {
+            case 0:
+                if (model.debug && enable && debugOn) {
+                    // turn it off
+                    Debug.set(Debug.VERBOSE, false);
+                    Debug.logInfo("Verbose logging turned OFF", module);
+                    return true;
+                }
+                break;
+            case 1:
+                if (model.debug && enable && !debugOn) {
+                    // turn it on
+                    Debug.set(Debug.VERBOSE, true);
+                    Debug.logInfo("Verbose logging turned ON", module);
+                    return true;
+                }
+                break;
+            default:
+                Debug.logError("Invalid mode for checkDebug should be (0 or 1)", module);
+        }
+        return false;
+    }
+
     // run startup services
     private synchronized int runStartupServices() {
-        if (jm == null)
-            return 0;
-        int servicesScheduled = 0;
-        List<StartupService> startupServices = null;
+        if (jm == null) return 0;
+
+        Element root;
         try {
-            startupServices = ServiceConfigUtil.getServiceEngine().getStartupServices();
+            root = ServiceConfigUtil.getXmlRootElement();
         } catch (GenericConfigException e) {
-            Debug.logWarning(e, "Exception thrown while getting service config: ", module);
+            Debug.logError(e, module);
             return 0;
         }
-        for (StartupService startupService : startupServices) {
-            String serviceName = startupService.getName();
-            String runtimeDataId = startupService.getRuntimeDataId();
-            int runtimeDelay = startupService.getRuntimeDelay();
-            String sendToPool = startupService.getRunInPool();
-            if (UtilValidate.isEmpty(sendToPool)) {
-                try {
-                    sendToPool = ServiceConfigUtil.getServiceEngine().getThreadPool().getSendToPool();
-                } catch (GenericConfigException e) {
-                    Debug.logError(e, "Unable to get send pool in service [" + serviceName + "]: ", module);
+
+        int servicesScheduled = 0;
+        List<? extends Element> startupServices = UtilXml.childElementList(root, "startup-service");
+        if (UtilValidate.isNotEmpty(startupServices)) {
+            for (Element ss: startupServices) {
+                String serviceName = ss.getAttribute("name");
+                String runtimeDataId = ss.getAttribute("runtime-data-id");
+                String delayStr = ss.getAttribute("runtime-delay");
+                String sendToPool = ss.getAttribute("run-in-pool");
+                if (UtilValidate.isEmpty(sendToPool)) {
+                    sendToPool = ServiceConfigUtil.getSendPool();
                 }
-            }
-            // current time + 1 sec delay + extended delay
-            long runtime = System.currentTimeMillis() + 1000 + runtimeDelay;
-            try {
-                jm.schedule(sendToPool, serviceName, runtimeDataId, runtime);
-            } catch (JobManagerException e) {
-                Debug.logError(e, "Unable to schedule service [" + serviceName + "]", module);
+
+                long runtimeDelay;
+                try {
+                    runtimeDelay = Long.parseLong(delayStr);
+                } catch (Exception e) {
+                    Debug.logError(e, "Unable to parse runtime-delay value; using 0", module);
+                    runtimeDelay = 0;
+                }
+
+                // current time + 1 sec delay + extended delay
+                long runtime = System.currentTimeMillis() + 1000 + runtimeDelay;
+                try {
+                    jm.schedule(sendToPool, serviceName, runtimeDataId, runtime);
+                } catch (JobManagerException e) {
+                    Debug.logError(e, "Unable to schedule service [" + serviceName + "]", module);
+                }
             }
         }
 
@@ -1018,7 +1059,23 @@ public class ServiceDispatcher {
     private RunningService logService(String localName, ModelService modelService, int mode) {
         // set up the running service log
         RunningService rs = new RunningService(localName, modelService, mode);
-        runLog.put(rs, this);
+        if (runLog == null) {
+            Debug.logWarning("LRUMap is null", module);
+        } else {
+            synchronized(runLog) {
+                try {
+                    runLog.put(rs, this);
+                } catch (Throwable t) {
+                    Debug.logWarning("LRUMap problem; resetting LRU [" + runLog.size() + "]", module);
+                    runLog.clear();
+                    try {
+                        runLog.put(rs, this);
+                    } catch (Throwable t2) {
+                        Debug.logError(t2, "Unable to put() in reset LRU map!", module);
+                    }
+                }
+            }
+        }
         return rs;
     }
 
@@ -1038,6 +1095,15 @@ public class ServiceDispatcher {
      */
     public static void enableJMS(boolean enable) {
         ServiceDispatcher.enableJMS = enable;
+    }
+
+
+    /**
+     * Get Enabled/Disabled JMS listeners status
+     * @return boolean true is JMS listeners are enabled
+     */
+    public static boolean getEnableJMS() {
+        return ServiceDispatcher.enableJMS;
     }
 
     /**

@@ -7,15 +7,11 @@
 		hourText: 'Часы',
 		minuteText: 'Минуты',
 		secondText: 'Секунды',
-		millisecText: 'Миллисекунды',
-		microsecText: 'Микросекунды',
-		timezoneText: 'Часовой пояс',
-		currentText: 'Сейчас',
+		timezoneText: 'Время зоны',
+		currentText: 'Теперь',
 		closeText: 'Закрыть',
-		timeFormat: 'HH:mm',
-		amNames: ['AM', 'A'],
-		pmNames: ['PM', 'P'],
-		isRTL: false
+		timeFormat: 'hh:mm tt',
+		ampm: false
 	};
 	$.timepicker.setDefaults($.timepicker.regional['ru']);
 })(jQuery);

@@ -36,28 +36,28 @@
       <of:CONFIRMATION>1</of:CONFIRMATION>
       <of:LANGUAGE>ENG</of:LANGUAGE>
       <of:CODEPAGE>NONE</of:CODEPAGE>
-      <of:AUTHID>${authId!}</of:AUTHID>
+      <of:AUTHID>${authId?if_exists}</of:AUTHID>
     </os:SENDER>
-    <os:DATETIMEISO>${sentDate!}</os:DATETIMEISO>
+    <os:DATETIMEISO>${sentDate?if_exists}</os:DATETIMEISO>
   </os:CNTROLAREA>
   <n:DATAAREA>
     <n:CONFIRM_BOD>
       <n:CONFIRM>
         <os:CNTROLAREA>
           <os:SENDER>
-            <of:LOGICALID>${errorLogicalId!}</of:LOGICALID>
-            <of:COMPONENT>${errorComponent!}</of:COMPONENT>
-            <of:TASK>${errorTask!}</of:TASK>
-            <of:REFERENCEID>${errorReferenceId!}</of:REFERENCEID>
+            <of:LOGICALID>${errorLogicalId?if_exists}</of:LOGICALID>
+            <of:COMPONENT>${errorComponent?if_exists}</of:COMPONENT>
+            <of:TASK>${errorTask?if_exists}</of:TASK>
+            <of:REFERENCEID>${errorReferenceId?if_exists}</of:REFERENCEID>
           </os:SENDER>
           <os:DATETIMEISO></os:DATETIMEISO>
         </os:CNTROLAREA>
-        <of:ORIGREF>${origRef!}</of:ORIGREF>
-        <#if errorMapList??>
+        <of:ORIGREF>${origRef?if_exists}</of:ORIGREF>
+        <#if errorMapList?exists>
           <#list errorMapList as errorMap>
             <n:CONFIRMMSG>
-              <of:DESCRIPTN>${errorMap.description!?xml}</of:DESCRIPTN>
-              <of:REASONCODE>${errorMap.reasonCode!?xml}</of:REASONCODE>
+              <of:DESCRIPTN>${errorMap.description?if_exists?xml}</of:DESCRIPTN>
+              <of:REASONCODE>${errorMap.reasonCode?if_exists?xml}</of:REASONCODE>
             </n:CONFIRMMSG>
           </#list>
         </#if>

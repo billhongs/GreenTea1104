@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#assign shoppingCart = sessionAttributes.shoppingCart!>
+<#assign shoppingCart = sessionAttributes.shoppingCart?if_exists>
 <#if shoppingCart?has_content>
     <#assign shoppingCartSize = shoppingCart.size()>
 <#else>
@@ -57,19 +57,19 @@ under the License.
               <tr>
                 <td>${cartLine.getQuantity()?string.number}</td>
                 <td>
-                  <#if cartLine.getProductId()??>
-                      <#if cartLine.getParentProductId()??>
-                          <a href="<@ofbizCatalogAltUrl productId=cartLine.getParentProductId()/>" class="linktext">${cartLine.getName()}</a>
+                  <#if cartLine.getProductId()?exists>
+                      <#if cartLine.getParentProductId()?exists>
+                          <a href="<@ofbizUrl>product?product_id=${cartLine.getParentProductId()}</@ofbizUrl>" class="linktext">${cartLine.getName()}</a>
                       <#else>
-                          <a href="<@ofbizCatalogAltUrl productId=cartLine.getProductId()/>" class="linktext">${cartLine.getName()}</a>
+                          <a href="<@ofbizUrl>product?product_id=${cartLine.getProductId()}</@ofbizUrl>" class="linktext">${cartLine.getName()}</a>
                       </#if>
                   <#else>
-                    <strong>${cartLine.getItemTypeDescription()!}</strong>
+                    <strong>${cartLine.getItemTypeDescription()?if_exists}</strong>
                   </#if>
                 </td>
                 <td><@ofbizCurrency amount=cartLine.getDisplayItemSubTotal() isoCode=shoppingCart.getCurrency()/></td>
               </tr>
-              <#if cartLine.getReservStart()??>
+              <#if cartLine.getReservStart()?exists>
                 <tr><td>&nbsp;</td><td colspan="2">(${cartLine.getReservStart()?string("yyyy-MM-dd")}, ${cartLine.getReservLength()} <#if cartLine.getReservLength() == 1>${uiLabelMap.CommonDay}<#else>${uiLabelMap.CommonDays}</#if>)</td></tr>
               </#if>
             </#list>

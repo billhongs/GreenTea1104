@@ -25,7 +25,6 @@ under the License.
                 <xs:element minOccurs="0" ref="description"/>
                 <xs:element minOccurs="0" ref="owner"/>
                 <xs:element minOccurs="0" ref="errorpage"/>
-                <xs:element minOccurs="0" ref="status-code"/>
                 <xs:element minOccurs="0" maxOccurs="unbounded" ref="handler"/>
                 <xs:element minOccurs="0" ref="protect"/>
                 <xs:element minOccurs="0" ref="firstvisit"/>
@@ -59,17 +58,6 @@ under the License.
     <xs:element name="description" type="xs:string"/>
     <xs:element name="owner" type="xs:string"/>
     <xs:element name="errorpage" type="xs:string"/>
-    <xs:element name="status-code" type="xs:string">
-        <xs:annotation>
-            <xs:documentation>
-                A redirection HTTP status-code
-                If set it will override, for this whole controller, the default status-code sets in requestHandler.properties 
-                
-                Most possible redirection status-codes are 301, 303 and 307. 
-                302 (the Java default) is not recommended for SEO reasons, 301 is preferred.
-            </xs:documentation>
-        </xs:annotation>
-    </xs:element>
     <xs:element name="handler">
         <xs:annotation>
             <xs:documentation>
@@ -201,7 +189,6 @@ under the License.
             <xs:sequence>
                 <xs:element minOccurs="0" ref="description"/>
                 <xs:element minOccurs="0" ref="security"/>
-                <xs:element minOccurs="0" ref="metric"/>
                 <xs:element minOccurs="0" ref="event"/>
                 <xs:element maxOccurs="unbounded" ref="response"/>
             </xs:sequence>
@@ -338,7 +325,7 @@ under the License.
         <xs:attribute name="direct-request" default="true">
             <xs:annotation>
                 <xs:documentation>
-                    If false the request can only be accessed in a chained request, default to true.
+                    If false the request can only be accessed in a chained request
                 </xs:documentation>
             </xs:annotation>
             <xs:simpleType>
@@ -349,60 +336,6 @@ under the License.
             </xs:simpleType>
         </xs:attribute>
     </xs:attributeGroup>
-    <xs:element name="metric">
-        <xs:annotation>
-            <xs:documentation>
-                Calculate and maintain a moving average response time for a Request or Event. Request Metrics can be used
-                for monitoring and reporting, Event Metrics only for reporting. Request Metrics can also be used to trigger an alternate
-                response if the optional threshold attribute is used.
-                
-                The metric works by gathering statistics until a configurable maximum is reached (number of
-                requests or elapsed time), then the average is calculated. A smoothing factor is used to
-                smooth differences between calculations.
-            </xs:documentation>
-        </xs:annotation>
-        <xs:complexType>
-            <xs:attribute name="name" type="xs:string" use="required">
-                <xs:annotation>
-                    <xs:documentation>
-                        Each metric must have a unique name. 
-                    </xs:documentation>
-                </xs:annotation>
-            </xs:attribute>
-            <xs:attribute name="estimation-size" type="xs:string">
-                <xs:annotation>
-                    <xs:documentation>
-                        Positive integer number of requests to include in the metrics calculation. Defaults to "100". 
-                    </xs:documentation>
-                </xs:annotation>
-            </xs:attribute>
-            <xs:attribute name="estimation-time" type="xs:string">
-                <xs:annotation>
-                    <xs:documentation>
-                        Positive integer number of milliseconds to include in the metrics calculation. Defaults to "1000". 
-                    </xs:documentation>
-                </xs:annotation>
-            </xs:attribute>
-            <xs:attribute name="smoothing" type="xs:string">
-                <xs:annotation>
-                    <xs:documentation>
-                        Positive decimal smoothing factor - used to smooth the differences between calculations. A value of "1" disables smoothing. Defaults to "0.7". 
-                    </xs:documentation>
-                </xs:annotation>
-            </xs:attribute>
-            <xs:attribute name="threshold" type="xs:string">
-                <xs:annotation>
-                    <xs:documentation>
-                        The metric threshold in milliseconds. If the average response time exceeds this setting,
-                        then a "threshold-exceeded" response code will be generated. That response code can be used
-                        in a response element. The threshold check will ignore the first three requests - to give
-                        the metric a chance to stablize after startup. A value of "0.0" disables the threshold.
-                        Defaults to "0.0". 
-                    </xs:documentation>
-                </xs:annotation>
-            </xs:attribute>
-        </xs:complexType>
-    </xs:element>
     <xs:element name="event">
         <xs:annotation>
             <xs:documentation>
@@ -412,9 +345,6 @@ under the License.
             </xs:documentation>
         </xs:annotation>
         <xs:complexType>
-            <xs:sequence>
-                <xs:element minOccurs="0" ref="metric"/>
-            </xs:sequence>
             <xs:attributeGroup ref="attlist.event"/>
         </xs:complexType>
     </xs:element>
@@ -446,7 +376,7 @@ under the License.
             <xs:annotation>
                 <xs:documentation>
                     The path to the class or XML file containing this event.
-                    Leave empty for services, except if you want to run it as a job, then use "async"
+                    leave empty for services, except if you want to run it as a job, then use "async"
                 </xs:documentation>
             </xs:annotation>
         </xs:attribute>
@@ -654,18 +584,6 @@ under the License.
                 </xs:restriction>
             </xs:simpleType>
         </xs:attribute>
-        <xs:attribute name="status-code" type="xs:string">
-            <xs:annotation>
-                <xs:documentation>
-                    A redirection HTTP status-code
-                    If set it will override, for this request, the default status-code sets in requestHandler.properties
-                    and the possible status-code sets at the controller level (included controllers inclusive)
-                    
-                    Most possible redirection status-codes are 301, 303 and 307. 
-                    302 (the Java default) is not recommended for SEO reasons, 301 is preferred.
-                </xs:documentation>
-            </xs:annotation>
-        </xs:attribute>        
     </xs:attributeGroup>
     <xs:element name="redirect-parameter">
         <xs:annotation>
@@ -734,7 +652,8 @@ under the License.
         <xs:attribute type="xs:string" name="type" default="default">
             <xs:annotation>
                 <xs:documentation>
-                    The name of the view handler that will render the output: screen, screenfop, ftl etc...
+                    There are as much as types (of type view) as available defined and accessible event handlers.
+                    Most used is screen, others are notably screenxml, screentext, screencsv, screenfop, ftl, http and birt
                     A most comprehensive list can be found in the common-controller.
                 </xs:documentation>
             </xs:annotation>

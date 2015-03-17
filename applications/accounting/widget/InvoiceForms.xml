@@ -69,10 +69,11 @@ under the License.
                 <field-map field-name="compareDate" from-field="invoiceDate"/>
                 <field-map field-name="lastNameFirst" value="Y"/>
             </service>
-            <set field="amountToApply" value="${groovy:org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceNotApplied(delegator,invoiceId)
+            <set field="amountToApply" value="${bsh:org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceNotApplied(delegator,invoiceId)
                 .multiply(org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceCurrencyConversionRate(delegator,invoiceId))}"/>
-            <set field="total" value="${groovy:org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceTotal(delegator,invoiceId)
+            <set field="total" value="${bsh:org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceTotal(delegator,invoiceId)
                 .multiply(org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceCurrencyConversionRate(delegator,invoiceId))}"/>
+            <set field="currencyUomId" from-field="defaultOrganizationPartyCurrencyUomId"/>
         </row-actions>
 
         <field name="invoiceId" widget-style="buttontext" sort-field="true">
@@ -83,7 +84,7 @@ under the License.
         <field name="invoiceTypeId" sort-field="true"><display-entity entity-name="InvoiceType"/></field>
         <field name="invoiceDate" sort-field="true"><display type="date"/></field>
         <field name="statusId" title="${uiLabelMap.CommonStatus}" sort-field="true"><display-entity entity-name="StatusItem"/></field>
-        <field name="description" sort-field="true"><display/></field>
+        <field name="description" sort-field="true" encode-output="false"><display/></field>
         <field name="partyIdFrom" title="${uiLabelMap.AccountingFromParty}" sort-field="true">
             <hyperlink target="/partymgr/control/PartyFinancialHistory" target-type="inter-app" description="${partyNameResultFrom.fullName} [${partyIdFrom}]">
                 <parameter param-name="partyId" from-field="partyIdFrom"/>
@@ -101,7 +102,7 @@ under the License.
     <form name="invoiceHeader" type="single" title="Invoice header information" default-map-name="invoice"
         header-row-style="header-row" default-table-style="basic-table">
         <actions>
-            <set field="total" value="${groovy:return(org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceTotal(invoice));}"/>
+            <set field="total" value="${bsh:return(org.ofbiz.accounting.invoice.InvoiceWorker.getInvoiceTotal(invoice));}"/>
             <service service-name="getPartyNameForDate" result-map="partyNameResultFrom">
                 <field-map field-name="partyId" from-field="invoice.partyIdFrom"/>
                 <field-map field-name="compareDate" from-field="invoice.invoiceDate"/>
@@ -116,8 +117,8 @@ under the License.
         <field name="invoiceId"><hidden/></field>
         <field position="1" name="invoiceTypeId"><display-entity entity-name="InvoiceType"/></field>
         <field name="statusId" title="${uiLabelMap.CommonStatus}" position="2"><display-entity entity-name="StatusItem"/></field>
-        <field position="1" name="description"><display/></field>
-        <field position="2" name="invoiceMessage"><display/></field>
+        <field position="1" name="description" encode-output="false"><display/></field>
+        <field position="2" name="invoiceMessage" encode-output="false"><display/></field>
         <field position="1" name="partyIdFrom">
             <hyperlink target="/partymgr/control/viewprofile" target-type="inter-app" description="${partyNameResultFrom.fullName} [${invoice.partyIdFrom}]">
                 <parameter param-name="partyId" from-field="invoice.partyIdFrom"/>
@@ -130,19 +131,22 @@ under the License.
         </field>
         <field position="1" name="roleTypeId"><display/></field>
         <field position="2" name="billingAccountId"><display/></field>
-        <field position="1" name="invoiceDate"><display description="${groovy:if(invoice.get(&quot;invoiceDate&quot;)!=null)return(invoice.getString(&quot;invoiceDate&quot;).substring(0,10));}"/></field>
-        <field position="2" name="dueDate"><display description="${groovy:if(invoice.get(&quot;dueDate&quot;)!=null)return(invoice.getString(&quot;dueDate&quot;).substring(0,10));}"/></field>
+        <field position="1" name="invoiceDate"><display description="${bsh:if(invoice.get(&quot;invoiceDate&quot;)!=null)return(invoice.getString(&quot;invoiceDate&quot;).substring(0,10));}"/></field>
+        <field position="2" name="dueDate"><display description="${bsh:if(invoice.get(&quot;dueDate&quot;)!=null)return(invoice.getString(&quot;dueDate&quot;).substring(0,10));}"/></field>
         <field position="1" name="total"><display description="${total}" type="currency" currency="${invoice.currencyUomId}"/></field>
-        <field position="2" name="paidDate"><display description="${groovy:if(invoice.get(&quot;paidDate&quot;)!=null)return(invoice.getString(&quot;paidDate&quot;).substring(0,10));}"/></field>
+        <field position="2" name="paidDate"><display description="${bsh:if(invoice.get(&quot;paidDate&quot;)!=null)return(invoice.getString(&quot;paidDate&quot;).substring(0,10));}"/></field>
         <field position="1" name="referenceNumber" title="${uiLabelMap.FormFieldTitle_referenceNum}"><display/></field>
         <field name="currencyUomId"><hidden/></field>
     </form>
 
-<form name="invoiceItems" list-name="invItemAndOrdItems" target="" title="" type="list" separate-columns="true" paginate-target="invoiceOverview"
+    <form name="invoiceItems" list-name="invoiceItems" target="" title="" type="list" separate-columns="true" paginate-target="invoiceOverview"
         odd-row-style="alternate-row" default-table-style="basic-table hover-bar">
         <row-actions>
-            <set field="quantity" value="${groovy: quantity ?: 1}" type="BigDecimal"/>
-            <set field="total" value="${groovy: quantity * amount ?: 0}" type="BigDecimal"/>
+            <set field="total" value="${bsh:
+                import java.math.BigDecimal;
+                if(quantity==null) quantity = BigDecimal.ONE;
+                if(amount==null) amount = BigDecimal.ZERO;
+                return (quantity.multiply(amount));}"/>
         </row-actions>
         <auto-fields-entity entity-name="InvoiceItem" default-field-type="display"/>
         <field name="invoiceId"><hidden/></field>
@@ -153,7 +157,6 @@ under the License.
                 <parameter param-name="orderId"/>
             </hyperlink>
         </field>
-        <field name="orderItemSeqId" widget-area-style="align-text"><display/></field>
         <field name="inventoryItemId" widget-area-style="align-text"><display/></field>
         <field name="quantity" widget-area-style="align-text"><display/></field>
         <field name="amount" title="${uiLabelMap.AccountingUnitPrice}" widget-area-style="align-text"><display type="currency" currency="${invoice.currencyUomId}"/></field>
@@ -206,7 +209,7 @@ under the License.
         <field name="paymentApplicationId"><hidden/></field>
         <field name="amountApplied" widget-area-style="align-text"><display type="currency" currency="${invoice.currencyUomId}"/></field>
     </form>
-    <form name="AcctgTransAndEntries" type="list" title="Accounting Transactions" list-name="acctgTransAndEntries"
+    <form name="AcctgTransAndEntries" type="list" title="Accounting Transactions" list-name="AcctgTransAndEntries"
         odd-row-style="alternate-row" default-table-style="basic-table hover-bar">
         <auto-fields-entity entity-name="AcctgTransAndEntries" default-field-type="display"/>
         <field name="invoiceId"><hidden/></field>
@@ -299,7 +302,7 @@ under the License.
         </field>
         <field name="statusId" title="${uiLabelMap.CommonStatus}" use-when="invoice==null"><hidden value="INVOICE_IN_PROCESS"/></field>
         <field name="statusId" title="${uiLabelMap.CommonStatus}" position="2" use-when="invoice!=null"><display-entity entity-name="StatusItem"/></field>
-        <field position="1" name="description"><text size="100"/></field>
+        <field position="1" name="description" encode-output="false"><text size="100"/></field>
         <field position="1" name="partyIdFrom" use-when="invoiceType.getString(&quot;parentTypeId&quot;).equals(&quot;SALES_INVOICE&quot;)"><display description="${invoice.partyIdFrom}"/></field>
         <field position="1" name="partyIdFrom" use-when="invoiceType.getString(&quot;parentTypeId&quot;).equals(&quot;PURCHASE_INVOICE&quot;)"><lookup target-form-name="LookupPartyName"/></field>
         <field position="2" name="partyIdTo" entry-name="partyId" parameter-name="partyId" use-when="invoiceType.getString(&quot;parentTypeId&quot;).equals(&quot;PURCHASE_INVOICE&quot;)"><display description="${invoice.partyId}"/></field>
@@ -336,7 +339,7 @@ under the License.
             </drop-down>
         </field>
         <field position="2" name="recurrenceInfoId"><text size="10"/></field>
-        <field position="1" name="invoiceMessage"><text size="100"/></field>
+        <field position="1" name="invoiceMessage" encode-output="false"><text size="100"/></field>
         <field position="1" name="referenceNumber"><text/></field>
         <!--field position="2" name="invoiceAmount" use-when="invoiceId!=null"><display/></field-->
         <field position="1" name="updateButton" widget-style="smallSubmit" use-when="invoice!=null&amp;&amp;invoice.getString(&quot;statusId&quot;).equals(&quot;INVOICE_IN_PROCESS&quot;)">
@@ -344,10 +347,13 @@ under the License.
         </field>
     </form>
 
-   <form name="EditInvoiceItems" type="multi"  list-name="invoiceItems" default-entity-name="InvoiceItem" target="updateInvoiceItem?invoiceId=${invoiceId}&amp;viewSize=${viewSize}&amp;viewIndex=${viewIndex}" title="Edit Invoice Items" paginate-target="listInvoiceItems"
+   <form name="EditInvoiceItems" type="list"  list-name="invoiceItems" default-entity-name="InvoiceItem" target="updateInvoiceItem" title="Edit Invoice Items" paginate-target="listInvoiceItems"
        odd-row-style="alternate-row" default-table-style="basic-table hover-bar">
        <row-actions>
-           <set field="total" value="${groovy: (quantity ?: 1) * (amount ?: 0)}" type="BigDecimal"/>
+           <set field="total" value="${bsh:
+               import java.math.BigDecimal;
+               if(quantity == null || quantity.compareTo(BigDecimal.ZERO) == 0) quantity = BigDecimal.ONE;
+               return(quantity.multiply(amount));}"/>
        </row-actions>
        <field name="viewSize"><hidden value="${viewSize}"/></field>
        <field name="viewIndex"><hidden value="${viewIndex}"/></field>
@@ -360,7 +366,7 @@ under the License.
                 <parameter param-name="invoiceItemSeqId"/>
             </hyperlink>
         </field>
-       <field name="quantity"><text size="10"/></field>
+       <field name="quantity"><text size="3"/></field>
        <field name="invoiceItemTypeId">
            <drop-down allow-empty="false">
                <list-options list-name="invoiceItemTypes" key-name="invoiceItemTypeId" description="${description}"/>
@@ -373,10 +379,10 @@ under the License.
                <list-options list-name="glAccountOrganizationAndClassList" key-name="glAccountId" description="${glAccountId} ${accountName}"/>
            </drop-down>
        </field>
-       <field name="amount" title="${uiLabelMap.AccountingUnitPrice}"><text size="10"/></field>
+       <field name="amount" title="${uiLabelMap.AccountingUnitPrice}"><text size="7"/></field>
        <field name="total" widget-area-style="align-text"><display type="currency" currency="${invoice.currencyUomId}"/></field>  <!-- this should not look like something you can modify, hence display -->
        <field name="updateButton" title="${uiLabelMap.CommonUpdate}" widget-style="buttontext" ><submit button-type="text-link"/></field>
-       <field name="removeButton" title=" " widget-style="buttontext">
+       <field name="removeButton" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext">
             <hyperlink description="${uiLabelMap.CommonRemove}" target="removeInvoiceItem">
                 <parameter param-name="invoiceId"/>
                 <parameter param-name="invoiceItemSeqId"/>
@@ -434,7 +440,7 @@ under the License.
     <form name="ListInvoiceStatus" list-name="invoiceStatus" target="" title="" type="list" paginate-target="ListInvoiceStatus"
         odd-row-style="alternate-row" default-table-style="basic-table hover-bar">
         <field name="invoiceId"><hidden/></field>
-        <field name="statusDate"><display description="${groovy:statusDate.toString().substring(0,10)}"/></field>
+        <field name="statusDate"><display description="${bsh:statusDate.toString().substring(0,10)}"/></field>
         <field name="statusId" title="${uiLabelMap.CommonStatus}"><display-entity entity-name="StatusItem"/></field>
     </form>
 
@@ -461,7 +467,7 @@ under the License.
         <field name="billingAccountId"><hidden/></field>
         <field name="amountToApply"><text size="10" disabled="true"/></field>
         <field name="updateButton" title="${uiLabelMap.CommonUpdate}" widget-style="buttontext"><submit button-type="text-link"/></field>
-        <field name="removeButton" title=" " widget-style="buttontext" use-when="paymentApplicationId!=null">
+        <field name="removeButton" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext" use-when="paymentApplicationId!=null">
             <hyperlink description="${uiLabelMap.CommonRemove}" target="removeInvoiceApplication">
                 <parameter param-name="paymentApplicationId"/>
                 <parameter param-name="invoiceId"/>
@@ -569,7 +575,7 @@ under the License.
 
         <field name="invoiceId"><hidden/></field>
 
-        <field name="deleteLink" title=" " widget-style="buttontext">
+        <field name="deleteLink" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext">
             <hyperlink target="unlinkInvoiceFromTimeEntry" description="${uiLabelMap.CommonDelete}" also-hidden="false">
                 <parameter param-name="timeEntryId"/>
                 <parameter param-name="invoiceId"/>

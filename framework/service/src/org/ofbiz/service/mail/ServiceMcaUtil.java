@@ -24,6 +24,7 @@ import java.util.TreeSet;
 
 import org.ofbiz.base.component.ComponentConfig;
 import org.ofbiz.base.config.GenericConfigException;
+import org.ofbiz.base.config.MainResourceHandler;
 import org.ofbiz.base.config.ResourceHandler;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilXml;
@@ -31,12 +32,13 @@ import org.ofbiz.base.util.cache.UtilCache;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
+import org.ofbiz.service.config.ServiceConfigUtil;
 import org.w3c.dom.Element;
 
 public class ServiceMcaUtil {
 
     public static final String module = ServiceMcaUtil.class.getName();
-    private static final UtilCache<String, ServiceMcaRule> mcaCache = UtilCache.createUtilCache("service.ServiceMCAs", 0, 0, false);
+    public static UtilCache<String, ServiceMcaRule> mcaCache = UtilCache.createUtilCache("service.ServiceMCAs", 0, 0, false);
 
     public static void reloadConfig() {
         mcaCache.clear();
@@ -44,7 +46,18 @@ public class ServiceMcaUtil {
     }
 
     public static void readConfig() {
-        // TODO: Missing in XSD file.
+        Element rootElement = null;
+        try {
+            rootElement = ServiceConfigUtil.getXmlRootElement();
+        } catch (GenericConfigException e) {
+            Debug.logError(e, "Error getting Service Engine XML root element", module);
+            return;
+        }
+
+        for (Element serviceMcasElement: UtilXml.childElementList(rootElement, "service-mcas")) {
+            ResourceHandler handler = new MainResourceHandler(ServiceConfigUtil.SERVICE_ENGINE_XML_FILENAME, serviceMcasElement);
+            addMcaDefinitions(handler);
+        }
 
         // get all of the component resource eca stuff, ie specified in each ofbiz-component.xml file
         for (ComponentConfig.ServiceResourceInfo componentResourceInfo: ComponentConfig.getAllServiceResourceInfos("mca")) {

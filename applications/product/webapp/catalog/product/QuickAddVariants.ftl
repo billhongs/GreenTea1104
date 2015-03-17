@@ -45,7 +45,7 @@ function clickAll(e) {
     }
 }
 </script>
-<#if (product.isVirtual)! != "Y">
+<#if (product.isVirtual)?if_exists != "Y">
     <h2>${uiLabelMap.ProductWarningProductNotVirtual}</h2>
 </#if>
 <#if featureTypes?has_content && (featureTypes.size() > 0)>
@@ -75,7 +75,7 @@ function clickAll(e) {
                 <#assign productFeatureIds = "">
                 <#list curProductFeatureAndAppls as productFeatureAndAppl>
                 <td>
-                    ${productFeatureAndAppl.description!}
+                    ${productFeatureAndAppl.description?if_exists}
                     <#assign productFeatureIds = productFeatureIds + "|" + productFeatureAndAppl.productFeatureId>
                 </td>
                 </#list>

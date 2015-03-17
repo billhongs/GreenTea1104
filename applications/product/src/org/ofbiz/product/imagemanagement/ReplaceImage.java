@@ -19,6 +19,7 @@
 package org.ofbiz.product.imagemanagement;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.RenderedImage;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -34,9 +35,7 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ServiceUtil;
@@ -50,7 +49,7 @@ public class ReplaceImage{
         LocalDispatcher dispatcher = dctx.getDispatcher();
         Delegator delegator = dctx.getDelegator();
         GenericValue userLogin = (GenericValue) context.get("userLogin");
-        String imageServerPath = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.management.path", delegator), context);
+        String imageServerPath = FlexibleStringExpander.expandString(UtilProperties.getPropertyValue("catalog", "image.management.path"), context);
         String productId = (String) context.get("productId");
         String contentIdExist = (String) context.get("contentIdExist");
         String contentIdReplace = (String) context.get("contentIdReplace");
@@ -79,31 +78,35 @@ public class ReplaceImage{
         
         try {
             BufferedImage bufImg = ImageIO.read(new File(imageServerPath + "/" + productId + "/" + dataResourceNameReplace));
-            ImageIO.write(bufImg, "jpg", new File(imageServerPath + "/" + productId + "/" + dataResourceNameExist));
+            ImageIO.write((RenderedImage) bufImg, "jpg", new File(imageServerPath + "/" + productId + "/" + dataResourceNameExist));
             
-            List<GenericValue> contentAssocReplaceList = EntityQuery.use(delegator).from("ContentAssoc").where("contentId", contentIdReplace, "contentAssocTypeId", "IMAGE_THUMBNAIL").queryList();
+            List<GenericValue> contentAssocReplaceList = delegator.findByAnd("ContentAssoc", UtilMisc.toMap("contentId", contentIdReplace, "contentAssocTypeId", "IMAGE_THUMBNAIL"));
             if (contentAssocReplaceList.size() > 0) {
                 for (int i = 0; i < contentAssocReplaceList.size(); i++) {
                     GenericValue contentAssocReplace = contentAssocReplaceList.get(i);
                     
-                    GenericValue dataResourceAssocReplace = EntityQuery.use(delegator).from("ContentDataResourceView").where("contentId", contentAssocReplace.get("contentIdTo")).queryFirst();
+                    List<GenericValue> dataResourceAssocReplaceList = delegator.findByAnd("ContentDataResourceView", UtilMisc.toMap("contentId", contentAssocReplace.get("contentIdTo")));
+                    GenericValue dataResourceAssocReplace = EntityUtil.getFirst(dataResourceAssocReplaceList);
                     
-                    GenericValue contentAssocExist = EntityQuery.use(delegator).from("ContentAssoc").where("contentId", contentIdExist, "contentAssocTypeId", "IMAGE_THUMBNAIL", "mapKey", contentAssocReplace.get("mapKey")).queryFirst();
+                    List<GenericValue> contentAssocExistList = delegator.findByAnd("ContentAssoc", UtilMisc.toMap("contentId", contentIdExist, "contentAssocTypeId", "IMAGE_THUMBNAIL", "mapKey", contentAssocReplace.get("mapKey")));
+                    GenericValue contentAssocExist = EntityUtil.getFirst(contentAssocExistList);
                     
-                    GenericValue dataResourceAssocExist = EntityQuery.use(delegator).from("ContentDataResourceView").where("contentId", contentAssocExist.get("contentIdTo")).queryFirst();
+                    List<GenericValue> dataResourceAssocExistList = delegator.findByAnd("ContentDataResourceView", UtilMisc.toMap("contentId", contentAssocExist.get("contentIdTo")));
+                    GenericValue dataResourceAssocExist = EntityUtil.getFirst(dataResourceAssocExistList);
                     
                     if (UtilValidate.isNotEmpty(dataResourceAssocExist)) {
                         BufferedImage bufImgAssocReplace = ImageIO.read(new File(imageServerPath + "/" + productId + "/" + dataResourceAssocReplace.get("drDataResourceName")));
-                        ImageIO.write(bufImgAssocReplace, "jpg", new File(imageServerPath + "/" + productId + "/" + dataResourceAssocExist.get("drDataResourceName")));
+                        ImageIO.write((RenderedImage) bufImgAssocReplace, "jpg", new File(imageServerPath + "/" + productId + "/" + dataResourceAssocExist.get("drDataResourceName")));
                     }
                     else{
                         BufferedImage bufImgAssocReplace = ImageIO.read(new File(imageServerPath + "/" + productId + "/" + dataResourceAssocReplace.get("drDataResourceName")));
-                        ImageIO.write(bufImgAssocReplace, "jpg", new File(imageServerPath + "/" + productId + "/" + dataResourceNameExist.substring(0, dataResourceNameExist.length() - 4) + "-" + contentAssocReplace.get("mapKey") + ".jpg"));
+                        ImageIO.write((RenderedImage) bufImgAssocReplace, "jpg", new File(imageServerPath + "/" + productId + "/" + dataResourceNameExist.substring(0, dataResourceNameExist.length() - 4) + "-" + contentAssocReplace.get("mapKey") + ".jpg"));
                     }
                 }
             }
             
-            GenericValue productContent = EntityQuery.use(delegator).from("ProductContent").where("productId", productId, "contentId", contentIdReplace, "productContentTypeId", "IMAGE").queryFirst();
+            List<GenericValue> productContentList = delegator.findByAnd("ProductContent", UtilMisc.toMap("productId", productId, "contentId", contentIdReplace, "productContentTypeId", "IMAGE"));
+            GenericValue productContent = EntityUtil.getFirst(productContentList);
             
             if (productContent != null) {
                 Map<String, Object> productContentCtx = FastMap.newInstance();

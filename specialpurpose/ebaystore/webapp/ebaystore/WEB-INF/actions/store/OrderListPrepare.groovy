@@ -28,7 +28,7 @@ if (orderList) {
     for (orderCount = 0; orderCount < orderList.size(); orderCount++) {
         orderItem = orderList[orderCount];
         orderId = null;
-        orderHeaders = from("OrderHeader").where("externalId", orderItem.("externalId")).queryList();
+        orderHeaders = delegator.findByAnd("OrderHeader", [externalId : orderItem.("externalId")]);
         if (orderHeaders.size() > 0) {
             orderHeader = EntityUtil.getFirst(orderHeaders);
             orderId = orderHeader.get("orderId").toString();
@@ -44,7 +44,7 @@ if (orderList) {
             item = items[itemCount];
             title = null;
             if (!(item.get("title"))) {
-                product = from("Product").where("productId", item.get("productId")).cache(true).queryOne();
+                product = delegator.findOne("Product", [productId : item.get("productId")], true);
                 title = product.get("internalName");
             }
             orderMap = FastMap.newInstance();

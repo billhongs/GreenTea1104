@@ -20,18 +20,14 @@
 import org.ofbiz.entity.*;
 import org.ofbiz.base.util.*;
 import org.ofbiz.base.util.string.*;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.product.image.ScaleImage;
 
 context.nowTimestampString = UtilDateTime.nowTimestamp().toString();
 
 // make the image file formats
-context.tenantId = delegator.getDelegatorTenantId();
-imageFilenameFormat = EntityUtilProperties.getPropertyValue('catalog', 'image.filename.format', delegator);
-imageServerPath = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.server.path", delegator), context);
-imageUrlPrefix = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.url.prefix",delegator), context);
-imageServerPath = imageServerPath.endsWith("/") ? imageServerPath.substring(0, imageServerPath.length()-1) : imageServerPath;
-imageUrlPrefix = imageUrlPrefix.endsWith("/") ? imageUrlPrefix.substring(0, imageUrlPrefix.length()-1) : imageUrlPrefix;
+imageFilenameFormat = UtilProperties.getPropertyValue('catalog', 'image.filename.format');
+imageServerPath = FlexibleStringExpander.expandString(UtilProperties.getPropertyValue("catalog", "image.server.path"), context);
+imageUrlPrefix = UtilProperties.getPropertyValue('catalog', 'image.url.prefix');
 context.imageFilenameFormat = imageFilenameFormat;
 context.imageServerPath = imageServerPath;
 context.imageUrlPrefix = imageUrlPrefix;
@@ -46,7 +42,7 @@ context.imageNameOriginal = imageUrlPrefix + "/" + filenameExpander.expandString
 // Start ProductContent stuff
 productContent = null;
 if (product) {
-    productContent = product.getRelated('ProductContent', null, ['productContentTypeId'], false);
+    productContent = product.getRelated('ProductContent', null, ['productContentTypeId']);
 }
 context.productContent = productContent;
 // End ProductContent stuff
@@ -147,7 +143,6 @@ if (fileType) {
 
             // call scaleImageInAllSize
             if (fileType.equals("original")) {
-                context.delegator = delegator;
                 result = ScaleImage.scaleImageInAllSize(context, filenameToUse, "main", "0");
 
                 if (result.containsKey("responseMessage") && result.get("responseMessage").equals("success")) {

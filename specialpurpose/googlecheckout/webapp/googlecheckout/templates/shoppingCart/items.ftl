@@ -25,17 +25,17 @@ under the License.
         <unit-price currency="USD">${item.unitPrice}</unit-price>
         <quantity>${item.quantity}</quantity>
 
-        <#if item.merchantItemId??>
+        <#if item.merchantItemId?exists>
             <merchantItemId>${item.merchantItemId}</merchantItemId>
         </#if>
-        <#if item.merchantPrivateItemData??>
+        <#if item.merchantPrivateItemData?exists>
         <merchant-private-item-data>
             <#list item.merchantPrivateItemData as itemData>
                 <${itemData.name}>${itemData.value}</${itemData.name}>
             </#list>
         </merchant-private-item-data>
         </#if>
-        <#if item.taxTable??>
+        <#if item.taxTable?exists>
         <tax-table-selector>${taxTable}</tax-table-selector>
         </#if>
     </item>

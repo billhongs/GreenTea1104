@@ -33,7 +33,6 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ServiceUtil;
 
@@ -67,12 +66,11 @@ public class PickListServices {
                 EntityCondition idCond = EntityCondition.makeCondition(conditionList1, EntityOperator.OR);
                 conditionList2.add(idCond);
 
+                EntityCondition cond = EntityCondition.makeCondition(conditionList2, EntityOperator.AND);
+
                 // run the query
                 try {
-                    orderHeaderList = EntityQuery.use(delegator).from("OrderHeader")
-                            .where(conditionList2)
-                            .orderBy("orderDate")
-                            .queryList();
+                    orderHeaderList = delegator.findList("OrderHeader", cond, null, UtilMisc.toList("+orderDate"), null, false);
                 } catch (GenericEntityException e) {
                     Debug.logError(e, module);
                     return ServiceUtil.returnError(e.getMessage());
@@ -91,7 +89,7 @@ public class PickListServices {
         // lookup the items in the bin
         List<GenericValue> items;
         try {
-            items = EntityQuery.use(delegator).from("PicklistItem").where("picklistBinId", picklistBinId).queryList();
+            items = delegator.findByAnd("PicklistItem", UtilMisc.toMap("picklistBinId", picklistBinId));
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             throw e;

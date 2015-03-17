@@ -36,13 +36,10 @@ var rawdata = [
       <#macro fillTree assocList>
           <#if (assocList?has_content)>
             <#list assocList as assoc>
-                <#assign content  = delegator.findOne("Content",{"contentId":assoc.contentIdTo},true)/>
-                <#if locale != "en">
-                  <#assign content = Static["org.ofbiz.content.content.ContentWorker"].findAlternateLocaleContent(delegator, content, locale)/>
-                </#if>
+                <#assign content  = delegator.findByPrimaryKey("Content",Static["org.ofbiz.base.util.UtilMisc"].toMap("contentId",assoc.contentIdTo))/>
                 {
                 "data": {"title" : unescapeHtmlText("${content.contentName!assoc.contentIdTo}"), "attr": {"href": "javascript:void(0);", "onClick" : "callDocument('${assoc.contentIdTo}');"}},
-                <#assign assocChilds  = delegator.findByAnd("ContentAssoc",Static["org.ofbiz.base.util.UtilMisc"].toMap("contentId",assoc.contentIdTo,"contentAssocTypeId", "TREE_CHILD"), Static["org.ofbiz.base.util.UtilMisc"].toList("sequenceNum"), false)/>
+                <#assign assocChilds  = delegator.findByAnd("ContentAssoc",Static["org.ofbiz.base.util.UtilMisc"].toMap("contentId",assoc.contentIdTo,"contentAssocTypeId", "TREE_CHILD"), Static["org.ofbiz.base.util.UtilMisc"].toList("sequenceNum"))/>
                     "attr": {"id" : "${assoc.contentIdTo}", "contentId" : "${assoc.contentId}", "AssocType" : "${assoc.contentAssocTypeId}", "fromDate" : "${assoc.fromDate}"}
                 <#if assocChilds?has_content>
                     ,"children": [
@@ -78,7 +75,7 @@ var rawdata = [
 
 <#-------------------------------------------------------------------------------------callDocument function-->
     function callDocument(contentId) {
-        var tabitem='${tabButtonItem!}';
+        var tabitem='${tabButtonItem?if_exists}';
         if (tabitem=="navigateContent")
             listDocument = '<@ofbizUrl>/views/ListDocument</@ofbizUrl>';
         if (tabitem=="LookupContentTree")

@@ -42,14 +42,15 @@ metaKeywords = null;
 
 // get the product entity
 if (productId) {
-    product = from("Product").where("productId", productId).cache(true).queryOne();
+    product = delegator.findByPrimaryKeyCache("Product", [productId : productId]);
     if (product) {
         // first make sure this isn't a virtual-variant that has an associated virtual product, if it does show that instead of the variant
         if("Y".equals(product.isVirtual) && "Y".equals(product.isVariant)){
-            virtualVariantProductAssocs = from("ProductAssoc").where("productId", productId, "productAssocTypeId", "ALTERNATIVE_PACKAGE").orderBy("-fromDate").filterByDate().cache(true).queryList();
+            virtualVariantProductAssocs = delegator.findByAndCache("ProductAssoc", ["productId": productId, "productAssocTypeId": "ALTERNATIVE_PACKAGE"], ["-fromDate"]);
+            virtualVariantProductAssocs = EntityUtil.filterByDate(virtualVariantProductAssocs);
             if (virtualVariantProductAssocs) {
                 productAssoc = EntityUtil.getFirst(virtualVariantProductAssocs);
-                product = productAssoc.getRelatedOne("AssocProduct", true);
+                product = productAssoc.getRelatedOneCache("AssocProduct");
             }
         }
     }
@@ -58,20 +59,20 @@ if (productId) {
     virtualProductId = ProductWorker.getVariantVirtualId(product);
     if (virtualProductId) {
         productId = virtualProductId;
-        product = from("Product").where("productId", productId).cache(true).queryOne();
+        product = delegator.findByPrimaryKeyCache("Product", [productId : productId]);
     }
 
-    productPageTitle = from("ProductContentAndInfo").where("productId", productId, "productContentTypeId", "PAGE_TITLE").cache(true).queryList();
+    productPageTitle = delegator.findByAndCache("ProductContentAndInfo", [productId : productId, productContentTypeId : "PAGE_TITLE"]);
     if (productPageTitle) {
-        pageTitle = from("ElectronicText").where("dataResourceId", productPageTitle.get(0).dataResourceId).cache(true).queryOne();
+        pageTitle = delegator.findByPrimaryKeyCache("ElectronicText", [dataResourceId : productPageTitle.get(0).dataResourceId]);
     }
-    productMetaDescription = from("ProductContentAndInfo").where("productId", productId, "productContentTypeId", "META_DESCRIPTION").cache(true).queryList();
+    productMetaDescription = delegator.findByAndCache("ProductContentAndInfo", [productId : productId, productContentTypeId : "META_DESCRIPTION"]);
     if (productMetaDescription) {
-        metaDescription = from("ElectronicText").where("dataResourceId", productMetaDescription.get(0).dataResourceId).cache(true).queryOne();
+        metaDescription = delegator.findByPrimaryKeyCache("ElectronicText", [dataResourceId : productMetaDescription.get(0).dataResourceId]);
     }
-    productMetaKeywords = from("ProductContentAndInfo").where("productId", productId, "productContentTypeId", "META_KEYWORD").cache(true).queryList();
+    productMetaKeywords = delegator.findByAndCache("ProductContentAndInfo", [productId : productId, productContentTypeId : "META_KEYWORD"]);
     if (productMetaKeywords) {
-        metaKeywords = from("ElectronicText").where("dataResourceId", productMetaKeywords.get(0).dataResourceId).cache(true).queryOne();
+        metaKeywords = delegator.findByPrimaryKeyCache("ElectronicText", [dataResourceId : productMetaKeywords.get(0).dataResourceId]);
     }
 
     context.productId = productId;
@@ -109,9 +110,9 @@ if (productId) {
             keywords = [];
             keywords.add(contentWrapper.get("PRODUCT_NAME"));
             keywords.add(catalogName);
-            members = from("ProductCategoryMember").where("productId", productId).cache(true).queryList();
+            members = delegator.findByAndCache("ProductCategoryMember", [productId : productId]);
             members.each { member ->
-                category = member.getRelatedOne("ProductCategory", true);
+                category = member.getRelatedOneCache("ProductCategory");
                 if (category.description) {
                     categoryContentWrapper = new CategoryContentWrapper(category, request);
                     categoryDescription = categoryContentWrapper.DESCRIPTION;
@@ -124,7 +125,7 @@ if (productId) {
         }
 
         // Set the default template for aggregated product (product component configurator ui)
-        if (product.productTypeId && ("AGGREGATED".equals(product.productTypeId) || "AGGREGATED_SERVICE".equals(product.productTypeId)) && context.configproductdetailScreen) {
+        if (product.productTypeId && "AGGREGATED".equals(product.productTypeId) && context.configproductdetailScreen) {
             detailScreen = context.configproductdetailScreen;
         }
 

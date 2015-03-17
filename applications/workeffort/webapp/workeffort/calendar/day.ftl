@@ -17,10 +17,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 <#if periods?has_content>
-  <#-- Allow containing screens to specify the URL for creating a new event -->
-  <#if !newCalEventUrl??>
-    <#assign newCalEventUrl = parameters._LAST_VIEW_NAME_>
-  </#if>
   <#if (maxConcurrentEntries < 2)>
     <#assign entryWidth = 100>
   <#else>
@@ -37,19 +33,19 @@ under the License.
   <tr<#if currentPeriod> class="current-period"<#else><#if (period.calendarEntries?size > 0)> class="active-period"</#if></#if>>
     <td class="label">
       ${period.start?time?string.short}<br />
-      <a href="<@ofbizUrl>${newCalEventUrl}?period=day&amp;form=edit&amp;parentTypeId=${parentTypeId!}&amp;start=${parameters.start!}&amp;currentStatusId=CAL_TENTATIVE&amp;estimatedStartDate=${period.start?string("yyyy-MM-dd HH:mm:ss")}&amp;estimatedCompletionDate=${period.end?string("yyyy-MM-dd HH:mm:ss")}${urlParam!}${addlParam!}</@ofbizUrl>">${uiLabelMap.CommonAddNew}</a>
+      <a href="<@ofbizUrl>${parameters._LAST_VIEW_NAME_}?period=day&amp;form=edit&amp;parentTypeId=${parentTypeId?if_exists}&amp;start=${parameters.start?if_exists}&amp;currentStatusId=CAL_TENTATIVE&amp;estimatedStartDate=${period.start?string("yyyy-MM-dd HH:mm:ss")}&amp;estimatedCompletionDate=${period.end?string("yyyy-MM-dd HH:mm:ss")}${urlParam?if_exists}${addlParam?if_exists}</@ofbizUrl>">${uiLabelMap.CommonAddNew}</a>
     </td>
       <#list period.calendarEntries as calEntry>
-        <#if calEntry.workEffort.actualStartDate??>
+        <#if calEntry.workEffort.actualStartDate?exists>
             <#assign startDate = calEntry.workEffort.actualStartDate>
           <#else>
-            <#assign startDate = calEntry.workEffort.estimatedStartDate!>
+            <#assign startDate = calEntry.workEffort.estimatedStartDate?if_exists>
         </#if>
 
-        <#if calEntry.workEffort.actualCompletionDate??>
+        <#if calEntry.workEffort.actualCompletionDate?exists>
             <#assign completionDate = calEntry.workEffort.actualCompletionDate>
           <#else>
-            <#assign completionDate = calEntry.workEffort.estimatedCompletionDate!>
+            <#assign completionDate = calEntry.workEffort.estimatedCompletionDate?if_exists>
         </#if>
 
         <#if !completionDate?has_content && calEntry.workEffort.actualMilliSeconds?has_content>

@@ -27,11 +27,13 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -48,8 +50,6 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.order.order.OrderChangeHelper;
 import org.ofbiz.product.store.ProductStoreWorker;
 import org.ofbiz.service.GenericServiceException;
@@ -76,7 +76,7 @@ public class PayPalEvents {
         // get the order header
         GenericValue orderHeader = null;
         try {
-            orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
+            orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Cannot get the order header for order: " + orderId, module);
             request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resourceErr, "payPalEvents.problemsGettingOrderHeader", locale));
@@ -247,7 +247,10 @@ public class PayPalEvents {
 
         Debug.logInfo("Got verification from PayPal, processing..", module);
         boolean verified = false;
-        for (String name : parametersMap.keySet()) {
+        Set <String> keySet = parametersMap.keySet();
+        Iterator <String> i = keySet.iterator();
+        while (i.hasNext()) {
+            String name = i.next();
             String value = request.getParameter(name);
             Debug.logError("### Param: " + name + " => " + value, module);
             if (UtilValidate.isNotEmpty(name) && "payer_status".equalsIgnoreCase(name) &&
@@ -262,7 +265,7 @@ public class PayPalEvents {
         // get the system user
         GenericValue userLogin = null;
         try {
-            userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
+            userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
         } catch (GenericEntityException e) {
             Debug.logError(e, "Cannot get UserLogin for: system; cannot continue", module);
             request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resourceErr, "payPalEvents.problemsGettingAuthenticationUser", locale));
@@ -276,7 +279,7 @@ public class PayPalEvents {
         GenericValue orderHeader = null;
         if (UtilValidate.isNotEmpty(orderId)) {
             try {
-                orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
+                orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Cannot get the order header for order: " + orderId, module);
                 request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resourceErr, "payPalEvents.problemsGettingOrderHeader", locale));
@@ -407,13 +410,16 @@ public class PayPalEvents {
         Debug.logVerbose("Setting payment prefrences..", module);
         List <GenericValue> paymentPrefs = null;
         try {
-            paymentPrefs = EntityQuery.use(delegator).from("OrderPaymentPreference").where("orderId", orderId, "statusId", "PAYMENT_NOT_RECEIVED").queryList();
+            Map <String, String> paymentFields = UtilMisc.toMap("orderId", orderId, "statusId", "PAYMENT_NOT_RECEIVED");
+            paymentPrefs = delegator.findByAnd("OrderPaymentPreference", paymentFields);
         } catch (GenericEntityException e) {
             Debug.logError(e, "Cannot get payment preferences for order #" + orderId, module);
             return false;
         }
         if (paymentPrefs.size() > 0) {
-            for (GenericValue pref : paymentPrefs) {
+            Iterator <GenericValue> i = paymentPrefs.iterator();
+            while (i.hasNext()) {
+                GenericValue pref = i.next();
                 boolean okay = setPaymentPreference(dispatcher, userLogin, pref, request);
                 if (!okay)
                     return false;
@@ -510,18 +516,18 @@ public class PayPalEvents {
         String returnValue = "";
         if (UtilValidate.isNotEmpty(paymentGatewayConfigId)) {
             try {
-                GenericValue payPal = EntityQuery.use(delegator).from("PaymentGatewayPayPal").where("paymentGatewayConfigId", paymentGatewayConfigId).queryOne();
-                if (payPal != null) {
-                    String payPalField = payPal.getString(paymentGatewayConfigParameterName);
+                GenericValue payPal = delegator.findOne("PaymentGatewayPayPal", UtilMisc.toMap("paymentGatewayConfigId", paymentGatewayConfigId), false);
+                if (UtilValidate.isNotEmpty(payPal)) {
+                    Object payPalField = payPal.get(paymentGatewayConfigParameterName);
                     if (payPalField != null) {
-                        returnValue = payPalField.trim();
+                        returnValue = payPalField.toString().trim();
                     }
                 }
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
         } else {
-            String value = EntityUtilProperties.getPropertyValue(resource, parameterName, delegator);
+            String value = UtilProperties.getPropertyValue(resource, parameterName);
             if (value != null) {
                 returnValue = value.trim();
             }

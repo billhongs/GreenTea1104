@@ -18,76 +18,82 @@
  *******************************************************************************/
 package org.ofbiz.minilang.method.conditional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
-import org.ofbiz.base.util.UtilXml;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangValidate;
-import org.ofbiz.minilang.SimpleMethod;
-import org.ofbiz.minilang.artifact.ArtifactInfoContext;
-import org.ofbiz.minilang.method.MethodContext;
-import org.ofbiz.minilang.method.MethodOperation;
-import org.w3c.dom.Element;
+import javolution.util.FastList;
+
+import org.w3c.dom.*;
+import org.ofbiz.base.util.*;
+import org.ofbiz.minilang.*;
+import org.ofbiz.minilang.method.*;
 
 /**
- * Implements the &lt;if&gt; element.
+ * Represents the top-level element and only mounted operation for the more flexible if structure.
  */
-public final class MasterIf extends MethodOperation {
-
-    private final Conditional condition;
-    private final List<ElseIf> elseIfs;
-    private final List<MethodOperation> elseSubOps;
-    private final List<MethodOperation> thenSubOps;
-
-    public MasterIf(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-        super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.childElements(simpleMethod, element, "condition", "then", "else-if", "else");
-            MiniLangValidate.requiredChildElements(simpleMethod, element, "condition", "then");
+public class MasterIf extends MethodOperation {
+    public static final class MasterIfFactory implements Factory<MasterIf> {
+        public MasterIf createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new MasterIf (element, simpleMethod);
         }
+
+        public String getName() {
+            return "if";
+        }
+    }
+
+    Conditional condition;
+
+    List<MethodOperation> thenSubOps = FastList.newInstance();
+    List<MethodOperation> elseSubOps = null;
+
+    List<ElseIf> elseIfs = null;
+
+    public MasterIf (Element element, SimpleMethod simpleMethod) {
+        super(element, simpleMethod);
+
         Element conditionElement = UtilXml.firstChildElement(element, "condition");
         Element conditionChildElement = UtilXml.firstChildElement(conditionElement);
         this.condition = ConditionalFactory.makeConditional(conditionChildElement, simpleMethod);
+
         Element thenElement = UtilXml.firstChildElement(element, "then");
-        this.thenSubOps = Collections.unmodifiableList(SimpleMethod.readOperations(thenElement, simpleMethod));
+        SimpleMethod.readOperations(thenElement, thenSubOps, simpleMethod);
+
         List<? extends Element> elseIfElements = UtilXml.childElementList(element, "else-if");
-        if (elseIfElements.isEmpty()) {
-            this.elseIfs = null;
-        } else {
-            List<ElseIf> elseIfs = new ArrayList<ElseIf>(elseIfElements.size());
-            for (Element elseIfElement : elseIfElements) {
-                elseIfs.add(new ElseIf(elseIfElement, simpleMethod));
+        if (UtilValidate.isNotEmpty(elseIfElements)) {
+            elseIfs = FastList.newInstance();
+            for (Element elseIfElement: elseIfElements) {
+                elseIfs.add(new ElseIf (elseIfElement, simpleMethod));
             }
-            this.elseIfs = Collections.unmodifiableList(elseIfs);
         }
+
         Element elseElement = UtilXml.firstChildElement(element, "else");
-        if (elseElement == null) {
-            this.elseSubOps = null;
-        } else {
-            this.elseSubOps = Collections.unmodifiableList(SimpleMethod.readOperations(elseElement, simpleMethod));
+        if (elseElement != null) {
+            elseSubOps = FastList.newInstance();
+            SimpleMethod.readOperations(elseElement, elseSubOps, simpleMethod);
         }
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
+    public boolean exec(MethodContext methodContext) {
         // if conditions fails, always return true; if a sub-op returns false
         // return false and stop, otherwise return true
         // return true;
+
         // only run subOps if element is empty/null
         boolean runSubOps = condition.checkCondition(methodContext);
+
         if (runSubOps) {
             return SimpleMethod.runSubOps(thenSubOps, methodContext);
         } else {
             // try the else-ifs
-            if (elseIfs != null) {
-                for (ElseIf elseIf : elseIfs) {
+            if (UtilValidate.isNotEmpty(elseIfs)) {
+                for (ElseIf elseIf: elseIfs) {
                     if (elseIf.checkCondition(methodContext)) {
                         return elseIf.runSubOps(methodContext);
                     }
                 }
             }
+
             if (elseSubOps != null) {
                 return SimpleMethod.runSubOps(elseSubOps, methodContext);
             } else {
@@ -96,40 +102,29 @@ public final class MasterIf extends MethodOperation {
         }
     }
 
-    @Override
-    public void gatherArtifactInfo(ArtifactInfoContext aic) {
-        for (MethodOperation method : this.thenSubOps) {
-            method.gatherArtifactInfo(aic);
-        }
-        if (this.elseSubOps != null) {
-            for (MethodOperation method : this.elseSubOps) {
-                method.gatherArtifactInfo(aic);
+    public List<MethodOperation> getAllSubOps() {
+        List<MethodOperation> allSubOps = FastList.newInstance();
+        allSubOps.addAll(this.thenSubOps);
+        if (this.elseSubOps != null) allSubOps.addAll(this.elseSubOps);
+        if (elseIfs != null) {
+            for (ElseIf elseIf: elseIfs) {
+                allSubOps.addAll(elseIf.getThenSubOps());
             }
         }
-        if (this.elseIfs != null) {
-            for (ElseIf elseIf : elseIfs) {
-                elseIf.gatherArtifactInfo(aic);
-            }
-        }
+
+        return allSubOps;
     }
 
     @Override
-    public String toString() {
+    public String rawString() {
+        return expandedString(null);
+    }
+
+    @Override
+    public String expandedString(MethodContext methodContext) {
+        // TODO: fill in missing details, if needed
         StringBuilder messageBuf = new StringBuilder();
-        this.condition.prettyPrint(messageBuf, null);
+        this.condition.prettyPrint(messageBuf, methodContext);
         return "<if><condition>" + messageBuf + "</condition></if>";
-    }
-
-    /**
-     * A &lt;if&gt; element factory. 
-     */
-    public static final class MasterIfFactory implements Factory<MasterIf> {
-        public MasterIf createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new MasterIf(element, simpleMethod);
-        }
-
-        public String getName() {
-            return "if";
-        }
     }
 }

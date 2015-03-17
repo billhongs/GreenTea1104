@@ -55,11 +55,9 @@ def partyId = null;
 orderHeader = null;
 orderItems = null;
 orderAdjustments = null;
-comments = null;
 
 if (orderId) {
-    orderHeader = from('OrderHeader').where('orderId', orderId).cache(false).queryFirst();
-    comments = select("orderItemSeqId", "changeComments", "changeDatetime", "changeUserLogin").from("OrderItemChange").where(UtilMisc.toList(EntityCondition.makeCondition("orderId", EntityOperator.EQUALS, orderId))).orderBy("-changeDatetime").queryList();
+    orderHeader = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
 }
 
 if (orderHeader) {
@@ -72,10 +70,9 @@ if (orderHeader) {
     orderAdjustments = orderReadHelper.getAdjustments();
     orderHeaderAdjustments = orderReadHelper.getOrderHeaderAdjustments();
     orderSubTotal = orderReadHelper.getOrderItemsSubTotal();
-    orderTerms = orderHeader.getRelated("OrderTerm", null, null, false);
+    orderTerms = orderHeader.getRelated("OrderTerm");
 
     context.orderHeader = orderHeader;
-    context.comments = comments;
     context.orderReadHelper = orderReadHelper;
     context.orderItems = orderItems;
     context.orderAdjustments = orderAdjustments;
@@ -84,9 +81,6 @@ if (orderHeader) {
     context.currencyUomId = orderReadHelper.getCurrency();
     context.orderTerms = orderTerms;
 
-    // get sales reps
-    context.salesReps = orderHeader.getRelated("OrderRole", [orderId : orderHeader.orderId, roleTypeId : "SALES_REP"], null, false);
-    
     // get the order type
     orderType = orderHeader.orderTypeId;
     context.orderType = orderType;
@@ -120,11 +114,15 @@ if (orderHeader) {
     grandTotal = OrderReadHelper.getOrderGrandTotal(orderItems, orderAdjustments);
     context.grandTotal = grandTotal;
 
+    canceledPromoOrderItem = [:];
     orderItemList = orderReadHelper.getOrderItems();
-    // Retrieve all non-promo items that aren't cancelled
-    context.orderItemList = orderReadHelper.getOrderItems().findAll { item ->
-        (item.isPromo == null || item.isPromo == 'N')  || !item.statusId.equals('ITEM_CANCELLED')
+    orderItemList.each { orderItem ->
+        if("Y".equals(orderItem.get("isPromo")) && "ITEM_CANCELLED".equals(orderItem.get("statusId"))) {
+            canceledPromoOrderItem = orderItem;
+        }
+        orderItemList.remove(canceledPromoOrderItem);
     }
+    context.orderItemList = orderItemList;
 
     shippingAddress = orderReadHelper.getShippingAddress();
     context.shippingAddress = shippingAddress;
@@ -138,21 +136,21 @@ if (orderHeader) {
     affiliateId = orderReadHelper.getAffiliateId();
     context.affiliateId = affiliateId;
 
-    billingAccount = orderHeader.getRelatedOne("BillingAccount", false);
+    billingAccount = orderHeader.getRelatedOne("BillingAccount");
     context.billingAccount = billingAccount;
     context.billingAccountMaxAmount = orderReadHelper.getBillingAccountMaxAmount();
 
     // get a list of all shipments, and a list of ItemIssuances per order item
     allShipmentsMap = [:];
-    primaryShipments = orderHeader.getRelated("PrimaryShipment", null, null, false);
+    primaryShipments = orderHeader.getRelated("PrimaryShipment");
     primaryShipments.each { primaryShipment ->
         allShipmentsMap[primaryShipment.shipmentId] = primaryShipment;
     }
     itemIssuancesPerItem = [:];
-    itemIssuances = orderHeader.getRelated("ItemIssuance", null, ["shipmentId", "shipmentItemSeqId"], false);
+    itemIssuances = orderHeader.getRelated("ItemIssuance", null, ["shipmentId", "shipmentItemSeqId"]);
     itemIssuances.each { itemIssuance ->
         if (!allShipmentsMap.containsKey(itemIssuance.shipmentId)) {
-            iiShipment = itemIssuance.getRelatedOne("Shipment", false);
+            iiShipment = itemIssuance.getRelatedOne("Shipment");
             if (iiShipment) {
                 allShipmentsMap[iiShipment.shipmentId] = iiShipment;
             }
@@ -169,86 +167,34 @@ if (orderHeader) {
     context.itemIssuancesPerItem = itemIssuancesPerItem;
 
     // get a list of all invoices
-    orderBilling = from("OrderItemBilling").where("orderId", orderId).orderBy("invoiceId").queryList();
-    context.invoices = orderBilling*.invoiceId.unique();
+    allInvoices = new HashSet();
+    orderBilling = delegator.findByAnd("OrderItemBilling", [orderId : orderId], ["invoiceId"]);
+    orderBilling.each { billingGv ->
+        allInvoices.add(billingGv.invoiceId);
+    }
+    context.invoices = allInvoices;
 
     ecl = EntityCondition.makeCondition([
                                     EntityCondition.makeCondition("orderId", EntityOperator.EQUALS, orderId),
                                     EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "PAYMENT_CANCELLED")],
                                 EntityOperator.AND);
-    orderPaymentPreferences = from("OrderPaymentPreference").where(ecl).queryList();
+    orderPaymentPreferences = delegator.findList("OrderPaymentPreference", ecl, null, null, null, false);
     context.orderPaymentPreferences = orderPaymentPreferences;
 
     // ship groups
-    shipGroups = from("OrderItemShipGroup").where("orderId", orderId).orderBy("shipGroupSeqId").queryList();
+    shipGroups = delegator.findByAnd("OrderItemShipGroup", [orderId : orderId], ["shipGroupSeqId"]);
     context.shipGroups = shipGroups;
 
-
-    orderItemDatas = [];
-    orderItemList.each { orderItem ->
-        BigDecimal cancelQuantity = orderItem.get("cancelQuantity");
-        BigDecimal quantity = orderItem.get("quantity");
-        if ( cancelQuantity != null ) {
-            quantityOrdered = quantity.subtract(cancelQuantity);
-        } else {
-            quantityOrdered = quantity;
-        }
-        OISGAssContents = [];
-        shipGroups.each { shipGroup ->
-            OISGAssContents.addAll(EntityUtil.filterByAnd(shipGroup.getRelated("OrderItemShipGroupAssoc"), UtilMisc.toMap("orderItemSeqId", orderItem.getString("orderItemSeqId"))));
-        }
-        BigDecimal totalQuantityPlanned = 0;
-        OISGAssContents.each { OISGAssContent ->
-           BigDecimal cancelQty = OISGAssContent.get("cancelQuantity");
-           BigDecimal qty = OISGAssContent.get("quantity");
-           if (qty != null) {
-               totalQuantityPlanned = totalQuantityPlanned.add(qty);
-           }
-           if (cancelQty != null){
-               OISGAssContent.set("quantity", qty.subtract(cancelQty));
-           } else {
-               OISGAssContent.set("quantity", qty);
-           }
-        }
-        totalQuantityToPlan = totalQuantityPlanned - quantityOrdered;
-        BigDecimal quantityNotAvailable = 0;
-        List<GenericValue> oisgirs = orderItem.getRelated("OrderItemShipGrpInvRes", null, null, false);
-        for (GenericValue oisgir : oisgirs) {
-            if (UtilValidate.isNotEmpty(oisgir.get("quantityNotAvailable"))) {
-                quantityNotAvailable = quantityNotAvailable.add(oisgir.getBigDecimal("quantityNotAvailable"));
-            }
-        }
-        orderItemData = [:];
-        orderItemData.put("orderItem", orderItem);
-        orderItemData.put("OISGAssContents", OISGAssContents);
-        orderItemData.put("product", orderItem.getRelatedOne("Product", false));
-        orderItemData.put("quantityOrdered", quantityOrdered);
-        orderItemData.put("totalQuantityPlanned", totalQuantityPlanned);
-        orderItemData.put("totalQuantityToPlan", totalQuantityToPlan);
-        orderItemData.put("quantityNotAvailable", quantityNotAvailable);
-        orderItemDatas.add(orderItemData);
-    }
-    context.put("orderItemDatas", orderItemDatas);
-    
-    // create the actualDate for calendar
-    actualDateCal = Calendar.getInstance();
-    actualDateCal.setTime(new java.util.Date());
-    actualDateCal.set(Calendar.HOUR_OF_DAY, actualDateCal.getActualMinimum(Calendar.HOUR_OF_DAY));
-    actualDateCal.set(Calendar.MINUTE, actualDateCal.getActualMinimum(Calendar.MINUTE));
-    actualDateCal.set(Calendar.SECOND, actualDateCal.getActualMinimum(Calendar.SECOND));
-    actualDateCal.set(Calendar.MILLISECOND, actualDateCal.getActualMinimum(Calendar.MILLISECOND));
-    actualDateTs = new Timestamp(actualDateCal.getTimeInMillis());
-    actualDateStr = actualDateTs.toString();
-    actualDateStr = actualDateStr.substring(0, actualDateStr.indexOf('.'));
-    context.put("actualDateStr", actualDateStr);
-
     // get Shipment tracking info
-    orderShipmentInfoSummaryList = select("shipGroupSeqId", "shipmentId", "shipmentRouteSegmentId", "carrierPartyId", "shipmentMethodTypeId", "shipmentPackageSeqId", "trackingCode", "boxNumber")
-                                    .from("OrderShipmentInfoSummary")
-                                    .where("orderId", orderId)
-                                    .orderBy("shipmentId", "shipmentRouteSegmentId", "shipmentPackageSeqId")
-                                    .distinct()
-                                    .queryList();
+    osisCond = EntityCondition.makeCondition([orderId : orderId], EntityOperator.AND);
+    osisOrder = ["shipmentId", "shipmentRouteSegmentId", "shipmentPackageSeqId"];
+    osisFields = ["shipGroupSeqId", "shipmentId", "shipmentRouteSegmentId", "carrierPartyId", "shipmentMethodTypeId"] as Set;
+    osisFields.add("shipmentPackageSeqId");
+    osisFields.add("trackingCode");
+    osisFields.add("boxNumber");
+    osisFindOptions = new EntityFindOptions();
+    osisFindOptions.setDistinct(true);
+    orderShipmentInfoSummaryList = delegator.findList("OrderShipmentInfoSummary", osisCond, osisFields, osisOrder, osisFindOptions, false);
     context.orderShipmentInfoSummaryList = orderShipmentInfoSummaryList;
 
     customerPoNumber = null;
@@ -257,19 +203,19 @@ if (orderHeader) {
     }
     context.customerPoNumber = customerPoNumber;
 
-    statusChange = from("StatusValidChange").where("statusId", orderHeader.statusId).queryList();
+    statusChange = delegator.findByAnd("StatusValidChange", [statusId : orderHeader.statusId]);
     context.statusChange = statusChange;
 
-    currentStatus = orderHeader.getRelatedOne("StatusItem", false);
+    currentStatus = orderHeader.getRelatedOne("StatusItem");
     context.currentStatus = currentStatus;
 
     orderHeaderStatuses = orderReadHelper.getOrderHeaderStatuses();
     context.orderHeaderStatuses = orderHeaderStatuses;
 
-    adjustmentTypes = from("OrderAdjustmentType").orderBy("description").queryList();
+    adjustmentTypes = delegator.findList("OrderAdjustmentType", null, null, ["description"], null, false);
     context.orderAdjustmentTypes = adjustmentTypes;
 
-    notes = from("OrderHeaderNoteView").where("orderId", orderId).orderBy("-noteDateTime").queryList();
+    notes = delegator.findByAnd("OrderHeaderNoteView", [orderId : orderId], ["-noteDateTime"]);
     context.orderNotes = notes;
 
     showNoteHeadingOnPDF = false;
@@ -281,7 +227,7 @@ if (orderHeader) {
     cmvm = ContactMechWorker.getOrderContactMechValueMaps(delegator, orderId);
     context.orderContactMechValueMaps = cmvm;
 
-    orderItemChangeReasons = from("Enumeration").where("enumTypeId", "ODR_ITM_CH_REASON").orderBy("sequenceId").queryList();
+    orderItemChangeReasons = delegator.findByAnd("Enumeration", [enumTypeId : "ODR_ITM_CH_REASON"], ["sequenceId"]);
     context.orderItemChangeReasons = orderItemChangeReasons;
 
     if ("PURCHASE_ORDER".equals(orderType)) {
@@ -306,7 +252,7 @@ if (orderHeader) {
             }
         }
         // get purchase order item types
-        purchaseOrderItemTypeList = from("OrderItemType").where("parentTypeId", "PURCHASE_SPECIFIC").cache(true).queryList();
+        purchaseOrderItemTypeList = delegator.findByAndCache("OrderItemType", [parentTypeId : "PURCHASE_SPECIFIC"]);
         context.purchaseOrderItemTypeList = purchaseOrderItemTypeList;
     }
 
@@ -321,23 +267,20 @@ if (orderHeader) {
     }
 
     // get inventory summary for each shopping cart product item
-    inventorySummary = runService('getProductInventorySummaryForItems', [orderItems : orderItems])
+    inventorySummary = dispatcher.runSync("getProductInventorySummaryForItems", [orderItems : orderItems]);
     context.availableToPromiseMap = inventorySummary.availableToPromiseMap;
     context.quantityOnHandMap = inventorySummary.quantityOnHandMap;
     context.mktgPkgATPMap = inventorySummary.mktgPkgATPMap;
     context.mktgPkgQOHMap = inventorySummary.mktgPkgQOHMap;
 
     // get inventory summary with respect to facility
-    productStore = orderReadHelper.getProductStore();
-    context.productStore = productStore;
+    productStore = orderHeader.getRelatedOne("ProductStore");
     if (productStore) {
-        facility = productStore.getRelatedOne("Facility", false);
-        if (facility) {
-            inventorySummaryByFacility = runService("getProductInventorySummaryForItems", [orderItems : orderItems, facilityId : facility.facilityId]);
-            context.availableToPromiseByFacilityMap = inventorySummaryByFacility.availableToPromiseMap;
-            context.quantityOnHandByFacilityMap = inventorySummaryByFacility.quantityOnHandMap;
-            context.facility = facility;
-        }
+        facility = productStore.getRelatedOne("Facility");
+        inventorySummaryByFacility = dispatcher.runSync("getProductInventorySummaryForItems", [orderItems : orderItems, facilityId : facility.facilityId]);
+        context.availableToPromiseByFacilityMap = inventorySummaryByFacility.availableToPromiseMap;
+        context.quantityOnHandByFacilityMap = inventorySummaryByFacility.quantityOnHandMap;
+        context.facility = facility;
     }
 
     // Get a list of facilities for purchase orders to receive against.
@@ -354,7 +297,7 @@ if (orderHeader) {
                 if (shipGroup.contactMechId) {
                     lookupMap.contactMechId = shipGroup.contactMechId;
                 }
-                facilities = from("FacilityAndContactMech").where(lookupMap).cache(true).queryList();
+                facilities = delegator.findByAndCache("FacilityAndContactMech", lookupMap);
                 facilitiesForShipGroup[shipGroup.shipGroupSeqId] = facilities;
                 facilities.each { facility ->
                     ownedFacilities[facility.facilityId] = facility;
@@ -370,6 +313,7 @@ if (orderHeader) {
     if ("SALES_ORDER".equals(orderType)) {
         context.returnHeaderTypeId = "CUSTOMER_RETURN";
         // also set the product store facility Id for sales orders
+        productStore = orderHeader.getRelatedOne("ProductStore");
         if (productStore) {
             context.storeFacilityId = productStore.inventoryFacilityId;
             if (productStore.reqReturnInventoryReceive) {
@@ -392,7 +336,8 @@ if (orderHeader) {
     productionMap = [:];
     productIds.each { productId ->
         if (productId) {  // avoid order items without productIds, such as bulk order items
-            resultOutput = runService("getProductManufacturingSummaryByFacility", [productId : productId]);
+            contextInput = [productId : productId, userLogin : userLogin];
+            resultOutput = dispatcher.runSync("getProductManufacturingSummaryByFacility", contextInput);
             manufacturingInQuantitySummaryByFacility = resultOutput.summaryInByFacility;
             Double productionQuantity = 0;
             manufacturingInQuantitySummaryByFacility.values().each { manQuantity ->
@@ -415,20 +360,57 @@ if (orderHeader) {
         context.requiredProductQuantityMap = FastMap.newInstance();
         context.onOrderProductQuantityMap = FastMap.newInstance();
     }
+}
 
-        // list to find all the POSTAL_ADDRESS for the shipment party.
-    orderParty = from("Party").where("partyId", partyId).queryOne();
+paramString = "";
+if (orderId) paramString += "orderId=" + orderId;
+if (workEffortId) paramString += "&workEffortId=" + workEffortId;
+if (assignPartyId) paramString += "&partyId=" + assignPartyId;
+if (assignRoleTypeId) paramString += "&roleTypeId=" + assignRoleTypeId;
+if (fromDate) paramString += "&fromDate=" + fromDate;
+context.paramString = paramString;
+
+workEffortStatus = null;
+if (workEffortId && assignPartyId && assignRoleTypeId && fromDate) {
+    fields = [workEffortId : workEffortId, partyId : assignPartyId, roleTypeId : assignRoleTypeId, fromDate : fromDate];
+    wepa = delegator.findByPrimaryKey("WorkEffortPartyAssignment", fields);
+
+    if ("CAL_ACCEPTED".equals(wepa?.statusId)) {
+        workEffort = delegator.findByPrimaryKey("WorkEffort", [workEffortId : workEffortId]);
+        workEffortStatus = workEffort.currentStatusId;
+        if (workEffortStatus) {
+            context.workEffortStatus = workEffortStatus;
+            if (workEffortStatus.equals("WF_RUNNING") || workEffortStatus.equals("WF_SUSPENDED"))
+                context.inProcess = true;
+        }
+
+        if (workEffort) {
+            if ("true".equals(delegate) || "WF_RUNNING".equals(workEffortStatus)) {
+                actFields = [packageId : workEffort.workflowPackageId, packageVersion : workEffort.workflowPackageVersion, processId : workEffort.workflowProcessId, processVersion : workEffort.workflowProcessVersion, activityId : workEffort.workflowActivityId];
+                activity = delegator.findByPrimaryKey("WorkflowActivity", actFields);
+                if (activity) {
+                    transitions = activity.getRelated("FromWorkflowTransition", null, ["-transitionId"]);
+                    context.wfTransitions = transitions;
+                }
+            }
+        }
+    }
+}
+
+if (orderHeader) {
+    // list to find all the POSTAL_ADDRESS for the shipment party.
+    orderParty = delegator.findByPrimaryKey("Party", [partyId : partyId]);
     shippingContactMechList = ContactHelper.getContactMech(orderParty, "SHIPPING_LOCATION", "POSTAL_ADDRESS", false);
     context.shippingContactMechList = shippingContactMechList;
 
     // list to find all the shipmentMethods from the view named "ProductStoreShipmentMethView".
     if (productStore) {
-        context.productStoreShipmentMethList = from("ProductStoreShipmentMethView").where("productStoreId", productStore.productStoreId).orderBy("sequenceNumber").cache(true).queryList();
+        context.productStoreShipmentMethList = delegator.findByAndCache('ProductStoreShipmentMethView', [productStoreId: productStore.productStoreId], ['sequenceNumber']);
     }
 
     // Get a map of returnable items
     returnableItems = [:];
-    returnableItemServiceMap = run service: 'getReturnableItems', with: [orderId : orderId]
+    returnableItemServiceMap = dispatcher.runSync("getReturnableItems", [orderId : orderId]);
     if (returnableItemServiceMap.returnableItems) {
         returnableItems = returnableItemServiceMap.returnableItems;
     }
@@ -449,9 +431,11 @@ if (orderHeader) {
             context.currentCatalogName = currentCatalogName;
         }
     }
+}
 
+if (orderHeader) {
    // list to find all the POSTAL_ADDRESS for the party.
-   orderParty = from("Party").where("partyId", partyId).queryOne();
+   orderParty = delegator.findByPrimaryKey("Party", [partyId : partyId]);
    postalContactMechList = ContactHelper.getContactMechByType(orderParty,"POSTAL_ADDRESS", false);
    context.postalContactMechList = postalContactMechList;
 
@@ -464,39 +448,6 @@ if (orderHeader) {
    context.emailContactMechList = emailContactMechList;
 }
 
-paramString = "";
-if (orderId) paramString += "orderId=" + orderId;
-if (workEffortId) paramString += "&workEffortId=" + workEffortId;
-if (assignPartyId) paramString += "&partyId=" + assignPartyId;
-if (assignRoleTypeId) paramString += "&roleTypeId=" + assignRoleTypeId;
-if (fromDate) paramString += "&fromDate=" + fromDate;
-context.paramString = paramString;
-
-workEffortStatus = null;
-if (workEffortId && assignPartyId && assignRoleTypeId && fromDate) {
-    wepa = from("WorkEffortPartyAssignment").where("workEffortId", workEffortId, "partyId", assignPartyId, "roleTypeId", assignRoleTypeId, "fromDate", fromDate).queryOne();
-
-    if ("CAL_ACCEPTED".equals(wepa?.statusId)) {
-        workEffort = from("WorkEffort").where("workEffortId", workEffortId).queryOne();
-        workEffortStatus = workEffort.currentStatusId;
-        if (workEffortStatus) {
-            context.workEffortStatus = workEffortStatus;
-            if (workEffortStatus.equals("WF_RUNNING") || workEffortStatus.equals("WF_SUSPENDED"))
-                context.inProcess = true;
-        }
-
-        if (workEffort) {
-            if ("true".equals(delegate) || "WF_RUNNING".equals(workEffortStatus)) {
-                activity = from("WorkflowActivity").where("packageId", workEffort.workflowPackageId, "packageVersion", workEffort.workflowPackageVersion, "processId", workEffort.workflowProcessId, "processVersion", workEffort.workflowProcessVersion, "activityId", workEffort.workflowActivityId).queryOne();
-                if (activity) {
-                    transitions = activity.getRelated("FromWorkflowTransition", null, ["-transitionId"], false);
-                    context.wfTransitions = transitions;
-                }
-            }
-        }
-    }
-}
-
 if (orderItems) {
     orderItem = EntityUtil.getFirst(orderItems);
     context.orderItem = orderItem;
@@ -505,41 +456,45 @@ if (orderItems) {
 // getting online ship estimates corresponding to this Order from UPS when "Hold" button will be clicked, when user packs from weight package screen.
 // This case comes when order's shipping amount is  more then or less than default percentage (defined in shipment.properties) of online UPS shipping amount.
 
-shipments = from("Shipment").where("primaryOrderId", orderId, "statusId", "SHIPMENT_PICKED").queryList();
-if (shipments) {
-    pickedShipmentId = EntityUtil.getFirst(shipments).shipmentId;
-    shipmentRouteSegment = from("ShipmentRouteSegment").where("shipmentId", pickedShipmentId).queryFirst();
-    context.shipmentRouteSegmentId = shipmentRouteSegment.shipmentRouteSegmentId;
-    context.pickedShipmentId = pickedShipmentId;
-    if (pickedShipmentId && shipmentRouteSegment.trackingIdNumber) {
-        if ("UPS" == shipmentRouteSegment.carrierPartyId && productStore) {
-            resultMap = runService('upsShipmentAlternateRatesEstimate', [productStoreId: productStore.productStoreId, shipmentId: pickedShipmentId]);
-            shippingRates = resultMap.shippingRates;
-            shippingRateList = [];
-            shippingRates.each { shippingRate ->
-                shippingMethodAndRate = [:];
-                serviceCodes = shippingRate.keySet();
-                serviceCodes.each { serviceCode ->
-                    carrierShipmentMethod = from("CarrierShipmentMethod").where("partyId", "UPS", "carrierServiceCode", serviceCode).queryFirst();
-                    shipmentMethodTypeId = carrierShipmentMethod.shipmentMethodTypeId;
-                    rate = shippingRate.get(serviceCode);
-                    shipmentMethodDescription = EntityUtil.getFirst(carrierShipmentMethod.getRelated("ShipmentMethodType", null, null, false)).description;
-                    shippingMethodAndRate.shipmentMethodTypeId = carrierShipmentMethod.shipmentMethodTypeId;
-                    shippingMethodAndRate.rate = rate;
-                    shippingMethodAndRate.shipmentMethodDescription = shipmentMethodDescription;
-                    shippingRateList.add(shippingMethodAndRate);
-                }
-           }
-            context.shippingRateList = shippingRateList;
+    condn = EntityCondition.makeCondition([
+                                      EntityCondition.makeCondition("primaryOrderId", EntityOperator.EQUALS, orderId),
+                                      EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, "SHIPMENT_PICKED")],
+                                  EntityOperator.AND);
+    shipments = delegator.findList("Shipment", condn, null, null, null, false);
+    if (shipments) {
+        pickedShipmentId = EntityUtil.getFirst(shipments).shipmentId;
+        shipmentRouteSegment = EntityUtil.getFirst(delegator.findList("ShipmentRouteSegment",EntityCondition.makeCondition([shipmentId : pickedShipmentId]), null, null, null, false));
+        context.shipmentRouteSegmentId = shipmentRouteSegment.shipmentRouteSegmentId;
+        context.pickedShipmentId = pickedShipmentId;
+        if (pickedShipmentId && shipmentRouteSegment.trackingIdNumber) {
+            if ("UPS" == shipmentRouteSegment.carrierPartyId && productStore) {
+                resultMap = dispatcher.runSync('upsShipmentAlternateRatesEstimate', [productStoreId: productStore.productStoreId, shipmentId: pickedShipmentId]);
+                shippingRates = resultMap.shippingRates;
+                shippingRateList = [];
+                shippingRates.each { shippingRate ->
+                    shippingMethodAndRate = [:];
+                    serviceCodes = shippingRate.keySet();
+                    serviceCodes.each { serviceCode ->
+                        carrierShipmentMethod = EntityUtil.getFirst(delegator.findByAnd("CarrierShipmentMethod", [partyId : "UPS", carrierServiceCode : serviceCode]));
+                        shipmentMethodTypeId = carrierShipmentMethod.shipmentMethodTypeId;
+                        rate = shippingRate.get(serviceCode);
+                        shipmentMethodDescription = EntityUtil.getFirst(carrierShipmentMethod.getRelated("ShipmentMethodType")).description;
+                        shippingMethodAndRate.shipmentMethodTypeId = carrierShipmentMethod.shipmentMethodTypeId;
+                        shippingMethodAndRate.rate = rate;
+                        shippingMethodAndRate.shipmentMethodDescription = shipmentMethodDescription;
+                        shippingRateList.add(shippingMethodAndRate);
+                    }
+               }
+                context.shippingRateList = shippingRateList;
+            }
         }
     }
-}
 
-// get orderAdjustmentId for SHIPPING_CHARGES
-orderAdjustmentId = null;
-orderAdjustments.each { orderAdjustment ->
-    if(orderAdjustment.orderAdjustmentTypeId.equals("SHIPPING_CHARGES")) {
-        orderAdjustmentId = orderAdjustment.orderAdjustmentId;
+    // get orderAdjustmentId for SHIPPING_CHARGES
+    orderAdjustmentId = null;
+    orderAdjustments.each { orderAdjustment ->
+        if(orderAdjustment.orderAdjustmentTypeId.equals("SHIPPING_CHARGES")) {
+            orderAdjustmentId = orderAdjustment.orderAdjustmentId;
+        }
     }
-}
-context.orderAdjustmentId = orderAdjustmentId;
+    context.orderAdjustmentId = orderAdjustmentId;

@@ -27,14 +27,14 @@ partyIdTo = parameters.partyIdTo;
 if (partyIdFrom && partyIdTo) {
     partyList = [partyIdTo, partyIdFrom];
     partyList.each { partyId ->
-        party = from("Party").where("partyId", partyId).queryOne();
-        person =  party.getRelatedOne("Person", false);
+        party = delegator.findOne("Party", [partyId : partyId], false);
+        person =  party.getRelatedOne("Person");
         contactDetailMap = [partyId : partyId, firstName : person.firstName, lastName : person.lastName];
 
         generalContactMech = EntityUtil.getFirst(ContactHelper.getContactMech(party, "GENERAL_LOCATION", "POSTAL_ADDRESS", false));
         if (generalContactMech) {
             contactDetailMap.addrContactMechId = generalContactMech.contactMechId;
-            postalAddress = generalContactMech.getRelatedOne("PostalAddress", false);
+            postalAddress = generalContactMech.getRelatedOne("PostalAddress");
             if (postalAddress) {
                 contactDetailMap.address1 = postalAddress.address1;
                 contactDetailMap.city = postalAddress.city;
@@ -42,10 +42,10 @@ if (partyIdFrom && partyIdTo) {
                 if (address2) {
                     contactDetailMap.address2 = address2;
                 }
-                geo = sfrom("Geo").where("geoId", postalAddress.stateProvinceGeoId).queryOne();
+                geo = delegator.findOne("Geo", [geoId : postalAddress.stateProvinceGeoId], false);
                 contactDetailMap.state = geo.geoName;
 
-                geo = from("Geo").where("geoId", postalAddress.countryGeoId).queryOne();
+                geo = delegator.findOne("Geo", [geoId : postalAddress.countryGeoId], false);
                 contactDetailMap.country = geo.geoName;
             }
         }
@@ -57,7 +57,7 @@ if (partyIdFrom && partyIdTo) {
         phoneContactMech = EntityUtil.getFirst(ContactHelper.getContactMech(party, "PRIMARY_PHONE", "TELECOM_NUMBER", false));
         if (phoneContactMech) {
             contactDetailMap.phoneContactMechId = phoneContactMech.contactMechId;
-            telecomNumber = phoneContactMech.getRelatedOne("TelecomNumber", false);
+            telecomNumber = phoneContactMech.getRelatedOne("TelecomNumber");
             if (telecomNumber) {
                 countryCode = telecomNumber.countryCode;
                 if (countryCode) {

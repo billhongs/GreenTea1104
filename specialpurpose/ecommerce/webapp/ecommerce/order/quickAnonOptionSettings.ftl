@@ -76,22 +76,22 @@ function onClickShippingMethod(e) {
             <#list carrierShipmentMethodList as carrierShipmentMethod>
             <tr>
                 <td>
-                    <div>
+                    <div class="tabletext">
                          <#assign shippingMethod = carrierShipmentMethod.shipmentMethodTypeId + "@" + carrierShipmentMethod.partyId>
                          <input type="radio" onclick="return onClickShippingMethod(event)" name="shipping_method" value="${shippingMethod}" <#if shippingMethod == chosenShippingMethod?default("N@A")>checked="checked"</#if>/>
-                         <#if shoppingCart.getShippingContactMechId()??>
+                         <#if shoppingCart.getShippingContactMechId()?exists>
                              <#assign shippingEst = shippingEstWpr.getShippingEstimate(carrierShipmentMethod)?default(-1)>
                          </#if>
-                         <#if carrierShipmentMethod.partyId != "_NA_">${carrierShipmentMethod.partyId!}&nbsp;</#if>${carrierShipmentMethod.description!}
+                         <#if carrierShipmentMethod.partyId != "_NA_">${carrierShipmentMethod.partyId?if_exists}&nbsp;</#if>${carrierShipmentMethod.description?if_exists}
                          <#if shippingEst?has_content> - <#if (shippingEst > -1)><@ofbizCurrency amount=shippingEst isoCode=shoppingCart.getCurrency()/><#else>${uiLabelMap.OrderCalculatedOffline}</#if></#if>
                     </div>
                 </td>
             </tr>
             </#list>
-            <#if !carrierShipmentMethodList?? || carrierShipmentMethodList?size == 0>
+            <#if !carrierShipmentMethodList?exists || carrierShipmentMethodList?size == 0>
             <tr>
               <td width="1%" valign="top">
-                <div><input type="radio"  onclick="return onClickShippingMethod(event)" name="shipping_method" value="Default" checked="checked"/>${uiLabelMap.OrderUseDefault}.</div>
+                <div class="tabletext"><input type="radio"  onclick="return onClickShippingMethod(event)" name="shipping_method" value="Default" checked="checked"/>${uiLabelMap.OrderUseDefault}.</div>
               </td>
             </tr>
             </#if>
@@ -107,17 +107,17 @@ function onClickShippingMethod(e) {
             </tr>
             <tr>
               <td colspan="2">
-                <textarea class='textAreaBox' cols="30" rows="3" name="shipping_instructions">${shoppingCart.getShippingInstructions()!}</textarea>
+                <textarea class='textAreaBox' cols="30" rows="3" name="shipping_instructions">${shoppingCart.getShippingInstructions()?if_exists}</textarea>
               </td>
             </tr>
             <tr><td colspan="2"><hr /></td></tr>
             <tr>
               <td colspan="2">
                 <h2>${uiLabelMap.OrderPoNumber}</h2>&nbsp;
-                <input type="text" class='inputBox' name="correspondingPoId" size="15" value='${shoppingCart.getPoNumber()!}'/>
+                <input type="text" class='inputBox' name="correspondingPoId" size="15" value='${shoppingCart.getPoNumber()?if_exists}'/>
               </td>
             </tr>
-            <#if productStore.showCheckoutGiftOptions! != "N">
+            <#if productStore.showCheckoutGiftOptions?if_exists != "N">
             <tr><td colspan="2"><hr /></td></tr>
             <tr>
               <td colspan="2">
@@ -136,7 +136,7 @@ function onClickShippingMethod(e) {
             </tr>
             <tr>
               <td colspan="2">
-                <textarea class='textAreaBox' cols="30" rows="3" name="gift_message">${shoppingCart.getGiftMessage()!}</textarea>
+                <textarea class='textAreaBox' cols="30" rows="3" name="gift_message">${shoppingCart.getGiftMessage()?if_exists}</textarea>
               </td>
             </tr>
             </#if>
@@ -149,7 +149,7 @@ function onClickShippingMethod(e) {
         <td valign="top" colspan="2">
             <div>
                 <input type='radio' <#if shoppingCart.getMaySplit()?default("N") == "N">checked="checked"</#if> name='may_split' value='false'/>
-                <span>${uiLabelMap.OrderPleaseWaitUntilBeforeShipping}.</span>
+                <span class="tabletext">${uiLabelMap.OrderPleaseWaitUntilBeforeShipping}.</span>
             </div>
         </td>
     </tr>
@@ -157,7 +157,7 @@ function onClickShippingMethod(e) {
         <td valign="top"  colspan="2">
             <div>
                 <input <#if shoppingCart.getMaySplit()?default("N") == "Y">checked="checked"</#if> type='radio' name='may_split' value='true'/>
-                <span>${uiLabelMap.OrderPleaseShipItemsBecomeAvailable}.</span>
+                <span class="tabletext">${uiLabelMap.OrderPleaseShipItemsBecomeAvailable}.</span>
             </div>
         </td>
     </tr>

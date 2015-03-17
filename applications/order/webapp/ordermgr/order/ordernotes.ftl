@@ -41,13 +41,13 @@ under the License.
                     <#if note.noteParty?has_content>
                       <div>&nbsp;<span class="label">${uiLabelMap.CommonBy}</span>&nbsp;${Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, note.noteParty, true)}</div>
                     </#if>
-                    <div>&nbsp;<span class="label">${uiLabelMap.CommonAt}</span>&nbsp;<#if note.noteDateTime?has_content>${Static["org.ofbiz.base.util.UtilFormatOut"].formatDateTime(note.noteDateTime, "", locale, timeZone)!}</#if></div>
+                    <div>&nbsp;<span class="label">${uiLabelMap.CommonAt}</span>&nbsp;${note.noteDateTime?string?if_exists}</div>
                   </td>
                   <td valign="top" width="50%">
                     ${note.noteInfo?replace("\n", "<br/>")}
                   </td>
                   <td align="right" valign="top" width="15%">
-                    <#if note.internalNote! == "N">
+                    <#if note.internalNote?if_exists == "N">
                         ${uiLabelMap.OrderPrintableNote}
                         <form name="privateNotesForm_${note_index}" method="post" action="<@ofbizUrl>updateOrderNote</@ofbizUrl>">
                           <input type="hidden" name="orderId" value="${orderId}"/>
@@ -56,7 +56,7 @@ under the License.
                           <a href="javascript:document.privateNotesForm_${note_index}.submit()" class="buttontext">${uiLabelMap.OrderNotesPrivate}</a>
                         </form>
                     </#if>
-                    <#if note.internalNote! == "Y">
+                    <#if note.internalNote?if_exists == "Y">
                         ${uiLabelMap.OrderNotPrintableNote}
                         <form name="publicNotesForm_${note_index}" method="post" action="<@ofbizUrl>updateOrderNote</@ofbizUrl>">
                           <input type="hidden" name="orderId" value="${orderId}"/>

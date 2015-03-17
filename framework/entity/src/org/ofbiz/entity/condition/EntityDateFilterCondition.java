@@ -19,14 +19,16 @@
 package org.ofbiz.entity.condition;
 
 import java.sql.Timestamp;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
+import javolution.context.ObjectFactory;
+import javolution.util.FastList;
 
 import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericModelException;
-import org.ofbiz.entity.config.model.Datasource;
+import org.ofbiz.entity.config.DatasourceInfo;
 import org.ofbiz.entity.model.ModelEntity;
 
 /**
@@ -34,14 +36,28 @@ import org.ofbiz.entity.model.ModelEntity;
  *
  */
 @SuppressWarnings("serial")
-public final class EntityDateFilterCondition extends EntityCondition {
+public class EntityDateFilterCondition extends EntityCondition {
 
-    protected final String fromDateName;
-    protected final String thruDateName;
+    protected static final ObjectFactory<EntityDateFilterCondition> entityDateFilterConditionFactory = new ObjectFactory<EntityDateFilterCondition>() {
+        @Override
+        protected EntityDateFilterCondition create() {
+            return new EntityDateFilterCondition();
+        }
+    };
 
-    public EntityDateFilterCondition(String fromDateName, String thruDateName) {
+    protected String fromDateName = null;
+    protected String thruDateName = null;
+
+    protected EntityDateFilterCondition() {}
+
+    public void init(String fromDateName, String thruDateName) {
         this.fromDateName = fromDateName;
         this.thruDateName = thruDateName;
+    }
+
+    public void reset() {
+        this.fromDateName = null;
+        this.thruDateName = null;
     }
 
     @Override
@@ -50,7 +66,7 @@ public final class EntityDateFilterCondition extends EntityCondition {
     }
 
     @Override
-    public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, Datasource datasourceInfo) {
+    public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, DatasourceInfo datasourceInfo) {
         EntityCondition condition = makeCondition();
         return condition.makeWhereString(modelEntity, entityConditionParams, datasourceInfo);
     }
@@ -94,6 +110,11 @@ public final class EntityDateFilterCondition extends EntityCondition {
         return this;
     }
 
+    @Override
+    public void encryptConditionFields(ModelEntity modelEntity, Delegator delegator) {
+        // nothing to do here...
+    }
+
     protected EntityCondition makeCondition() {
         return makeCondition(UtilDateTime.nowTimestamp(), fromDateName, thruDateName);
     }
@@ -131,7 +152,7 @@ public final class EntityDateFilterCondition extends EntityCondition {
      * @return EntityCondition representing the date range filter
      */
     public static EntityCondition makeRangeCondition(Timestamp rangeStart, Timestamp rangeEnd, String fromDateName, String thruDateName) {
-        List<EntityCondition> criteria = new LinkedList<EntityCondition>();
+        List<EntityCondition> criteria = FastList.newInstance();
         // fromDate is equal to or after rangeStart but before rangeEnd
         criteria.add(
                 EntityCondition.makeCondition(

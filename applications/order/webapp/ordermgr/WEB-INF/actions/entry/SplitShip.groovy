@@ -22,12 +22,11 @@ import org.ofbiz.product.store.ProductStoreWorker;
 
 shoppingCart = session.getAttribute("shoppingCart");
 partyId = shoppingCart.getPartyId();
-party = from("Party").where("partyId", partyId).cache(true).queryOne();
+party = delegator.findOne("Party", [partyId : partyId], true);
 productStoreId = ProductStoreWorker.getProductStoreId(request);
 
 context.cart = shoppingCart;
 context.shippingContactMechList = ContactHelper.getContactMech(party, "SHIPPING_LOCATION", "POSTAL_ADDRESS", false);
 
-profiledefs = from("PartyProfileDefault").where("partyId", partyId, "productStoreId", productStoreId).cache(true).queryOne();
-
+profiledefs = delegator.findOne("PartyProfileDefault", [partyId : partyId, productStoreId : productStoreId], true);
 context.profileDefs = profiledefs;

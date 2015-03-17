@@ -19,9 +19,9 @@
 
 import org.ofbiz.entity.condition.*
 
-relationshipEnums = from("Enumeration").where("enumTypeId", "KW_THES_REL").orderBy("sequenceId").cache(true).queryList();
+relationshipEnums = delegator.findList("Enumeration", EntityCondition.makeCondition([enumTypeId : 'KW_THES_REL']), null, ['sequenceId'], null, true);
 
-keywordThesauruses = from("KeywordThesaurus").orderBy("enteredKeyword").queryList();
+keywordThesauruses = delegator.findList("KeywordThesaurus", null, null, ['enteredKeyword'], null, false);
 
 //if no param sent in make firstLetter 'a' else use firstLetter passed in
 firstLetterString = request.getParameter("firstLetter");

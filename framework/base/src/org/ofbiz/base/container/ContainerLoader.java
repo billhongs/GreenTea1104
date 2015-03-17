@@ -26,13 +26,13 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import org.ofbiz.base.component.ComponentConfig;
 import org.ofbiz.base.start.Config;
+import org.ofbiz.base.start.Start;
 import org.ofbiz.base.start.StartupException;
 import org.ofbiz.base.start.StartupLoader;
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.StringUtil;
 import org.ofbiz.base.util.UtilValidate;
 
 /**
@@ -46,6 +46,22 @@ import org.ofbiz.base.util.UtilValidate;
 public class ContainerLoader implements StartupLoader {
 
     public static final String module = ContainerLoader.class.getName();
+    private static Map<String, Container> containerMap = new ConcurrentHashMap<String, Container>();
+
+    /**
+     * Returns a <code>Container</code> that has the specified name. Returns
+     * <code>null</code> if the specified container was not loaded. If more than one
+     * instance of the container was loaded, then the last instance that was loaded is
+     * returned. The returned <code>Container</code> will be initialized, but there is no
+     * guarantee that it will be in the running state.
+     * 
+     * @param containerName
+     *            The name of the container.
+     * @return A <code>Container</code> that has the specified name.
+     */
+    public static Container getContainer(String containerName) {
+        return containerMap.get(containerName);
+    }
 
     private String configFile = null;
     private final List<Container> loadedContainers = new LinkedList<Container>();
@@ -53,28 +69,22 @@ public class ContainerLoader implements StartupLoader {
     private boolean loaded = false;
 
     /**
-     * @see org.ofbiz.base.start.StartupLoader#load(Config, String[])
+     * @see org.ofbiz.base.start.StartupLoader#load(Start.Config, String[])
      */
-    @Override
     public synchronized void load(Config config, String args[]) throws StartupException {
         if (this.loaded || this.unloading) {
             return;
         }
+        Debug.logInfo("[Startup] Loading containers...", module);
         this.loadedContainers.clear();
         // get this loader's configuration file
         this.configFile = config.containerConfig;
-
-        List<String> loaders = null;
-        for (Map loaderMap: config.loaders) {
-            if (module.equals(loaderMap.get("class"))) {
-                loaders = StringUtil.split((String)loaderMap.get("profiles"), ",");
-            }
-        }
-
-        Debug.logInfo("[Startup] Loading containers from " + configFile + " for loaders " + loaders, module);
         Collection<ContainerConfig.Container> containers = null;
         try {
             containers = ContainerConfig.getContainers(configFile);
+            if (UtilValidate.isEmpty(containers)) {
+                throw new StartupException("No containers loaded; problem with configuration");
+            }
         } catch (ContainerException e) {
             throw new StartupException(e);
         }
@@ -82,47 +92,32 @@ public class ContainerLoader implements StartupLoader {
             if (this.unloading) {
                 return;
             }
-            boolean matchingLoaderFound = false;
-            if (UtilValidate.isEmpty(containerCfg.loaders) && UtilValidate.isEmpty(loaders)) {
-                matchingLoaderFound = true;
-            } else {
-                for (String loader: loaders) {
-                    if (UtilValidate.isEmpty(containerCfg.loaders) || containerCfg.loaders.contains(loader)) {
-                        matchingLoaderFound = true;
-                        break;
+            Container tmpContainer = loadContainer(containerCfg, args);
+            this.loadedContainers.add(tmpContainer);
+            containerMap.put(containerCfg.name, tmpContainer);
+
+            // TODO: Put container-specific code in the container.
+            // This is only used in case of OFBiz running in Geronimo or WASCE. It allows to use the RMIDispatcher
+            if (containerCfg.name.equals("rmi-dispatcher") && configFile.equals("limited-containers.xml")) {
+                try {
+                    ContainerConfig.Container.Property initialCtxProp = containerCfg.getProperty("use-initial-context");
+                    String useCtx = initialCtxProp == null || initialCtxProp.value == null ? "false" : initialCtxProp.value;
+                    if (!useCtx.equalsIgnoreCase("true")) {
+                        //system.setProperty("java.security.policy", "client.policy"); maybe used if needed...
+                        if (System.getSecurityManager() == null) { // needed by WASCE with a client.policy file.
+                            System.setSecurityManager(new java.rmi.RMISecurityManager());
+                        }
+                        tmpContainer.start();
                     }
+                } catch (ContainerException e) {
+                    throw new StartupException("Cannot start() " + tmpContainer.getClass().getName(), e);
+                } catch (java.lang.AbstractMethodError e) {
+                    throw new StartupException("Cannot start() " + tmpContainer.getClass().getName(), e);
                 }
-            }
-            if (matchingLoaderFound) {
-                Debug.logInfo("Loading container: " + containerCfg.name, module);
-                Container tmpContainer = loadContainer(containerCfg, args);
-                this.loadedContainers.add(tmpContainer);
-                Debug.logInfo("Loaded container: " + containerCfg.name, module);
             }
         }
         if (this.unloading) {
             return;
-        }
-
-        List<ContainerConfig.Container> containersDefinedInComponents = ComponentConfig.getAllContainers();
-        for (ContainerConfig.Container containerCfg: containersDefinedInComponents) {
-            boolean matchingLoaderFound = false;
-            if (UtilValidate.isEmpty(containerCfg.loaders) && UtilValidate.isEmpty(loaders)) {
-                matchingLoaderFound = true;
-            } else {
-                for (String loader: loaders) {
-                    if (UtilValidate.isEmpty(containerCfg.loaders) || containerCfg.loaders.contains(loader)) {
-                        matchingLoaderFound = true;
-                        break;
-                    }
-                }
-            }
-            if (matchingLoaderFound) {
-                Debug.logInfo("Loading component's container: " + containerCfg.name, module);
-                Container tmpContainer = loadContainer(containerCfg, args);
-                this.loadedContainers.add(tmpContainer);
-                Debug.logInfo("Loaded component's container: " + containerCfg.name, module);
-            }
         }
         // Get hot-deploy container configuration files
         ClassLoader loader = Thread.currentThread().getContextClassLoader();
@@ -139,6 +134,7 @@ public class ContainerLoader implements StartupLoader {
                     }
                     Container tmpContainer = loadContainer(containerCfg, args);
                     this.loadedContainers.add(tmpContainer);
+                    containerMap.put(containerCfg.name, tmpContainer);
                 }
             }
         } catch (Exception e) {
@@ -183,7 +179,7 @@ public class ContainerLoader implements StartupLoader {
 
         // initialize the container object
         try {
-            containerObj.init(args, containerCfg.name, configFile);
+            containerObj.init(args, configFile);
         } catch (ContainerException e) {
             throw new StartupException("Cannot init() " + containerCfg.name, e);
         } catch (java.lang.AbstractMethodError e) {
@@ -221,7 +217,6 @@ public class ContainerLoader implements StartupLoader {
     /**
      * @see org.ofbiz.base.start.StartupLoader#start()
      */
-    @Override
     public synchronized void start() throws StartupException {
         if (!this.loaded || this.unloading) {
             throw new IllegalStateException("start() called on unloaded containers");
@@ -232,7 +227,6 @@ public class ContainerLoader implements StartupLoader {
             if (this.unloading) {
                 return;
             }
-            Debug.logInfo("Starting container " + container.getName(), module);
             try {
                 container.start();
             } catch (ContainerException e) {
@@ -240,14 +234,12 @@ public class ContainerLoader implements StartupLoader {
             } catch (java.lang.AbstractMethodError e) {
                 throw new StartupException("Cannot start() " + container.getClass().getName(), e);
             }
-            Debug.logInfo("Started container " + container.getName(), module);
         }
     }
 
     /**
      * @see org.ofbiz.base.start.StartupLoader#unload()
      */
-    @Override
     public void unload() throws StartupException {
         if (!this.unloading) {
             this.unloading = true;
@@ -259,13 +251,11 @@ public class ContainerLoader implements StartupLoader {
                 // shutting down in reverse order
                 for (int i = this.loadedContainers.size(); i > 0; i--) {
                     Container container = this.loadedContainers.get(i-1);
-                    Debug.logInfo("Stopping container " + container.getName(), module);
                     try {
                         container.stop();
                     } catch (ContainerException e) {
                         Debug.logError(e, module);
                     }
-                    Debug.logInfo("Stopped container " + container.getName(), module);
                 }
             }
         }

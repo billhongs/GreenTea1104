@@ -18,10 +18,13 @@
  *******************************************************************************/
 package org.ofbiz.service.eca;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
+import javax.transaction.xa.XAException;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilGenerics;
@@ -30,8 +33,8 @@ import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ModelService;
-import org.ofbiz.service.ServiceSynchronization;
 import org.ofbiz.service.ServiceUtil;
+import org.ofbiz.service.ServiceXaWrapper;
 import org.w3c.dom.Element;
 
 /**
@@ -63,7 +66,7 @@ public class ServiceEcaAction implements java.io.Serializable {
         this.serviceMode = action.getAttribute("mode");
         this.runAsUser = action.getAttribute("run-as-user");
         // support the old, inconsistent attribute name
-        if (UtilValidate.isEmpty(this.runAsUser)) this.runAsUser = action.getAttribute("runAsUser");
+        if (UtilValidate.isEmail(this.runAsUser)) this.runAsUser = action.getAttribute("runAsUser");
         this.resultMapName = action.getAttribute("result-map-name");
 
         // default is true, so anything but false is true
@@ -112,12 +115,19 @@ public class ServiceEcaAction implements java.io.Serializable {
         }
 
         if (eventName.startsWith("global-")) {
+            // XA resource ECA
+            ServiceXaWrapper xaw = new ServiceXaWrapper(dctx);
             if (eventName.equals("global-rollback")) {
-                ServiceSynchronization.registerRollbackService(dctx, serviceName, runAsUser, context, "async".equals(serviceMode), persist); // using the actual context so we get updates
+                xaw.setRollbackService(serviceName, context, "async".equals(serviceMode), persist); // using the actual context so we get updates
             } else if (eventName.equals("global-commit")) {
-                ServiceSynchronization.registerCommitService(dctx, serviceName, runAsUser, context, "async".equals(serviceMode), persist); // using the actual context so we get updates
+                xaw.setCommitService(serviceName, context, "async".equals(serviceMode), persist);   // using the actual context so we get updates
             } else if (eventName.equals("global-commit-post-run")) {
-                ServiceSynchronization.registerCommitService(dctx, serviceName, runAsUser, context, "async".equals(serviceMode), persist); // using the actual context so we get updates
+                xaw.setCommitService(serviceName, context, "async".equals(serviceMode), persist);   // using the actual context so we get updates
+            }
+            try {
+                xaw.enlist();
+            } catch (XAException e) {
+                throw new GenericServiceException("Unable to enlist ServiceXaWrapper with transaction", e);
             }
         } else {
             // standard ECA
@@ -136,7 +146,7 @@ public class ServiceEcaAction implements java.io.Serializable {
         if (UtilValidate.isNotEmpty(resultMapName)) {
             Map<String, Object> resultMap = UtilGenerics.checkMap(context.get(resultMapName));
             if (resultMap == null) {
-                resultMap = new HashMap<String, Object>();
+                resultMap = FastMap.newInstance();
             }
             resultMap.putAll(dctx.getModelService(this.serviceName).makeValid(actionResult, ModelService.OUT_PARAM, false, null));
             context.put(resultMapName, resultMap);
@@ -181,7 +191,7 @@ public class ServiceEcaAction implements java.io.Serializable {
         }
 
         // copy/combine error messages on error/failure (!success) or on resultToResult to combine any error info coming out, regardless of success status
-        if ((!success || resultToResult) && UtilValidate.isNotEmpty(actionResult)) {
+        if (!success || resultToResult) {
             String errorMessage = (String) actionResult.get(ModelService.ERROR_MESSAGE);
             String failMessage = (String) actionResult.get("failMessage");
             List<? extends Object> errorMessageList = UtilGenerics.checkList(actionResult.get(ModelService.ERROR_MESSAGE_LIST));

@@ -17,8 +17,6 @@
  * under the License.
  */
 
-import java.sql.Timestamp;
-
 import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.GenericValue;
@@ -43,7 +41,7 @@ if (!glFiscalTypeId) {
 }
 
 // Find the last closed time period to get the fromDate for the transactions in the current period and the ending balances of the last closed period
-Map lastClosedTimePeriodResult = runService('findLastClosedDate', ["organizationPartyId": organizationPartyId, "findDate": new Date(fromDate.getTime()),"userLogin": userLogin]);
+Map lastClosedTimePeriodResult = dispatcher.runSync("findLastClosedDate", UtilMisc.toMap("organizationPartyId", organizationPartyId, "findDate", new Date(fromDate.getTime()),"userLogin", userLogin));
 Timestamp lastClosedDate = (Timestamp)lastClosedTimePeriodResult.lastClosedDate;
 GenericValue lastClosedTimePeriod = null; 
 if (lastClosedDate) {
@@ -61,19 +59,24 @@ andExprs.add(EntityCondition.makeCondition("isPosted", EntityOperator.EQUALS, "Y
 andExprs.add(EntityCondition.makeCondition("glFiscalTypeId", EntityOperator.EQUALS, glFiscalTypeId));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
-List postedTransactionTotals = select("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount").from("AcctgTransEntrySums").where(andExprs).orderBy("glAccountId").queryList();
+andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
+List postedTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount"), UtilMisc.toList("glAccountId"), null, false);
 if (postedTransactionTotals) {
     Map postedTransactionTotalsMap = [:]
     postedTransactionTotals.each { postedTransactionTotal ->
         Map accountMap = (Map)postedTransactionTotalsMap.get(postedTransactionTotal.glAccountId);
         if (!accountMap) {
-            GenericValue glAccount = from("GlAccount").where("glAccountId", postedTransactionTotal.glAccountId).cache(true).queryOne();
+            GenericValue glAccount = delegator.findOne("GlAccount", UtilMisc.toMap("glAccountId", postedTransactionTotal.glAccountId), true);
             if (glAccount) {
                 boolean isDebitAccount = UtilAccounting.isDebitAccount(glAccount);
                 // Get the opening balances at the end of the last closed time period
                 if (UtilAccounting.isAssetAccount(glAccount) || UtilAccounting.isLiabilityAccount(glAccount) || UtilAccounting.isEquityAccount(glAccount)) {
                     if (lastClosedTimePeriod) {
-                        lastTimePeriodHistory = from("GlAccountAndHistory").where("organizationPartyId", organizationPartyId, "glAccountId", postedTransactionTotal.glAccountId, "customTimePeriodId", lastClosedTimePeriod.customTimePeriodId).queryFirst();
+                        List timePeriodAndExprs = FastList.newInstance();
+                        timePeriodAndExprs.add(EntityCondition.makeCondition("organizationPartyId", EntityOperator.EQUALS, organizationPartyId));
+                        timePeriodAndExprs.add(EntityCondition.makeCondition("glAccountId", EntityOperator.EQUALS, postedTransactionTotal.glAccountId));
+                        timePeriodAndExprs.add(EntityCondition.makeCondition("customTimePeriodId", EntityOperator.EQUALS, lastClosedTimePeriod.customTimePeriodId));
+                        lastTimePeriodHistory = EntityUtil.getFirst(delegator.findList("GlAccountAndHistory", EntityCondition.makeCondition(timePeriodAndExprs, EntityOperator.AND), null, null, null, false));
                         if (lastTimePeriodHistory) {
                             accountMap = UtilMisc.toMap("glAccountId", lastTimePeriodHistory.glAccountId, "accountCode", lastTimePeriodHistory.accountCode, "accountName", lastTimePeriodHistory.accountName, "balance", lastTimePeriodHistory.getBigDecimal("endingBalance"), "openingD", lastTimePeriodHistory.getBigDecimal("postedDebits"), "openingC", lastTimePeriodHistory.getBigDecimal("postedCredits"), "D", BigDecimal.ZERO, "C", BigDecimal.ZERO);
                         }
@@ -97,7 +100,7 @@ if (postedTransactionTotals) {
             mainAndExprs.add(EntityCondition.makeCondition("acctgTransTypeId", EntityOperator.NOT_EQUAL, "PERIOD_CLOSING"));
             mainAndExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, lastClosedDate));
             mainAndExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN, fromDate));
-            transactionTotals = select("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount").from("AcctgTransEntrySums").where(mainAndExprs).orderBy("glAccountId").queryList();
+            transactionTotals = delegator.findList("AcctgTransEntrySums", EntityCondition.makeCondition(mainAndExprs, EntityOperator.AND), UtilMisc.toSet("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount"), UtilMisc.toList("glAccountId"), null, false);
             transactionTotals.each { transactionTotal ->
                 UtilMisc.addToBigDecimalInMap(accountMap, "opening" + transactionTotal.debitCreditFlag, transactionTotal.amount);
             }
@@ -115,7 +118,8 @@ andExprs.add(EntityCondition.makeCondition("glFiscalTypeId", EntityOperator.EQUA
 andExprs.add(EntityCondition.makeCondition("debitCreditFlag", EntityOperator.EQUALS, "D"));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
-List postedDebitTransactionTotals = select("amount").from("AcctgTransEntrySums").where(andExprs).queryList();
+andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
+List postedDebitTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("amount"), null, null, false);
 if (postedDebitTransactionTotals) {
     postedDebitTransactionTotal = postedDebitTransactionTotals.first();
     if (postedDebitTransactionTotal && postedDebitTransactionTotal.amount) {
@@ -130,7 +134,8 @@ andExprs.add(EntityCondition.makeCondition("glFiscalTypeId", EntityOperator.EQUA
 andExprs.add(EntityCondition.makeCondition("debitCreditFlag", EntityOperator.EQUALS, "C"));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
-List postedCreditTransactionTotals = select("amount").from("AcctgTransEntrySums").where(andExprs).queryList();
+andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
+List postedCreditTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("amount"), null, null, false);
 if (postedCreditTransactionTotals) {
     postedCreditTransactionTotal = postedCreditTransactionTotals.first();
     if (postedCreditTransactionTotal && postedCreditTransactionTotal.amount) {
@@ -152,19 +157,23 @@ andExprs.add(EntityCondition.makeCondition("glFiscalTypeId", EntityOperator.EQUA
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
 andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
-List unpostedTransactionTotals = select("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount").from("AcctgTransEntrySums").where(andExprs).orderBy("glAccountId").queryList();
+List unpostedTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount"), UtilMisc.toList("glAccountId"), null, false);
 if (unpostedTransactionTotals) {
     Map unpostedTransactionTotalsMap = [:]
     unpostedTransactionTotals.each { unpostedTransactionTotal ->
         Map accountMap = (Map)unpostedTransactionTotalsMap.get(unpostedTransactionTotal.glAccountId);
         if (!accountMap) {
-            GenericValue glAccount = from("GlAccount").where("glAccountId", unpostedTransactionTotal.glAccountId).cache(true).queryOne();
+            GenericValue glAccount = delegator.findOne("GlAccount", UtilMisc.toMap("glAccountId", unpostedTransactionTotal.glAccountId), true);
             if (glAccount) {
                 boolean isDebitAccount = UtilAccounting.isDebitAccount(glAccount);
                 // Get the opening balances at the end of the last closed time period
                 if (UtilAccounting.isAssetAccount(glAccount) || UtilAccounting.isLiabilityAccount(glAccount) || UtilAccounting.isEquityAccount(glAccount)) {
                     if (lastClosedTimePeriod) {
-                        lastTimePeriodHistory = from("GlAccountAndHistory").where("organizationPartyId", organizationPartyId, "glAccountId", unpostedTransactionTotal.glAccountId, "customTimePeriodId", lastClosedTimePeriod.customTimePeriodId).queryFirst();
+                        List timePeriodAndExprs = FastList.newInstance();
+                        timePeriodAndExprs.add(EntityCondition.makeCondition("organizationPartyId", EntityOperator.EQUALS, organizationPartyId));
+                        timePeriodAndExprs.add(EntityCondition.makeCondition("glAccountId", EntityOperator.EQUALS, unpostedTransactionTotal.glAccountId));
+                        timePeriodAndExprs.add(EntityCondition.makeCondition("customTimePeriodId", EntityOperator.EQUALS, lastClosedTimePeriod.customTimePeriodId));
+                        lastTimePeriodHistory = EntityUtil.getFirst(delegator.findList("GlAccountAndHistory", EntityCondition.makeCondition(timePeriodAndExprs, EntityOperator.AND), null, null, null, false));
                         if (lastTimePeriodHistory) {
                             accountMap = UtilMisc.toMap("glAccountId", lastTimePeriodHistory.glAccountId, "accountCode", lastTimePeriodHistory.accountCode, "accountName", lastTimePeriodHistory.accountName, "balance", lastTimePeriodHistory.getBigDecimal("endingBalance"), "openingD", lastTimePeriodHistory.getBigDecimal("postedDebits"), "openingC", lastTimePeriodHistory.getBigDecimal("postedCredits"), "D", BigDecimal.ZERO, "C", BigDecimal.ZERO);
                         }
@@ -188,7 +197,7 @@ if (unpostedTransactionTotals) {
             mainAndExprs.add(EntityCondition.makeCondition("acctgTransTypeId", EntityOperator.NOT_EQUAL, "PERIOD_CLOSING"));
             mainAndExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, lastClosedDate));
             mainAndExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN, fromDate));
-            transactionTotals = select("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount").from("AcctgTransEntrySums").where(mainAndExprs).orderBy("glAccountId").queryList();
+            transactionTotals = delegator.findList("AcctgTransEntrySums", EntityCondition.makeCondition(mainAndExprs, EntityOperator.AND), UtilMisc.toSet("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount"), UtilMisc.toList("glAccountId"), null, false);
             transactionTotals.each { transactionTotal ->
                 UtilMisc.addToBigDecimalInMap(accountMap, "opening" + transactionTotal.debitCreditFlag, transactionTotal.amount);
             }
@@ -206,7 +215,8 @@ andExprs.add(EntityCondition.makeCondition("glFiscalTypeId", EntityOperator.EQUA
 andExprs.add(EntityCondition.makeCondition("debitCreditFlag", EntityOperator.EQUALS, "D"));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
-List unpostedDebitTransactionTotals = select("amount").from("AcctgTransEntrySums").where(andExprs).queryList();
+andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
+List unpostedDebitTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("amount"), null, null, false);
 if (unpostedDebitTransactionTotals) {
     unpostedDebitTransactionTotal = unpostedDebitTransactionTotals.first();
     if (unpostedDebitTransactionTotal && unpostedDebitTransactionTotal.amount) {
@@ -222,7 +232,7 @@ andExprs.add(EntityCondition.makeCondition("debitCreditFlag", EntityOperator.EQU
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
 andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
-List unpostedCreditTransactionTotals = select("amount").from("AcctgTransEntrySums").where(andExprs).queryList();
+List unpostedCreditTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("amount"), null, null, false);
 if (unpostedCreditTransactionTotals) {
     unpostedCreditTransactionTotal = unpostedCreditTransactionTotals.first();
     if (unpostedCreditTransactionTotal && unpostedCreditTransactionTotal.amount) {
@@ -243,13 +253,13 @@ andExprs.add(EntityCondition.makeCondition("glFiscalTypeId", EntityOperator.EQUA
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
 andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
-List allTransactionTotals = select("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount").from("AcctgTransEntrySums").where(andExprs).orderBy("glAccountId").queryList();
+List allTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount"), UtilMisc.toList("glAccountId"), null, false);
 if (allTransactionTotals) {
     Map allTransactionTotalsMap = [:]
     allTransactionTotals.each { allTransactionTotal ->
         Map accountMap = (Map)allTransactionTotalsMap.get(allTransactionTotal.glAccountId);
         if (!accountMap) {
-            GenericValue glAccount = from("GlAccount").where("glAccountId", allTransactionTotal.glAccountId).cache(true).queryOne();
+            GenericValue glAccount = delegator.findOne("GlAccount", UtilMisc.toMap("glAccountId", allTransactionTotal.glAccountId), true);
             if (glAccount) {
                 boolean isDebitAccount = UtilAccounting.isDebitAccount(glAccount);
                 // Get the opening balances at the end of the last closed time period
@@ -259,7 +269,7 @@ if (allTransactionTotals) {
                         timePeriodAndExprs.add(EntityCondition.makeCondition("organizationPartyId", EntityOperator.EQUALS, organizationPartyId));
                         timePeriodAndExprs.add(EntityCondition.makeCondition("glAccountId", EntityOperator.EQUALS, allTransactionTotal.glAccountId));
                         timePeriodAndExprs.add(EntityCondition.makeCondition("customTimePeriodId", EntityOperator.EQUALS, lastClosedTimePeriod.customTimePeriodId));
-                        lastTimePeriodHistory = from("GlAccountAndHistory").where(timePeriodAndExprs).queryFirst();
+                        lastTimePeriodHistory = EntityUtil.getFirst(delegator.findList("GlAccountAndHistory", EntityCondition.makeCondition(timePeriodAndExprs, EntityOperator.AND), null, null, null, false));
                         if (lastTimePeriodHistory) {
                             accountMap = UtilMisc.toMap("glAccountId", lastTimePeriodHistory.glAccountId, "accountCode", lastTimePeriodHistory.accountCode, "accountName", lastTimePeriodHistory.accountName, "balance", lastTimePeriodHistory.getBigDecimal("endingBalance"), "openingD", lastTimePeriodHistory.getBigDecimal("postedDebits"), "openingC", lastTimePeriodHistory.getBigDecimal("postedCredits"), "D", BigDecimal.ZERO, "C", BigDecimal.ZERO);
                         }
@@ -283,7 +293,7 @@ if (allTransactionTotals) {
             mainAndExprs.add(EntityCondition.makeCondition("acctgTransTypeId", EntityOperator.NOT_EQUAL, "PERIOD_CLOSING"));
             mainAndExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, lastClosedDate));
             mainAndExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN, fromDate));
-            transactionTotals = select("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount").from("AcctgTransEntrySums").where(mainAndExprs).orderBy("glAccountId").queryList();
+            transactionTotals = delegator.findList("AcctgTransEntrySums", EntityCondition.makeCondition(mainAndExprs, EntityOperator.AND), UtilMisc.toSet("glAccountId", "accountName", "accountCode", "debitCreditFlag", "amount"), UtilMisc.toList("glAccountId"), null, false);
             transactionTotals.each { transactionTotal ->
                 UtilMisc.addToBigDecimalInMap(accountMap, "opening" + transactionTotal.debitCreditFlag, transactionTotal.amount);
             }
@@ -300,7 +310,8 @@ andExprs.add(EntityCondition.makeCondition("glFiscalTypeId", EntityOperator.EQUA
 andExprs.add(EntityCondition.makeCondition("debitCreditFlag", EntityOperator.EQUALS, "D"));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
-List allDebitTransactionTotals = select("amount").from("AcctgTransEntrySums").where(andExprs).queryList();
+andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
+List allDebitTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("amount"), null, null, false);
 if (allDebitTransactionTotals) {
     allDebitTransactionTotal = allDebitTransactionTotals.first();
     if (allDebitTransactionTotal && allDebitTransactionTotal.amount) {
@@ -315,7 +326,7 @@ andExprs.add(EntityCondition.makeCondition("debitCreditFlag", EntityOperator.EQU
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
 andExprs.add(EntityCondition.makeCondition("transactionDate", EntityOperator.LESS_THAN_EQUAL_TO, thruDate));
 andCond = EntityCondition.makeCondition(andExprs, EntityOperator.AND);
-List allCreditTransactionTotals = select("amount").from("AcctgTransEntrySums").where(andExprs).queryList();
+List allCreditTransactionTotals = delegator.findList("AcctgTransEntrySums", andCond, UtilMisc.toSet("amount"), null, null, false);
 if (allCreditTransactionTotals) {
     allCreditTransactionTotal = allCreditTransactionTotals.first();
     if (allCreditTransactionTotal && allCreditTransactionTotal.amount) {

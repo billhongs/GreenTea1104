@@ -28,7 +28,7 @@ if (productionRunId) {
         productionRunFixedAssetsData = FastList.newInstance();
         productionRunRoutingTasks = productionRun.getProductionRunRoutingTasks();
         productionRunRoutingTasks.each { prodRunTask ->
-            taskFixedAssets = prodRunTask.getRelated("WorkEffortFixedAssetAssign", null, null, false);
+            taskFixedAssets = prodRunTask.getRelated("WorkEffortFixedAssetAssign");
             productionRunFixedAssetsData.addAll(taskFixedAssets);
         }
         context.productionRunFixedAssetsData = productionRunFixedAssetsData;

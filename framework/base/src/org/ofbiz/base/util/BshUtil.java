@@ -25,7 +25,8 @@ import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.location.FlexibleLocation;
 import org.ofbiz.base.util.cache.UtilCache;
@@ -44,8 +45,8 @@ public final class BshUtil {
 
     public static final String module = BshUtil.class.getName();
 
-    protected static ConcurrentHashMap<ClassLoader, BshClassManager> masterClassManagers = new ConcurrentHashMap<ClassLoader, BshClassManager>();
-    private static final UtilCache<String, Interpreter.ParsedScript> parsedScripts = UtilCache.createUtilCache("script.BshLocationParsedCache", 0, 0, false);
+    protected static FastMap<ClassLoader, BshClassManager> masterClassManagers = FastMap.newInstance();
+    public static UtilCache<String, Interpreter.ParsedScript> parsedScripts = UtilCache.createUtilCache("script.BshLocationParsedCache", 0, 0, false);
 
     /**
      * Evaluate a BSH condition or expression
@@ -133,14 +134,19 @@ public final class BshUtil {
             Interpreter.ParsedScript script = null;
             script = parsedScripts.get(location);
             if (script == null) {
-                URL scriptUrl = FlexibleLocation.resolveLocation(location);
-                if (scriptUrl == null) {
-                    throw new GeneralException("Could not find bsh script at [" + location + "]");
+                synchronized (OfbizBshBsfEngine.class) {
+                    script = parsedScripts.get(location);
+                    if (script == null) {
+                        URL scriptUrl = FlexibleLocation.resolveLocation(location);
+                        if (scriptUrl == null) {
+                            throw new GeneralException("Could not find bsh script at [" + location + "]");
+                        }
+                        Reader scriptReader = new InputStreamReader(scriptUrl.openStream());
+                        script = interpreter.parseScript(location, scriptReader);
+                        if (Debug.verboseOn()) Debug.logVerbose("Caching BSH script at: " + location, module);
+                        parsedScripts.put(location, script);
+                    }
                 }
-                Reader scriptReader = new InputStreamReader(scriptUrl.openStream());
-                script = interpreter.parseScript(location, scriptReader);
-                if (Debug.verboseOn()) Debug.logVerbose("Caching BSH script at: " + location, module);
-                script = parsedScripts.putIfAbsentAndGet(location, script);
             }
 
             return interpreter.evalParsedScript(script);
@@ -159,10 +165,10 @@ public final class BshUtil {
         } catch (EvalError ee) {
             Throwable t = ee.getCause();
             if (t == null) {
-                Debug.logWarning(ee, "No cause (from getCause) found for BSH EvalError: " + ee.toString(), module);
+                Debug.logWarning(ee, "WARNING: no cause (from getCause) found for BSH EvalError: " + ee.toString(), module);
                 t = ee;
             } else {
-                Debug.logError(t, "Got cause (from getCause) for BSH EvalError: " + ee.toString(), module);
+                Debug.logError(t, "ERROR: Got cause (from getCause) for BSH EvalError: " + ee.toString(), module);
             }
 
             String errMsg = "Error running BSH script at [" + location + "], line [" + ee.getErrorLineNumber() + "]: " + t.toString();

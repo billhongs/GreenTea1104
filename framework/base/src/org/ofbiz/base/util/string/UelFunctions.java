@@ -28,7 +28,6 @@ import java.net.URL;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
@@ -36,6 +35,8 @@ import java.util.TimeZone;
 import javax.el.FunctionMapper;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamSource;
+
+import javolution.util.FastMap;
 
 import org.cyberneko.html.parsers.DOMParser;
 import org.ofbiz.base.location.FlexibleLocation;
@@ -164,7 +165,7 @@ public class UelFunctions {
     }
 
     protected static class Functions extends FunctionMapper {
-        protected final Map<String, Method> functionMap = new HashMap<String, Method>();
+        protected final Map<String, Method> functionMap = FastMap.newInstance();
         public Functions() {
             try {
                 this.functionMap.put("date:second", UtilDateTime.class.getMethod("getSecond", Timestamp.class, TimeZone.class, Locale.class));
@@ -304,7 +305,7 @@ public class UelFunctions {
         return dateFormat.format(stamp);
     }
 
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings("unchecked")
     public static int getSize(Object obj) {
         try {
             Map map = (Map) obj;

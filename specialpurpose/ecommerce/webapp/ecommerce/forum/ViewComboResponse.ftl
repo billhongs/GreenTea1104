@@ -17,10 +17,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#if requestAttributes._ERROR_MESSAGE_??>
+<#if requestAttributes._ERROR_MESSAGE_?exists>
 <br /><div class='errorMessage'>${requestAttributes._ERROR_MESSAGE_}</div><br />
 <#else>
-    <#if trailList??>
+    <#if trailList?exists>
         <#assign indent = "">
         <#assign csv = "">
         <#assign counter = 1>
@@ -29,20 +29,20 @@ under the License.
         <#if 0 < csv?length >
             <#assign csv = csv + ","/>
         </#if>
-        <#assign csv = csv + pair[0]!/>
+        <#assign csv = csv + pair[0]?if_exists/>
             <#if counter < len>
         ${indent}
-        ${pair[0]!} - ${pair[1]!}
-        <a class="tabButton" href="<@ofbizUrl>ViewBlog?contentId=${pair[0]!}&nodeTrailCsv=${csv!}"></@ofbizUrl>${uiLabelMap.CommonView}</a> <br />
+        ${pair[0]?if_exists} - ${pair[1]?if_exists}
+        <a class="tabButton" href="<@ofbizUrl>ViewBlog?contentId=${pair[0]?if_exists}&nodeTrailCsv=${csv?if_exists}"></@ofbizUrl>${uiLabelMap.CommonView}</a> <br />
             <#assign indent = indent + "&nbsp;&nbsp;&nbsp;&nbsp;">
             <#else>
         
-        <u>${uiLabelMap.EcommerceAddResponseFor}${pair[0]!} - ${pair[1]!}:</u><br />
+        <u>${uiLabelMap.EcommerceAddResponseFor}${pair[0]?if_exists} - ${pair[1]?if_exists}:</u><br />
             </#if>
             <#assign counter = counter + 1>
         </#list>
 
-        <#if dataResourceId??>
+        <#if dataResourceId?exists>
             <br />
             <img src="<@ofbizUrl>img?imgId=${dataResourceId}</@ofbizUrl>" alt=""/>
         </#if>

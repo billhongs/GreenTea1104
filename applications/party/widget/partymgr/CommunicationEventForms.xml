@@ -410,7 +410,7 @@ under the License.
         <field name="subject" sort-field="true">
             <hyperlink description="${subject}[${communicationEventId}]" target="ViewCommunicationEvent">
                 <parameter param-name="communicationEventId"/>
-                <parameter param-name="partyId"/>
+                <parameter param-name="partyIdFrom" from-field="partyId"/>
                 <parameter param-name="roleTypeId"/>
                 <parameter param-name="headerItem" from-field="parameters.headerItem"/>
             </hyperlink>
@@ -480,32 +480,32 @@ under the License.
         <field name="subject">
             <hyperlink description="${subject}" target="ViewCommunicationEvent">
                 <parameter param-name="communicationEventId"/>
-                <parameter param-name="partyId"/>
+                <parameter param-name="partyIdFrom" from-field="partyId"/>
                 <parameter param-name="roleTypeId"/>
             </hyperlink>
         </field>
     </form>
     
     <form name="ListPartyCommEvents" type="list" target="RemoveCommunicationEventRole" list-name="listIt"
-        odd-row-style="alternate-row" header-row-style="header-row-2" default-table-style="basic-table hover-bar" sort-field-parameter-name="partyCommEventSortField">
+        odd-row-style="alternate-row" header-row-style="header-row-2" default-table-style="basic-table hover-bar">
         <actions>
-            <set field="parameters.partyCommEventSortField" from-field="parameters.partyCommEventSortField" default-value="${groovy: 'true'.equals(parameters.all) ? '-entryDate' : 'entryDate'}"/>
+            <set field="parameters.sortField" from-field="parameters.sortField" default-value="${groovy: &quot;true&quot;.equals(parameters.all)?&quot;-entryDate&quot;:&quot;entryDate&quot;}"/>
             <set field="searchParameters.partyId" from-field="partyId"/>
             <set field="searchParameters.statusId" value="COM_UNKNOWN_PARTY"/>
             <set field="searchParameters.statusId_op" value="notEqual"/>
-            <set field="searchParameters.roleStatusId" value="${groovy: 'true'.equals(parameters.all) ? 'dummy' : 'COM_ROLE_COMPLETED'}"/>
+            <set field="searchParameters.roleStatusId" value="${groovy:&quot;true&quot;.equals(parameters.all)?&quot;dummy&quot;:&quot;COM_ROLE_COMPLETED&quot;}"/>
             <set field="searchParameters.roleStatusId_op" value="notEqual"/>
-            <set field="searchParameters.communicationEventTypeId" value="${groovy: internalNotesOnly &amp;&amp; 'true'.equals(internalNotesOnly) ? 'COMMENT_NOTE' : ''}"/>
+            <set field="searchParameters.communicationEventTypeId" value="${groovy:internalNotesOnly&amp;&amp;&quot;true&quot;.equals(internalNotesOnly)?&quot;COMMENT_NOTE&quot;:&quot;&quot;}"/>
             <service service-name="performFind" result-map="result" result-map-list="listIt">
                 <field-map field-name="inputFields" from-field="searchParameters"/>
                 <field-map field-name="entityName" value="CommunicationEventAndRole"/>
-                <field-map field-name="orderBy" from-field="parameters.partyCommEventSortField"/>
+                <field-map field-name="orderBy" from-field="parameters.sortField"/>
                 <field-map field-name="viewIndex" from-field="viewIndex"/>
                 <field-map field-name="viewSize" from-field="viewSize"/>
             </service>
         </actions>
         <row-actions>
-            <set field="toComplete" value="${groovy: 'COM_ROLE_READ'.equals(roleStatusId) ? 'PartyToComplete' : ' '}"/>
+            <set field="toComplete" value="${bsh:&quot;COM_ROLE_READ&quot;.equals(roleStatusId)?&quot;PartyToComplete&quot;:&quot;CommonEmptyHeader&quot;}"/>
         </row-actions>
         <field name="deleteCommEventIfLast"><hidden value="Y"/></field>
         <field name="delContentDataResource"><hidden value="Y"/></field>
@@ -656,7 +656,7 @@ under the License.
         <field name="communicationEventPrpTypId">
             <display-entity description="${description}" entity-name="CommunicationEventPrpTyp"/>
         </field>
-        <field name="removeLink" title=" " widget-style="smallSubmit">
+        <field name="removeLink" title="${uiLabelMap.CommonEmptyHeader}" widget-style="smallSubmit">
             <hyperlink also-hidden="false" description="${uiLabelMap.CommonDelete}" target="removeCommunicationEventPurpose">
                 <parameter param-name="communicationEventPrpTypId"/>
                 <parameter param-name="communicationEventId"/>
@@ -789,7 +789,7 @@ under the License.
         <field name="communicationEventId"><display/></field>
         <field name="contentId"><display/></field>
         <field name="contentTypeId"><hidden/></field>
-        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}"><display/></field>
+        <field name="dataResourceId"><display/></field>
         <field name="contentName"><text/></field>
         <field name="fromDate"><display/></field>
         <field name="thruDate"><date-time/></field>
@@ -929,7 +929,7 @@ under the License.
             </hyperlink>
         </field>
         <field name="entryDate">
-            <display type="date"/>
+            <display description="${date:dateTimeStr(entryDate, timeZone, locale)}"/>
         </field>
         <field name="note" widget-area-style="fieldWidth200"><display/></field>
         <field name="_rowSubmit" title="${uiLabelMap.CommonYes}"><check/></field>
@@ -956,8 +956,8 @@ under the License.
         <field name="donePage"><hidden value="${donePage}"/></field>
         <field name="communicationEventId"><hidden value="${parameters.communicationEventId}"/></field>
         <field name="delContentDataResource"><hidden value="Y"/></field>
-        <field name="dummy1" title=" " position="1"><display/></field>
-        <field name="dummy2" title=" " position="2"><display/></field>
+        <field name="dummy1" title="${uiLabelMap.CommonEmptyHeader}" position="1"><display/></field>
+        <field name="dummy2" title="${uiLabelMap.CommonEmptyHeader}" position="2"><display/></field>
         <field name="deleteEmail" widget-style="smallSubmit" position="3"><submit/></field>
     </form>
     <form name="EditRequestFromCommEvent" type="single" target="createRequestFromCommEvent" default-map-name="communicationEvent">

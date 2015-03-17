@@ -18,9 +18,9 @@ under the License.
 -->
 
 <hr />
-<#if parameters.contentId??>
+<#if parameters.contentId?exists>
     <#assign id=parameters.contentId/>
-    <@editRenderSubContent contentId="TEMPLATE_MASTER" mapKey="" editTemplate="true" subContentId=id!>
+    <@editRenderSubContent contentId="TEMPLATE_MASTER" mapKey="" editTemplate="true" subContentId=id?if_exists>
         <@renderSubContent throwExceptionOnError="false"/>
     </@editRenderSubContent>
 </#if>

@@ -7,15 +7,11 @@
 		hourText: 'Uur',
 		minuteText: 'Minuut',
 		secondText: 'Seconde',
-		millisecText: 'Milliseconde',
-		microsecText: 'Microseconde',
 		timezoneText: 'Tijdzone',
 		currentText: 'Vandaag',
 		closeText: 'Sluiten',
-		timeFormat: 'HH:mm',
-		amNames: ['AM', 'A'],
-		pmNames: ['PM', 'P'],
-		isRTL: false
+		timeFormat: 'hh:mm tt',
+		ampm: false
 	};
 	$.timepicker.setDefaults($.timepicker.regional['nl']);
 })(jQuery);

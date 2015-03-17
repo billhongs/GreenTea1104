@@ -35,7 +35,6 @@ import org.ofbiz.content.content.ContentWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.LocalDispatcher;
 
 import freemarker.core.Environment;
@@ -136,7 +135,7 @@ public class EditRenderSubContentTransform implements TemplateTransformModel {
                 mimeTypeIdTemp = (String) subContentDataResourceView.get("mimeTypeId");
                 if (UtilValidate.isEmpty(mimeTypeIdTemp) && UtilValidate.isNotEmpty(contentId)) { // will need these below
                     try {
-                        parentContent = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+                        parentContent = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
                         if (parentContent != null) {
                             mimeTypeIdTemp = (String) parentContent.get("mimeTypeId");
                         }

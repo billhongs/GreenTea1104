@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
 import org.ofbiz.entity.condition.EntityCondition;
 
 shipmentId = request.getParameter("shipmentId");
@@ -31,7 +31,7 @@ action = request.getParameter("action");
 
 shipment = null;
 if (shipmentId) {
-    shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+    shipment = delegator.findOne("Shipment", [shipmentId : shipmentId], false);
 }
 
 
@@ -44,9 +44,9 @@ orderItemShipGroupAssocs = null;
 // **************************************
 if (action && orderId) {
     if (shipGroupSeqId) {
-        orderItemShipGroupAssocs = from("OrderItemShipGroupAssoc").where("orderId", orderId, "shipGroupSeqId", shipGroupSeqId).queryList();
+        orderItemShipGroupAssocs = delegator.findList("OrderItemShipGroupAssoc", EntityCondition.makeCondition([orderId : orderId, shipGroupSeqId : shipGroupSeqId]), null, null, null, false);
     } else {
-        orderItemShipGroupAssocs = from("OrderItemShipGroupAssoc").where("orderId", orderId).queryList();
+        orderItemShipGroupAssocs = delegator.findList("OrderItemShipGroupAssoc", EntityCondition.makeCondition([orderId : orderId]), null, null, null, false);
     }
 }
 
@@ -59,13 +59,13 @@ shipmentPlans = null;
 shipmentPlansIt = null;
 rows = [] as ArrayList;
 if (shipment) {
-    shipmentPlans = from("OrderShipment").where("shipmentId", shipment.shipmentId).queryList();
+    shipmentPlans = delegator.findList("OrderShipment", EntityCondition.makeCondition([shipmentId : shipment.shipmentId]), null, null, null, false);
 }
 if (shipmentPlans) {
     shipmentPlans.each { shipmentPlan ->
         oneRow = new HashMap(shipmentPlan);
-        //    oneRow.putAll(shipmentPlan.getRelatedOne("OrderItemShipGrpInvRes", false));
-        orderItem = shipmentPlan.getRelatedOne("OrderItem", false);
+        //    oneRow.putAll(shipmentPlan.getRelatedOne("OrderItemShipGrpInvRes"));
+        orderItem = shipmentPlan.getRelatedOne("OrderItem");
         oneRow.productId = orderItem.productId;
         orderedQuantity = orderItem.getDouble("quantity");
         canceledQuantity = orderItem.getDouble("cancelQuantity");
@@ -77,7 +77,7 @@ if (shipmentPlans) {
         // Total quantity issued
         issuedQuantity = 0.0;
         qtyIssuedInShipment = [:];
-        issuances = orderItem.getRelated("ItemIssuance", null, null, false);
+        issuances = orderItem.getRelated("ItemIssuance");
         issuances.each { issuance ->
             if (issuance.quantity) {
                 issuedQuantity += issuance.getDouble("quantity");
@@ -104,7 +104,7 @@ if (shipmentPlans) {
         // Total quantity planned not issued
         plannedQuantity = 0.0;
         qtyPlannedInShipment = [:];
-        plans = from("OrderShipment").where("orderId", orderItem.orderId, "orderItemSeqId", orderItem.orderItemSeqId).queryList();
+        plans = delegator.findList("OrderShipment", EntityCondition.makeCondition([orderId : orderItem.orderId, orderItemSeqId : orderItem.orderItemSeqId]), null, null, null, false);
         plans.each { plan ->
             if (plan.quantity) {
                 netPlanQty = plan.getDouble("quantity");
@@ -135,7 +135,7 @@ if (shipmentPlans) {
         // Reserved and Not Available quantity
         reservedQuantity = 0.0;
         reservedNotAvailable = 0.0;
-        reservations = orderItem.getRelated("OrderItemShipGrpInvRes", null, null, false);
+        reservations = orderItem.getRelated("OrderItemShipGrpInvRes");
         reservations.each { reservation ->
             if (reservation.quantity) {
                 reservedQuantity += reservation.getDouble("quantity");
@@ -147,7 +147,7 @@ if (shipmentPlans) {
         oneRow.notAvailableQuantity = reservedNotAvailable;
 
         // Planned Weight and Volume
-        product = orderItem.getRelatedOne("Product", false);
+        product = orderItem.getRelatedOne("Product");
         weight = 0.0;
         quantity = 0.0;
         if (shipmentPlan.getDouble("quantity")) {
@@ -158,7 +158,7 @@ if (shipmentPlans) {
         }
         oneRow.weight = weight;
         if (product.weightUomId) {
-            weightUom = from("Uom").where("uomId", product.weightUomId).queryOne();
+            weightUom = delegator.findOne("Uom", [uomId : product.weightUomId], false);
             oneRow.weightUom = weightUom.abbreviation;
         }
         volume = 0.0;
@@ -173,9 +173,9 @@ if (shipmentPlans) {
         }
         oneRow.volume = volume;
         if (product.heightUomId && product.widthUomId && product.depthUomId) {
-            heightUom = from("Uom").where("uomId", product.heightUomId).cache(true).queryOne();
-            widthUom = from("Uom").where("uomId", product.widthUomId).cache(true).queryOne();
-            depthUom = from("Uom").where("uomId", product.depthUomId).cache(true).queryOne();
+            heightUom = delegator.findOne("Uom",[uomId : product.heightUomId], true);
+            widthUom = delegator.findOne("Uom", [uomId : product.widthUomId], true);
+            depthUom = delegator.findOne("Uom", [uomId : product.depthUomId], true);
             oneRow.volumeUom = heightUom.abbreviation + "x" + widthUom.abbreviation + "x" + depthUom.abbreviation;
         }
         totWeight += weight;
@@ -190,7 +190,7 @@ if (shipmentPlans) {
 addRows = [] as ArrayList;
 if (orderItemShipGroupAssocs) {
     orderItemShipGroupAssocs.each { orderItemShipGroupAssoc ->
-        orderItem = orderItemShipGroupAssoc.getRelatedOne("OrderItem", false);
+        orderItem = orderItemShipGroupAssoc.getRelatedOne("OrderItem");
         oneRow = [:];
         oneRow.shipmentId = shipmentId;
         oneRow.orderId = orderItemShipGroupAssoc.orderId;
@@ -206,7 +206,7 @@ if (orderItemShipGroupAssocs) {
         // Total quantity issued
         issuedQuantity = 0.0;
         qtyIssuedInShipment = [:];
-        issuances = orderItem.getRelated("ItemIssuance", null, null, false);
+        issuances = orderItem.getRelated("ItemIssuance");
         issuances.each { issuance ->
             if (issuance.quantity) {
                 issuedQuantity += issuance.getDouble("quantity");
@@ -235,7 +235,7 @@ if (orderItemShipGroupAssocs) {
         } else {
             orderShipmentCondition = EntityCondition.makeCondition([orderId : orderItemShipGroupAssoc.orderId, orderItemSeqId : orderItemShipGroupAssoc.orderItemSeqId]);
         }
-        plans = from("OrderShipment").where(orderShipmentCondition).queryList();
+        plans = delegator.findList("OrderShipment", orderShipmentCondition, null, null, null, false);
         plans.each { plan ->
             if (plan.quantity) {
                 netPlanQty = plan.getDouble("quantity");
@@ -250,14 +250,14 @@ if (orderItemShipGroupAssocs) {
 
         // Planned (unitary) Weight and Volume
         weight = new Double(0);
-        product = orderItem.getRelatedOne("Product", false);
+        product = orderItem.getRelatedOne("Product");
         if (product.getDouble("weight")) {
             weight = product.getDouble("weight");
         }
         oneRow.weight = weight;
 
         if (product.weightUomId) {
-            weightUom = from("Uom").where("uomId", product.weightUomId).cache(true).queryOne();
+            weightUom = delegator.findOne("Uom", [uomId : product.weightUomId], true);
             oneRow.weightUom = weightUom.abbreviation;
         }
         volume = 0.0;
@@ -270,9 +270,9 @@ if (orderItemShipGroupAssocs) {
 
         oneRow.volume = volume;
         if (product.heightUomId && product.widthUomId && product.depthUomId) {
-            heightUom = from("Uom").where("uomId", product.heightUomId).cache(true).queryOne();
-            widthUom = from("Uom").where("uomId", product.widthUomId).cache(true).queryOne();
-            depthUom = from("Uom").where("uomId", product.depthUomId).cache(true).queryOne();
+            heightUom = delegator.findOne("Uom", [uomId : product.heightUomId], true);
+            widthUom = delegator.findOne("Uom", [uomId : product.widthUomId], true);
+            depthUom = delegator.findOne("Uom", [uomId : product.depthUomId], true);
             oneRow.volumeUom = heightUom.abbreviation + "x" + widthUom.abbreviation + "x" + depthUom.abbreviation;
         }
         addRows.add(oneRow);

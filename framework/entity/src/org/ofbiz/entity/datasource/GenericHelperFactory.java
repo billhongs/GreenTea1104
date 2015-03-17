@@ -23,8 +23,8 @@ import java.util.Map;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilValidate;
-import org.ofbiz.entity.config.model.Datasource;
-import org.ofbiz.entity.config.model.EntityConfig;
+import org.ofbiz.entity.config.DatasourceInfo;
+import org.ofbiz.entity.config.EntityConfigUtil;
 
 /**
  * Generic Entity Helper Factory Class
@@ -46,12 +46,12 @@ public class GenericHelperFactory {
                 helper = helperCache.get(helperInfo.getHelperFullName());
                 if (helper == null) {
                     try {
-                        Datasource datasourceInfo = EntityConfig.getDatasource(helperInfo.getHelperBaseName());
+                        DatasourceInfo datasourceInfo = EntityConfigUtil.getDatasourceInfo(helperInfo.getHelperBaseName());
 
                         if (datasourceInfo == null) {
                             throw new IllegalStateException("Could not find datasource definition with name " + helperInfo.getHelperBaseName());
                         }
-                        String helperClassName = datasourceInfo.getHelperClass();
+                        String helperClassName = datasourceInfo.helperClass;
                         Class<?> helperClass = null;
 
                         if (UtilValidate.isNotEmpty(helperClassName)) {

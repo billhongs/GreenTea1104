@@ -30,8 +30,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.PageTitleLookupFacility}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="Facility"/>
                 <set field="searchFields" value="[facilityId, facilityName, description]"/>                 
             </actions>
@@ -57,8 +56,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.PageTitleLookupFacility}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="FacilityLocation"/>
                 <set field="searchFields" value="[locationSeqId, facilityId, locationTypeEnumId]"/>                 
             </actions>
@@ -83,8 +81,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.ProductLookupShipment}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
                 <set field="entityName" value="Shipment"/>
                 <set field="searchFields" value="[shipmentId, shipmentTypeId]"/>
             </actions>

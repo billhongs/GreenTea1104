@@ -18,13 +18,13 @@
  *******************************************************************************/
 package org.ofbiz.service;
 
-import java.util.HashMap;
 import java.util.Map;
-
 import javax.transaction.Status;
 import javax.transaction.Transaction;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.Xid;
+
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilValidate;
@@ -34,9 +34,7 @@ import org.ofbiz.entity.transaction.TransactionUtil;
 
 /**
  * ServiceXaWrapper - XA Resource wrapper for running services on commit() or rollback()
- * @deprecated - Use ServiceSynchronization instead (via LocalDispatcher)
  */
-@Deprecated
 public class ServiceXaWrapper extends GenericXaResource {
 
     public static final String module = ServiceXaWrapper.class.getName();
@@ -62,7 +60,7 @@ public class ServiceXaWrapper extends GenericXaResource {
     }
 
     /**
-     * Sets the service to run on commit()
+     * Sets the service to run on rollback()
      * @param serviceName Name of service to run
      * @param context Context to use when running
      */
@@ -71,7 +69,7 @@ public class ServiceXaWrapper extends GenericXaResource {
     }
 
     /**
-     * Sets the service to run on commit()
+     * Sets the service to run on rollback()
      * @param serviceName Name of service to run
      * @param context Context to use when running
      * @param async override default async behavior
@@ -81,7 +79,7 @@ public class ServiceXaWrapper extends GenericXaResource {
     }
 
     /**
-     * Sets the service to run on commit()
+     * Sets the service to run on rollback()
      * @param serviceName Name of service to run
      * @param runAsUser UserLoginID to run as
      * @param context Context to use when running
@@ -97,14 +95,14 @@ public class ServiceXaWrapper extends GenericXaResource {
 
 
     /**
-     * @return The name of the service to run on commit()
+     * @return The name of the service to run on rollback()
      */
     public String getCommitService() {
         return this.commitService;
     }
 
     /**
-     * @return The context used when running the commit() service
+     * @return The context used when running the rollback() service
      */
     public Map<String, ? extends Object> getCommitContext() {
         return this.commitContext;
@@ -126,19 +124,7 @@ public class ServiceXaWrapper extends GenericXaResource {
      * @param async override default async behavior
      */
     public void setRollbackService(String serviceName, Map<String, ? extends Object> context, boolean async, boolean persist) {
-        this.setRollbackService(serviceName, null, context, async, persist);
-    }
-
-    /**
-     * Sets the service to run on rollback()
-     * @param serviceName Name of service to run
-     * @param runAsUser userLoginId to run the service as
-     * @param context Context to use when running
-     * @param async override default async behavior
-     */
-    public void setRollbackService(String serviceName, String runAsUser, Map<String, ? extends Object> context, boolean async, boolean persist) {
         this.rollbackService = serviceName;
-        this.runAsUser = runAsUser;
         this.rollbackContext = context;
         this.rollbackAsync = async;
         this.rollbackAsyncPersist = persist;
@@ -295,7 +281,7 @@ public class ServiceXaWrapper extends GenericXaResource {
                     if (model.validate) {
                         thisContext = model.makeValid(context, ModelService.IN_PARAM);
                     } else {
-                        thisContext = new HashMap<String, Object>();
+                        thisContext = FastMap.newInstance();
                         thisContext.putAll(context);
                     }
 

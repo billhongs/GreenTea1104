@@ -24,6 +24,7 @@ function unescapeHtmlText(text) {
     return jQuery('<div />').html(text).text()
 }
 
+jQuery(document).ready(createTree());
 
 <#-- creating the JSON Data -->
 var rawdata = [
@@ -34,10 +35,10 @@ var rawdata = [
       <#macro fillTree assocList>
           <#if (assocList?has_content)>
             <#list assocList as assoc>
-                <#assign content  = delegator.findOne("Content",Static["org.ofbiz.base.util.UtilMisc"].toMap("contentId",assoc.contentIdTo), false)/>
+                <#assign content  = delegator.findByPrimaryKey("Content",Static["org.ofbiz.base.util.UtilMisc"].toMap("contentId",assoc.contentIdTo))/>
                 {
                 "data": {"title" : unescapeHtmlText("${content.contentName!assoc.contentIdTo}"), "attr": {"href": "javascript:void(0);", "onClick" : "callDocument('${assoc.contentIdTo}');"}},
-                <#assign assocChilds  = delegator.findByAnd("ContentAssoc",Static["org.ofbiz.base.util.UtilMisc"].toMap("contentId",assoc.contentIdTo,"contentAssocTypeId", "TREE_CHILD"), null, false)/>
+                <#assign assocChilds  = delegator.findByAnd("ContentAssoc",Static["org.ofbiz.base.util.UtilMisc"].toMap("contentId",assoc.contentIdTo,"contentAssocTypeId", "TREE_CHILD"))/>
                     "attr": {"id" : "${assoc.contentIdTo}", "contentId" : "${assoc.contentId}", "AssocType" : "${assoc.contentAssocTypeId}", "fromDate" : "${assoc.fromDate}"}
                 <#if assocChilds?has_content>
                     ,"children": [
@@ -53,8 +54,6 @@ var rawdata = [
           </#if>
         </#macro>
      ];
-
-jQuery(document).ready(createTree());
 
  <#-------------------------------------------------------------------------------------define Requests-->
   var editDocumentTreeUrl = '<@ofbizUrl>/views/EditDocumentTree</@ofbizUrl>';
@@ -109,7 +108,7 @@ jQuery(document).ready(createTree());
 
 <#-------------------------------------------------------------------------------------callDocument function-->
     function callDocument(contentId) {
-        var tabitem='${tabButtonItem!}';
+        var tabitem='${tabButtonItem?if_exists}';
         if (tabitem=="navigateContent")
             listDocument = '<@ofbizUrl>/views/ListDocument</@ofbizUrl>';
         if (tabitem=="LookupContentTree")

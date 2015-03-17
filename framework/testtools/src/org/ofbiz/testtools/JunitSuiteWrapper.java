@@ -18,9 +18,9 @@
  *******************************************************************************/
 package org.ofbiz.testtools;
 
-import java.util.LinkedList;
 import java.util.List;
 
+import javolution.util.FastList;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 
@@ -38,7 +38,7 @@ public class JunitSuiteWrapper {
 
     public static final String module = JunitSuiteWrapper.class.getName();
 
-    protected List<ModelTestSuite> modelTestSuiteList = new LinkedList<ModelTestSuite>();
+    protected List<ModelTestSuite> modelTestSuiteList = FastList.newInstance();
 
     public JunitSuiteWrapper(String componentName, String suiteName, String testCase) {
         for (ComponentConfig.TestSuiteInfo testSuiteInfo: ComponentConfig.getAllTestSuiteInfos(componentName)) {
@@ -79,7 +79,7 @@ public class JunitSuiteWrapper {
     }
 
     public List<Test> getAllTestList() {
-        List<Test> allTestList = new LinkedList<Test>();
+        List<Test> allTestList = FastList.newInstance();
 
         for (ModelTestSuite modelTestSuite: this.modelTestSuiteList) {
             for (Test tst: modelTestSuite.getTestList()) {

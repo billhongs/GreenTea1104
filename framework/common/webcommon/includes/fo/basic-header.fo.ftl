@@ -19,7 +19,7 @@ under the License.
 <#escape x as x?xml>
         <fo:static-content flow-name="xsl-region-before">
           <fo:block font-size="${(layoutSettings.headerFontSize)?default("14pt")}" text-align="center" margin-bottom="14pt">
-            ${(layoutSettings.documentTitle)!}
+            ${(layoutSettings.documentTitle)?if_exists}
           </fo:block>
         </fo:static-content>
 </#escape>

@@ -18,10 +18,10 @@
  *******************************************************************************/
 package org.ofbiz.testtools;
 
-import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
+import javolution.util.FastList;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -38,8 +38,8 @@ import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.testtools.EntityTestCase;
 import org.ofbiz.minilang.MiniLangException;
 import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.service.ServiceContainer;
 import org.ofbiz.service.testtools.OFBizTestCase;
 import org.w3c.dom.Element;
 
@@ -57,7 +57,7 @@ public class ModelTestSuite {
     protected Delegator delegator;
     protected LocalDispatcher dispatcher;
 
-    protected List<Test> testList = new ArrayList<Test>();
+    protected List<Test> testList = FastList.newInstance();
 
     public ModelTestSuite(Element mainElement, String testCase) {
         this.suiteName = mainElement.getAttribute("suite-name");
@@ -71,7 +71,7 @@ public class ModelTestSuite {
         String uniqueSuffix = "-" + RandomStringUtils.randomAlphanumeric(10);
 
         this.delegator = DelegatorFactory.getDelegator(this.originalDelegatorName).makeTestDelegator(this.originalDelegatorName + uniqueSuffix);
-        this.dispatcher = ServiceContainer.getLocalDispatcher(originalDispatcherName + uniqueSuffix, delegator);
+        this.dispatcher = GenericDispatcher.getLocalDispatcher(originalDispatcherName + uniqueSuffix, delegator);
 
         for (Element testCaseElement : UtilXml.childElementList(mainElement, UtilMisc.toSet("test-case", "test-group"))) {
             String caseName = testCaseElement.getAttribute("case-name");
@@ -97,7 +97,7 @@ public class ModelTestSuite {
 
             try {
                 @SuppressWarnings("unchecked")
-                Class<? extends TestCase> clz = (Class<? extends TestCase>) ObjectType.loadClass(className);
+		Class<? extends TestCase> clz = (Class<? extends TestCase>) ObjectType.loadClass(className);
                 TestSuite suite = new TestSuite();
                 suite.addTestSuite(clz);
                 Enumeration<?> testEnum = suite.tests();
@@ -139,7 +139,10 @@ public class ModelTestSuite {
         } else if ("entity-xml-assert".equals(nodeName)) {
             // this is the old, deprecated name for the element, changed because it now does assert or load
             this.testList.add(new EntityXmlAssertTest(caseName, testElement));
+        } else if ("jython-test".equals(nodeName)) {
+            this.testList.add(new JythonTest(caseName, testElement));
         }
+
     }
 
     String getSuiteName() {

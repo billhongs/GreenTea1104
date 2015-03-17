@@ -18,17 +18,17 @@ under the License.
 -->
 
 <#assign delegator = requestAttributes.delegator>
-<#if communicationEvent.partyIdFrom??>
+<#if communicationEvent.partyIdFrom?exists>
     <#assign fromName = Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, communicationEvent.partyIdFrom, true)>
 </#if>
-<#if communicationEvent.partyIdTo??>
+<#if communicationEvent.partyIdTo?exists>
     <#assign toName = Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, communicationEvent.partyIdTo, true)>
 </#if>
 
 <div class="screenlet">
     <div class="screenlet-title-bar">
         <div class="boxlink">
-            <#if (communicationEvent.partyIdFrom! != (userLogin.partyId)!)>
+            <#if (communicationEvent.partyIdFrom?if_exists != (userLogin.partyId)?if_exists)>
               <a href="<@ofbizUrl>newmessage?communicationEventId=${communicationEvent.communicationEventId}</@ofbizUrl>" class="submenutext">${uiLabelMap.PartyReply}</a>
             </#if>
             <a href="<@ofbizUrl>messagelist</@ofbizUrl>" class="submenutextright">${uiLabelMap.EcommerceViewList}</a>
@@ -40,25 +40,25 @@ under the License.
           <tr><td>&nbsp;</td></tr>
           <tr>
               <td align="right"><div class="tableheadtext">${uiLabelMap.CommonFrom}:</div></td>
-              <td><div>${fromName!}</div></td>
+              <td><div class="tabletext">${fromName?if_exists}</div></td>
           </tr>
           <tr>
               <td align="right"><div class="tableheadtext">${uiLabelMap.CommonTo}:</div></td>
-              <td><div>${toName!}</div></td>
+              <td><div class="tabletext">${toName?if_exists}</div></td>
           </tr>
           <tr>
               <td align="right"><div class="tableheadtext">${uiLabelMap.CommonDate}:</div></td>
-              <td><div>${communicationEvent.entryDate}</div></td>
+              <td><div class="tabletext">${communicationEvent.entryDate}</div></td>
           </tr>
           <tr>
               <td align="right"><div class="tableheadtext">${uiLabelMap.EcommerceSubject}:</div></td>
-              <td><div>&nbsp;${(communicationEvent.subject)?default("[${uiLabelMap.EcommerceNoSubject}]")}</div></td>
+              <td><div class="tabletext">&nbsp;${(communicationEvent.subject)?default("[${uiLabelMap.EcommerceNoSubject}]")}</div></td>
           </tr>
           <tr><td>&nbsp;</td></tr>
           <tr>
             <td>&nbsp;</td>
             <td>
-              <div>${StringUtil.wrapString(communicationEvent.content)?default("[${uiLabelMap.EcommerceEmptyBody}]")}</div>
+              <div class="tabletext">${StringUtil.wrapString(communicationEvent.content)?default("[${uiLabelMap.EcommerceEmptyBody}]")}</div>
             </td>
           </tr>
         </table>

@@ -31,7 +31,8 @@ import org.ofbiz.entity.*;
 import org.ofbiz.security.*;
 import org.ofbiz.service.*;
 import org.ofbiz.entity.model.*;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
+import org.ofbiz.widget.form.*;
 import org.ofbiz.securityext.login.*;
 import org.ofbiz.common.*;
 import org.ofbiz.entity.model.*;
@@ -67,7 +68,7 @@ currentValue = ContentWorker.getSubContentCache(delegator, contentIdTo, mapKey, 
 //Debug.logInfo("in editaddprep, currentValue:" + currentValue,"");
 
 if (!currentValue) {
-    parentValue = from("Content").where("contentId", contentIdTo).cache(true).queryOne();
+    parentValue = delegator.findByPrimaryKeyCache("Content", [contentId : contentIdTo]);
     currentValue = delegator.makeValue("Content");
     subject =  parentValue.contentName;
     if ("SUMMARY".equals(mapKey)) {

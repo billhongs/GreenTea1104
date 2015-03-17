@@ -75,7 +75,6 @@ under the License.
 
     <entity entity-name="EmailTemplateSetting" package-name="org.ofbiz.common.email" title="Email Template Setting Entity">
         <field name="emailTemplateSettingId" type="id-ne"></field>
-        <field name="emailType" type="id-ne"></field>
         <field name="description" type="description"></field>
         <field name="bodyScreenLocation" type="long-varchar"><description>if empty defaults to a screen based on the emailType</description></field>
         <field name="xslfoAttachScreenLocation" type="long-varchar"><description>if specified is used to generate XSL:FO that is transformed to a PDF via Apache FOP and attached to the email</description></field>
@@ -85,9 +84,6 @@ under the License.
         <field name="subject" type="comment"></field>
         <field name="contentType" type="long-varchar"></field>
         <prim-key field="emailTemplateSettingId"/>
-        <relation type="one" fk-name="EMAILSET_ENUM" rel-entity-name="Enumeration">
-            <key-map field-name="emailType" rel-field-name="enumId"/>
-        </relation>
     </entity>
 
   <!-- ========================================================= -->
@@ -121,24 +117,6 @@ under the License.
         <key-map field-name="parentTypeId" rel-field-name="enumTypeId"/>
       </relation>
     </entity>
-
-    <view-entity entity-name="EnumTypeChildAndEnum" package-name="org.ofbiz.common.enum">
-        <member-entity entity-alias="PARENT" entity-name="EnumerationType"/>
-        <member-entity entity-alias="CHILD" entity-name="EnumerationType"/>
-        <member-entity entity-alias="ENUM" entity-name="Enumeration"/>
-        <alias-all entity-alias="PARENT" prefix="parent"/>
-        <alias-all entity-alias="CHILD" prefix="child">
-            <exclude field="parentTypeId"/>
-        </alias-all>
-        <alias-all entity-alias="ENUM"/>
-        <view-link entity-alias="PARENT" rel-entity-alias="CHILD">
-            <key-map field-name="enumTypeId" rel-field-name="parentTypeId"/>
-        </view-link>
-        <view-link entity-alias="CHILD" rel-entity-alias="ENUM">
-            <key-map field-name="enumTypeId"/>
-        </view-link>
-    </view-entity>
-
 
   <!-- ========================================================= -->
   <!-- org.ofbiz.common.geo -->
@@ -186,59 +164,36 @@ under the License.
             <key-map field-name="countryCode"/>
         </view-link>
     </view-entity>
-    <entity entity-name="CountryAddressFormat" package-name="org.ofbiz.common.geo" default-resource-name="CommonEntityLabels"
-        title="">
-        <field name="geoId" type="id-ne"></field>
-        <field name="geoAssocTypeId" type="id"></field>
-        <field name="requireStateProvinceId" type="id"></field>
-        <field name="requirePostalCode" type="indicator"></field>
-        <field name="postalCodeRegex" type="long-varchar"></field>
-        <field name="hasPostalCodeExt" type="indicator"></field>
-        <field name="requirePostalCodeExt" type="indicator"></field>
-        <field name="addressFormat" type="long-varchar"></field>
-        <prim-key field="geoId"/>
-        <relation type="one" rel-entity-name="Geo" fk-name="CNY_ADR_GEO">
-            <key-map field-name="geoId"/>
-        </relation>
-        <relation type="one" fk-name="CNY_ADR_GEO_TYPE" rel-entity-name="GeoAssocType" >
-            <key-map field-name="geoAssocTypeId"/>
-        </relation>
-    </entity>
-    <entity entity-name="Geo" package-name="org.ofbiz.common.geo"
-            default-resource-name="CommonEntityLabels"
-            title="Geographic Boundary Entity">
-        <field name="geoId" type="id-ne"></field>
-        <field name="geoTypeId" type="id"></field>
-        <field name="geoName" type="name"></field>
-        <field name="geoCode" type="short-varchar"></field>
-        <field name="geoSecCode" type="short-varchar"></field>
-        <field name="abbreviation" type="short-varchar"></field>
-        <field name="wellKnownText" type="very-long"></field>
-        <prim-key field="geoId" />
-        <relation type="one" fk-name="GEO_TO_TYPE" rel-entity-name="GeoType">
-            <key-map field-name="geoTypeId" />
-        </relation>
+    <entity entity-name="Geo" package-name="org.ofbiz.common.geo" default-resource-name="CommonEntityLabels"
+        title="Geographic Boundary Entity">
+      <field name="geoId" type="id-ne"></field>
+      <field name="geoTypeId" type="id"></field>
+      <field name="geoName" type="name"></field>
+      <field name="geoCode" type="short-varchar"></field>
+      <field name="geoSecCode" type="short-varchar"></field>
+      <field name="abbreviation" type="short-varchar"></field>
+      <field name="wellKnownText" type="very-long"></field>
+      <prim-key field="geoId"/>
+      <relation type="one" fk-name="GEO_TO_TYPE" rel-entity-name="GeoType">
+        <key-map field-name="geoTypeId"/>
+      </relation>
     </entity>
     <entity entity-name="GeoAssoc" package-name="org.ofbiz.common.geo"
-            title="Geographic Boundary Association Entity">
-        <field name="geoId" type="id-ne">
-            <description>The enclosed geo</description>
-        </field>
-        <field name="geoIdTo" type="id-ne">
-            <description>The enclosing geo</description>
-        </field>
-        <field name="geoAssocTypeId" type="id"></field>
-        <prim-key field="geoId" />
-        <prim-key field="geoIdTo" />
-        <relation type="one" fk-name="GEO_ASSC_TO_MAIN" title="Main" rel-entity-name="Geo">
-            <key-map field-name="geoId" />
-        </relation>
-        <relation type="one" fk-name="GEO_ASSC_TO_ASSC" title="Assoc" rel-entity-name="Geo">
-            <key-map field-name="geoIdTo" rel-field-name="geoId" />
-        </relation>
-        <relation type="one" fk-name="GEO_ASSC_TO_TYPE" rel-entity-name="GeoAssocType">
-            <key-map field-name="geoAssocTypeId" />
-        </relation>
+        title="Geographic Boundary Association Entity">
+      <field name="geoId" type="id-ne"></field>
+      <field name="geoIdTo" type="id-ne"></field>
+      <field name="geoAssocTypeId" type="id"></field>
+      <prim-key field="geoId"/>
+      <prim-key field="geoIdTo"/>
+      <relation type="one" fk-name="GEO_ASSC_TO_MAIN" title="Main" rel-entity-name="Geo">
+        <key-map field-name="geoId"/>
+      </relation>
+      <relation type="one" fk-name="GEO_ASSC_TO_ASSC" title="Assoc" rel-entity-name="Geo">
+        <key-map field-name="geoIdTo" rel-field-name="geoId"/>
+      </relation>
+      <relation type="one" fk-name="GEO_ASSC_TO_TYPE" rel-entity-name="GeoAssocType">
+        <key-map field-name="geoAssocTypeId"/>
+      </relation>
     </entity>
     <view-entity entity-name="GeoAssocAndGeoFrom" package-name="org.ofbiz.common.geo">
         <member-entity entity-alias="GA" entity-name="GeoAssoc"/>
@@ -260,20 +215,6 @@ under the License.
             <key-map field-name="geoIdTo" rel-field-name="geoId"/>
         </view-link>
     </view-entity>
-    <view-entity entity-name="GeoAssocAndGeoToWithState" package-name="org.ofbiz.common.geo">
-        <member-entity entity-alias="GA" entity-name="GeoAssoc"/>
-        <member-entity entity-alias="GTO" entity-name="Geo"/>
-        <member-entity entity-alias="GWS" entity-name="CountryAddressFormat"/>
-        <alias-all entity-alias="GTO"/>
-        <alias entity-alias="GA" name="geoIdFrom" field="geoId"/>
-        <alias entity-alias="GA" name="geoAssocTypeId"/>
-        <view-link entity-alias="GA" rel-entity-alias="GTO">
-            <key-map field-name="geoIdTo" rel-field-name="geoId"/>
-        </view-link>
-        <view-link entity-alias="GA" rel-entity-alias="GWS">
-            <key-map field-name="geoId"/>
-        </view-link>
-    </view-entity>
     <entity entity-name="GeoAssocType" package-name="org.ofbiz.common.geo"
         title="Geographic Boundary Association Entity">
       <field name="geoAssocTypeId" type="id-ne"></field>
@@ -284,16 +225,16 @@ under the License.
         title="Geographic Location">
         <field name="geoPointId" type="id-ne"></field>
         <field name="dataSourceId" type="id"></field>
-        <field name="latitude" type="short-varchar" not-null="true"></field>
-        <field name="longitude" type="short-varchar" not-null="true"></field>
-        <field name="elevation" type="fixed-point"></field>
-        <field name="elevationUomId" type="id"><description>UOM for elevation (feet, meters, etc.)</description></field>
+        <field name="latitude" type="floating-point" not-null="true"></field>
+        <field name="longitude" type="floating-point" not-null="true"></field>
+        <field name="elevation" type="floating-point"></field>
+        <field name="elevationUomId" type="id"><description>We need an UOM for elevation (feet, meters, etc.)</description></field>
         <field name="information" type="comment"><description>To enter any related information</description></field>
         <prim-key field="geoPointId"/>
         <relation type="one" fk-name="GEOPOINT_DTSRC" rel-entity-name="DataSource">
             <key-map field-name="dataSourceId"/>
         </relation>
-        <relation type="one" fk-name="GPT_ELEV_UOM" title="Elevation" rel-entity-name="Uom">
+        <relation type="one" fk-name="GPT_TYPE_UOM" title="Elevation" rel-entity-name="Uom">
             <key-map field-name="elevationUomId" rel-field-name="uomId"/>
         </relation>
     </entity>
@@ -308,11 +249,7 @@ under the License.
         <key-map field-name="parentTypeId" rel-field-name="geoTypeId"/>
       </relation>
     </entity>
-    <extend-entity entity-name="Visit">
-        <field name="clientIpStateProvGeoId" type="id"></field>
-        <field name="clientIpCountryGeoId" type="id"></field>
-    </extend-entity>
- 
+
   <!-- ========================================================= -->
   <!-- org.ofbiz.common.keyword -->
   <!-- ========================================================= -->
@@ -424,6 +361,18 @@ under the License.
         <key-map field-name="uomId"/>
       </relation>
     </entity>
+    <entity entity-name="StandardTimePeriod"
+            package-name="org.ofbiz.common.period"
+            title="Standard Time Period Entity">
+      <field name="standardTimePeriodId" type="id-ne"></field>
+      <field name="periodTypeId" type="id"></field>
+      <field name="fromDate" type="date-time"></field>
+      <field name="thruDate" type="date-time"></field>
+      <prim-key field="standardTimePeriodId"/>
+      <relation type="one" fk-name="STD_TM_PER_TYPE" rel-entity-name="PeriodType">
+        <key-map field-name="periodTypeId"/>
+      </relation>
+    </entity>
 
   <!-- ========================================================= -->
   <!-- org.ofbiz.common.status -->
@@ -494,7 +443,7 @@ under the License.
             <order-by field-name="sequenceId"/>
         </entity-condition>
     </view-entity>
-
+    
   <!-- ========================================================= -->
   <!-- org.ofbiz.common.uom -->
   <!-- ========================================================= -->
@@ -516,11 +465,11 @@ under the License.
             package-name="org.ofbiz.common.uom"
             title="Unit Of Measure and Group/Type View Entity">
         <member-entity entity-alias="UOMGP" entity-name="UomGroup"/>
-        <member-entity entity-alias="UOM" entity-name="Uom"/>
+        <member-entity entity-alias="UOM" entity-name="Uom"/>        
         <member-entity entity-alias="UOMTP" entity-name="UomType"/>
         <alias-all entity-alias="UOMGP"/>
-        <alias-all entity-alias="UOM"/>
-        <alias-all entity-alias="UOMTP" prefix="type"/>
+        <alias-all entity-alias="UOM"/>        
+        <alias-all entity-alias="UOMTP" prefix="type"/>                       
         <view-link entity-alias="UOMGP" rel-entity-alias="UOM">
             <key-map field-name="uomId"/>
         </view-link>
@@ -587,7 +536,7 @@ under the License.
       <relation type="one" fk-name="UOMD_PURPOSE_ENUM" title="Purpose" rel-entity-name="Enumeration">
         <key-map field-name="purposeEnumId" rel-field-name="enumId"/>
       </relation>
-    </entity>
+    </entity>    
     <entity entity-name="UomGroup"
             package-name="org.ofbiz.common.uom"
             default-resource-name="CommonEntityLabels"
@@ -599,7 +548,7 @@ under the License.
       <relation type="one" fk-name="UOM_GROUP_UOM" rel-entity-name="Uom">
         <key-map field-name="uomId"/>
       </relation>
-    </entity>
+    </entity>    
     <entity entity-name="UomType"
             package-name="org.ofbiz.common.uom"
             default-resource-name="CommonEntityLabels"
@@ -735,7 +684,7 @@ under the License.
         <!-- defined in an extend in content component to avoid dependencies between common and content
         <field name="helpContentId" type="id"><description>Used to give contentId which will be shown when help on this page will be called</description></field>
          -->
-        <field name="ownerUserLoginId" type="id-vlong-ne"></field>
+        <field name="ownerUserLoginId" type="id"></field>
         <field name="originalPortalPageId" type="id"><description>The system portal page this page is derived from</description></field>
         <field name="parentPortalPageId" type="id"><description>the parent this page is belonging to, normally the startpage of the portal page group</description></field>
         <field name="sequenceNum" type="numeric"></field>
@@ -835,17 +784,4 @@ under the License.
             <key-map field-name="portalPageId"/>
         </view-link>
     </view-entity>
-
-    <!-- ============================ -->
-    <!-- org.ofbiz.common.property -->
-    <!-- ============================ -->
-    
-    <entity entity-name="SystemProperty" package-name="org.ofbiz.common.property" title="Defines a System Property">
-        <field name="systemResourceId" type="id-long-ne"></field>
-        <field name="systemPropertyId" type="id-long-ne"></field>
-        <field name="systemPropertyValue" type="value"></field>
-        <field name="description" type="description"></field>
-        <prim-key field="systemResourceId"/>
-        <prim-key field="systemPropertyId"/>
-    </entity>
 </entitymodel>

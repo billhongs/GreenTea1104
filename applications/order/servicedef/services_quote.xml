@@ -33,8 +33,8 @@ under the License.
         <attribute name="quoteId" type="String" mode="OUT" optional="false"/>
     </service>
 
-    <service name="quoteSequenceEnforced" engine="simple"
-        location="component://order/script/org/ofbiz/order/quote/QuoteServices.xml" invoke="quoteSequenceEnforced">
+    <service name="quoteSequence-enforced" engine="simple"
+        location="component://order/script/org/ofbiz/order/quote/QuoteServices.xml" invoke="quoteSequence-enforced">
         <implements service="getNextQuoteId" optional="true"/>
         <attribute name="partyAcctgPreference" type="org.ofbiz.entity.GenericValue" mode="IN"/>
         <override name="quoteId" type="Long" mode="OUT"/>
@@ -55,7 +55,7 @@ under the License.
     <service name="copyQuote" default-entity-name="Quote" engine="simple"
                 location="component://order/script/org/ofbiz/order/quote/QuoteServices.xml" invoke="copyQuote" auth="true">
         <description>Copy a Quote</description>
-        <auto-attributes include="pk" mode="INOUT" optional="false"/>
+        <auto-attributes include="pk" mode="IN" optional="false"/>
         <attribute name="copyQuoteRoles" type="String" mode="IN" optional="true"/>
         <attribute name="copyQuoteAttributes" type="String" mode="IN" optional="true"/>
         <attribute name="copyQuoteCoefficients" type="String" mode="IN" optional="true"/>
@@ -250,12 +250,5 @@ under the License.
         <attribute name="quoteWorkEfforts" type="List" mode="IN" optional="true"/>
         <attribute name="quoteAdjustments" type="List" mode="IN" optional="true"/>
         <attribute name="quoteId" type="String" mode="OUT" optional="false"/>
-    </service>
-    <service name="createQuoteNote" engine="simple"
-            location="component://order/script/org/ofbiz/order/quote/QuoteServices.xml" invoke="createQuoteNote" auth="true">
-        <description>Create a note item and associate with a quote</description>
-        <attribute name="quoteId" type="String" mode="IN"/>
-        <attribute name="noteInfo" type="String" mode="IN" allow-html="any"/>
-        <attribute name="noteName" type="String" mode="IN" optional="true"/>
     </service>
 </services>

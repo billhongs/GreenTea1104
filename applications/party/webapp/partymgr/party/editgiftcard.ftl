@@ -20,14 +20,14 @@ under the License.
 <!-- begin editgiftcard.ftl -->
 <div class="screenlet">
   <div class="screenlet-title-bar">
-    <#if !giftCard??>
+    <#if !giftCard?exists>
       <h3>${uiLabelMap.AccountingCreateNewGiftCard}</h3>
     <#else>
       <h3>${uiLabelMap.AccountingEditGiftCard}</h3>
     </#if>
   </div>
   <div class="screenlet-body">
-    <#if !giftCard??>
+    <#if !giftCard?exists>
       <form method="post" action="<@ofbizUrl>createGiftCard?DONE_PAGE=${donePage}</@ofbizUrl>" name="editgiftcardform" style="margin: 0;">
     <#else>
       <form method="post" action="<@ofbizUrl>updateGiftCard?DONE_PAGE=${donePage}</@ofbizUrl>" name="editgiftcardform" style="margin: 0;">
@@ -42,13 +42,13 @@ under the License.
         <tr>
           <td class="label">${uiLabelMap.AccountingCardNumber}</td>
           <td>
-            <input type="text" size="20" maxlength="60" name="cardNumber" value="${giftCardData.cardNumber!}" />
+            <input type="text" size="20" maxlength="60" name="cardNumber" value="${giftCardData.cardNumber?if_exists}" />
           </td>
         </tr>
         <tr>
           <td class="label">${uiLabelMap.AccountingPinNumber}</td>
           <td>
-            <input type="text" size="10" maxlength="60" name="pinNumber" value="${giftCardData.pinNumber!}" />
+            <input type="text" size="10" maxlength="60" name="pinNumber" value="${giftCardData.pinNumber?if_exists}" />
           </td>
         </tr>
         <tr>
@@ -56,9 +56,9 @@ under the License.
           <td>
             <#assign expMonth = "">
             <#assign expYear = "">
-            <#if giftCardData?? && giftCardData.expireDate??>
+            <#if giftCardData?exists && giftCardData.expireDate?exists>
               <#assign expDate = giftCard.expireDate>
-              <#if (expDate?? && expDate.indexOf("/") > 0)>
+              <#if (expDate?exists && expDate.indexOf("/") > 0)>
                 <#assign expMonth = expDate.substring(0,expDate.indexOf("/"))>
                 <#assign expYear = expDate.substring(expDate.indexOf("/")+1)>
               </#if>
@@ -67,10 +67,10 @@ under the License.
               <#if giftCardData?has_content && expMonth?has_content>
                 <#assign ccExprMonth = expMonth>
               <#else>
-                <#assign ccExprMonth = requestParameters.expMonth!>
+                <#assign ccExprMonth = requestParameters.expMonth?if_exists>
               </#if>
               <#if ccExprMonth?has_content>
-                <option value="${ccExprMonth!}">${ccExprMonth!}</option>
+                <option value="${ccExprMonth?if_exists}">${ccExprMonth?if_exists}</option>
               </#if>
               ${screens.render("component://common/widget/CommonScreens.xml#ccmonths")}
             </select>
@@ -78,10 +78,10 @@ under the License.
               <#if giftCard?has_content && expYear?has_content>
                 <#assign ccExprYear = expYear>
               <#else>
-                <#assign ccExprYear = requestParameters.expYear!>
+                <#assign ccExprYear = requestParameters.expYear?if_exists>
               </#if>
               <#if ccExprYear?has_content>
-                <option value="${ccExprYear!}">${ccExprYear!}</option>
+                <option value="${ccExprYear?if_exists}">${ccExprYear?if_exists}</option>
               </#if>
               ${screens.render("component://common/widget/CommonScreens.xml#ccyears")}
             </select>
@@ -90,7 +90,7 @@ under the License.
         <tr>
           <td class="label">${uiLabelMap.CommonDescription}</td>
           <td>
-            <input type="text" size="30" maxlength="60" name="description" value="${paymentMethodData.description!}" />
+            <input type="text" size="30" maxlength="60" name="description" value="${paymentMethodData.description?if_exists}" />
           </td>
         </tr>
         </table>

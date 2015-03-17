@@ -23,13 +23,13 @@ import org.ofbiz.party.contact.*
 context.nowStr = UtilDateTime.nowTimestamp();
 
 facilityId = parameters.facilityId;
-facility = from("Facility").where("facilityId", facilityId).queryOne();
+facility = delegator.findOne("Facility", [facilityId : facilityId], false);
 facilityType = null;
 if (!facility) {
   context.facility = delegator.makeValue("Facility", null);
   context.facilityType = delegator.makeValue("FacilityType", null);
 } else {
-  facilityType = facility.getRelatedOne("FacilityType", false);
+  facilityType = facility.getRelatedOne("FacilityType");
 }
 context.facility = facility;
 context.facilityType = facilityType;

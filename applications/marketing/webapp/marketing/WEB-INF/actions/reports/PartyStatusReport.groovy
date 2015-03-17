@@ -36,5 +36,6 @@ if (contactListId) {
 if (statusId) {
     conditionList.add(EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, statusId));
 }
-partyStatusLists = from("ContactListPartyStatus").where(conditionList).queryList();
+conditions = EntityCondition.makeCondition(conditionList, EntityOperator.AND);
+partyStatusLists = delegator.findList("ContactListPartyStatus", conditions, null, null, null, false);
 context.partyStatusLists = partyStatusLists;

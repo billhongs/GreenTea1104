@@ -57,12 +57,12 @@ if (!fromDate) {
     context.fromDate = fromDate;
 }
 
-product = from("Product").where("productId", productId).queryOne();
+product = delegator.findOne("Product", [productId : productId], false);
 if (product) {
     context.product = product;
 }
 
-productAssoc = from("ProductAssoc").where("productId", productId, "productIdTo", productIdTo, "productAssocTypeId", productAssocTypeId, "fromDate", fromDate).queryOne();
+productAssoc = delegator.findOne("ProductAssoc", [productId : productId, productIdTo : productIdTo, productAssocTypeId : productAssocTypeId, fromDate : fromDate], false);
 if (productAssoc) {
     context.productAssoc = productAssoc;
 }
@@ -78,11 +78,11 @@ if (!productAssoc) {
 context.useValues = useValues;
 context.isCreate = true;
 
-assocTypes = from("ProductAssocType").orderBy("description").queryList();
+assocTypes = delegator.findList("ProductAssocType", null, null, ['description'], null, false);
 context.assocTypes = assocTypes;
 
 if (product) {
-    context.assocFromProducts = product.getRelated("MainProductAssoc", null, ['sequenceNum'], false);
+    context.assocFromProducts = product.getRelated("MainProductAssoc", null, ['sequenceNum']);
 
-    context.assocToProducts = product.getRelated("AssocProductAssoc", null, null, false);
+    context.assocToProducts = product.getRelated("AssocProductAssoc");
 }

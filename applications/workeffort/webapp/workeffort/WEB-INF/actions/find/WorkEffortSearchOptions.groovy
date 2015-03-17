@@ -53,8 +53,8 @@ context.put("thruDateStr", toStr);
 
 searchConstraintStrings = WorkEffortSearchSession.searchGetConstraintStrings(false, session, delegator);
 searchSortOrderString = WorkEffortSearchSession.searchGetSortOrderString(false, request);
-workEffortAssocTypes = from("WorkEffortAssocType").queryList();
-roleTypes = from("RoleType").queryList();
+workEffortAssocTypes=delegator.findList("WorkEffortAssocType", null, null, null, null, false);
+roleTypes=delegator.findList("RoleType", null, null, null, null, false);
 
 context.put("searchOperator", searchOperator);
 context.put("searchConstraintStrings", searchConstraintStrings);

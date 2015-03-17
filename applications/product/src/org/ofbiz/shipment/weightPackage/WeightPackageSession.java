@@ -38,9 +38,8 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.service.GenericDispatcher;
 import org.ofbiz.service.LocalDispatcher;
-import org.ofbiz.service.ServiceContainer;
 import org.ofbiz.service.ServiceUtil;
 
 @SuppressWarnings("serial")
@@ -98,7 +97,7 @@ public class WeightPackageSession implements Serializable {
 
     public LocalDispatcher getDispatcher() {
         if (_dispatcher == null) {
-            _dispatcher = ServiceContainer.getLocalDispatcher(dispatcherName, this.getDelegator());
+            _dispatcher = GenericDispatcher.getLocalDispatcher(dispatcherName, this.getDelegator());
         }
         return _dispatcher;
     }
@@ -353,7 +352,7 @@ public class WeightPackageSession implements Serializable {
     protected BigDecimal upsShipmentConfirm() throws GeneralException {
         Delegator delegator = this.getDelegator();
         BigDecimal actualCost = ZERO;
-        List<GenericValue> shipmentRouteSegments = EntityQuery.use(delegator).from("ShipmentRouteSegment").where("shipmentId", shipmentId).queryList();
+        List<GenericValue> shipmentRouteSegments = delegator.findByAnd("ShipmentRouteSegment", UtilMisc.toMap("shipmentId", shipmentId));
         if (UtilValidate.isNotEmpty(shipmentRouteSegments)) {
             for (GenericValue shipmentRouteSegment : shipmentRouteSegments) {
                 Map<String, Object> shipmentRouteSegmentMap = FastMap.newInstance();
@@ -364,7 +363,7 @@ public class WeightPackageSession implements Serializable {
                 if (ServiceUtil.isError(shipmentRouteSegmentResult)) {
                     throw new GeneralException(ServiceUtil.getErrorMessage(shipmentRouteSegmentResult));
                 }
-                GenericValue shipRouteSeg = EntityQuery.use(delegator).from("ShipmentRouteSegment").where("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegment.getString("shipmentRouteSegmentId")).queryOne();
+                GenericValue shipRouteSeg = delegator.findOne("ShipmentRouteSegment", UtilMisc.toMap("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegment.getString("shipmentRouteSegmentId")), false);
                 actualCost = actualCost.add(shipRouteSeg.getBigDecimal("actualCost"));
             }
         }
@@ -372,7 +371,7 @@ public class WeightPackageSession implements Serializable {
     }
 
     protected void upsShipmentAccept() throws GeneralException {
-        List<GenericValue> shipmentRouteSegments = this.getDelegator().findByAnd("ShipmentRouteSegment", UtilMisc.toMap("shipmentId", shipmentId), null, false);
+        List<GenericValue> shipmentRouteSegments = this.getDelegator().findByAnd("ShipmentRouteSegment", UtilMisc.toMap("shipmentId", shipmentId));
         if (UtilValidate.isNotEmpty(shipmentRouteSegments)) {
             for (GenericValue shipmentRouteSegment : shipmentRouteSegments) {
                 Map<String, Object> shipmentRouteSegmentMap = FastMap.newInstance();
@@ -433,15 +432,15 @@ public class WeightPackageSession implements Serializable {
     }
 
     protected void changeOrderItemStatus(String orderId) throws GeneralException {
-        List<GenericValue> shipmentItems = this.getDelegator().findByAnd("ShipmentItem", UtilMisc.toMap("shipmentId", shipmentId), null, false);
+        List<GenericValue> shipmentItems = this.getDelegator().findByAnd("ShipmentItem", UtilMisc.toMap("shipmentId", shipmentId));
         for (GenericValue shipmentItem : shipmentItems) {
             for (WeightPackageSessionLine packedLine : this.getPackedLines(orderId)) {
                 packedLine.setShipmentItemSeqId(shipmentItem.getString("shipmentItemSeqId"));
             }
         }
-        List<GenericValue> orderItems = this.getDelegator().findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId, "statusId", "ITEM_APPROVED"), null, false);
+        List<GenericValue> orderItems = this.getDelegator().findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId, "statusId", "ITEM_APPROVED"));
         for (GenericValue orderItem : orderItems) {
-            List<GenericValue> orderItemShipGrpInvReserves = orderItem.getRelated("OrderItemShipGrpInvRes", null, null, false);
+            List<GenericValue> orderItemShipGrpInvReserves = orderItem.getRelated("OrderItemShipGrpInvRes");
             if (UtilValidate.isEmpty(orderItemShipGrpInvReserves)) {
                 Map<String, Object> orderItemStatusMap = FastMap.newInstance();
                 orderItemStatusMap.put("orderId", orderId);
@@ -469,7 +468,7 @@ public class WeightPackageSession implements Serializable {
         if (UtilValidate.isNotEmpty(orderId)) {
             BigDecimal shipmentWeight = getShippableWeight(orderId);
             if (UtilValidate.isNotEmpty(shipmentWeight) && shipmentWeight.compareTo(BigDecimal.ZERO) <= 0) return;
-            List<GenericValue> shipmentRouteSegments = getDelegator().findByAnd("ShipmentRouteSegment", UtilMisc.toMap("shipmentId", this.getShipmentId()), null, false);
+            List<GenericValue> shipmentRouteSegments = getDelegator().findByAnd("ShipmentRouteSegment", UtilMisc.toMap("shipmentId", this.getShipmentId()));
             if (UtilValidate.isNotEmpty(shipmentRouteSegments)) {
                 for (GenericValue shipmentRouteSegment : shipmentRouteSegments) {
                     shipmentRouteSegment.set("billingWeight", shipmentWeight);
@@ -540,7 +539,7 @@ public class WeightPackageSession implements Serializable {
     protected Integer getOrderedQuantity(String orderId) {
         BigDecimal orderedQuantity = ZERO;
         try {
-            List<GenericValue> orderItems = getDelegator().findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId, "statusId", "ITEM_APPROVED"), null, false);
+            List<GenericValue> orderItems = getDelegator().findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId, "statusId", "ITEM_APPROVED"));
             for (GenericValue orderItem : orderItems) {
                 orderedQuantity = orderedQuantity.add(orderItem.getBigDecimal("quantity"));
             }

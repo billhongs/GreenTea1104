@@ -34,20 +34,22 @@ public class BeanShellContainer implements Container {
 
     protected String configFileLocation = null;
     protected Interpreter bsh = null;
-    protected String containerName;
     protected String name;
     protected int port;
 
-    @Override
-    public void init(String[] args, String name, String configFile) {
-        this.containerName = name;
+    /**
+     * @see org.ofbiz.base.container.Container#init(java.lang.String[], java.lang.String)
+     */
+    public void init(String[] args, String configFile) {
         this.configFileLocation = configFile;
     }
 
-    @Override
+    /**
+     * @see org.ofbiz.base.container.Container#init(java.lang.String[], java.lang.String)
+     */
     public boolean start() throws ContainerException {
         // get the container config
-        ContainerConfig.Container cfg = ContainerConfig.getContainer(containerName, configFileLocation);
+        ContainerConfig.Container cfg = ContainerConfig.getContainer("beanshell-container", configFileLocation);
 
         // get the app-name
         ContainerConfig.Container.Property appName = cfg.getProperty("app-name");
@@ -112,9 +114,5 @@ public class BeanShellContainer implements Container {
      */
     public void stop() throws ContainerException {
         bsh = null;
-    }
-
-    public String getName() {
-        return containerName;
     }
 }

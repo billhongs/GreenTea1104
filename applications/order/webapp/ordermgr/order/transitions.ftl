@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#if inProcess??>
+<#if inProcess?exists>
 <div class="screenlet">
   <div class="screenlet-title-bar">
     <ul>
@@ -64,7 +64,7 @@ under the License.
 </div>
 </#if>
 <br />
-<#if wfTransitions?? && wfTransitions?has_content>
+<#if wfTransitions?exists && wfTransitions?has_content>
 <div class="screenlet">
   <div class="screenlet-title-bar">
     <ul>
@@ -88,7 +88,7 @@ under the License.
                     <#list wfTransitions as trans>
                       <#if trans.extendedAttributes?has_content>
                         <#assign attrs = Static["org.ofbiz.base.util.StringUtil"].strToMap(trans.extendedAttributes)>
-                        <#if attrs.approvalCode??>
+                        <#if attrs.approvalCode?exists>
                           <option value="${attrs.approvalCode}">${trans.transitionName}</option>
                         </#if>
                       </#if>

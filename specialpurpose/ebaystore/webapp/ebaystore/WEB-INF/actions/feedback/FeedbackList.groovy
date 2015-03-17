@@ -25,9 +25,12 @@ import java.util.Map;
 import javolution.util.FastMap;
 
 partyId = null
-resultUser = runService('getEbayStoreUser', ["productStoreId": parameters.productStoreId, "userLogin": context.get("userLogin")]);
+inMap = FastMap.newInstance();
+inMap.put("productStoreId", parameters.productStoreId);
+inMap.put("userLogin", context.get("userLogin"));
+resultUser = dispatcher.runSync("getEbayStoreUser", inMap);
 ownerUser = resultUser.get("userLoginId");
-userLogin = from("UserLogin").where("userLoginId", ownerUser).queryOne();
+userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", ownerUser));
 if (userLogin) {
     partyId = userLogin.get("partyId");
 }
@@ -52,22 +55,23 @@ if (fromDate && thruDate) {
 } else if (!fromDate && thruDate) {
     expr.add(EntityCondition.makeCondition("createdDate",EntityOperator.LESS_THAN, UtilDateTime.getDayEnd(Timestamp.valueOf(thruDate + " 23:59:59.999"))));
 }
-contentRoles = from("ContentRole").where("roleTypeId","OWNER", "partyId", partyId).queryList();
+contentRoles = delegator.findByAnd("ContentRole", UtilMisc.toMap("roleTypeId","OWNER", "partyId", partyId));
 contentIds = [];
 contentRoles.each{ content ->
     contentIds.add(content.getString("contentId"));
 }
 expr.add(EntityCondition.makeCondition("contentId", EntityOperator.IN, contentIds));
-contents = from("Content").where(expr).queryList();
+cond = EntityCondition.makeCondition(expr, EntityOperator.AND);
+contents = delegator.findList("Content", cond, null, null, null, false);
 
 recentFeedbackList = [];
 ownerUser = null;
 commentator = null;
 contents.each{ content ->
-    commentatorContents = from("ContentRole").where("contentId",content.contentId, "roleTypeId","COMMENTATOR").queryList();
+    commentatorContents = delegator.findByAnd("ContentRole", UtilMisc.toMap("contentId",content.contentId, "roleTypeId","COMMENTATOR"));
     if(commentatorContents){
         commentatorPartyId = commentatorContents.get(0).get("partyId");
-        commentatorUsers = from("UserLogin").where("partyId", commentatorPartyId).queryList();
+        commentatorUsers = delegator.findByAnd("UserLogin", UtilMisc.toMap("partyId", commentatorPartyId));
         if(commentatorUsers){
             commentator = commentatorUsers.get(0).get("userLoginId");
         }

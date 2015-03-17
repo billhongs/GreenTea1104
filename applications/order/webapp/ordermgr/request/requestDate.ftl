@@ -28,7 +28,7 @@ under the License.
                 </td>
                 <td width="5%">&nbsp;</td>
                 <td valign="top" width="70%">
-                    ${(custRequest.custRequestDate.toString())!}
+                    ${(custRequest.custRequestDate.toString())?if_exists}
                 </td>
             </tr>
             <tr><td colspan="7"><hr /></td></tr>
@@ -38,7 +38,7 @@ under the License.
                 </td>
                 <td width="5%">&nbsp;</td>
                 <td valign="top" width="70%">
-                    ${(custRequest.createdDate.toString())!}
+                    ${(custRequest.createdDate.toString())?if_exists}
                 </td>
             </tr>
             <tr><td colspan="7"><hr /></td></tr>
@@ -48,7 +48,7 @@ under the License.
                 </td>
                 <td width="5%">&nbsp;</td>
                 <td valign="top" width="70%">
-                    ${(custRequest.lastModifiedDate.toString())!}
+                    ${(custRequest.lastModifiedDate.toString())?if_exists}
                 </td>
             </tr>
         </table>

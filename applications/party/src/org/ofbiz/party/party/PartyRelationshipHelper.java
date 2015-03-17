@@ -34,7 +34,6 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * PartyRelationshipHelper
@@ -72,7 +71,7 @@ public class PartyRelationshipHelper {
 
         List<GenericValue> partyRelationships = null;
         try {
-            partyRelationships = EntityQuery.use(delegator).from("PartyRelationship").where(condition).queryList();
+            partyRelationships = delegator.findList("PartyRelationship", condition, null, null, null, false);
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem finding PartyRelationships. ", module);
             return null;

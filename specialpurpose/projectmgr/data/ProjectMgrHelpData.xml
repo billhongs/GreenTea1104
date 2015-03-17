@@ -171,5 +171,4 @@ under the License.
         dataResourceId="PROJECTMGR_Requests" statusId="CTNT_IN_PROGRESS" mimeTypeId="text/html"/>
     <ContentAssoc contentId="HELP_PROJECTMGR" contentIdTo="PROJECTMGR_Requests" contentAssocTypeId="TREE_CHILD" fromDate="2006-01-12 01:01:01" sequenceNum="000" mapKey="PROJECTMGR_RequestList"/>
     
-
 </entity-engine-xml>

@@ -32,7 +32,8 @@ import org.ofbiz.entity.*;
 import org.ofbiz.security.*;
 import org.ofbiz.service.*;
 import org.ofbiz.entity.model.*;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
+import org.ofbiz.widget.form.*;
 import org.ofbiz.content.content.PermissionRecorder;
 
 import javax.servlet.*;
@@ -54,8 +55,8 @@ if (!pubPt) {
 }
 */
 
-contentToValue = from("Content").where("contentId", contentIdTo).queryOne();
-contentToPurposeList = contentToValue.getRelated("ContentPurpose", null, null, true);
+contentToValue = delegator.findByPrimaryKey("Content", [contentId : contentIdTo]);
+contentToPurposeList = contentToValue.getRelatedCache("ContentPurpose");
 currentValue = delegator.makeValue("Content", [contentTypeId : "DOCUMENT", statusId : "CTNT_PUBLISHED", privilegeEnumId : "_00_"]);
 
 if (contentToPurposeList.contains("RESPONSE")) {
@@ -78,7 +79,7 @@ mapIn.entityOperation = "_CREATE";
 mapIn.contentPurposeList = ["RESPONSE"];
 
 //org.ofbiz.base.util.Debug.logInfo("in permprep, mapIn:" + mapIn, null);
-result = runService('checkContentPermission', mapIn);
+result = dispatcher.runSync("checkContentPermission", mapIn);
 permissionStatus = result.permissionStatus;
 //org.ofbiz.base.util.Debug.logInfo("permissionStatus:" + permissionStatus, null);
 if (!"granted".equals(permissionStatus)) {
@@ -94,7 +95,7 @@ if (!"granted".equals(permissionStatus)) {
     request.setAttribute("permissionErrorMsg", errorMessage);
     context.permissionErrorMsg = errorMessage;
     context.hasPermission = false;
-    request.setAttribute("hasPermission", false);
+    request.setAttribute("hasPermission", false;
     request.setAttribute("permissionStatus", "");
     return;
 } else {
@@ -104,7 +105,7 @@ if (!"granted".equals(permissionStatus)) {
 }
 
 /*
-pubContentValue = delegator.findOne("Content", [contentId : pubPt], false);
+pubContentValue = delegator.findByPrimaryKey("Content", [contentId : pubPt]);
 if (pubContentValue) {
     mapIn.currentContent = pubContentValue;
     mapIn.statusId = "CTNT_PUBLISHED";

@@ -29,7 +29,7 @@ inventoryItemId = request.getParameter("inventoryItemId");
 inventoryTransfer = null;
 
 if (inventoryTransferId) {
-    inventoryTransfer = from("InventoryTransfer").where("inventoryTransferId", inventoryTransferId).queryOne();
+    inventoryTransfer = delegator.findOne("InventoryTransfer", [inventoryTransferId : inventoryTransferId], false);
     if (inventoryTransfer) {
         context.inventoryTransfer = inventoryTransfer;
         if (!facilityId) {
@@ -42,31 +42,31 @@ if (inventoryTransferId) {
     }
 }
 
-facility = from("Facility").where("facilityId", facilityId).queryOne();
+facility = delegator.findOne("Facility", [facilityId : facilityId], false);
 context.facilityId = facilityId;
 context.facility = facility;
 context.inventoryItemId = inventoryItemId;
 
 if (facilityId) {
-    facility = from("Facility").where("facilityId", facilityId).queryOne();
+    facility = delegator.findOne("Facility", [facilityId : facilityId], false);
 }
 
 String illegalInventoryItem = null;
 if (inventoryItemId) {
-    inventoryItem = from("InventoryItem").where("inventoryItemId", inventoryItemId).queryOne();
+    inventoryItem = delegator.findOne("InventoryItem", [inventoryItemId : inventoryItemId], false);
     if (facilityId && inventoryItem && inventoryItem.facilityId && !inventoryItem.facilityId.equals(facilityId)) {
         illegalInventoryItem = "Inventory item not found for this facility.";
         inventoryItem = null;
     }
     if (inventoryItem) {
         context.inventoryItem = inventoryItem;
-        inventoryItemType = inventoryItem.getRelatedOne("InventoryItemType", false);
+        inventoryItemType = inventoryItem.getRelatedOne("InventoryItemType");
 
         if (inventoryItemType) {
             context.inventoryItemType = inventoryItemType;
         }
         if (inventoryItem.statusId) {
-            inventoryStatus = inventoryItem.getRelatedOne("StatusItem", false);
+            inventoryStatus = inventoryItem.getRelatedOne("StatusItem");
             if (inventoryStatus) {
                 context.inventoryStatus = inventoryStatus;
             }
@@ -75,15 +75,15 @@ if (inventoryItemId) {
 }
 
 // facilities
-context.facilities = from("Facility").queryList();
+context.facilities = delegator.findList("Facility", null, null, null, null, false);
 
 // status items
 if (inventoryTransfer && inventoryTransfer.statusId) {
-    statusChange = from("StatusValidChange").where("statusId", inventoryTransfer.statusId).queryList();
+    statusChange = delegator.findList("StatusValidChange", EntityCondition.makeCondition([statusId : inventoryTransfer.statusId]), null, null, null, false);
     if (statusChange) {
         statusItems = [] as ArrayList;
         statusChange.each { curStatusChange ->
-            curStatusItem = from("StatusItem").where("statusId", curStatusChange.statusIdTo).queryOne();
+            curStatusItem = delegator.findOne("StatusItem", [statusId : curStatusChange.statusIdTo], false);
             if (curStatusItem) {
                 statusItems.add(curStatusItem);
             }
@@ -92,7 +92,7 @@ if (inventoryTransfer && inventoryTransfer.statusId) {
         context.statusItems = statusItems;
     }
 } else {
-    statusItems = from("StatusItem").where("statusTypeId", "INVENTORY_XFER_STTS").orderBy("sequenceId").queryList();
+    statusItems = delegator.findList("StatusItem", EntityCondition.makeCondition([statusTypeId : 'INVENTORY_XFER_STTS']), null, ['sequenceId'], null, false);
     if (statusItems) {
         context.statusItems = statusItems;
     }

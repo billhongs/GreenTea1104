@@ -17,4 +17,4 @@
  * under the License.
  */
 
-context.facilities = from("Facility").queryList();
+context.facilities = delegator.findList("Facility", null, null, null, null, false);

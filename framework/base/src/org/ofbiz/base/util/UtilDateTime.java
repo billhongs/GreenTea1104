@@ -25,8 +25,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -969,10 +969,10 @@ public class UtilDateTime {
      */
     public static DateFormat toDateFormat(String dateFormat, TimeZone tz, Locale locale) {
         DateFormat df = null;
-        if (UtilValidate.isEmpty(dateFormat)) {
+        if (dateFormat == null) {
             df = DateFormat.getDateInstance(DateFormat.SHORT, locale);
         } else {
-            df = new SimpleDateFormat(dateFormat, locale == null ? Locale.getDefault() : locale);
+            df = new SimpleDateFormat(dateFormat);
         }
         df.setTimeZone(tz);
         return df;
@@ -987,10 +987,10 @@ public class UtilDateTime {
      */
     public static DateFormat toDateTimeFormat(String dateTimeFormat, TimeZone tz, Locale locale) {
         DateFormat df = null;
-        if (UtilValidate.isEmpty(dateTimeFormat)) {
+        if (dateTimeFormat == null) {
             df = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM, locale);
         } else {
-            df = new SimpleDateFormat(dateTimeFormat, locale == null ? Locale.getDefault() : locale);
+            df = new SimpleDateFormat(dateTimeFormat);
         }
         df.setTimeZone(tz);
         return df;
@@ -1005,10 +1005,10 @@ public class UtilDateTime {
      */
     public static DateFormat toTimeFormat(String timeFormat, TimeZone tz, Locale locale) {
         DateFormat df = null;
-        if (UtilValidate.isEmpty(timeFormat)) {
+        if (timeFormat == null) {
             df = DateFormat.getTimeInstance(DateFormat.MEDIUM, locale);
         } else {
-            df = new SimpleDateFormat(timeFormat, locale == null ? Locale.getDefault() : locale);
+            df = new SimpleDateFormat(timeFormat);
         }
         df.setTimeZone(tz);
         return df;
@@ -1042,37 +1042,34 @@ public class UtilDateTime {
      */
     public static String timeStampToString(Timestamp stamp, String dateTimeFormat, TimeZone tz, Locale locale) {
         DateFormat dateFormat = toDateTimeFormat(dateTimeFormat, tz, locale);
+        dateFormat.setTimeZone(tz);
         return dateFormat.format(stamp);
     }
 
-    // Private lazy-initializer class 
-    private static class TimeZoneHolder {
-        private static final List<TimeZone> availableTimeZoneList = getTimeZones();
-
-        private static List<TimeZone> getTimeZones() {
-            ArrayList<TimeZone> availableTimeZoneList = new ArrayList<TimeZone>();
-            List<String> idList = null;
-            String tzString = UtilProperties.getPropertyValue("general", "timeZones.available");
-            if (UtilValidate.isNotEmpty(tzString)) {
-                idList = StringUtil.split(tzString, ",");
-            } else {
-                idList = Arrays.asList(TimeZone.getAvailableIDs());
-            }
-            for (String id : idList) {
-                TimeZone curTz = TimeZone.getTimeZone(id);
-                availableTimeZoneList.add(curTz);
-            }
-            availableTimeZoneList.trimToSize();
-            return Collections.unmodifiableList(availableTimeZoneList);
-        }
-
-    }
-
+    protected static List<TimeZone> availableTimeZoneList = null;
     /** Returns a List of available TimeZone objects.
      * @see java.util.TimeZone
      */
     public static List<TimeZone> availableTimeZones() {
-        return TimeZoneHolder.availableTimeZoneList;
+        if (availableTimeZoneList == null) {
+            synchronized(UtilDateTime.class) {
+                if (availableTimeZoneList == null) {
+                    availableTimeZoneList = new LinkedList<TimeZone>();
+                    List<String> idList = null;
+                    String tzString = UtilProperties.getPropertyValue("general", "timeZones.available");
+                    if (UtilValidate.isNotEmpty(tzString)) {
+                        idList = StringUtil.split(tzString, ",");
+                    } else {
+                        idList = Arrays.asList(TimeZone.getAvailableIDs());
+                    }
+                    for (String id: idList) {
+                        TimeZone curTz = TimeZone.getTimeZone(id);
+                        availableTimeZoneList.add(curTz);
+                    }
+                }
+            }
+        }
+        return availableTimeZoneList;
     }
 
     /** Returns a TimeZone object based upon a time zone ID. Method defaults to
@@ -1099,47 +1096,47 @@ public class UtilDateTime {
     }
 
     public static int getSecond(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.SECOND);
     }
 
     public static int getMinute(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.MINUTE);
     }
 
     public static int getHour(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.HOUR_OF_DAY);
     }
 
     public static int getDayOfWeek(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.DAY_OF_WEEK);
     }
 
     public static int getDayOfMonth(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.DAY_OF_MONTH);
     }
 
     public static int getDayOfYear(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.DAY_OF_YEAR);
     }
 
     public static int getWeek(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.WEEK_OF_YEAR);
     }
 
     public static int getMonth(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.MONTH);
     }
 
     public static int getYear(Timestamp stamp, TimeZone timeZone, Locale locale) {
-        Calendar cal = toCalendar(stamp, timeZone, locale);
+        Calendar cal = UtilDateTime.toCalendar(stamp, timeZone, locale);
         return cal.get(Calendar.YEAR);
     }
 
@@ -1165,68 +1162,5 @@ public class UtilDateTime {
         cal.set(Calendar.SECOND, 59);
         cal.set(Calendar.MILLISECOND, 999);
         return cal.getTime();
-    }
-
-    /**
-     * Returns a copy of <code>date</code> that cannot be modified.
-     * Attempts to modify the returned date will result in an
-     * <tt>UnsupportedOperationException</tt>.
-     * 
-     * @param date
-     */
-    public static Date unmodifiableDate(Date date) {
-        if (date instanceof ImmutableDate) {
-            return date;
-        }
-        return new ImmutableDate(date.getTime());
-    }
-
-    @SuppressWarnings("serial")
-    private static class ImmutableDate extends Date {
-        private ImmutableDate(long date) {
-            super(date);
-        }
-
-        @Override
-        public Object clone() {
-            // No need to clone an immutable object.
-            return this;
-        }
-
-        @Override
-        public void setYear(int year) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setMonth(int month) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setDate(int date) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setHours(int hours) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setMinutes(int minutes) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setSeconds(int seconds) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void setTime(long time) {
-            throw new UnsupportedOperationException();
-        }
-
     }
 }

@@ -43,7 +43,7 @@ import org.ofbiz.webapp.control.ConfigXMLReader;
 public class BsfEventHandler implements EventHandler {
 
     public static final String module = BsfEventHandler.class.getName();
-    private static final UtilCache<String, String> eventCache = UtilCache.createUtilCache("webapp.BsfEvents");
+    public static UtilCache<String, String> eventCache = UtilCache.createUtilCache("webapp.BsfEvents");
 
     /**
      * @see org.ofbiz.webapp.event.EventHandler#init(javax.servlet.ServletContext)
@@ -52,7 +52,7 @@ public class BsfEventHandler implements EventHandler {
     }
 
     /**
-     * @see org.ofbiz.webapp.event.EventHandler#invoke(ConfigXMLReader.Event, ConfigXMLReader.RequestMap, javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+     * @see org.ofbiz.webapp.event.EventHandler#invoke(java.lang.String, java.lang.String, javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
      */
     public String invoke(ConfigXMLReader.Event event, ConfigXMLReader.RequestMap requestMap, HttpServletRequest request, HttpServletResponse response) throws EventHandlerException {
         ServletContext context = (ServletContext) request.getAttribute("servletContext");
@@ -85,30 +85,38 @@ public class BsfEventHandler implements EventHandler {
                 cacheName = event.invoke;
                 scriptString = eventCache.get(cacheName);
                 if (scriptString == null) {
-                    if (Debug.verboseOn()) {
-                        Debug.logVerbose("Loading BSF Script at location: " + cacheName, module);
+                    synchronized(eventCache) {
+                        if (scriptString == null) {
+                            if (Debug.verboseOn()) {
+                                Debug.logVerbose("Loading BSF Script at location: " + cacheName, module);
+                            }
+                            URL scriptUrl = FlexibleLocation.resolveLocation(cacheName);
+                            if (scriptUrl == null) {
+                                throw new EventHandlerException("BSF script not found at location [" + cacheName + "]");
+                            }
+                            scriptStream = scriptUrl.openStream();
+                            scriptString = IOUtils.getStringFromReader(new InputStreamReader(scriptStream));
+                            scriptStream.close();
+                            eventCache.put(cacheName, scriptString);
+                        }
                     }
-                    URL scriptUrl = FlexibleLocation.resolveLocation(cacheName);
-                    if (scriptUrl == null) {
-                        throw new EventHandlerException("BSF script not found at location [" + cacheName + "]");
-                    }
-                    scriptStream = scriptUrl.openStream();
-                    scriptString = IOUtils.getStringFromReader(new InputStreamReader(scriptStream));
-                    scriptStream.close();
-                    scriptString = eventCache.putIfAbsentAndGet(cacheName, scriptString);
                 }
             } else {
                 // we are a script in the webapp - load by resource
                 cacheName = context.getServletContextName() + ":" + event.path + event.invoke;
                 scriptString = eventCache.get(cacheName);
                 if (scriptString == null) {
-                    scriptStream = context.getResourceAsStream(event.path + event.invoke);
-                    if (scriptStream == null) {
-                        throw new EventHandlerException("Could not find BSF script file in webapp context: " + event.path + event.invoke);
+                    synchronized(eventCache) {
+                        if (scriptString == null) {
+                            scriptStream = context.getResourceAsStream(event.path + event.invoke);
+                            if (scriptStream == null) {
+                                throw new EventHandlerException("Could not find BSF script file in webapp context: " + event.path + event.invoke);
+                            }
+                            scriptString = IOUtils.getStringFromReader(new InputStreamReader(scriptStream));
+                            scriptStream.close();
+                            eventCache.put(cacheName, scriptString);
+                        }
                     }
-                    scriptString = IOUtils.getStringFromReader(new InputStreamReader(scriptStream));
-                    scriptStream.close();
-                    scriptString = eventCache.putIfAbsentAndGet(cacheName, scriptString);
                 }
             }
 

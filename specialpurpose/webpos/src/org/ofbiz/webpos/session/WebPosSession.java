@@ -66,7 +66,8 @@ public class WebPosSession {
         this.facilityId = facilityId;
         this.currencyUomId = currencyUomId;
 
-        if (UtilValidate.isNotEmpty(delegator)) {
+        if (UtilValidate.isNotEmpty(delegator))
+        {
             this.delegator = delegator;
             this.delegatorName = delegator.getDelegatorName();
         } else {
@@ -81,10 +82,6 @@ public class WebPosSession {
 
     public GenericValue getUserLogin() {
         return this.userLogin;
-    }
-    
-    public void setUserLogin(GenericValue userLogin) {
-        this.userLogin = userLogin;
     }
 
     public void setAttribute(String name, Object value) {

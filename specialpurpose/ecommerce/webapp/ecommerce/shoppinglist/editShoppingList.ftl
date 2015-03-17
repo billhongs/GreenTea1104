@@ -30,57 +30,8 @@ under the License.
        }
        jQuery(obj).submit();
     }
-    
-    function callDocumentByPaginate(info) {
-        var str = info.split('~');
-        var checkUrl = '<@ofbizUrl>showShoppingListAjaxFired</@ofbizUrl>';
-        if(checkUrl.search("http"))
-            var ajaxUrl = '<@ofbizUrl>showShoppingListAjaxFired</@ofbizUrl>';
-        else
-            var ajaxUrl = '<@ofbizUrl>showShoppingListAjaxFiredSecure</@ofbizUrl>';
-        //jQuerry Ajax Request
-        jQuery.ajax({
-            url: ajaxUrl,
-            type: 'POST',
-            data: {"shoppingListId" : str[0], "VIEW_SIZE" : str[1], "VIEW_INDEX" : str[2]},
-            error: function(msg) {
-                alert("An error occurred loading content! : " + msg);
-            },
-            success: function(msg) {
-                jQuery('#div3').html(msg);
-            }
-        });
-     }
 </script>
 <br />
-<#macro paginationControls>
-  <#assign viewIndexMax = Static["java.lang.Math"].ceil((listSize)?double / viewSize?double)>
-  <#if (viewIndexMax?int > 0)>
-    <div class="product-prevnext">
-        <#-- Start Page Select Drop-Down -->
-        <select name="pageSelect" onchange="callDocumentByPaginate(this[this.selectedIndex].value);">
-            <option value="#">${uiLabelMap.CommonPage} ${viewIndex?int} ${uiLabelMap.CommonOf} ${viewIndexMax}</option>
-            <#if (viewIndex?int > 1)>
-                <#list 0..viewIndexMax as curViewNum>
-                     <option value="${shoppingListId!}~${viewSize}~${curViewNum?int + 1}">${uiLabelMap.CommonGotoPage} ${curViewNum + 1}</option>
-                </#list>
-            </#if>
-        </select>
-        <#-- End Page Select Drop-Down -->
-        
-        <#if (viewIndex?int > 1)>
-            <a href="javascript: void(0);" onclick="callDocumentByPaginate('${shoppingListId!}~${viewSize}~${viewIndex?int - 1}');" class="buttontext">${uiLabelMap.CommonPrevious}</a> |
-        </#if>
-        <#if ((listSize?int - viewSize?int) > 0)>
-            <span>${lowIndex} - ${highIndex} ${uiLabelMap.CommonOf} ${listSize}</span>
-        </#if>
-        <#if highIndex?int < listSize?int>
-         | <a href="javascript: void(0);" onclick="callDocumentByPaginate('${shoppingListId!}~${viewSize}~${viewIndex?int + 1}');" class="buttontext">${uiLabelMap.CommonNext}</a>
-        </#if>
-    </div>
-</#if>
-</#macro>
-
 <div class="screenlet">
         <div class="boxlink">
             <a href="<@ofbizUrl>createEmptyShoppingList?productStoreId=${productStoreId}</@ofbizUrl>" class="submenutextright">${uiLabelMap.CommonCreateNew}</a>
@@ -102,7 +53,7 @@ under the License.
             <a href="javascript:document.selectShoppingList.submit();" class="buttontext">${uiLabelMap.CommonEdit}</a>
           </form>
         <#else>
-          <div>${uiLabelMap.EcommerceNoShoppingListsCreate}.</div>
+          <div class="tabletext">${uiLabelMap.EcommerceNoShoppingListsCreate}.</div>
           <a href="<@ofbizUrl>createEmptyShoppingList?productStoreId=${productStoreId}</@ofbizUrl>" class="submenutextright">${uiLabelMap.CommonCreateNew}</a>
         </#if>
     </div>
@@ -129,7 +80,7 @@ under the License.
     <div class="screenlet-body">
         <form name="updateList" method="post" action="<@ofbizUrl>updateShoppingList</@ofbizUrl>">
             <input type="hidden" class="inputBox" name="shoppingListId" value="${shoppingList.shoppingListId}"/>
-            <input type="hidden" class="inputBox" name="partyId" value="${shoppingList.partyId!}"/>
+            <input type="hidden" class="inputBox" name="partyId" value="${shoppingList.partyId?if_exists}"/>
             <table border="0" width="100%" cellspacing="0" cellpadding="0">
               <tr>
                 <td><div class="tableheadtext">${uiLabelMap.EcommerceListName}</div></td>
@@ -137,13 +88,13 @@ under the License.
               </tr>
               <tr>
                 <td><div class="tableheadtext">${uiLabelMap.CommonDescription}</div></td>
-                <td><input type="text" class="inputBox" size="70" name="description" value="${shoppingList.description!}" />
+                <td><input type="text" class="inputBox" size="70" name="description" value="${shoppingList.description?if_exists}" />
               </tr>
               <tr>
                 <td><div class="tableheadtext">${uiLabelMap.OrderListType}</div></td>
                 <td>
                   <select name="shoppingListTypeId" class="selectBox">
-                      <#if shoppingListType??>
+                      <#if shoppingListType?exists>
                       <option value="${shoppingListType.shoppingListTypeId}">${shoppingListType.get("description",locale)?default(shoppingListType.shoppingListTypeId)}</option>
                       <option value="${shoppingListType.shoppingListTypeId}">--</option>
                     </#if>
@@ -181,7 +132,7 @@ under the License.
                 <td><div class="tableheadtext">${uiLabelMap.EcommerceParentList}</div></td>
                 <td>
                   <select name="parentShoppingListId" class="selectBox">
-                      <#if parentShoppingList??>
+                      <#if parentShoppingList?exists>
                       <option value="${parentShoppingList.shoppingListId}">${parentShoppingList.listName?default(parentShoppingList.shoppingListId)}</option>
                     </#if>
                     <option value="">${uiLabelMap.EcommerceNoParent}</option>
@@ -189,7 +140,7 @@ under the License.
                       <option value="${newParShoppingList.shoppingListId}">${newParShoppingList.listName?default(newParShoppingList.shoppingListId)}</option>
                     </#list>
                   </select>
-                  <#if parentShoppingList??>
+                  <#if parentShoppingList?exists>
                     <a href="<@ofbizUrl>editShoppingList?shoppingListId=${parentShoppingList.shoppingListId}</@ofbizUrl>" class="buttontext">${uiLabelMap.CommonGotoParent} (${parentShoppingList.listName?default(parentShoppingList.shoppingListId)})</a>
                   </#if>
                 </td>
@@ -205,7 +156,7 @@ under the License.
     </div>
 </div>
 
-<#if shoppingListType?? && shoppingListType.shoppingListTypeId == "SLT_AUTO_REODR">
+<#if shoppingListType?exists && shoppingListType.shoppingListTypeId == "SLT_AUTO_REODR">
   <#assign nowTimestamp = Static["org.ofbiz.base.util.UtilDateTime"].monthBegin()>
 <div class="screenlet">
     <div class="screenlet-title-bar">
@@ -227,7 +178,7 @@ under the License.
                 <td><div class="tableheadtext">${uiLabelMap.EcommerceRecurrence}</div></td>
                 <td>
                   <#if recurrenceInfo?has_content>
-                    <#assign recurrenceRule = recurrenceInfo.getRelatedOne("RecurrenceRule", false)!>
+                    <#assign recurrenceRule = recurrenceInfo.getRelatedOne("RecurrenceRule")?if_exists>
                   </#if>
                   <select name="intervalNumber" class="selectBox">
                     <option value="">${uiLabelMap.EcommerceSelectInterval}</option>
@@ -249,12 +200,12 @@ under the License.
                 <td>&nbsp;</td>
                 <td><div class="tableheadtext">${uiLabelMap.CommonStartDate}</div></td>
                 <td>
-                  <@htmlTemplate.renderDateTimeField name="startDateTime" className="" event="" action="" alert="" title="Format: yyyy-MM-dd HH:mm:ss.SSS" value="${(recurrenceInfo.startDateTime)!}" size="25" maxlength="30" id="startDateTime1" dateType="date" shortDateInput=false timeDropdownParamName="" defaultDateTimeString="" localizedIconTitle="" timeDropdown="" timeHourName="" classString="" hour1="" hour2="" timeMinutesName="" minutes="" isTwelveHour="" ampmName="" amSelected="" pmSelected="" compositeType="" formName=""/>
+                  <@htmlTemplate.renderDateTimeField name="startDateTime" className="" event="" action="" alert="" title="Format: yyyy-MM-dd HH:mm:ss.SSS" value="${(recurrenceInfo.startDateTime)?if_exists}" size="25" maxlength="30" id="startDateTime1" dateType="date" shortDateInput=false timeDropdownParamName="" defaultDateTimeString="" localizedIconTitle="" timeDropdown="" timeHourName="" classString="" hour1="" hour2="" timeMinutesName="" minutes="" isTwelveHour="" ampmName="" amSelected="" pmSelected="" compositeType="" formName=""/>
                 </td>
                 <td>&nbsp;</td>
                 <td><div class="tableheadtext">${uiLabelMap.CommonEndDate}</div></td>
                 <td>
-                  <@htmlTemplate.renderDateTimeField name="endDateTime" className="textBox" event="" action="" alert="" title="Format: yyyy-MM-dd HH:mm:ss.SSS" value="${(recurrenceRule.untilDateTime)!}" size="25" maxlength="30" id="endDateTime1" dateType="date" shortDateInput=false timeDropdownParamName="" defaultDateTimeString="" localizedIconTitle="" timeDropdown="" timeHourName="" classString="" hour1="" hour2="" timeMinutesName="" minutes="" isTwelveHour="" ampmName="" amSelected="" pmSelected="" compositeType="" formName=""/>
+                  <@htmlTemplate.renderDateTimeField name="endDateTime" className="textBox" event="" action="" alert="" title="Format: yyyy-MM-dd HH:mm:ss.SSS" value="${(recurrenceRule.untilDateTime)?if_exists}" size="25" maxlength="30" id="endDateTime1" dateType="date" shortDateInput=false timeDropdownParamName="" defaultDateTimeString="" localizedIconTitle="" timeDropdown="" timeHourName="" classString="" hour1="" hour2="" timeMinutesName="" minutes="" isTwelveHour="" ampmName="" amSelected="" pmSelected="" compositeType="" formName=""/>
                 </td>
                 <td>&nbsp;</td>
               </tr>
@@ -266,7 +217,7 @@ under the License.
                     <option value="">${uiLabelMap.OrderSelectAShippingAddress}</option>
                     <#if shippingContactMechList?has_content>
                       <#list shippingContactMechList as shippingContactMech>
-                        <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress", false)>
+                        <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress")>
                         <option value="${shippingContactMech.contactMechId}"<#if (shoppingList.contactMechId)?default("") == shippingAddress.contactMechId> selected="selected"</#if>>${shippingAddress.address1}</option>
                       </#list>
                     <#else>
@@ -285,9 +236,9 @@ under the License.
                         <#assign shippingMethod = shipMeth.shipmentMethodTypeId + "@" + shipMeth.partyId>
                         <option value="${shippingMethod}"<#if shippingMethod == chosenShippingMethod> selected="selected"</#if>>
                           <#if shipMeth.partyId != "_NA_">
-                            ${shipMeth.partyId!}&nbsp;
+                            ${shipMeth.partyId?if_exists}&nbsp;
                           </#if>
-                          ${shipMeth.description!}
+                          ${shipMeth.description?if_exists}
                           <#if shippingEst?has_content>
                             &nbsp;-&nbsp;
                             <#if (shippingEst > -1)>
@@ -310,11 +261,11 @@ under the License.
                     <option value="">${uiLabelMap.OrderSelectPaymentMethod}</option>
                     <#list paymentMethodList as paymentMethod>
                       <#if paymentMethod.paymentMethodTypeId == "CREDIT_CARD">
-                        <#assign creditCard = paymentMethod.getRelatedOne("CreditCard", false)>
+                        <#assign creditCard = paymentMethod.getRelatedOne("CreditCard")>
                         <option value="${paymentMethod.paymentMethodId}" <#if (shoppingList.paymentMethodId)?default("") == paymentMethod.paymentMethodId>selected="selected"</#if>>CC:&nbsp;${Static["org.ofbiz.party.contact.ContactHelper"].formatCreditCard(creditCard)}</option>
                       <#elseif paymentMethod.paymentMethodTypeId == "EFT_ACCOUNT">
-                        <#assign eftAccount = paymentMethod.getRelatedOne("EftAccount", false)>
-                        <option value="${paymentMethod.paymentMethodId}">EFT:&nbsp;${eftAccount.bankName!}: ${eftAccount.accountNumber!}</option>
+                        <#assign eftAccount = paymentMethod.getRelatedOne("EftAccount")>
+                        <option value="${paymentMethod.paymentMethodId}">EFT:&nbsp;${eftAccount.bankName?if_exists}: ${eftAccount.accountNumber?if_exists}</option>
                       </#if>
                     </#list>
                   </select>
@@ -324,7 +275,7 @@ under the License.
               <tr><td colspan="9"><hr /></td></tr>
               <tr>
                 <td align="right" colspan="9">
-                  <div>
+                  <div class="tabletext">
                     <a href="javascript:document.reorderinfo.submit();" class="buttontext">${uiLabelMap.CommonSave}</a>
                     <a href="<@ofbizUrl>editcontactmech?preContactMechTypeId=POSTAL_ADDRESS&amp;contactMechPurposeTypeId=SHIPPING_LOCATION&amp;DONE_PAGE=editShoppingList</@ofbizUrl>" class="buttontext">${uiLabelMap.PartyAddNewAddress}</a>
                     <a href="<@ofbizUrl>editcreditcard?DONE_PAGE=editShoppingList</@ofbizUrl>" class="buttontext">${uiLabelMap.EcommerceNewCreditCard}</a>
@@ -336,27 +287,27 @@ under the License.
                 <tr><td colspan="9"><hr /></td></tr>
                 <tr>
                   <td colspan="9">
-                    <#assign nextTime = recInfo.next(lastSlOrderTime)!>
+                    <#assign nextTime = recInfo.next(lastSlOrderTime)?if_exists>
                     <#if nextTime?has_content>
-                      <#assign nextTimeStamp = Static["org.ofbiz.base.util.UtilDateTime"].getTimestamp(nextTime)!>
+                      <#assign nextTimeStamp = Static["org.ofbiz.base.util.UtilDateTime"].getTimestamp(nextTime)?if_exists>
                       <#if nextTimeStamp?has_content>
-                        <#assign nextTimeString = Static["org.ofbiz.base.util.UtilFormatOut"].formatDate(nextTimeStamp)!>
+                        <#assign nextTimeString = Static["org.ofbiz.base.util.UtilFormatOut"].formatDate(nextTimeStamp)?if_exists>
                       </#if>
                     </#if>
                     <#if lastSlOrderDate?has_content>
-                      <#assign lastOrderedString = Static["org.ofbiz.base.util.UtilFormatOut"].formatDate(lastSlOrderDate)!>
+                      <#assign lastOrderedString = Static["org.ofbiz.base.util.UtilFormatOut"].formatDate(lastSlOrderDate)?if_exists>
                     </#if>
-                    <div>
+                    <div class="tabletext">
                       <table cellspacing="2" cellpadding="2" border="0">
                         <tr>
                           <td><div class="tableheadtext">${uiLabelMap.OrderLastOrderedDate}</div></td>
                           <td><div class="tableheadtext">:</div></td>
-                          <td><div>${lastOrderedString?default("${uiLabelMap.OrderNotYetOrdered}")}</div></td>
+                          <td><div class="tabletext">${lastOrderedString?default("${uiLabelMap.OrderNotYetOrdered}")}</div></td>
                         </tr>
                         <tr>
                           <td><div class="tableheadtext">${uiLabelMap.EcommerceEstimateNextOrderDate}</div></td>
                           <td><div class="tableheadtext">:</div></td>
-                          <td><div>${nextTimeString?default("${uiLabelMap.EcommerceNotYetKnown}")}</div></td>
+                          <td><div class="tabletext">${nextTimeString?default("${uiLabelMap.EcommerceNotYetKnown}")}</div></td>
                         </tr>
                       </table>
                     </div>
@@ -380,8 +331,8 @@ under the License.
     <div class="screenlet-body">
         <table width="100%" cellspacing="0" cellpadding="1" border="0">
           <tr>
-            <td><div><b>${uiLabelMap.EcommerceListName}</b></div></td>
-            <td align="right"><div><b>${uiLabelMap.EcommerceTotalPrice}</b></div></td>
+            <td><div class="tabletext"><b>${uiLabelMap.EcommerceListName}</b></div></td>
+            <td align="right"><div class="tabletext"><b>${uiLabelMap.EcommerceTotalPrice}</b></div></td>
             <td>&nbsp;</td>
             <td>&nbsp;</td>
           </tr>
@@ -393,7 +344,7 @@ under the License.
                   <a href="<@ofbizUrl>editShoppingList?shoppingListId=${childShoppingList.shoppingListId}</@ofbizUrl>" class="buttontext">${childShoppingList.listName?default(childShoppingList.shoppingListId)}</a>
                 </td>
                 <td nowrap="nowrap" align="right">
-                  <div><@ofbizCurrency amount=totalPrice isoCode=currencyUomId/></div>
+                  <div class="tabletext"><@ofbizCurrency amount=totalPrice isoCode=currencyUomId/></div>
                 </td>
                 <td align="right">
                   <a href="<@ofbizUrl>editShoppingList?shoppingListId=${childShoppingList.shoppingListId}</@ofbizUrl>" class="buttontext">${uiLabelMap.EcommerceGoToList}</a>
@@ -404,11 +355,11 @@ under the License.
           </#list>
           <tr><td colspan="6"><hr /></td></tr>
           <tr>
-            <td><div>&nbsp;</div></td>
+            <td><div class="tabletext">&nbsp;</div></td>
             <td nowrap="nowrap" align="right">
               <div class="tableheadtext"><@ofbizCurrency amount=shoppingListChildTotal isoCode=currencyUomId/></div>
             </td>
-            <td><div>&nbsp;</div></td>
+            <td><div class="tabletext">&nbsp;</div></td>
           </tr>
         </table>
     </div>
@@ -424,30 +375,29 @@ under the License.
     </div>
     <div class="screenlet-body">
         <#if shoppingListItemDatas?has_content>
-            <#-- Pagination -->
-            <@paginationControls/>
             <table width="100%" cellspacing="0" cellpadding="1" border="0">
               <tr>
-                <td><div><b>${uiLabelMap.OrderProduct}</b></div></td>
-                <td><table><tr><td nowrap="nowrap" align="center"><b>- ${uiLabelMap.EcommerceStartdate} -</b></td><td nowrap="nowrap"><b>- ${uiLabelMap.EcommerceNbrOfDays} -</b></td></tr><tr><td nowrap="nowrap"><b>- ${uiLabelMap.EcommerceNbrOfPersons} -</b></td><td nowrap="nowrap" align="center"><b>- ${uiLabelMap.CommonQuantity} -</b></td></tr></table></td>
-                <#-- <td nowrap="nowrap" align="center"><div><b>Purchased</b></div></td> -->
-                <td align="right"><div><b>${uiLabelMap.EcommercePrice}</b></div></td>
-                <td align="right"><div><b>${uiLabelMap.OrderTotal}</b></div></td>
+                <td><div class="tabletext"><b>${uiLabelMap.OrderProduct}</b></div></td>
+                <td><table><tr><td class="tabletext" nowrap="nowrap" align="center"><b>- ${uiLabelMap.EcommerceStartdate} -</b></td><td class="tabletext" nowrap="nowrap"><b>- ${uiLabelMap.EcommerceNbrOfDays} -</b></td></tr><tr><td class="tabletext" nowrap="nowrap"><b>- ${uiLabelMap.EcommerceNbrOfPersons} -</b></td><td class="tabletext" nowrap="nowrap" align="center"><b>- ${uiLabelMap.CommonQuantity} -</b></td></tr></table></td>
+                <#-- <td nowrap="nowrap" align="center"><div class="tabletext"><b>Purchased</b></div></td> -->
+                <td align="right"><div class="tabletext"><b>${uiLabelMap.EcommercePrice}</b></div></td>
+                <td align="right"><div class="tabletext"><b>${uiLabelMap.OrderTotal}</b></div></td>
                 <td>&nbsp;</td>
               </tr>
-              <#list shoppingListItemDatas[lowIndex-1..highIndex-1] as shoppingListItemData>
+
+              <#list shoppingListItemDatas as shoppingListItemData>
                 <#assign shoppingListItem = shoppingListItemData.shoppingListItem/>
                 <#assign product = shoppingListItemData.product/>
                 <#assign productContentWrapper = Static["org.ofbiz.product.product.ProductContentWrapper"].makeProductContentWrapper(product, request)/>
                 <#assign unitPrice = shoppingListItemData.unitPrice/>
                 <#assign totalPrice = shoppingListItemData.totalPrice/>
-                <#assign productVariantAssocs = shoppingListItemData.productVariantAssocs!/>
-                <#assign isVirtual = product.isVirtual?? && product.isVirtual.equals("Y")/>
+                <#assign productVariantAssocs = shoppingListItemData.productVariantAssocs?if_exists/>
+                <#assign isVirtual = product.isVirtual?exists && product.isVirtual.equals("Y")/>
                   <tr>
                     <td>
-                      <div>
+                      <div class="tabletext">
                          <a href="<@ofbizUrl>product?product_id=${shoppingListItem.productId}</@ofbizUrl>" class="buttontext">${shoppingListItem.productId} -
-                         ${productContentWrapper.get("PRODUCT_NAME")?default("No Name")}</a> : ${productContentWrapper.get("DESCRIPTION")!}
+                         ${productContentWrapper.get("PRODUCT_NAME")?default("No Name")}</a> : ${productContentWrapper.get("DESCRIPTION")?if_exists}
                       </div>
                     </td>
                     <td nowrap="nowrap" align="center">
@@ -455,32 +405,9 @@ under the License.
                         <input type="hidden" name="shoppingListId" value="${shoppingListItem.shoppingListId}"/>
                         <input type="hidden" name="shoppingListItemSeqId" value="${shoppingListItem.shoppingListItemSeqId}"/>
                         <input type="hidden" name="reservStart"/>
-                        <div>
-                           <#if product.productTypeId == "ASSET_USAGE" || product.productTypeId == "ASSET_USAGE_OUT_IN">
-                           <table border="0" width="100%">
-                                <tr>
-                                    <td width="1%">&nbsp;</td>
-                                    <td><@htmlTemplate.renderDateTimeField event="" action="" name="reservStartStr" className="inputBox" alert="" title="Format: yyyy-MM-dd HH:mm:ss.SSS" value="${shoppingListItem.reservStart!}" size="15" maxlength="30" id="reservStartStr_${shoppingListItem.shoppingListItemSeqId}" dateType="date" shortDateInput=true timeDropdownParamName="" defaultDateTimeString="" localizedIconTitle="" timeDropdown="" timeHourName="" classString="" hour1="" hour2="" timeMinutesName="" minutes="" isTwelveHour="" ampmName="" amSelected="" pmSelected="" compositeType="" formName=""/></td>
-                                    <td><input type="text" class="inputBox" size="2" name="reservLength" value="${shoppingListItem.reservLength!}"/></td>
-                                </tr>
-                                <tr>
-                                <#if product.productTypeId == "ASSET_USAGE">
-                                    <td>&nbsp;</td>
-                                    <td><input type="text" class="inputBox" size="3" name="reservPersons" value="${shoppingListItem.reservPersons!}"/></td>
-                                <#else>
-                                    <td>&nbsp;</td>
-                                    <td>&nbsp;</td>
-                                </#if>
-                                    <td>
-                           <#else>
-                                <table width="100%">
-                                    <tr>
-                                        <td width="62%" align="center">--</td>
-                                        <td align="center">--</td>
-                                    </tr>
-                                    <tr>
-                                        <td align="center">--</td>
-                                        <td><input type="hidden" name="reservStartStr" value=""/>
+                        <div class="tabletext">
+                           <#if product.productTypeId == "ASSET_USAGE"><table border="0" width="100%"><tr><td width="1%">&nbsp;</td><td><input type="text" class="inputBox" size="10" name="reservStartStr" value="${shoppingListItem.reservStart?if_exists}"/></td><td><input type="text" class="inputBox" size="2" name="reservLength" value="${shoppingListItem.reservLength?if_exists}"/></td></tr><tr><td>&nbsp;</td><td><input type="text" class="inputBox" size="3" name="reservPersons" value="${shoppingListItem.reservPersons?if_exists}"/></td><td class="tabletext"><#else>
+                           <table width="100%"><tr><td width="62%" align="center">--</td><td align="center">--</td></tr><tr><td align="center">--</td><td class="tabletext"><input type="hidden" name="reservStartStr" value=""/>
                            </#if>
                         <input size="6" class="inputBox" type="text" name="quantity" value="${shoppingListItem.quantity?string.number}"/>
                         </td></tr></table>
@@ -489,21 +416,21 @@ under the License.
                     </td>
                     <#--
                     <td nowrap="nowrap" align="center">
-                      <div>${shoppingListItem.quantityPurchased?default(0)?string.number}</div>
+                      <div class="tabletext">${shoppingListItem.quantityPurchased?default(0)?string.number}</div>
                     </td>
                     -->
                     <td nowrap="nowrap" align="right">
-                      <div><@ofbizCurrency amount=unitPrice isoCode=currencyUomId/></div>
+                      <div class="tabletext"><@ofbizCurrency amount=unitPrice isoCode=currencyUomId/></div>
                     </td>
                     <td nowrap="nowrap" align="right">
-                      <div><@ofbizCurrency amount=totalPrice isoCode=currencyUomId/></div>
+                      <div class="tabletext"><@ofbizCurrency amount=totalPrice isoCode=currencyUomId/></div>
                     </td>
                     <td align="right">
                         <a href="#" onclick="javascript:TimestampSubmit(listform_${shoppingListItem.shoppingListItemSeqId});" class="buttontext">${uiLabelMap.CommonUpdate}</a>
                         <a href="<@ofbizUrl>removeFromShoppingList?shoppingListId=${shoppingListItem.shoppingListId}&amp;shoppingListItemSeqId=${shoppingListItem.shoppingListItemSeqId}</@ofbizUrl>" class="buttontext">${uiLabelMap.CommonRemove}</a>
                       <#if isVirtual && productVariantAssocs?has_content>
-                        <#assign replaceItemAction = "/replaceShoppingListItem/" + requestAttributes._CURRENT_VIEW_!>
-                        <#assign addToCartAction = "/additem/" + requestAttributes._CURRENT_VIEW_!>
+                        <#assign replaceItemAction = "/replaceShoppingListItem/" + requestAttributes._CURRENT_VIEW_?if_exists>
+                        <#assign addToCartAction = "/additem/" + requestAttributes._CURRENT_VIEW_?if_exists>
                         <br />
                         <form method="post" action="<@ofbizUrl>${addToCartAction}</@ofbizUrl>" name="listreplform_${shoppingListItem.shoppingListItemSeqId}" style="margin: 0;">
                           <input type="hidden" name="shoppingListId" value="${shoppingListItem.shoppingListId}"/>
@@ -511,8 +438,8 @@ under the License.
                           <input type="hidden" name="quantity" value="${shoppingListItem.quantity}"/>
                           <select name="add_product_id" class="selectBox">
                               <#list productVariantAssocs as productVariantAssoc>
-                                <#assign variantProduct = productVariantAssoc.getRelatedOne("AssocProduct", true)>
-                                <#if variantProduct??>
+                                <#assign variantProduct = productVariantAssoc.getRelatedOneCache("AssocProduct")>
+                                <#if variantProduct?exists>
                                 <#assign variantProductContentWrapper = Static["org.ofbiz.product.product.ProductContentWrapper"].makeProductContentWrapper(variantProduct, request)>
                                   <option value="${variantProduct.productId}">${variantProductContentWrapper.get("PRODUCT_NAME")?default("No Name")} [${variantProduct.productId}]</option>
                                 </#if>
@@ -524,21 +451,21 @@ under the License.
                           <a href="javascript:document.listreplform_${shoppingListItem.shoppingListItemSeqId}.action='<@ofbizUrl>${addToCartAction}</@ofbizUrl>';document.listreplform_${shoppingListItem.shoppingListItemSeqId}.submit();" class="buttontext">${uiLabelMap.CommonAdd}&nbsp;${shoppingListItem.quantity?string}&nbsp;${uiLabelMap.EcommerceVariationToCart}</a>
                         </form>
                       <#else>
-                        <a href="<@ofbizUrl>additem<#if requestAttributes._CURRENT_VIEW_??>/${requestAttributes._CURRENT_VIEW_}</#if>?shoppingListId=${shoppingListItem.shoppingListId}&amp;shoppingListItemSeqId=${shoppingListItem.shoppingListItemSeqId}&amp;quantity=${shoppingListItem.quantity}&amp;reservStart=${shoppingListItem.reservStart!}&amp;reservPersons=${shoppingListItem.reservPersons!}&amp;reservLength=${shoppingListItem.reservLength!}&amp;configId=${shoppingListItem.configId!}&amp;add_product_id=${shoppingListItem.productId}</@ofbizUrl>" class="buttontext">${uiLabelMap.CommonAdd}&nbsp;${shoppingListItem.quantity?string}&nbsp;${uiLabelMap.OrderToCart}</a>
+                        <a href="<@ofbizUrl>additem<#if requestAttributes._CURRENT_VIEW_?exists>/${requestAttributes._CURRENT_VIEW_}</#if>?shoppingListId=${shoppingListItem.shoppingListId}&amp;shoppingListItemSeqId=${shoppingListItem.shoppingListItemSeqId}&amp;quantity=${shoppingListItem.quantity}&amp;reservStart=${shoppingListItem.reservStart?if_exists}&amp;reservPersons=${shoppingListItem.reservPersons?if_exists}&amp;reservLength=${shoppingListItem.reservLength?if_exists}&amp;configId=${shoppingListItem.configId?if_exists}&amp;add_product_id=${shoppingListItem.productId}</@ofbizUrl>" class="buttontext">${uiLabelMap.CommonAdd}&nbsp;${shoppingListItem.quantity?string}&nbsp;${uiLabelMap.OrderToCart}</a>
                       </#if>
                     </td>
                   </tr>
               </#list>
               <tr><td colspan="6"><hr /></td></tr>
               <tr>
-                <td><div>&nbsp;</div></td>
-                <td><div>&nbsp;</div></td>
-                <#--<td><div>&nbsp;</div></td>-->
-                <td><div>&nbsp;</div></td>
+                <td><div class="tabletext">&nbsp;</div></td>
+                <td><div class="tabletext">&nbsp;</div></td>
+                <#--<td><div class="tabletext">&nbsp;</div></td>-->
+                <td><div class="tabletext">&nbsp;</div></td>
                 <td nowrap="nowrap" align="right">
                   <div class="tableheadtext"><@ofbizCurrency amount=shoppingListItemTotal isoCode=currencyUomId/></div>
                 </td>
-                <td><div>&nbsp;</div></td>
+                <td><div class="tabletext">&nbsp;</div></td>
               </tr>
             </table>
         <#else>
@@ -555,21 +482,21 @@ under the License.
       <table width="100%" border="0" cellspacing="1" cellpadding="1">
         <tr>
           <td width="5%" nowrap="nowrap">
-              <div>${uiLabelMap.EcommerceChildListTotalPrice}</div>
+              <div class="tabletext">${uiLabelMap.EcommerceChildListTotalPrice}</div>
           </td>
           <td align="right" width="5%" nowrap="nowrap">
-              <div><@ofbizCurrency amount=shoppingListChildTotal isoCode=currencyUomId/></div>
+              <div class="tabletext"><@ofbizCurrency amount=shoppingListChildTotal isoCode=currencyUomId/></div>
           </td>
-          <td width="90%"><div>&nbsp;</div></td>
+          <td width="90%"><div class="tabletext">&nbsp;</div></td>
         </tr>
         <tr>
           <td nowrap="nowrap">
-              <div>${uiLabelMap.EcommerceListItemsTotalPrice}&nbsp;</div>
+              <div class="tabletext">${uiLabelMap.EcommerceListItemsTotalPrice}&nbsp;</div>
           </td>
           <td align="right" nowrap="nowrap">
-              <div><@ofbizCurrency amount=shoppingListItemTotal isoCode=currencyUomId/></div>
+              <div class="tabletext"><@ofbizCurrency amount=shoppingListItemTotal isoCode=currencyUomId/></div>
           </td>
-          <td><div>&nbsp;</div></td>
+          <td><div class="tabletext">&nbsp;</div></td>
         </tr>
         <tr>
           <td nowrap="nowrap">
@@ -578,7 +505,7 @@ under the License.
           <td align="right" nowrap="nowrap">
               <div class="tableheadtext"><@ofbizCurrency amount=shoppingListTotalPrice isoCode=currencyUomId/></div>
           </td>
-          <td><div>&nbsp;</div></td>
+          <td><div class="tabletext">&nbsp;</div></td>
         </tr>
       </table>
     </div>
@@ -589,10 +516,10 @@ under the License.
         <div class="h3">${uiLabelMap.CommonQuickAddList}</div>
     </div>
     <div class="screenlet-body">
-        <form name="addToShoppingList" method="post" action="<@ofbizUrl>addItemToShoppingList</@ofbizUrl>">
+        <form name="addToShoppingList" method="post" action="<@ofbizUrl>addItemToShoppingList<#if requestAttributes._CURRENT_VIEW_?exists>/${requestAttributes._CURRENT_VIEW_}</#if></@ofbizUrl>">
           <input type="hidden" name="shoppingListId" value="${shoppingList.shoppingListId}"/>
-          <input type="text" class="inputBox" name="productId" value="${requestParameters.add_product_id!}"/>
-          <#if reservStart??></td><td>${uiLabelMap.EcommerceStartDate}</td><td><input type="text" class="inputBox" size="10" name="reservStart" value="${requestParameters.reservStart?default("")}" /></td><td> ${uiLabelMap.EcommerceLength}:</td><td><input type="text" class="inputBox" size="2" name="reservLength" value="${requestParameters.reservLength?default("")}" /></td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>${uiLabelMap.OrderNbrPersons}:</td><td><input type="text" class="inputBox" size="3" name="reservPersons" value="${requestParameters.reservPersons?default("1")}" /></td><td nowrap="nowrap"></#if> ${uiLabelMap.CommonQuantity} :</td><td><input type="text" class="inputBox" size="5" name="quantity" value="${requestParameters.quantity?default("1")}" /></td><td>
+          <input type="text" class="inputBox" name="productId" value="${requestParameters.add_product_id?if_exists}"/>
+          <#if reservStart?exists></td><td class="tabletext">${uiLabelMap.EcommerceStartDate}</td><td><input type="text" class="inputBox" size="10" name="reservStart" value="${requestParameters.reservStart?default("")}" /></td><td class="tabletext"> ${uiLabelMap.EcommerceLength}:</td><td><input type="text" class="inputBox" size="2" name="reservLength" value="${requestParameters.reservLength?default("")}" /></td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td class="tabletext">${uiLabelMap.OrderNbrPersons}:</td><td><input type="text" class="inputBox" size="3" name="reservPersons" value="${requestParameters.reservPersons?default("1")}" /></td><td class="tabletext" nowrap="nowrap"></#if> ${uiLabelMap.CommonQuantity} :</td><td><input type="text" class="inputBox" size="5" name="quantity" value="${requestParameters.quantity?default("1")}" /></td><td>
           <!-- <input type="text" class="inputBox" size="5" name="quantity" value="${requestParameters.quantity?default("1")}" />-->
           <input type="submit" class="smallSubmit" value="${uiLabelMap.OrderAddToShoppingList}"/>
         </form>

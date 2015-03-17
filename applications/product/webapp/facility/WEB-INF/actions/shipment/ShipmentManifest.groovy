@@ -22,24 +22,24 @@ import org.ofbiz.base.util.*
 import org.ofbiz.content.report.*
 
 shipmentId = request.getParameter("shipmentId");
-shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+shipment = delegator.findOne("Shipment", [shipmentId : shipmentId], false);
 
 if (shipment) {
-    shipmentPackageRouteSegs = shipment.getRelated("ShipmentPackageRouteSeg", null, ['shipmentRouteSegmentId', 'shipmentPackageSeqId'], false);
+    shipmentPackageRouteSegs = shipment.getRelated("ShipmentPackageRouteSeg", null, ['shipmentRouteSegmentId', 'shipmentPackageSeqId']);
     shipmentPackageDatas = [] as LinkedList;
     if (shipmentPackageRouteSegs) {
         shipmentPackageRouteSegs.each { shipmentPackageRouteSeg ->
-            shipmentPackages = shipmentPackageRouteSeg.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId'], false);
-            shipmentRouteSegment = shipmentPackageRouteSeg.getRelatedOne("ShipmentRouteSegment", false);
+            shipmentPackages = shipmentPackageRouteSeg.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId']);
+            shipmentRouteSegment = shipmentPackageRouteSeg.getRelatedOne("ShipmentRouteSegment");
             if (shipmentPackages) {
                 shipmentPackages.each { shipmentPackage ->
                     shipmentItemsDatas = [] as LinkedList;
-                    shipmentPackageContents = shipmentPackage.getRelated("ShipmentPackageContent", null, ['shipmentItemSeqId'], false);
+                    shipmentPackageContents = shipmentPackage.getRelated("ShipmentPackageContent", null, ['shipmentItemSeqId']);
                     if (shipmentPackageContents) {
                         shipmentPackageContents.each { shipmentPackageContent ->
                             shipmentItemsData = [:];
                             packageQuantity = shipmentPackageContent.getDouble("quantity");
-                            shipmentItem = shipmentPackageContent.getRelatedOne("ShipmentItem", false);
+                            shipmentItem = shipmentPackageContent.getRelatedOne("ShipmentItem");
                             if (shipmentItem) {
                                 shippedQuantity = shipmentItem.getDouble("quantity");
                                 shipmentItemsData.shipmentItem = shipmentItem;

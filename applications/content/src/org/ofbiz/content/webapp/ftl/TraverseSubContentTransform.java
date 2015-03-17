@@ -32,13 +32,13 @@ import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralException;
 import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilGenerics;
+import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.template.FreeMarkerWorker;
 import org.ofbiz.content.content.ContentWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.webapp.ftl.LoopWriter;
 
@@ -124,7 +124,7 @@ public class TraverseSubContentTransform implements TemplateTransformModel {
             }
             if (UtilValidate.isNotEmpty(thisContentId)) {
                 try {
-                    view = EntityQuery.use(delegator).from("Content").where("contentId", thisContentId).queryOne();
+                    view = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", thisContentId));
                 } catch (GenericEntityException e) {
                     Debug.logError(e, "Error getting sub-content", module);
                     throw new RuntimeException(e.getMessage());
@@ -186,7 +186,7 @@ public class TraverseSubContentTransform implements TemplateTransformModel {
 /*
                 if (UtilValidate.isNotEmpty(contentId)) {
                     try {
-                        content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
+                        content = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
                     } catch (GenericEntityException e) {
                         // TODO: Not sure what to put here.
                         throw new RuntimeException(e.getMessage());

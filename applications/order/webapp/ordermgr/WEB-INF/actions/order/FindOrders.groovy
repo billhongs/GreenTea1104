@@ -21,77 +21,68 @@ import java.util.*;
 import java.sql.Timestamp;
 import org.ofbiz.entity.*;
 import org.ofbiz.base.util.*;
-import org.ofbiz.entity.util.*;
 
 module = "FindOrders.groovy";
 
 // get the order types
-orderTypes = from("OrderType").orderBy("description").queryList();
+orderTypes = delegator.findList("OrderType", null, null, ["description"], null, false);
 context.orderTypes = orderTypes;
 
 // get the role types
-roleTypes = from("RoleType").orderBy("description").queryList();
+roleTypes = delegator.findList("RoleType", null, null, ["description"], null, false);
 context.roleTypes = roleTypes;
 
 // get the order statuses
-orderStatuses = from("StatusItem").where("statusTypeId", "ORDER_STATUS").orderBy("sequenceId", "description").queryList();
+orderStatuses = delegator.findByAnd("StatusItem", [statusTypeId : "ORDER_STATUS"], ["sequenceId", "description"]);
 context.orderStatuses = orderStatuses;
 
 // get websites
-websites = from("WebSite").orderBy("siteName").queryList();
+websites = delegator.findList("WebSite", null, null, ["siteName"], null, false);
 context.webSites = websites;
 
 // get the stores
-stores = from("ProductStore").orderBy("storeName").queryList();
+stores = delegator.findList("ProductStore", null, null, ["storeName"], null, false);
 context.productStores = stores;
 
 // get the channels
-channels = from("Enumeration").where("enumTypeId", "ORDER_SALES_CHANNEL").orderBy("sequenceId").queryList();
+channels = delegator.findByAnd("Enumeration", [enumTypeId : "ORDER_SALES_CHANNEL"], ["sequenceId"]);
 context.salesChannels = channels;
 
 // get the Shipping Methods
-carrierShipmentMethods = from("CarrierShipmentMethod").queryList();
+carrierShipmentMethods = delegator.findList("CarrierShipmentMethod", null, null, null, null, false);
 context.carrierShipmentMethods = carrierShipmentMethods;
-
-// get the Payment Status
-paymentStatusList = from("StatusItem").where("statusTypeId", "PAYMENT_PREF_STATUS").orderBy("description").queryList();
-context.paymentStatusList = paymentStatusList;
-
-// get the good identification types
-goodIdentificationTypes = from("GoodIdentificationType").orderBy("goodIdentificationTypeId", "description").queryList();
-context.goodIdentificationTypes = goodIdentificationTypes;
 
 // current role type
 currentRoleTypeId = request.getParameter("roleTypeId");
 if (currentRoleTypeId) {
-    currentRole = from("RoleType").where("roleTypeId", currentRoleTypeId).cache(true).queryOne();
+    currentRole = delegator.findByPrimaryKeyCache("RoleType", [roleTypeId : currentRoleTypeId]);
     context.currentRole = currentRole;
 }
 
 // current selected type
 currentTypeId = request.getParameter("orderTypeId");
 if (currentTypeId) {
-    currentType = from("OrderType").where("orderTypeId", currentTypeId).cache(true).queryOne();
+    currentType = delegator.findByPrimaryKeyCache("OrderType", [orderTypeId : currentTypeId]);
     context.currentType = currentType;
 }
 // current selected status
 currentStatusId = request.getParameter("orderStatusId");
 if (currentStatusId) {
-    currentStatus = from("StatusItem").where("statusId", currentStatusId).cache(true).queryOne();
+    currentStatus = delegator.findByPrimaryKeyCache("StatusItem", [statusId : currentStatusId]);
     context.currentStatus = currentStatus;
 }
 
 // current website
 currentWebSiteId = request.getParameter("orderWebSiteId");
 if (currentWebSiteId) {
-    currentWebSite = from("WebSite").where("webSiteId", currentWebSiteId).cache(true).queryOne();
+    currentWebSite = delegator.findByPrimaryKeyCache("WebSite", [webSiteId : currentWebSiteId]);
     context.currentWebSite = currentWebSite;
 }
 
 // current store
 currentProductStoreId = request.getParameter("productStoreId");
 if (currentProductStoreId) {
-    currentProductStore = from("ProductStore").where("productStoreId", currentProductStoreId).cache(true).queryOne();
+    currentProductStore = delegator.findByPrimaryKeyCache("ProductStore", [productStoreId : currentProductStoreId]);
     context.currentProductStore = currentProductStore;
 }
 
@@ -101,7 +92,7 @@ if (shipmentMethod) {
     carrierPartyId = shipmentMethod.substring(0, shipmentMethod.indexOf("@"));
     shipmentMethodTypeId = shipmentMethod.substring(shipmentMethod.indexOf("@")+1);
     if (carrierPartyId && shipmentMethodTypeId) {
-        currentCarrierShipmentMethod = from("CarrierShipmentMethod").where("partyId", carrierPartyId, "shipmentMethodTypeId", shipmentMethodTypeId).queryFirst();
+        currentCarrierShipmentMethod = delegator.findByAnd("CarrierShipmentMethod", [partyId : carrierPartyId, shipmentMethodTypeId : shipmentMethodTypeId]);
         context.currentCarrierShipmentMethod = currentCarrierShipmentMethod;
     }
 }
@@ -109,15 +100,8 @@ if (shipmentMethod) {
 // current channel
 currentSalesChannelId = request.getParameter("salesChannelEnumId");
 if (currentSalesChannelId) {
-    currentSalesChannel = from("Enumeration").where("enumId", currentSalesChannelId).queryOne();
+    currentSalesChannel = delegator.findByPrimaryKey("Enumeration", [enumId : currentSalesChannelId]);
     context.currentSalesChannel = currentSalesChannel;
-}
-
-// current good identification type
-currentGoodIdentificationTypeId = request.getParameter("goodIdentificationTypeId");
-if (currentGoodIdentificationTypeId) {
-    currentGoodIdentificationType = from("GoodIdentificationType").where("goodIdentificationTypeId", currentGoodIdentificationTypeId).queryOne();
-    context.currentGoodIdentificationType = currentGoodIdentificationType;
 }
 
 // create the fromDate for calendar
@@ -149,8 +133,7 @@ context.thruDateStr = toStr;
 viewIndex = request.getParameter("viewIndex") ? Integer.valueOf(request.getParameter("viewIndex")) : 1;
 context.viewIndex = viewIndex;
 
-viewSize = request.getParameter("viewSize") ? Integer.valueOf(request.getParameter("viewSize")) : 
-                                                                EntityUtilProperties.getPropertyValue("widget", "widget.form.defaultViewSize", "20", delegator);
+viewSize = request.getParameter("viewSize") ? Integer.valueOf(request.getParameter("viewSize")) : 20;
 context.viewSize = viewSize;
 
 // get the lookup flag

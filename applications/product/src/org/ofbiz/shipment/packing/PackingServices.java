@@ -87,9 +87,9 @@ public class PackingServices {
      * Packs the same items n times in consecutive packages, starting from the package number retrieved from pkgInfo.</li>
      * </ul>
      * </p>
-     * @param dctx the dispatch context
-     * @param context the context
-     * @return returns the result of the service execution
+     * @param dctx
+     * @param context
+     * @return
      */
     public static Map<String, Object> packBulk(DispatchContext dctx, Map<String, ? extends Object> context) {
         PackingSession session = (PackingSession) context.get("packingSession");
@@ -116,6 +116,7 @@ public class PackingServices {
         Map<String, String> pkgInfo = UtilGenerics.checkMap(context.get("pkgInfo"));
         Map<String, String> wgtInfo = UtilGenerics.checkMap(context.get("wgtInfo"));
         Map<String, String> numPackagesInfo = UtilGenerics.checkMap(context.get("numPackagesInfo"));
+        Map<String, String> boxTypeInfo = UtilGenerics.checkMap(context.get("boxTypeInfo"));
 
         if (selInfo != null) {
             for (String rowKey: selInfo.keySet()) {
@@ -130,6 +131,8 @@ public class PackingServices {
                 String pkgStr = pkgInfo.get(rowKey);
                 String qtyStr = qtyInfo.get(rowKey);
                 String wgtStr = wgtInfo.get(rowKey);
+                String boxType = boxTypeInfo.get(rowKey);
+                session.setShipmentBoxTypeId(boxType);
 
                 Debug.logInfo("Item: " + orderItemSeqId + " / Product: " + prdStr + " / Quantity: " + qtyStr + " /  Package: " + pkgStr + " / Weight: " + wgtStr, module);
 
@@ -285,14 +288,12 @@ public class PackingServices {
         String pickerPartyId = (String) context.get("pickerPartyId");
         BigDecimal additionalShippingCharge = (BigDecimal) context.get("additionalShippingCharge");
         Map<String, String> packageWeights = UtilGenerics.checkMap(context.get("packageWeights"));
-        Map<String, String> boxTypes = UtilGenerics.checkMap(context.get("boxTypes"));
         String weightUomId = (String) context.get("weightUomId");
         session.setHandlingInstructions(instructions);
         session.setPickerPartyId(pickerPartyId);
         session.setAdditionalShippingCharge(additionalShippingCharge);
         session.setWeightUomId(weightUomId);
         setSessionPackageWeights(session, packageWeights);
-        setSessionShipmentBoxTypes(session, boxTypes);
 
         Boolean force = (Boolean) context.get("forceComplete");
         if (force == null) {
@@ -336,19 +337,5 @@ public class PackingServices {
             }
         }
         return shippableWeight;
-    }
-
-    public static void setSessionShipmentBoxTypes(PackingSession session, Map<String, String> boxTypes) {
-        if (UtilValidate.isNotEmpty(boxTypes)) {
-            for (Map.Entry<String, String> entry: boxTypes.entrySet()) {
-                String packageSeqId = entry.getKey();
-                String boxTypeStr = entry.getValue();
-                if (UtilValidate.isNotEmpty(boxTypeStr)) {
-                    session.setShipmentBoxType(Integer.parseInt(packageSeqId), boxTypeStr);
-                } else {
-                    session.setShipmentBoxType(Integer.parseInt(packageSeqId), null);
-                }
-            }
-        }
     }
 }

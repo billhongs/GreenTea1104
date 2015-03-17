@@ -35,7 +35,6 @@
         </menu-item>
         <menu-item name="addrmap" title="${uiLabelMap.PageTitleAddressMatchMap}"><link target="addressMatchMap"/></menu-item>
         <menu-item name="partyinv" title="${uiLabelMap.PartyInvitation}"><link target="partyInvitation"/></menu-item>
-        <menu-item name="importexport" title="${uiLabelMap.CommonImportExport}"><link target="ImportExport"/></menu-item>
     </menu>
 
     <menu name="ProfileTabBar" extends="CommonTabBarMenu" extends-resource="component://common/widget/CommonMenus.xml"
@@ -679,14 +678,10 @@
 
     <menu name="addRelContactAccounts">
         <menu-item name="add" title="${uiLabelMap.CommonCreateNew}">
-            <link target="${parameters._LAST_VIEW_NAME_}">
-                <parameter param-name="partyId"/>
-                <parameter param-name="portalPageId"/>
-                <parameter param-name="editPartyRel" value="Y"/>
-            </link>
-        </menu-item>
+            <link target="${parameters._LAST_VIEW_NAME_}?portalPageId=${parameters.portalPageId}&amp;partyId=${parameters.partyId}&amp;editPartyRel=Y"/>
+        </menu-item>  
     </menu>
-
+    
     <menu name="newPartyIdentification">
         <menu-item name="new" title="${uiLabelMap.CommonNew}">
             <link target="viewidentifications">

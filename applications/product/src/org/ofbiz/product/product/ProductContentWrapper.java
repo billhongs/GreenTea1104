@@ -33,6 +33,7 @@ import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralException;
 import org.ofbiz.base.util.StringUtil;
 import org.ofbiz.base.util.UtilHttp;
+import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.GeneralRuntimeException;
 import org.ofbiz.base.util.cache.UtilCache;
@@ -42,7 +43,6 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelUtil;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.service.LocalDispatcher;
 
@@ -54,7 +54,7 @@ public class ProductContentWrapper implements ContentWrapper {
     public static final String module = ProductContentWrapper.class.getName();
     public static final String SEPARATOR = "::";    // cache key separator
 
-    private static final UtilCache<String, String> productContentCache = UtilCache.createUtilCache("product.content.rendered", true);
+    public static UtilCache<String, String> productContentCache = UtilCache.createUtilCache("product.content.rendered", true);
 
     public static ProductContentWrapper makeProductContentWrapper(GenericValue product, HttpServletRequest request) {
         return new ProductContentWrapper(product, request);
@@ -107,16 +107,18 @@ public class ProductContentWrapper implements ContentWrapper {
          */
         String cacheKey = productContentTypeId + SEPARATOR + locale + SEPARATOR + mimeTypeId + SEPARATOR + product.get("productId");
         try {
-            String cachedValue = productContentCache.get(cacheKey);
-            if (cachedValue != null) {
-                return cachedValue;
+            if (productContentCache.get(cacheKey) != null) {
+                return productContentCache.get(cacheKey);
             }
 
             Writer outWriter = new StringWriter();
             getProductContentAsText(null, product, productContentTypeId, locale, mimeTypeId, partyId, roleTypeId, delegator, dispatcher, outWriter);
             String outString = outWriter.toString();
             if (outString.length() > 0) {
-                return productContentCache.putIfAbsentAndGet(cacheKey, outString);
+                if (productContentCache != null) {
+                    productContentCache.put(cacheKey, outString);
+                }
+                return outString;
             } else {
                 String candidateOut = product.getModelEntity().isField(candidateFieldName) ? product.getString(candidateFieldName): "";
                 return candidateOut == null? "" : candidateOut;
@@ -152,7 +154,7 @@ public class ProductContentWrapper implements ContentWrapper {
         String candidateFieldName = ModelUtil.dbNameToVarName(productContentTypeId);
         ModelEntity productModel = delegator.getModelEntity("Product");
         if (product == null) {
-            product = EntityQuery.use(delegator).from("Product").where("productId", productId).cache().queryOne();
+            product = delegator.findByPrimaryKeyCache("Product", UtilMisc.toMap("productId", productId));
         }
         if (UtilValidate.isEmpty(product)) {
             Debug.logWarning("No Product entity found for productId: " + productId, module);
@@ -177,11 +179,13 @@ public class ProductContentWrapper implements ContentWrapper {
                 }
         }
 
-        List<GenericValue> productContentList = EntityQuery.use(delegator).from("ProductContent").where("productId", productId, "productContentTypeId", productContentTypeId).orderBy("-fromDate").cache(true).filterByDate().queryList();
+        List<GenericValue> productContentList = delegator.findByAndCache("ProductContent", UtilMisc.toMap("productId", productId, "productContentTypeId", productContentTypeId), UtilMisc.toList("-fromDate"));
+        productContentList = EntityUtil.filterByDate(productContentList);
         if (UtilValidate.isEmpty(productContentList) && ("Y".equals(product.getString("isVariant")))) {
             GenericValue parent = ProductWorker.getParentProduct(productId, delegator);
             if (UtilValidate.isNotEmpty(parent)) {
-                productContentList = EntityQuery.use(delegator).from("ProductContent").where("productId", parent.get("productId"), "productContentTypeId", productContentTypeId).orderBy("-fromDate").cache(true).filterByDate().queryList();
+                productContentList = delegator.findByAndCache("ProductContent", UtilMisc.toMap("productId", parent.get("productId"), "productContentTypeId", productContentTypeId), UtilMisc.toList("-fromDate"));
+                productContentList = EntityUtil.filterByDate(productContentList);
             }
         }
         GenericValue productContent = EntityUtil.getFirst(productContentList);

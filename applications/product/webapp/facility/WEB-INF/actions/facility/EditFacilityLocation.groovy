@@ -33,18 +33,18 @@ if (!locationSeqId && request.getAttribute("locationSeqId")) {
 }
 
 if (facilityId && locationSeqId) {
-    facilityLocation = from("FacilityLocation").where("facilityId", facilityId, "locationSeqId", locationSeqId).queryOne();
+    facilityLocation = delegator.findOne("FacilityLocation", [facilityId : facilityId, locationSeqId : locationSeqId], false);
 }
 if (facilityId) {
-    facility = from("Facility").where("facilityId", facilityId).queryOne();
+    facility = delegator.findOne("Facility", [facilityId : facilityId], false);
 }
 
-locationTypeEnums = from("Enumeration").where("enumTypeId", "FACLOC_TYPE").queryList();
+locationTypeEnums = delegator.findList("Enumeration", EntityCondition.makeCondition([enumTypeId : 'FACLOC_TYPE']), null, null, null, false);
 
 // ProductFacilityLocation stuff
 productFacilityLocations = null;
 if (facilityLocation) {
-    productFacilityLocations = facilityLocation.getRelated("ProductFacilityLocation", null, ['productId'], false);
+    productFacilityLocations = facilityLocation.getRelated("ProductFacilityLocation", null, ['productId']);
 }
 
 context.facilityId = facilityId;

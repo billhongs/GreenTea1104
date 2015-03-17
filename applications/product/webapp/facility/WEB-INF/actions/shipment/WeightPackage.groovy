@@ -21,7 +21,6 @@ import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.shipment.weightPackage.WeightPackageSession;
 
@@ -44,26 +43,26 @@ context.showWarningForm = showWarningForm;
 orderId = parameters.orderId;
 shipGroupSeqId = parameters.shipGroupSeqId;
 
-shipment = from("Shipment").where("primaryOrderId", orderId, "statusId", "SHIPMENT_PICKED").queryFirst();
+shipment = EntityUtil.getFirst(delegator.findByAnd("Shipment", [primaryOrderId : orderId, statusId : "SHIPMENT_PICKED"]));
 context.shipment = shipment;
 if (shipment) {
-    invoice = from("ShipmentItemBilling").where("shipmentId", shipment.shipmentId).queryFirst();
+    invoice = EntityUtil.getFirst(delegator.findByAnd("ShipmentItemBilling", [shipmentId : shipment.shipmentId]));
     context.invoice = invoice;
 } else {
     context.invoice = null;
 }
 actualCost = null;
 if (shipment) {
-    shipmentRouteSegment = from("ShipmentRouteSegment").where("shipmentId", shipment.shipmentId).queryFirst();
+    shipmentRouteSegment = EntityUtil.getFirst(delegator.findByAnd("ShipmentRouteSegment", [shipmentId : shipment.shipmentId]));
     actualCost = shipmentRouteSegment.actualCost;
     if (actualCost) {
-        context.shipmentPackages = from("ShipmentPackage").where("shipmentId", shipment.shipmentId).queryList();
+        context.shipmentPackages = delegator.findByAnd("ShipmentPackage", [shipmentId : shipment.shipmentId]);
     }
 }
 
 facilityId = parameters.facilityId;
 if (facilityId) {
-    facility = from("Facility").where("facilityId", facilityId).queryOne();
+    facility = delegator.findOne("Facility", [facilityId : facilityId], false);
     context.facility = facility;
 }
 
@@ -77,7 +76,7 @@ if (orderId && !shipGroupSeqId && orderId.indexOf("/") > -1) {
 
 picklistBinId = parameters.picklistBinId;
 if (picklistBinId) {
-    picklistBin = from("PicklistBin").where("picklistBinId", picklistBinId).queryOne();
+    picklistBin = delegator.findOne("PicklistBin", [picklistBinId : picklistBinId], false);
     if (picklistBin) {
         orderId = picklistBin.primaryOrderId;
         shipGroupSeqId = picklistBin.primaryShipGroupSeqId;
@@ -96,9 +95,9 @@ if (!shipmentId && shipment) {
 context.shipmentId = shipmentId;
 if (shipmentId) {
     // Get the primaryOrderId from the shipment
-    shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
+    shipment = delegator.findOne("Shipment",  [shipmentId : shipmentId], false);
     if (shipment && shipment.primaryOrderId) {
-        orderItemBillingList = from("OrderItemBilling").where("orderId", shipment.primaryOrderId).orderBy("invoiceId").queryList();
+        orderItemBillingList = delegator.findList("OrderItemBilling", EntityCondition.makeCondition([orderId : shipment.primaryOrderId]), null, ['invoiceId'], null, false);
         invoiceIds = EntityUtil.getFieldListFromEntityList(orderItemBillingList, "invoiceId", true);
         if (invoiceIds) {
             context.invoiceIds = invoiceIds;
@@ -108,7 +107,7 @@ if (shipmentId) {
     if (shipment.statusId && "SHIPMENT_PACKED" == shipment.statusId) {
         orderId = null;
     }
-    shipmentPackageRouteSegs = from("ShipmentPackageRouteSeg").where("shipmentId", shipmentId).queryList();
+    shipmentPackageRouteSegs = delegator.findByAnd("ShipmentPackageRouteSeg",  [shipmentId : shipmentId]);
     shipmentPackageRouteSegList = [];
     shipmentPackageRouteSegs.each { shipmentPackageRouteSeg ->
         if (shipmentPackageRouteSeg.labelImage) {
@@ -127,7 +126,7 @@ context.primaryOrderId = orderId;
 
 carrierPartyId = null;
 if (orderId) {
-    orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
+    orderHeader = delegator.findOne("OrderHeader", [orderId : orderId], false);
     if (orderHeader) {
         OrderReadHelper orderReadHelper = new OrderReadHelper(orderHeader);
         GenericValue orderItemShipGroup = orderReadHelper.getOrderItemShipGroup(shipGroupSeqId);
@@ -137,7 +136,7 @@ if (orderId) {
             if (shipment) {
                 productStoreId = orderReadHelper.getProductStoreId();
                 shippableItemInfo = orderReadHelper.getOrderItemAndShipGroupAssoc(shipGroupSeqId);
-                shippableItems = from("OrderItemAndShipGrpInvResAndItemSum").where("orderId", orderId, "shipGroupSeqId", shipGroupSeqId).queryList();
+                shippableItems = delegator.findList("OrderItemAndShipGrpInvResAndItemSum", EntityCondition.makeCondition([orderId : orderId, shipGroupSeqId : shipGroupSeqId]), null, null, null, false);
                 shippableTotal = orderReadHelper.getShippableTotal(shipGroupSeqId);
                 shippableWeight = orderReadHelper.getShippableWeight(shipGroupSeqId);
                 shippableQuantity = orderReadHelper.getShippableQuantity(shipGroupSeqId);
@@ -173,10 +172,10 @@ context.shipGroupSeqId = shipGroupSeqId;
 context.picklistBinId = picklistBinId;
 
 if (carrierPartyId) {
-    carrierShipmentBoxTypes = from("CarrierShipmentBoxType").where("partyId", carrierPartyId).queryList();
+    carrierShipmentBoxTypes =  delegator.findByAnd("CarrierShipmentBoxType", [partyId : carrierPartyId]);
     shipmentBoxTypes = [];
     carrierShipmentBoxTypes.each { carrierShipmentBoxType ->
-        shipmentBoxTypes.add(from("ShipmentBoxType").where("shipmentBoxTypeId", carrierShipmentBoxType.shipmentBoxTypeId).queryOne());
+        shipmentBoxTypes.add(delegator.findOne("ShipmentBoxType", [shipmentBoxTypeId : carrierShipmentBoxType.shipmentBoxTypeId], false));
         context.shipmentBoxTypes = shipmentBoxTypes;
     }
 }
@@ -190,7 +189,7 @@ if (facility) {
     defaultDimensionUomId = facility.defaultDimensionUomId;
 }
 if (!defaultDimensionUomId) {
-    defaultDimensionUomId = EntityUtilProperties.getPropertyValue("shipment.properties", "shipment.default.dimension.uom", "LEN_in", delegator);
+    defaultDimensionUomId = UtilProperties.getPropertyValue("shipment.properties", "shipment.default.dimension.uom", "LEN_in");
 }
 context.defaultDimensionUomId = defaultDimensionUomId;
 
@@ -199,6 +198,6 @@ if (facility) {
     defaultWeightUomId = facility.defaultWeightUomId;
 }
 if (!defaultWeightUomId) {
-    defaultWeightUomId = EntityUtilProperties.getPropertyValue("shipment.properties", "shipment.default.weight.uom", "WT_kg", delegator);
+    defaultWeightUomId = UtilProperties.getPropertyValue("shipment.properties", "shipment.default.weight.uom", "WT_kg");
 }
 context.defaultWeightUomId = defaultWeightUomId;

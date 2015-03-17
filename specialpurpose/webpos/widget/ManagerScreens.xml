@@ -20,59 +20,78 @@ under the License.
 
 <screens xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/widget-screen.xsd">
-    
+
     <screen name="OpenTerminal">
         <section>
             <actions>
+                <set field="rightbarScreenName" value="rightbar_manager"/>
                 <set field="titleProperty" value="WebPosPageTitleOpenTerminal"/>
-                <set field="headerItem" value="Manager"/>
             </actions>
             <widgets>
-                <container>
+                <include-screen name="SearchProducts" location="component://webpos/widget/WebPosScreens.xml"/>
+                <container id="OpenTerminal">
                     <platform-specific><html><html-template location="component://webpos/webapp/webpos/manager/OpenTerminal.ftl"/></html></platform-specific>
                 </container>
             </widgets>
         </section>
     </screen>
-    
+
     <screen name="CloseTerminal">
         <section>
             <actions>
+                <set field="rightbarScreenName" value="rightbar_manager"/>
                 <set field="titleProperty" value="WebPosPageTitleCloseTerminal"/>
-                <set field="headerItem" value="Manager"/>
             </actions>
             <widgets>
-                <container>
+                <include-screen name="SearchProducts" location="component://webpos/widget/WebPosScreens.xml"/>
+                <container id="CloseTerminal">
                     <platform-specific><html><html-template location="component://webpos/webapp/webpos/manager/CloseTerminal.ftl"/></html></platform-specific>
                 </container>
             </widgets>
         </section>
     </screen>
-    
+
+    <screen name="VoidOrder">
+        <section>
+            <actions>
+                <set field="rightbarScreenName" value="rightbar_manager"/>
+                <set field="titleProperty" value="WebPosPageTitleVoidOrder"/>
+            </actions>
+            <widgets>
+                <include-screen name="SearchProducts" location="component://webpos/widget/WebPosScreens.xml"/>
+                <container id="VoidOrder">
+                    <platform-specific><html><html-template location="component://webpos/webapp/webpos/manager/VoidOrder.ftl"/></html></platform-specific>
+                </container>
+            </widgets>
+        </section>
+    </screen>
+
     <screen name="PaidOutAndIn">
         <section>
             <actions>
+                <set field="rightbarScreenName" value="rightbar_manager"/>
                 <set field="titleProperty" value="WebPosPageTitlePaidOutAndIn"/>
-                <set field="headerItem" value="PaidOutAndIn"/>
                 <script location="component://webpos/webapp/webpos/WEB-INF/actions/manager/PaidOutAndIn.groovy"/>
             </actions>
             <widgets>
-                <container>
+                <include-screen name="SearchProducts" location="component://webpos/widget/WebPosScreens.xml"/>
+                <container id="PaidOutAndIn">
                     <platform-specific><html><html-template location="component://webpos/webapp/webpos/manager/PaidOutAndIn.ftl"/></html></platform-specific>
                 </container>
             </widgets>
         </section>
     </screen>
-    
-    <screen name="VoidOrder">
+
+    <screen name="ModifyPrice">
         <section>
             <actions>
-                <set field="titleProperty" value="WebPosPageTitleVoidOrder"/>
-                <set field="headerItem" value="VoidOrder"/>
+                <set field="rightbarScreenName" value="rightbar_manager"/>
+                <set field="titleProperty" value="WebPosPageTitleModifyPrice"/>
             </actions>
             <widgets>
-                <container>
-                    <platform-specific><html><html-template location="component://webpos/webapp/webpos/manager/VoidOrder.ftl"/></html></platform-specific>
+                <include-screen name="SearchProducts" location="component://webpos/widget/WebPosScreens.xml"/>
+                <container id="ModifyPrice">
+                    <platform-specific><html><html-template location="component://webpos/webapp/webpos/manager/ModifyPrice.ftl"/></html></platform-specific>
                 </container>
             </widgets>
         </section>

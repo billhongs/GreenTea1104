@@ -19,22 +19,10 @@
 
 import org.ofbiz.base.util.FileUtil;
 
-List logLines = [];
+sb = null;
 try {
-    File logFile = FileUtil.getFile(logFileName);
-    logFile.eachLine { line ->
-        type = '';
-        if (line.contains(":INFO ] ")) {
-            type = 'INFO';
-        } else if (line.contains(":WARN ] ")) {
-            type = 'WARN';
-        } else if (line.contains(":ERROR] ")) {
-            type = 'ERROR';
-        } else if (line.contains(":DEBUG] ")) {
-            type = 'DEBUG';
-        }
-        logLines.add([type: type, line:line]);
-    }
+    sb = FileUtil.readTextFile(logFileName, true);
 } catch (Exception exc) {}
-
-context.logLines = logLines;
+if (sb) {
+    context.logFileContent = sb;
+}

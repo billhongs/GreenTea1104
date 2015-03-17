@@ -22,9 +22,10 @@ package org.ofbiz.entity.util;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+
+import javolution.util.FastList;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralRuntimeException;
@@ -171,7 +172,6 @@ public class EntityListIterator implements ListIterator<GenericValue> {
         if (closed) throw new GenericResultSetClosedException("This EntityListIterator has been closed, this operation cannot be performed");
 
         GenericValue value = GenericValue.create(modelEntity);
-        value.setDelegator(this.delegator);
 
         for (int j = 0; j < selectFields.size(); j++) {
             ModelField curField = selectFields.get(j);
@@ -179,8 +179,12 @@ public class EntityListIterator implements ListIterator<GenericValue> {
             SqlJdbcUtil.getValue(resultSet, j + 1, curField, value, modelFieldTypeReader);
         }
 
+        value.setDelegator(this.delegator);
         value.synchronizedWithDatasource();
         this.haveMadeValue = true;
+        if (delegator != null) {
+            delegator.decryptFields(value);
+        }
         return value;
     }
 
@@ -207,12 +211,7 @@ public class EntityListIterator implements ListIterator<GenericValue> {
         if (closed) throw new GenericResultSetClosedException("This EntityListIterator has been closed, this operation cannot be performed");
 
         try {
-            if (rowNum == 0) {
-                resultSet.beforeFirst();
-                return true;
-            } else {
-                return resultSet.absolute(rowNum);
-            }
+            return resultSet.absolute(rowNum);
         } catch (SQLException e) {
             if (!closed) {
                 this.close();
@@ -252,7 +251,7 @@ public class EntityListIterator implements ListIterator<GenericValue> {
         if (!haveShowHasNextWarning) {
             // DEJ20050207 To further discourage use of this, and to find existing use, always log a big warning showing where it is used:
             Exception whereAreWe = new Exception();
-            Debug.logWarning(whereAreWe, "For performance reasons do not use the EntityListIterator.hasNext() method, just call next() until it returns null; see JavaDoc comments in the EntityListIterator class for details and an example", module);
+            Debug.logWarning(whereAreWe, "WARNING: For performance reasons do not use the EntityListIterator.hasNext() method, just call next() until it returns null; see JavaDoc comments in the EntityListIterator class for details and an example", module);
 
             haveShowHasNextWarning = true;
         }
@@ -430,7 +429,7 @@ public class EntityListIterator implements ListIterator<GenericValue> {
                 // do a quick check to see if the ResultSet is empty
                 resultSet.beforeFirst();
             }
-            List<GenericValue> list = new LinkedList<GenericValue>();
+            List<GenericValue> list = FastList.newInstance();
             GenericValue nextValue = null;
 
             while ((nextValue = this.next()) != null) {
@@ -457,27 +456,45 @@ public class EntityListIterator implements ListIterator<GenericValue> {
      */
     public List<GenericValue> getPartialList(int start, int number) throws GenericEntityException {
         try {
-            if (number == 0) return new LinkedList<GenericValue>();
-            List<GenericValue> list = new LinkedList<GenericValue>();
+            if (number == 0) return FastList.newInstance();
+            List<GenericValue> list = FastList.newInstance();
 
             // just in case the caller missed the 1 based thingy
             if (start == 0) start = 1;
 
-            // if can't reposition to desired index, throw exception
-            if (!this.absolute(start - 1)) {
-                // maybe better to just return an empty list here...
-                return list;
-                //throw new GenericEntityException("Could not move to the start position of " + start + ", there are probably not that many results for this find.");
+            // if starting on result 1 just call next() to avoid scrollable issues in some databases
+            if (start == 1) {
+                if (!resultSet.next()) {
+                    return list;
+                }
+            } else {
+                // if can't reposition to desired index, throw exception
+                if (!this.absolute(start)) {
+                    // maybe better to just return an empty list here...
+                    return list;
+                    //throw new GenericEntityException("Could not move to the start position of " + start + ", there are probably not that many results for this find.");
+                }
             }
+
+            // get the first as the current one
+            list.add(this.currentGenericValue());
 
             GenericValue nextValue = null;
+            // init numRetreived to one since we have already grabbed the initial one
+            int numRetreived = 1;
 
-            //number > 0 comparison goes first to avoid the unwanted call to next
-            while (number > 0 && (nextValue = this.next()) != null) {
+            //number > numRetreived comparison goes first to avoid the unwanted call to next
+            while (number > numRetreived && (nextValue = this.next()) != null) {
                 list.add(nextValue);
-                number--;
+                numRetreived++;
             }
             return list;
+        } catch (SQLException e) {
+            if (!closed) {
+                this.close();
+                Debug.logWarning("Warning: auto-closed EntityListIterator because of exception: " + e.toString(), module);
+            }
+            throw new GeneralRuntimeException("Error getting results", e);
         } catch (GeneralRuntimeException e) {
             if (!closed) {
                 this.close();
@@ -495,7 +512,7 @@ public class EntityListIterator implements ListIterator<GenericValue> {
                     efo = new EntityFindOptions();
                     efo.setDistinct(distinctQuery);
                 }
-                resultSize = (int) genericDAO.selectCountByCondition(sqlp.getDelegator(), modelEntity, whereCondition, havingCondition, selectFields, efo);
+                resultSize = (int) genericDAO.selectCountByCondition(modelEntity, whereCondition, havingCondition, selectFields, efo);
             }
             return resultSize;
         } else if (this.last()) {

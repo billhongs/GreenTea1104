@@ -260,6 +260,7 @@ function updatePartyShipToPostalAddress(e) {
 
 function updatePartyBillToPostalAddress(e) {
     formId = 'editBillToPostalAddress';
+    var validateEditPostalAddress = new Validation(formId, {immediate: true, onSubmit: false});
     errorId = 'billToServerError';
     popupId = 'displayEditBillToPostalAddress';
     requestUrl = 'updatePartyPostalAddress';

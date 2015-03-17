@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#if flowSupport.merchantCalculations??>
+<#if flowSupport.merchantCalculations?exists>
 <merchant-calculations>
     <merchant-calculations-url>${flowSupport.merchantCalulations.url}</merchant-calculations-url>
     <accept-merchant-coupons>${flowSupport.merchantCalculations.acceptCoupons?default("false")}</accept-merchant-coupons>

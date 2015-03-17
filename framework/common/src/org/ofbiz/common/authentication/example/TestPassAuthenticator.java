@@ -19,13 +19,14 @@
 
 package org.ofbiz.common.authentication.example;
 
-import org.ofbiz.base.util.Debug;
 import org.ofbiz.common.authentication.api.AuthenticatorException;
+import org.ofbiz.common.authentication.api.Authenticator;
+import org.ofbiz.base.util.Debug;
 
 /**
  * TestPassAuthenticator
  */
-public class TestPassAuthenticator extends TestFailAuthenticator {
+public class TestPassAuthenticator extends TestFailAuthenticator implements Authenticator {
 
     private static final String module = TestPassAuthenticator.class.getName();
 

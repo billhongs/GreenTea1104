@@ -21,20 +21,33 @@ package org.ofbiz.base.util;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javolution.context.ObjectFactory;
+import javolution.lang.Reusable;
+import javolution.util.FastList;
+import javolution.util.FastMap;
+import javolution.util.FastSet;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.ofbiz.base.lang.Appender;
+import org.owasp.esapi.ValidationErrorList;
+import org.owasp.esapi.Validator;
+import org.owasp.esapi.codecs.Codec;
+import org.owasp.esapi.codecs.HTMLEntityCodec;
+import org.owasp.esapi.codecs.PercentCodec;
+import org.owasp.esapi.errors.IntrusionException;
+import org.owasp.esapi.reference.DefaultEncoder;
+import org.owasp.esapi.reference.DefaultValidator;
 
 /**
  * Misc String Utility Functions
@@ -44,11 +57,18 @@ public class StringUtil {
 
     public static final StringUtil INSTANCE = new StringUtil();
     public static final String module = StringUtil.class.getName();
-    // FIXME: Not thread safe
     protected static final Map<String, Pattern> substitutionPatternMap;
 
+    /** OWASP ESAPI canonicalize strict flag; setting false so we only get warnings about double encoding, etc; can be set to true for exceptions and more security */
+    public static final boolean esapiCanonicalizeStrict = false;
+    public static final DefaultEncoder defaultWebEncoder;
+    public static final Validator defaultWebValidator;
     static {
-        substitutionPatternMap = new HashMap<String, Pattern>();
+        // possible codecs: CSSCodec, HTMLEntityCodec, JavaScriptCodec, MySQLCodec, OracleCodec, PercentCodec, UnixCodec, VBScriptCodec, WindowsCodec
+        List<Codec> codecList = Arrays.asList(new HTMLEntityCodec(), new PercentCodec());
+        defaultWebEncoder = new DefaultEncoder(codecList);
+        defaultWebValidator = new DefaultValidator();
+        substitutionPatternMap = FastMap.newInstance();
         substitutionPatternMap.put("&&", Pattern.compile("@and", Pattern.LITERAL));
         substitutionPatternMap.put("||", Pattern.compile("@or", Pattern.LITERAL));
         substitutionPatternMap.put("<=", Pattern.compile("@lteq", Pattern.LITERAL));
@@ -57,7 +77,50 @@ public class StringUtil {
         substitutionPatternMap.put(">", Pattern.compile("@gt", Pattern.LITERAL));
     }
 
+    public static final SimpleEncoder htmlEncoder = new HtmlEncoder();
+    public static final SimpleEncoder xmlEncoder = new XmlEncoder();
+    public static final SimpleEncoder stringEncoder = new StringEncoder();
+
     private StringUtil() {
+    }
+
+    public static interface SimpleEncoder {
+        public String encode(String original);
+    }
+
+    public static class HtmlEncoder implements SimpleEncoder {
+        public String encode(String original) {
+            return StringUtil.defaultWebEncoder.encodeForHTML(original);
+        }
+    }
+
+    public static class XmlEncoder implements SimpleEncoder {
+        public String encode(String original) {
+            return StringUtil.defaultWebEncoder.encodeForXML(original);
+        }
+    }
+
+    public static class StringEncoder implements SimpleEncoder {
+        public String encode(String original) {
+            if (original != null) {
+                original = original.replace("\"", "\\\"");
+            }
+            return original;
+        }
+    }
+
+    // ================== Begin General Functions ==================
+
+    public static SimpleEncoder getEncoder(String type) {
+        if ("xml".equals(type)) {
+            return StringUtil.xmlEncoder;
+        } else if ("html".equals(type)) {
+            return StringUtil.htmlEncoder;
+        } else if ("string".equals(type)) {
+            return StringUtil.stringEncoder;
+        } else {
+            return null;
+        }
     }
 
     public static String internString(String value) {
@@ -102,20 +165,10 @@ public class StringUtil {
      * @return a String of all values in the list seperated by the delimiter
      */
     public static String join(List<?> list, String delim) {
-        return join ((Collection<?>) list, delim);
-    }
-
-    /**
-     * Creates a single string from a Collection of strings seperated by a delimiter.
-     * @param col a collection of strings to join
-     * @param delim the delimiter character(s) to use. (null value will join with no delimiter)
-     * @return a String of all values in the collection seperated by the delimiter
-     */
-    public static String join(Collection<?> col, String delim) {
-        if (UtilValidate.isEmpty(col))
+        if (list == null || list.size() < 1)
             return null;
         StringBuilder buf = new StringBuilder();
-        Iterator<?> i = col.iterator();
+        Iterator<?> i = list.iterator();
 
         while (i.hasNext()) {
             buf.append(i.next());
@@ -135,42 +188,20 @@ public class StringUtil {
         List<String> splitList = null;
         StringTokenizer st = null;
 
-        if (str == null) return splitList;
+        if (str == null)
+            return splitList;
 
-        if (delim != null) st = new StringTokenizer(str, delim);
-        else               st = new StringTokenizer(str);
+        if (delim != null)
+            st = new StringTokenizer(str, delim);
+        else
+            st = new StringTokenizer(str);
 
         if (st != null && st.hasMoreTokens()) {
-            splitList = new LinkedList<String>();
+            splitList = FastList.newInstance();
 
             while (st.hasMoreTokens())
                 splitList.add(st.nextToken());
         }
-        return splitList;
-    }
-
-    /**
-     * Splits a String on a delimiter into a List of Strings.
-     * @param str the String to split
-     * @param delim the delimiter character(s) to join on (null will split on whitespace)
-     * @param limit see String.split() method
-     * @return a list of Strings
-     */
-    public static List<String> split(String str, String delim, int limit) {
-        List<String> splitList = null;
-        String[] st = null;
-
-        if (str == null) return splitList;
-
-        if (delim != null) st = Pattern.compile(delim).split(str, limit);
-        else               st = str.split("\\s");
-
-
-        if (st != null && st.length > 0) {
-            splitList = new LinkedList<String>();
-            for (int i=0; i < st.length; i++) splitList.add(st[i]);
-        }
-
         return splitList;
     }
 
@@ -181,7 +212,7 @@ public class StringUtil {
     public static List<String> quoteStrList(List<String> list) {
         List<String> tmpList = list;
 
-        list = new LinkedList<String>();
+        list = FastList.newInstance();
         for (String str: tmpList) {
             str = "'" + str + "'";
             list.add(str);
@@ -192,33 +223,17 @@ public class StringUtil {
     /**
      * Creates a Map from an encoded name/value pair string
      * @param str The string to decode and format
-     * @param delim the delimiter character(s) to join on (null will split on whitespace)
      * @param trim Trim whitespace off fields
      * @return a Map of name/value pairs
      */
-    public static Map<String, String> strToMap(String str, String delim, boolean trim) {
-        return strToMap(str, delim, trim, null);
-
-    }
-
-    /**
-     * Creates a Map from a name/value pair string
-     * @param str The string to decode and format
-     * @param delim the delimiter character(s) to join on (null will split on whitespace)
-     * @param trim Trim whitespace off fields
-     * @param pairsSeparator in case you use not encoded name/value pairs strings
-     *        and want to replace "=" to avoid clashes with parameters values in a not encoded URL, default to "="
-     * @return a Map of name/value pairs
-     */
-    public static Map<String, String> strToMap(String str, String delim, boolean trim, String pairsSeparator) {
+    public static Map<String, String> strToMap(String str, boolean trim) {
         if (str == null) return null;
-        Map<String, String> decodedMap = new HashMap<String, String>();
-        List<String> elements = split(str, delim);
-        pairsSeparator = pairsSeparator == null ? "=" : pairsSeparator;
+        Map<String, String> decodedMap = FastMap.newInstance();
+        List<String> elements = split(str, "|");
 
         for (String s: elements) {
+            List<String> e = split(s, "=");
 
-            List<String> e = split(s, pairsSeparator);
             if (e.size() != 2) {
                 continue;
             }
@@ -245,32 +260,11 @@ public class StringUtil {
     /**
      * Creates a Map from an encoded name/value pair string
      * @param str The string to decode and format
-     * @param trim Trim whitespace off fields
-     * @return a Map of name/value pairs
-     */
-    public static Map<String, String> strToMap(String str, boolean trim) {
-        return strToMap(str, "|", trim);
-    }
-
-    /**
-     * Creates a Map from an encoded name/value pair string
-     * @param str The string to decode and format
-     * @param delim the delimiter character(s) to join on (null will split on whitespace)
-     * @return a Map of name/value pairs
-     */
-    public static Map<String, String> strToMap(String str, String delim) {
-        return strToMap(str, delim, false);
-    }
-
-    /**
-     * Creates a Map from an encoded name/value pair string
-     * @param str The string to decode and format
      * @return a Map of name/value pairs
      */
     public static Map<String, String> strToMap(String str) {
-        return strToMap(str, "|", false);
+        return strToMap(str, false);
     }
-
 
     /**
      * Creates an encoded String from a Map of name/value pairs (MUST BE STRINGS!)
@@ -314,23 +308,19 @@ public class StringUtil {
     }
 
     /**
-     * Reads a String version of a Map (should contain only strings) and creates a new Map.
-     * Partial Map elements are skipped: <code>{foo=fooValue, bar=}</code> will contain only
-     * the foo element.
+     * Reads a String version of a Map (should contain only strings) and creates a new Map
      *
      * @param s String value of a Map ({n1=v1, n2=v2})
      * @return new Map
      */
     public static Map<String, String> toMap(String s) {
-        Map<String, String> newMap = new HashMap<String, String>();
+        Map<String, String> newMap = FastMap.newInstance();
         if (s.startsWith("{") && s.endsWith("}")) {
             s = s.substring(1, s.length() - 1);
             String[] entries = s.split("\\,\\s");
             for (String entry: entries) {
                 String[] nv = entry.split("\\=");
-                if (nv.length == 2) {
-                    newMap.put(nv[0], nv[1]);
-                }
+                newMap.put(nv[0], nv[1]);
             }
         } else {
             throw new IllegalArgumentException("String is not from Map.toString()");
@@ -346,7 +336,7 @@ public class StringUtil {
      * @return new List
      */
     public static List<String> toList(String s) {
-        List<String> newList = new LinkedList<String>();
+        List<String> newList = FastList.newInstance();
         if (s.startsWith("[") && s.endsWith("]")) {
             s = s.substring(1, s.length() - 1);
             String[] entries = s.split("\\,\\s");
@@ -367,7 +357,7 @@ public class StringUtil {
      * @return new List
      */
     public static Set<String> toSet(String s) {
-        Set<String> newSet = new HashSet<String>();
+        Set<String> newSet = FastSet.newInstance();
         if (s.startsWith("[") && s.endsWith("]")) {
             s = s.substring(1, s.length() - 1);
             String[] entries = s.split("\\,\\s");
@@ -392,7 +382,7 @@ public class StringUtil {
         if (keys == null || values == null || keys.size() != values.size()) {
             throw new IllegalArgumentException("Keys and Values cannot be null and must be the same size");
         }
-        Map<K, V> newMap = new HashMap<K, V>();
+        Map<K, V> newMap = FastMap.newInstance();
         for (int i = 0; i < keys.size(); i++) {
             newMap.put(keys.get(i), values.get(i));
         }
@@ -483,7 +473,9 @@ public class StringUtil {
      * Removes all matches of regex from a str
      */
     public static String removeRegex(String str, String regex) {
-        return str.replaceAll(regex, "");
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(str);
+        return matcher.replaceAll("");
     }
 
     /**
@@ -532,6 +524,78 @@ public class StringUtil {
             }
         }
         return result;
+    }
+
+    /**
+     * Uses a black-list approach for necessary characters for HTML.
+     * Does not allow various characters (after canonicalization), including "<", ">", "&" (if not followed by a space), and "%" (if not followed by a space).
+     *
+     * @param value
+     * @param errorMessageList
+     */
+    public static String checkStringForHtmlStrictNone(String valueName, String value, List<String> errorMessageList) {
+        if (UtilValidate.isEmpty(value)) return value;
+
+        // canonicalize, strict (error on double-encoding)
+        try {
+            value = defaultWebEncoder.canonicalize(value, true);
+        } catch (IntrusionException e) {
+            // NOTE: using different log and user targeted error messages to allow the end-user message to be less technical
+            Debug.logError("Canonicalization (format consistency, character escaping that is mixed or double, etc) error for attribute named [" + valueName + "], String [" + value + "]: " + e.toString(), module);
+            errorMessageList.add("In field [" + valueName + "] found character escaping (mixed or double) that is not allowed or other format consistency error: " + e.toString());
+        }
+
+        // check for "<", ">"
+        if (value.indexOf("<") >= 0 || value.indexOf(">") >= 0) {
+            errorMessageList.add("In field [" + valueName + "] less-than (<) and greater-than (>) symbols are not allowed.");
+        }
+
+        /* NOTE DEJ 20090311: After playing with this more this doesn't seem to be necessary; the canonicalize will convert all such characters into actual text before this check is done, including other illegal chars like &lt; which will canonicalize to < and then get caught
+        // check for & followed a semicolon within 7 characters, no spaces in-between (and perhaps other things sometime?)
+        int curAmpIndex = value.indexOf("&");
+        while (curAmpIndex > -1) {
+            int semicolonIndex = value.indexOf(";", curAmpIndex + 1);
+            int spaceIndex = value.indexOf(" ", curAmpIndex + 1);
+            if (semicolonIndex > -1 && (semicolonIndex - curAmpIndex <= 7) && (spaceIndex < 0 || (spaceIndex > curAmpIndex && spaceIndex < semicolonIndex))) {
+                errorMessageList.add("In field [" + valueName + "] the ampersand (&) symbol is only allowed if not used as an encoded character: no semicolon (;) within 7 spaces or there is a space between.");
+                // once we find one like this we have the message so no need to check for more
+                break;
+            }
+            curAmpIndex = value.indexOf("&", curAmpIndex + 1);
+        }
+         */
+
+        /* NOTE DEJ 20090311: After playing with this more this doesn't seem to be necessary; the canonicalize will convert all such characters into actual text before this check is done, including other illegal chars like %3C which will canonicalize to < and then get caught
+        // check for % followed by 2 hex characters
+        int curPercIndex = value.indexOf("%");
+        while (curPercIndex >= 0) {
+            if (value.length() > (curPercIndex + 3) && UtilValidate.isHexDigit(value.charAt(curPercIndex + 1)) && UtilValidate.isHexDigit(value.charAt(curPercIndex + 2))) {
+                errorMessageList.add("In field [" + valueName + "] the percent (%) symbol is only allowed if followed by a space.");
+                // once we find one like this we have the message so no need to check for more
+                break;
+            }
+            curPercIndex = value.indexOf("%", curPercIndex + 1);
+        }
+         */
+
+        // TODO: anything else to check for that can be used to get HTML or JavaScript going without these characters?
+
+        return value;
+    }
+
+    /**
+     * Uses a white-list approach to check for safe HTML.
+     * Based on the ESAPI validator configured in the antisamy-esapi.xml file.
+     *
+     * @param value
+     * @param errorMessageList
+     * @return String with updated value if needed for safer HTML.
+     */
+    public static String checkStringForHtmlSafeOnly(String valueName, String value, List<String> errorMessageList) {
+        ValidationErrorList vel = new ValidationErrorList();
+        value = defaultWebValidator.getValidSafeHTML(valueName, value, Integer.MAX_VALUE, true, vel);
+        errorMessageList.addAll(UtilGenerics.checkList(vel.errors(), String.class));
+        return value;
     }
 
     /**
@@ -653,5 +717,65 @@ public class StringUtil {
         public String toString() {
             return this.theString;
         }
+    }
+
+    /**
+     * A simple Map wrapper class that will do HTML encoding. To be used for passing a Map to something that will expand Strings with it as a context, etc.
+     * To reduce memory allocation impact this object is recyclable and minimal in that it only keeps a reference to the original Map.
+     */
+    public static class HtmlEncodingMapWrapper<K> implements Map<K, Object>, Reusable {
+        protected static final ObjectFactory<HtmlEncodingMapWrapper<?>> mapStackFactory = new ObjectFactory<HtmlEncodingMapWrapper<?>>() {
+            @Override
+            protected HtmlEncodingMapWrapper<?> create() {
+                return new HtmlEncodingMapWrapper<Object>();
+            }
+        };
+        public static <K> HtmlEncodingMapWrapper<K> getHtmlEncodingMapWrapper(Map<K, Object> mapToWrap, SimpleEncoder encoder) {
+            if (mapToWrap == null) return null;
+
+            HtmlEncodingMapWrapper<K> mapWrapper = (HtmlEncodingMapWrapper<K>) UtilGenerics.<K, Object>checkMap(mapStackFactory.object());
+            mapWrapper.setup(mapToWrap, encoder);
+            return mapWrapper;
+        }
+
+        protected Map<K, Object> internalMap = null;
+        protected SimpleEncoder encoder = null;
+        protected HtmlEncodingMapWrapper() { }
+
+        public void setup(Map<K, Object> mapToWrap, SimpleEncoder encoder) {
+            this.internalMap = mapToWrap;
+            this.encoder = encoder;
+        }
+        public void reset() {
+            this.internalMap = null;
+            this.encoder = null;
+        }
+
+        public int size() { return this.internalMap.size(); }
+        public boolean isEmpty() { return this.internalMap.isEmpty(); }
+        public boolean containsKey(Object key) { return this.internalMap.containsKey(key); }
+        public boolean containsValue(Object value) { return this.internalMap.containsValue(value); }
+        public Object get(Object key) {
+            Object theObject = this.internalMap.get(key);
+            if (theObject instanceof String) {
+                if (this.encoder != null) {
+                    return encoder.encode((String) theObject);
+                } else {
+                    return StringUtil.defaultWebEncoder.encodeForHTML((String) theObject);
+                }
+            } else if (theObject instanceof Map<?, ?>) {
+                return HtmlEncodingMapWrapper.getHtmlEncodingMapWrapper(UtilGenerics.<K, Object>checkMap(theObject), this.encoder);
+            }
+            return theObject;
+        }
+        public Object put(K key, Object value) { return this.internalMap.put(key, value); }
+        public Object remove(Object key) { return this.internalMap.remove(key); }
+        public void putAll(Map<? extends K, ? extends Object> arg0) { this.internalMap.putAll(arg0); }
+        public void clear() { this.internalMap.clear(); }
+        public Set<K> keySet() { return this.internalMap.keySet(); }
+        public Collection<Object> values() { return this.internalMap.values(); }
+        public Set<Map.Entry<K, Object>> entrySet() { return this.internalMap.entrySet(); }
+        @Override
+        public String toString() { return this.internalMap.toString(); }
     }
 }

@@ -20,7 +20,7 @@
 import org.ofbiz.entity.*;
 import org.ofbiz.entity.util.*;
 import org.ofbiz.base.util.*;
-import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
+import org.ofbiz.widget.html.*;
 
 contentId = request.getParameter("contentId") ?: null;
 
@@ -28,7 +28,7 @@ confItemContentTypeId = request.getParameter("confItemContentTypeId");
 
 description = request.getParameter("description") ?: null;
 
-productContent = from("ProdConfItemContent").where("contentId", contentId, "configItemId", configItemId, "confItemContentTypeId", confItemContentTypeId, "fromDate", fromDate).queryOne();
+productContent = delegator.findOne("ProdConfItemContent", [contentId : contentId, configItemId : configItemId, confItemContentTypeId : confItemContentTypeId, fromDate : fromDate], false);
 if (!productContent) {
     productContent = [:];
     productContent.configItemId = configItemId;
@@ -45,7 +45,7 @@ Map content = null;
 
 context.contentId = contentId;
 if (contentId) {
-    content = from("Content").where("contentId", contentId).queryOne();
+    content = delegator.findOne("Content", [contentId : contentId], false);
     context.content = content;
 } else {
     content = [:];
@@ -57,9 +57,9 @@ if (contentId) {
 //Assume it is a generic simple text content
 textData = [:];
 if (contentId && content) {
-    textDr = content.getRelatedOne("DataResource", false);
+    textDr = content.getRelatedOne("DataResource");
     if (textDr) {
-        text = textDr.getRelatedOne("ElectronicText", false);
+        text = textDr.getRelatedOne("ElectronicText");
         if (text) {
             textData.text = text.textData;
             textData.textDataResourceId = text.dataResourceId;

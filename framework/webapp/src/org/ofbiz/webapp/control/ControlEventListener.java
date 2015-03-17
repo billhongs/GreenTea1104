@@ -31,12 +31,10 @@ import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
-import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.serialize.XmlSerializer;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * HttpSessionListener that gathers and tracks various information and statistics
@@ -77,12 +75,8 @@ public class ControlEventListener implements HttpSessionListener {
             // instead of using this message, get directly from session attribute so it won't create a new one: GenericValue visit = VisitHandler.getVisit(session);
             GenericValue visit = (GenericValue) session.getAttribute("visit");
             if (visit != null) {
-                Delegator delegator = visit.getDelegator();
-                visit = EntityQuery.use(delegator).from("Visit").where("visitId", visit.get("visitId")).queryOne();
-                if (visit != null) {
-                    visit.set("thruDate", new Timestamp(session.getLastAccessedTime()));
-                    visit.store();
-                }
+                visit.set("thruDate", new Timestamp(session.getLastAccessedTime()));
+                visit.store();
             } else {
                 Debug.logWarning("Could not find visit value object in session [" + session.getId() + "] that is being destroyed", module);
             }
@@ -92,7 +86,7 @@ public class ControlEventListener implements HttpSessionListener {
             GenericValue userLogin = (GenericValue) session.getAttribute("userLogin");
             if (userLogin != null && userLoginSessionString != null) {
                 GenericValue userLoginSession = null;
-                userLoginSession = userLogin.getRelatedOne("UserLoginSession", false);
+                userLoginSession = userLogin.getRelatedOne("UserLoginSession");
 
                 if (userLoginSession == null) {
                     userLoginSession = userLogin.getDelegator().makeValue("UserLoginSession",

@@ -34,7 +34,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ModelService;
@@ -128,7 +127,7 @@ public class OrbitalPaymentServices {
         GenericValue orderPaymentPreference = (GenericValue) context.get("orderPaymentPreference");
         GenericValue creditCard = null;
         try {
-            creditCard = orderPaymentPreference.getRelatedOne("CreditCard", false);
+            creditCard = delegator.getRelatedOne("CreditCard",orderPaymentPreference);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -174,7 +173,7 @@ public class OrbitalPaymentServices {
         GenericValue orderPaymentPreference = (GenericValue) context.get("orderPaymentPreference");
         GenericValue creditCard = null;
         try {
-            creditCard = orderPaymentPreference.getRelatedOne("CreditCard", false);
+            creditCard = delegator.getRelatedOne("CreditCard",orderPaymentPreference);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -219,7 +218,7 @@ public class OrbitalPaymentServices {
 
         GenericValue orderPaymentPreference = (GenericValue) context.get("orderPaymentPreference");
         try {
-            orderPaymentPreference.getRelatedOne("CreditCard", false);
+            delegator.getRelatedOne("CreditCard",orderPaymentPreference);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -292,7 +291,7 @@ public class OrbitalPaymentServices {
         String returnValue = "";
         if (UtilValidate.isNotEmpty(paymentGatewayConfigId)) {
             try {
-                GenericValue paymentGatewayOrbital = EntityQuery.use(delegator).from("PaymentGatewayOrbital").where("paymentGatewayConfigId", paymentGatewayConfigId).queryOne();
+                GenericValue paymentGatewayOrbital = delegator.findOne("PaymentGatewayOrbital", UtilMisc.toMap("paymentGatewayConfigId", paymentGatewayConfigId), false);
                 if (UtilValidate.isNotEmpty(paymentGatewayOrbital)) {
                     Object paymentGatewayOrbitalField = paymentGatewayOrbital.get(paymentGatewayConfigParameterName);
                     if (UtilValidate.isNotEmpty(paymentGatewayOrbitalField)) {
@@ -340,13 +339,13 @@ public class OrbitalPaymentServices {
                     // sometimes the ccAuthCapture interface is used, in which case the creditCard is passed directly
                      creditCard = (GenericValue) params.get("creditCard");
                     if (creditCard == null || ! (opp.get("paymentMethodId").equals(creditCard.get("paymentMethodId")))) {
-                        creditCard = opp.getRelatedOne("CreditCard", false);
+                        creditCard = opp.getRelatedOne("CreditCard");
                     }
                 }
 
                 request.setFieldValue("AVSname", "Demo Customer");
                 if (UtilValidate.isNotEmpty(creditCard.getString("contactMechId"))) {
-                    GenericValue address = creditCard.getRelatedOne("PostalAddress", false);
+                    GenericValue address = creditCard.getRelatedOne("PostalAddress");
                     if (address != null) {
                         request.setFieldValue("AVSaddress1", UtilFormatOut.checkNull(address.getString("address1")));
                         request.setFieldValue("AVScity", UtilFormatOut.checkNull(address.getString("city")));
@@ -404,7 +403,7 @@ public class OrbitalPaymentServices {
 
             request.setFieldValue("PCDestName", UtilFormatOut.checkNull(creditCard.getString("firstNameOnCard") + creditCard.getString("lastNameOnCard")));
             if (UtilValidate.isNotEmpty(creditCard.getString("contactMechId"))) {
-                GenericValue address = creditCard.getRelatedOne("PostalAddress", false);
+                GenericValue address = creditCard.getRelatedOne("PostalAddress");
                 if (address != null) {
                     request.setFieldValue("PCOrderNum", UtilFormatOut.checkNull(orderId));
                     request.setFieldValue("PCDestAddress1", UtilFormatOut.checkNull(address.getString("address1")));
@@ -631,12 +630,13 @@ public class OrbitalPaymentServices {
     private static String getShippingRefForOrder(String orderId, Delegator delegator) {
         String shippingRef = "";
         try {
-            GenericValue trackingCodeOrder = EntityQuery.use(delegator).from("TrackingCodeOrder").where("orderId", orderId).queryFirst();
+            GenericValue orderHeader = delegator.findOne("OrderHeader", false, UtilMisc.toMap("orderId", orderId));
+            GenericValue trackingCodeOrder = EntityUtil.getFirst(orderHeader.getRelated("TrackingCodeOrder"));
             GenericValue trackingCode = null;
-            if (trackingCodeOrder != null) {
-                trackingCode = trackingCodeOrder.getRelatedOne("TrackingCode", false);
+            if (UtilValidate.isNotEmpty(trackingCodeOrder)) {
+                trackingCode = trackingCodeOrder.getRelatedOne("TrackingCode");
             }
-            if (trackingCode != null && UtilValidate.isNotEmpty(trackingCode.getString("description"))) {
+            if (UtilValidate.isNotEmpty(trackingCode) && UtilValidate.isNotEmpty(trackingCode.getString("description"))) {
                 // get tracking code description and provide it into shipping reference.
                 shippingRef = trackingCode.getString("trackingCodeId") + "====" + trackingCode.getString("description");
             } else {

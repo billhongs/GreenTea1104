@@ -1,4 +1,4 @@
-/*******************************************************************************
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,25 +15,26 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- *******************************************************************************/
+ */
 
-// productList.unique() like distinct sql command, return string type.
+//productList.unique() like distinct sql command, return string type.
 def productUniqueStr = productList.unique();
 def productUniqueStrList = productUniqueStr.toList();
-def googleBaseList = from("GoodIdentification").where("goodIdentificationTypeId", "GOOGLE_ID_" + productStore.defaultLocaleString).queryList();
-// find product is existed in google base.
+def googleBaseList = delegator.findByAnd("GoodIdentification",["goodIdentificationTypeId":"GOOGLE_ID_" + productStore.defaultLocaleString]);
+//find product is existed in google base.
 def notNeededList = productUniqueStrList - googleBaseList.productId;
 def resultList = productUniqueStrList - notNeededList;
+def list = [];
 def productExportList = [];
-// if feed more than 1000 always found an IO error, so should divide to any sections.
+//if feed more than 1000 always found an IO error, so should divide to any sections.
 def amountPerSection = 1000;
 def section = (int)(resultList.size()/amountPerSection);
-if (resultList.size() % amountPerSection != 0) {
+if(resultList.size() % amountPerSection != 0){
 	section = section+1;
 }
 
-for (int i=0; i<section; i++) {
-	if (!(i == (section-1))) {
+for(int i=0; i<section; i++){
+	if(!(i == (section-1))){
 		productExportList.add(resultList.subList((i*amountPerSection), ((i+1)*amountPerSection)));
 	} else {
 		productExportList.add(resultList.subList((i*amountPerSection), resultList.size()));

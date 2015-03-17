@@ -20,9 +20,10 @@ package org.ofbiz.base.util.collections;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
+import javolution.util.FastList;
 
 public abstract class GenericMapCollection<K, V, M extends Map<K, V>, I> implements Collection<I> {
     protected final M source;
@@ -86,7 +87,7 @@ public abstract class GenericMapCollection<K, V, M extends Map<K, V>, I> impleme
     }
 
     public Object[] toArray() {
-        List<I> list = new LinkedList<I>();
+        List<I> list = FastList.newInstance();
         Iterator<I> it = iterator(false);
         while (it.hasNext()) {
             list.add(it.next());
@@ -95,7 +96,7 @@ public abstract class GenericMapCollection<K, V, M extends Map<K, V>, I> impleme
     }
 
     public <T> T[] toArray(T[] array) {
-        List<Object> list = new LinkedList<Object>();
+        List<Object> list = FastList.newInstance();
         Iterator<I> it = iterator(false);
         while (it.hasNext()) {
             list.add(it.next());

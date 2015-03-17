@@ -75,8 +75,7 @@ under the License.
                 <set field="tabButtonItem" value="Calendar"/>
                 <set field="headerItem" value="calendar"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="50"/>
 
                 <entity-condition list="techDataCalendars" entity-name="TechDataCalendar"/>
             </actions>
@@ -101,8 +100,7 @@ under the License.
                 <set field="tabButtonItem" value="CalendarWeek"/>
                 <set field="headerItem" value="calendar"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
-                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="50"/>
 
                 <entity-condition list="calendarWeeks" entity-name="TechDataCalendarWeek"/>
             </actions>

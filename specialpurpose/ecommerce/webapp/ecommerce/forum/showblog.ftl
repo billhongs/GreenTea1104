@@ -23,24 +23,24 @@ under the License.
 <h1>${uiLabelMap.EcommerceFromSite}:</h1><br />
 <div>
 <@renderSiteAncestryPath trail=siteAncestorList?default([])/>
-<#if trailList?? && 1 < trailList?size >
+<#if trailList?exists && 1 < trailList?size >
 <h1>${uiLabelMap.EcommerceFromParentArticle}:</h1><br />
 </#if>
 <#if trailList?has_content>
     <@blog.renderAncestryPath trail=trailList startIndex=1 endIndexOffset=1 />
     <#if 0 < trailList?size >
         <#assign pair=trailList[trailList?size - 1]/>
-        <#assign pair0 = pair[0]!>
-        <#assign pair1 = pair[1]!>
+        <#assign pair0 = pair[0]?if_exists>
+        <#assign pair1 = pair[1]?if_exists>
         <hr />
-        <h1>${uiLabelMap.EcommerceContentFor} ${pair1!}[${pair0!}]:</h1><br />
+        <h1>${uiLabelMap.EcommerceContentFor} ${pair1?if_exists}[${pair0?if_exists}]:</h1><br />
     </#if>
 <#else>
 </#if>
 
-<#assign thisContentId=subContentId!>
+<#assign thisContentId=subContentId?if_exists>
 <#if !thisContentId?has_content>
-    <#assign thisContentId=contentId!>
+    <#assign thisContentId=contentId?if_exists>
 </#if>
 <table border="0" width="100%" class="blogtext">
     <tr>
@@ -50,7 +50,7 @@ under the License.
     </td>
     <td width="40" valign="bottom">
 <@checkPermission subContentId=subContentId targetOperation="CONTENT_CREATE|CONTENT_RESPOND" contentPurposeList="RESPONSE" >
-<a class="tabButton" href="<@ofbizUrl>AddResponse?contentIdTo=${subContentId}&amp;nodeTrailCsv=${nodeTrailCsv!}</@ofbizUrl>" >${uiLabelMap.EcommerceRespond}</a>
+<a class="tabButton" href="<@ofbizUrl>AddResponse?contentIdTo=${subContentId}&amp;nodeTrailCsv=${nodeTrailCsv?if_exists}</@ofbizUrl>" >${uiLabelMap.EcommerceRespond}</a>
 </@checkPermission>
 <br />
 
@@ -60,7 +60,7 @@ under the License.
 
 <#--
 <@checkPermission mode="not-equals" subContentId=subContentId targetOperation="CONTENT_CREATE|CONTENT_RESPOND" contentPurposeList="RESPONSE" >
-            ${permissionErrorMsg!}
+            ${permissionErrorMsg?if_exists}
 </@checkPermission>
 -->
 
@@ -89,18 +89,18 @@ under the License.
             <#assign indentFill = indentFill + "&nbsp;&nbsp;&nbsp;&nbsp;" />
         </#list>
         <#assign thisContentId = ""/>
-        <#if nodeTrailCsv??>
+        <#if nodeTrailCsv?exists>
             <#assign idList = nodeTrailCsv?split(",")/>
             <#if 0 < idList?size >
                 <#assign thisContentId = idList?last>
             </#if>
         </#if>
-        <#if content??>
+        <#if content?exists>
   <tr>
-  <td>
+  <td class="tabletext">
         ${indentFill}
-        <a class="tabButton" href="<@ofbizUrl>ViewBlog?contentId=${thisContentId}&amp;nodeTrailCsv=${nodeTrailCsv!}</@ofbizUrl>" >${uiLabelMap.CommonView}</a>
-                     ${content.contentId!}-${content.description!}<br />
+        <a class="tabButton" href="<@ofbizUrl>ViewBlog?contentId=${thisContentId}&amp;nodeTrailCsv=${nodeTrailCsv?if_exists}</@ofbizUrl>" >${uiLabelMap.CommonView}</a>
+                     ${content.contentId?if_exists}-${content.description?if_exists}<br />
   </td>
   </tr>
         </#if>
@@ -117,11 +117,11 @@ under the License.
 <#-- not used, will be deleted -->
 <#macro getCurrentContent >
     <#assign globalNodeTrail=globalNodeTrail/>
-    <#if globalNodeTrail??>
+    <#if globalNodeTrail?exists>
         <#assign currentNode=globalNodeTrail?last/>
-        <#if currentNode??>
+        <#if currentNode?exists>
             <#assign currentValue=currentNode.value/>
-            <#if currentValue??>
+            <#if currentValue?exists>
                 <@wrapSubContentCache subContentId=currentValue.contentId wrapTemplateId="WRAP_ARTICLE" >
                     <@traverseSubContentCache  contentAssocTypeId="SUB_CONTENT"
                             pickWhen="mapKey != null && mapKey.equals(\"ARTICLE\")"
@@ -130,8 +130,8 @@ under the License.
                             wrapTemplateId=""
                         >
                 <#assign description=currentValue.description?default("No description")/>
-${uiLabelMap.CommonDescription}[${currentValue.contentId!}]:${description}
-<a class="tabButton" href="<@ofbizUrl>ViewBlog?contentId=${thisContentId}&amp;nodeTrailCsv=${nodeTrailCsv!}</@ofbizUrl>" >${uiLabelMap.CommonView}</a>
+${uiLabelMap.CommonDescription}[${currentValue.contentId?if_exists}]:${description}
+<a class="tabButton" href="<@ofbizUrl>ViewBlog?contentId=${thisContentId}&amp;nodeTrailCsv=${nodeTrailCsv?if_exists}</@ofbizUrl>" >${uiLabelMap.CommonView}</a>
                    </@traverseSubContentCache >
                 </@wrapSubContentCache>
             </#if>
@@ -144,15 +144,15 @@ ${uiLabelMap.CommonDescription}[${currentValue.contentId!}]:${description}
     <#assign csv = "">
     <#assign counter = 0>
     <#assign len = trail?size>
-    <table border="0" cellspacing="4">
+    <table border="0" class="tabletext" cellspacing="4">
     <#list trail as webSitePublishPoint>
         <#if counter < len && startIndex <= counter >
        <tr>
          <td >
             ${indent}
-            <a class="tabButton" href="<@ofbizUrl>main?pubPt=${webSitePublishPoint.contentId!}</@ofbizUrl>" >${uiLabelMap.CommonBackTo}</a> &nbsp;${webSitePublishPoint.templateTitle!}
+            <a class="tabButton" href="<@ofbizUrl>main?pubPt=${webSitePublishPoint.contentId?if_exists}</@ofbizUrl>" >${uiLabelMap.CommonBackTo}</a> &nbsp;${webSitePublishPoint.templateTitle?if_exists}
                 <#assign indent = indent + "&nbsp;&nbsp;&nbsp;&nbsp;">
-         [${webSitePublishPoint.contentId!}]</td>
+         [${webSitePublishPoint.contentId?if_exists}]</td>
         </#if>
        </tr>
         <#assign counter = counter + 1>

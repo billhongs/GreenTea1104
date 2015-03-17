@@ -23,6 +23,7 @@ import java.net.URL;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilURL;
+import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.UtilXml;
 import org.ofbiz.base.util.cache.UtilCache;
 import org.w3c.dom.Document;
@@ -34,9 +35,11 @@ import org.w3c.dom.Element;
 public abstract class ResourceLoader {
 
     public static final String module = ResourceLoader.class.getName();
-    private static final UtilCache<String, ResourceLoader> loaderCache = UtilCache.createUtilCache("resource.ResourceLoaders", 0, 0);
-    // This cache is temporary - we will use it until the framework has been refactored to eliminate DOM tree caching, then it can be removed.
-    private static final UtilCache<String, Document> domCache = UtilCache.createUtilCache("resource.DomTrees", 0, 0);
+    protected static UtilCache<String, Object> loaderCache = UtilCache.createUtilCache("resource.ResourceLoaders", 0, 0);
+
+    protected String name;
+    protected String prefix;
+    protected String envName;
 
     public static InputStream loadResource(String xmlFilename, String location, String loaderName) throws GenericConfigException {
         ResourceLoader loader = getLoader(xmlFilename, loaderName);
@@ -55,34 +58,28 @@ public abstract class ResourceLoader {
     }
 
     public static ResourceLoader getLoader(String xmlFilename, String loaderName) throws GenericConfigException {
-        String cacheKey = xmlFilename.concat("#").concat(loaderName);
-        ResourceLoader loader = loaderCache.get(cacheKey);
+        ResourceLoader loader = (ResourceLoader) loaderCache.get(xmlFilename + "::" + loaderName);
+
         if (loader == null) {
-            Element rootElement = null;
-            URL xmlUrl = UtilURL.fromResource(xmlFilename);
-            if (xmlUrl == null) {
-                throw new GenericConfigException("Could not find the " + xmlFilename + " file");
+            synchronized (ResourceLoader.class) {
+                loader = (ResourceLoader) loaderCache.get(xmlFilename + "::" + loaderName);
+                if (loader == null) {
+                    Element rootElement = getXmlRootElement(xmlFilename);
+
+                    Element loaderElement = UtilXml.firstChildElement(rootElement, "resource-loader", "name", loaderName);
+
+                    loader = makeLoader(loaderElement);
+
+                    if (loader != null) {
+                        loaderCache.put(xmlFilename + "::" + loaderName, loader);
+                    }
+                }
             }
-            try {
-                rootElement = UtilXml.readXmlDocument(xmlUrl, true, true).getDocumentElement();
-            } catch (Exception e) {
-                throw new GenericConfigException("Exception thrown while reading " + xmlFilename + ": ", e);
-            }
-            Element loaderElement = UtilXml.firstChildElement(rootElement, "resource-loader", "name", loaderName);
-            if (loaderElement == null) {
-                throw new GenericConfigException("The " + xmlFilename + " file is missing the <resource-loader> element with the name " + loaderName);
-            }
-            if (loaderElement.getAttribute("class").isEmpty()) {
-                throw new GenericConfigException("The " + xmlFilename + " file <resource-loader> element with the name " + loaderName + " is missing the class attribute");
-            }
-            loader = loaderCache.putIfAbsentAndGet(cacheKey, makeLoader(loaderElement));
         }
+
         return loader;
     }
 
-    // This method should be avoided. DOM object trees take a lot of memory and they are not
-    // thread-safe, so they should not be cached.
-    @Deprecated
     public static Element getXmlRootElement(String xmlFilename) throws GenericConfigException {
         Document document = ResourceLoader.getXmlDocument(xmlFilename);
 
@@ -97,59 +94,79 @@ public abstract class ResourceLoader {
         UtilCache.clearCachesThatStartWith(xmlFilename);
     }
 
-    // This method should be avoided. DOM object trees take a lot of memory and they are not
-    // thread-safe, so they should not be cached.
-    @Deprecated
     public static Document getXmlDocument(String xmlFilename) throws GenericConfigException {
-        Document document = domCache.get(xmlFilename);
+        Document document = (Document) loaderCache.get(xmlFilename);
 
         if (document == null) {
-            URL confUrl = UtilURL.fromResource(xmlFilename);
+            synchronized (ResourceLoader.class) {
+                document = (Document) loaderCache.get(xmlFilename);
+                if (document == null) {
+                    URL confUrl = UtilURL.fromResource(xmlFilename);
 
-            if (confUrl == null) {
-                throw new GenericConfigException("ERROR: could not find the [" + xmlFilename + "] XML file on the classpath");
-            }
+                    if (confUrl == null) {
+                        throw new GenericConfigException("ERROR: could not find the [" + xmlFilename + "] XML file on the classpath");
+                    }
 
-            try {
-                document = UtilXml.readXmlDocument(confUrl, true, true);
-            } catch (org.xml.sax.SAXException e) {
-                throw new GenericConfigException("Error reading " + xmlFilename + "", e);
-            } catch (javax.xml.parsers.ParserConfigurationException e) {
-                throw new GenericConfigException("Error reading " + xmlFilename + "", e);
-            } catch (java.io.IOException e) {
-                throw new GenericConfigException("Error reading " + xmlFilename + "", e);
-            }
+                    try {
+                        document = UtilXml.readXmlDocument(confUrl);
+                    } catch (org.xml.sax.SAXException e) {
+                        throw new GenericConfigException("Error reading " + xmlFilename + "", e);
+                    } catch (javax.xml.parsers.ParserConfigurationException e) {
+                        throw new GenericConfigException("Error reading " + xmlFilename + "", e);
+                    } catch (java.io.IOException e) {
+                        throw new GenericConfigException("Error reading " + xmlFilename + "", e);
+                    }
 
-            if (document != null) {
-                document = (Document) domCache.putIfAbsentAndGet(xmlFilename, document);
+                    if (document != null) {
+                        loaderCache.put(xmlFilename, document);
+                    }
+                }
             }
         }
         return document;
     }
 
-    private static ResourceLoader makeLoader(Element loaderElement) throws GenericConfigException {
+    public static ResourceLoader makeLoader(Element loaderElement) throws GenericConfigException {
+        if (loaderElement == null)
+            return null;
+
         String loaderName = loaderElement.getAttribute("name");
         String className = loaderElement.getAttribute("class");
         ResourceLoader loader = null;
+
         try {
             Class<?> lClass = null;
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-            lClass = classLoader.loadClass(className);
-            loader = (ResourceLoader) lClass.newInstance();
-            loader.init(loaderName, loaderElement.getAttribute("prefix"), loaderElement.getAttribute("prepend-env"));
-            return loader;
-        } catch (Exception e) {
-            throw new GenericConfigException("Exception thrown while loading ResourceLoader class \"" + className + "\" ", e);
-        }
-    }
 
-    private String name;
-    private String prefix;
-    private String envName;
+            if (UtilValidate.isNotEmpty(className)) {
+                try {
+                    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+                    lClass = classLoader.loadClass(className);
+                } catch (ClassNotFoundException e) {
+                    throw new GenericConfigException("Error loading Resource Loader class \"" + className + "\"", e);
+                }
+            }
+
+            try {
+                loader = (ResourceLoader) lClass.newInstance();
+            } catch (IllegalAccessException e) {
+                throw new GenericConfigException("Error loading Resource Loader class \"" + className + "\"", e);
+            } catch (InstantiationException e) {
+                throw new GenericConfigException("Error loading Resource Loader class \"" + className + "\"", e);
+            }
+        } catch (SecurityException e) {
+            throw new GenericConfigException("Error loading Resource Loader class \"" + className + "\"", e);
+        }
+
+        if (loader != null) {
+            loader.init(loaderName, loaderElement.getAttribute("prefix"), loaderElement.getAttribute("prepend-env"));
+        }
+
+        return loader;
+    }
 
     protected ResourceLoader() {}
 
-    private void init(String name, String prefix, String envName) {
+    public void init(String name, String prefix, String envName) {
         this.name = name;
         this.prefix = prefix;
         this.envName = envName;
@@ -162,7 +179,8 @@ public abstract class ResourceLoader {
      */
     public String fullLocation(String location) {
         StringBuilder buf = new StringBuilder();
-        if (!envName.isEmpty()) {
+
+        if (UtilValidate.isNotEmpty(envName)) {
             String propValue = System.getProperty(envName);
             if (propValue == null) {
                 String errMsg = "The Java environment (-Dxxx=yyy) variable with name " + envName + " is not set, cannot load resource.";
@@ -171,7 +189,9 @@ public abstract class ResourceLoader {
             }
             buf.append(propValue);
         }
-        buf.append(prefix);
+        if (UtilValidate.isNotEmpty(prefix)) {
+            buf.append(prefix);
+        }
         buf.append(location);
         return buf.toString();
     }

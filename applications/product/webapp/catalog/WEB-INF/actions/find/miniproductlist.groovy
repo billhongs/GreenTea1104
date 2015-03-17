@@ -42,7 +42,7 @@ if (isOpen) {
     paramInMap.checkViewAllow = false;
 
     // Returns: viewIndex, viewSize, lowIndex, highIndex, listSize, productCategory, productCategoryMembers
-    outMap = runService('getProductCategoryAndLimitedMembers', paramInMap);
+    outMap = dispatcher.runSync("getProductCategoryAndLimitedMembers", paramInMap);
     context.viewIndex = outMap.viewIndex;
     context.viewSize = outMap.viewSize;
     context.lowIndex = outMap.lowIndex;

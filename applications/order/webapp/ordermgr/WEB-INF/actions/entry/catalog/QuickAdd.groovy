@@ -39,12 +39,12 @@ context.categoryId = categoryId;
 if (categoryId) {
     fields = [productCategoryId : categoryId, defaultViewSize : 10,
             limitView : false, prodCatalogId : currentCatalogId, checkViewAllow : true];
-    result = runService('getProductCategoryAndLimitedMembers', fields);
+    result = dispatcher.runSync("getProductCategoryAndLimitedMembers", fields);
     if (result) {
         result.each { key, value ->
             context[key] = value;
         }
     }
-    productCategory = from("ProductCategory").where("productCategoryId", categoryId).queryOne();
+    productCategory = delegator.findByPrimaryKey("ProductCategory", ["productCategoryId" : categoryId]);
     context.productCategory = productCategory;
 }

@@ -38,7 +38,6 @@ under the License.
         <attribute name="quantity" type="BigDecimal" mode="IN" optional="true"/>
         <attribute name="amount" type="BigDecimal" mode="IN" optional="true"/>
         <attribute name="currencyUomId" type="String" mode="IN" optional="true"/>
-        <attribute name="currencyUomIdTo" type="String" mode="IN" optional="true"/>
         <attribute name="productPricePurposeId" type="String" mode="IN" optional="true"><!-- defaults to PURCHASE --></attribute>
         <attribute name="termUomId" type="String" mode="IN" optional="true"><!-- if specified ProductPrice records will be filtered by this, ensures for purposes like recurring prices that only the recurring term desired is taken into consideration --></attribute>
         <attribute name="autoUserLogin" type="org.ofbiz.entity.GenericValue" mode="IN" optional="true"/>
@@ -138,7 +137,7 @@ under the License.
             <exclude field-name="lastModifiedByUserLogin"/>
         </auto-attributes>
         <override name="promoName" optional="false"/>
-        <override name="promoText" allow-html="any"/>
+        <override name="promoText" allow-html="safe"/>
     </service>
     <service name="updateProductPromo" default-entity-name="ProductPromo" engine="simple"
                 location="component://product/script/org/ofbiz/product/promo/PromoServices.xml" invoke="updateProductPromo" auth="true">
@@ -150,7 +149,7 @@ under the License.
             <exclude field-name="lastModifiedDate"/>
             <exclude field-name="lastModifiedByUserLogin"/>
         </auto-attributes>
-        <override name="promoText" allow-html="any"/>
+        <override name="promoText" allow-html="safe"/>
     </service>
     <service name="deleteProductPromo" default-entity-name="ProductPromo" engine="simple"
                 location="component://product/script/org/ofbiz/product/promo/PromoServices.xml" invoke="deleteProductPromo" auth="true">
@@ -270,8 +269,6 @@ under the License.
             <exclude field-name="lastModifiedByUserLogin"/>
         </auto-attributes>
         <attribute name="quantity" type="Long" mode="IN" optional="false"/>
-        <attribute name="codeLength" type="Integer" mode="IN" optional="true" default-value="8"/>
-        <attribute name="promoCodeLayout" type="String" mode="IN" optional="true" default-value="sequence"/>
     </service>
 
     <service name="createProductPromoCond" default-entity-name="ProductPromoCond" engine="simple"

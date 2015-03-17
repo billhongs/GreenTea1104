@@ -19,86 +19,87 @@
 package org.ofbiz.minilang.method.entityops;
 
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.minilang.MiniLangException;
-import org.ofbiz.minilang.MiniLangRuntimeException;
-import org.ofbiz.minilang.MiniLangValidate;
 import org.ofbiz.minilang.SimpleMethod;
-import org.ofbiz.minilang.artifact.ArtifactInfoContext;
+import org.ofbiz.minilang.method.ContextAccessor;
 import org.ofbiz.minilang.method.MethodContext;
 import org.ofbiz.minilang.method.MethodOperation;
 import org.w3c.dom.Element;
 
 /**
- * Implements the &lt;remove-related&gt; element.
- * 
- * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cremoverelated%3E}}">Mini-language Reference</a>
+ * Uses the delegator to remove entities related to the specified value object from the datasource
  */
-public final class RemoveRelated extends MethodOperation {
+public class RemoveRelated extends MethodOperation {
+    public static final class RemoveRelatedFactory implements Factory<RemoveRelated> {
+        public RemoveRelated createMethodOperation(Element element, SimpleMethod simpleMethod) {
+            return new RemoveRelated(element, simpleMethod);
+        }
+
+        public String getName() {
+            return "remove-related";
+        }
+    }
 
     public static final String module = RemoveRelated.class.getName();
-    private final FlexibleStringExpander relationNameFse;
-    private final FlexibleMapAccessor<GenericValue> valueFma;
 
-    public RemoveRelated(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+    ContextAccessor<GenericValue> valueAcsr;
+    String relationName;
+    String doCacheClearStr;
+
+    public RemoveRelated(Element element, SimpleMethod simpleMethod) {
         super(element, simpleMethod);
-        if (MiniLangValidate.validationOn()) {
-            MiniLangValidate.attributeNames(simpleMethod, element, "value-field", "relation-name", "do-cache-clear");
-            MiniLangValidate.requiredAttributes(simpleMethod, element, "value-field", "relation-name");
-            MiniLangValidate.expressionAttributes(simpleMethod, element, "value-field");
-            MiniLangValidate.noChildElements(simpleMethod, element);
-        }
-        valueFma = FlexibleMapAccessor.getInstance(element.getAttribute("value-field"));
-        relationNameFse = FlexibleStringExpander.getInstance(element.getAttribute("relation-name"));
+        valueAcsr = new ContextAccessor<GenericValue>(element.getAttribute("value-field"), element.getAttribute("value-name"));
+        relationName = element.getAttribute("relation-name");
+        doCacheClearStr = element.getAttribute("do-cache-clear");
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) throws MiniLangException {
-        GenericValue value = valueFma.get(methodContext.getEnvMap());
+    public boolean exec(MethodContext methodContext) {
+        boolean doCacheClear = !"false".equals(doCacheClearStr);
+        String relationName = methodContext.expandString(this.relationName);
+
+        GenericValue value = valueAcsr.get(methodContext);
         if (value == null) {
-            throw new MiniLangRuntimeException("Entity value not found with name: " + valueFma, this);
+            String errMsg = "In remove-related a value was not found with the specified valueAcsr: " + valueAcsr + ", not removing related";
+
+            Debug.logWarning(errMsg, module);
+            if (methodContext.getMethodType() == MethodContext.EVENT) {
+                methodContext.putEnv(simpleMethod.getEventErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getEventResponseCodeName(), simpleMethod.getDefaultErrorCode());
+            } else if (methodContext.getMethodType() == MethodContext.SERVICE) {
+                methodContext.putEnv(simpleMethod.getServiceErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getServiceResponseMessageName(), simpleMethod.getDefaultErrorCode());
+            }
+            return false;
         }
-        String relationName = relationNameFse.expandString(methodContext.getEnvMap());
+
         try {
-            value.getDelegator().removeRelated(relationName, value);
+            methodContext.getDelegator().removeRelated(relationName, value, doCacheClear);
         } catch (GenericEntityException e) {
-            String errMsg = "Exception thrown while removing related entities: " + e.getMessage();
-            Debug.logWarning(e, errMsg, module);
-            simpleMethod.addErrorMessage(methodContext, errMsg);
+            Debug.logError(e, module);
+            String errMsg = "ERROR: Could not complete the " + simpleMethod.getShortDescription() + " process [problem removing the relation " + relationName + " of the value " + valueAcsr + " value: " + e.getMessage() + "]";
+
+            if (methodContext.getMethodType() == MethodContext.EVENT) {
+                methodContext.putEnv(simpleMethod.getEventErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getEventResponseCodeName(), simpleMethod.getDefaultErrorCode());
+            } else if (methodContext.getMethodType() == MethodContext.SERVICE) {
+                methodContext.putEnv(simpleMethod.getServiceErrorMessageName(), errMsg);
+                methodContext.putEnv(simpleMethod.getServiceResponseMessageName(), simpleMethod.getDefaultErrorCode());
+            }
             return false;
         }
         return true;
     }
 
     @Override
-    public void gatherArtifactInfo(ArtifactInfoContext aic) {
-        aic.addEntityName(relationNameFse.toString());
+    public String rawString() {
+        // TODO: something more than the empty tag
+        return "<remove-related/>";
     }
-
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("<remove-related ");
-        sb.append("value-field=\"").append(this.valueFma).append("\" ");
-        sb.append("relation-name=\"").append(this.relationNameFse).append("\" ");
-        sb.append("/>");
-        return sb.toString();
-    }
-
-    /**
-     * A factory for the &lt;remove-related&gt; element.
-     */
-    public static final class RemoveRelatedFactory implements Factory<RemoveRelated> {
-        @Override
-        public RemoveRelated createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
-            return new RemoveRelated(element, simpleMethod);
-        }
-
-        @Override
-        public String getName() {
-            return "remove-related";
-        }
+    public String expandedString(MethodContext methodContext) {
+        // TODO: something more than a stub/dummy
+        return this.rawString();
     }
 }

@@ -27,15 +27,12 @@ import org.ofbiz.entity.*;
 import org.ofbiz.product.catalog.*;
 import org.ofbiz.product.category.CategoryWorker;
 import org.ofbiz.product.category.CategoryContentWrapper;
-import org.ofbiz.product.store.ProductStoreWorker;
 
 detailScreen = "categorydetail";
 catalogName = CatalogWorker.getCatalogName(request);
 
 productCategoryId = request.getAttribute("productCategoryId") ?: parameters.category_id;
 context.productCategoryId = productCategoryId;
-
-context.productStore = ProductStoreWorker.getProductStore(request);
 
 pageTitle = null;
 metaDescription = null;
@@ -60,22 +57,22 @@ if (productCategoryId) {
 }
  */
 
-category = from("ProductCategory").where("productCategoryId", productCategoryId).cache(true).queryOne();
+category = delegator.findByPrimaryKeyCache("ProductCategory", [productCategoryId : productCategoryId]);
 if (category) {
     if (category.detailScreen) {
         detailScreen = category.detailScreen;
     }
-    categoryPageTitle = from("ProductCategoryContentAndInfo").where("productCategoryId", productCategoryId, "prodCatContentTypeId", "PAGE_TITLE").cache(true).queryList();
+    categoryPageTitle = delegator.findByAndCache("ProductCategoryContentAndInfo", [productCategoryId : productCategoryId, prodCatContentTypeId : "PAGE_TITLE"]);
     if (categoryPageTitle) {
-        pageTitle = from("ElectronicText").where("dataResourceId", categoryPageTitle.get(0).dataResourceId).cache(true).queryOne();
+        pageTitle = delegator.findByPrimaryKeyCache("ElectronicText", [dataResourceId : categoryPageTitle.get(0).dataResourceId]);
     }
-    categoryMetaDescription = from("ProductCategoryContentAndInfo").where("productCategoryId", productCategoryId, "prodCatContentTypeId", "META_DESCRIPTION").cache(true).queryList();
+    categoryMetaDescription = delegator.findByAndCache("ProductCategoryContentAndInfo", [productCategoryId : productCategoryId, prodCatContentTypeId : "META_DESCRIPTION"]);
     if (categoryMetaDescription) {
-        metaDescription = from("ElectronicText").where("dataResourceId", categoryMetaDescription.get(0).dataResourceId).cache(true).queryOne();
+        metaDescription = delegator.findByPrimaryKeyCache("ElectronicText", [dataResourceId : categoryMetaDescription.get(0).dataResourceId]);
     }
-    categoryMetaKeywords = from("ProductCategoryContentAndInfo").where("productCategoryId", productCategoryId, "prodCatContentTypeId", "META_KEYWORD").cache(true).queryList();
+    categoryMetaKeywords = delegator.findByAndCache("ProductCategoryContentAndInfo", [productCategoryId : productCategoryId, prodCatContentTypeId : "META_KEYWORD"]);
     if (categoryMetaKeywords) {
-        metaKeywords = from("ElectronicText").where("dataResourceId", categoryMetaKeywords.get(0).dataResourceId).cache(true).queryOne();
+        metaKeywords = delegator.findByPrimaryKeyCache("ElectronicText", [dataResourceId : categoryMetaKeywords.get(0).dataResourceId]);
     }
     categoryContentWrapper = new CategoryContentWrapper(category, request);
     

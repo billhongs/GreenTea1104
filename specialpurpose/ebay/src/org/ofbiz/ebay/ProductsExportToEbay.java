@@ -34,7 +34,6 @@ import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.StringUtil;
-import org.ofbiz.base.util.UtilCodec;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilProperties;
@@ -44,9 +43,7 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ModelService;
 import org.ofbiz.service.ServiceUtil;
@@ -73,10 +70,10 @@ public class ProductsExportToEbay {
         Map<String, Object> response = null;
         try {
             List<String> selectResult = UtilGenerics.checkList(context.get("selectResult"), String.class);
-            List<GenericValue> productsList  = EntityQuery.use(delegator).from("Product").where(EntityCondition.makeCondition("productId", EntityOperator.IN, selectResult)).queryList();
+            List<GenericValue> productsList  = delegator.findList("Product", EntityCondition.makeCondition("productId", EntityOperator.IN, selectResult), null, null, null, false);
             if (UtilValidate.isNotEmpty(productsList)) {
                 for (GenericValue product : productsList) {
-                    GenericValue startPriceValue = EntityUtil.getFirst(EntityUtil.filterByDate(product.getRelated("ProductPrice", UtilMisc.toMap("productPricePurposeId", "EBAY", "productPriceTypeId", "MINIMUM_PRICE"), null, false)));
+                    GenericValue startPriceValue = EntityUtil.getFirst(EntityUtil.filterByDate(product.getRelatedByAnd("ProductPrice", UtilMisc.toMap("productPricePurposeId", "EBAY", "productPriceTypeId", "MINIMUM_PRICE"))));
                     if (UtilValidate.isEmpty(startPriceValue)) {
                         String startPriceMissingMsg = "Unable to find a starting price for auction of product with id (" + product.getString("productId") + "), So Ignoring the export of this product to eBay.";
                         productExportFailureMessageList.add(startPriceMissingMsg);
@@ -180,7 +177,7 @@ public class ProductsExportToEbay {
             Delegator delegator = dctx.getDelegator();
             String webSiteUrl = (String)context.get("webSiteUrl");
 
-            UtilCodec.SimpleEncoder encoder = UtilCodec.getEncoder("xml");
+            StringUtil.SimpleEncoder encoder = StringUtil.getEncoder("xml");
 
             // Get the list of products to be exported to eBay
             try {
@@ -208,7 +205,7 @@ public class ProductsExportToEbay {
                 String startPrice = (String)context.get("startPrice");
                 String startPriceCurrencyUomId = null;
                 if (UtilValidate.isEmpty(startPrice)) {
-                    GenericValue startPriceValue = EntityUtil.getFirst(EntityUtil.filterByDate(prod.getRelated("ProductPrice", UtilMisc.toMap("productPricePurposeId", "EBAY", "productPriceTypeId", "MINIMUM_PRICE"), null, false)));
+                    GenericValue startPriceValue = EntityUtil.getFirst(EntityUtil.filterByDate(prod.getRelatedByAnd("ProductPrice", UtilMisc.toMap("productPricePurposeId", "EBAY", "productPriceTypeId", "MINIMUM_PRICE"))));
                     if (UtilValidate.isNotEmpty(startPriceValue)) {
                         startPrice = startPriceValue.getString("price");
                         startPriceCurrencyUomId = startPriceValue.getString("currencyUomId");
@@ -219,7 +216,7 @@ public class ProductsExportToEbay {
                 String buyItNowPrice = (String)context.get("buyItNowPrice");
                 String buyItNowCurrencyUomId = null;
                 if (UtilValidate.isEmpty(buyItNowPrice)) {
-                    GenericValue buyItNowPriceValue = EntityUtil.getFirst(EntityUtil.filterByDate(prod.getRelated("ProductPrice", UtilMisc.toMap("productPricePurposeId", "EBAY", "productPriceTypeId", "MAXIMUM_PRICE"), null, false)));
+                    GenericValue buyItNowPriceValue = EntityUtil.getFirst(EntityUtil.filterByDate(prod.getRelatedByAnd("ProductPrice", UtilMisc.toMap("productPricePurposeId", "EBAY", "productPriceTypeId", "MAXIMUM_PRICE"))));
                     if (UtilValidate.isNotEmpty(buyItNowPriceValue)) {
                         buyItNowPrice = buyItNowPriceValue.getString("price");
                         buyItNowCurrencyUomId = buyItNowPriceValue.getString("currencyUomId");
@@ -247,19 +244,19 @@ public class ProductsExportToEbay {
                 if (listingFormat.equals("FixedPriceItem")) {
                     Element startPriceElem = UtilXml.addChildElementValue(itemElem, "StartPrice", startPrice, itemDocument);
                     if (UtilValidate.isEmpty(startPriceCurrencyUomId)) {
-                        startPriceCurrencyUomId = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+                        startPriceCurrencyUomId = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
                     }
                     startPriceElem.setAttribute("currencyID", startPriceCurrencyUomId);
                 }else{
                     Element startPriceElem = UtilXml.addChildElementValue(itemElem, "StartPrice", startPrice, itemDocument);
                     if (UtilValidate.isEmpty(startPriceCurrencyUomId)) {
-                        startPriceCurrencyUomId = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+                        startPriceCurrencyUomId = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
                     }
                     startPriceElem.setAttribute("currencyID", startPriceCurrencyUomId);
                     if (UtilValidate.isNotEmpty(buyItNowPrice)) {
                         Element buyNowPriceElem = UtilXml.addChildElementValue(itemElem, "BuyItNowPrice", buyItNowPrice, itemDocument);
                     if (UtilValidate.isEmpty(buyItNowCurrencyUomId)) {
-                        buyItNowCurrencyUomId = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
+                        buyItNowCurrencyUomId = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
                     }
                     buyNowPriceElem.setAttribute("currencyID", buyItNowCurrencyUomId);
                     }
@@ -304,10 +301,7 @@ public class ProductsExportToEbay {
                         primaryCategoryId = categoryCode;
                     }
                 } else {
-                    GenericValue productCategoryValue = EntityQuery.use(delegator).from("ProductCategoryAndMember")
-                            .where("productCategoryTypeId", "EBAY_CATEGORY", "productId", prod.getString("productId"))
-                            .filterByDate()
-                            .queryFirst();
+                    GenericValue productCategoryValue = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("ProductCategoryAndMember", UtilMisc.toMap("productCategoryTypeId", "EBAY_CATEGORY", "productId", prod.getString("productId")))));
                     if (UtilValidate.isNotEmpty(productCategoryValue)) {
                         primaryCategoryId = productCategoryValue.getString("categoryName");
                     }
@@ -493,7 +487,7 @@ public class ProductsExportToEbay {
         if (UtilValidate.isNotEmpty(customXmlFromUI)) {
             customXml = customXmlFromUI;
         } else {
-            customXml = EntityUtilProperties.getPropertyValue(configFileName, "eBayExport.customXml", delegator);
+            customXml = UtilProperties.getPropertyValue(configFileName, "eBayExport.customXml");
         }
         if (UtilValidate.isNotEmpty(customXml)) {
             Document customXmlDoc = UtilXml.readXmlDocument(customXml);

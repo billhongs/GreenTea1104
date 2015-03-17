@@ -25,26 +25,27 @@ import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.order.order.OrderContentWrapper;
 
 if (productCategoryIdPar) {
-    category = from("ProductCategory").where("productCategoryId", productCategoryIdPar).queryOne();
+    category = delegator.findByPrimaryKey("ProductCategory", [productCategoryId : productCategoryIdPar]);
     context.category = category;
 }
 if (productFeatureTypeIdPar) {
-    featureType = from("ProductFeatureType").where("productFeatureTypeId", productFeatureTypeIdPar).queryOne();
+    featureType = delegator.findByPrimaryKey("ProductFeatureType", [productFeatureTypeId : productFeatureTypeIdPar]);
     context.featureType = featureType;
 }
-packageContents = from("ShipmentPackageContent").where("shipmentId", shipmentId).queryList();
+packageContents = delegator.findByAnd("ShipmentPackageContent", [shipmentId : shipmentId]);
 
 packagesMap = [:];
 if (packageContents) {
     packageContents.each { packageContent ->
-        orderShipment = from("OrderShipment").where("shipmentId", shipmentId, "shipmentItemSeqId", packageContent.shipmentItemSeqId).queryFirst();
-        orderItem = from("OrderItem").where("orderId", orderShipment.orderId, "orderItemSeqId", orderShipment.orderItemSeqId).queryOne();
-        product = orderItem.getRelatedOne("Product", false);
+        orderShipments = delegator.findByAnd("OrderShipment", [shipmentId : shipmentId, shipmentItemSeqId : packageContent.shipmentItemSeqId]);
+        orderShipment = EntityUtil.getFirst(orderShipments);
+        orderItem = delegator.findByPrimaryKey("OrderItem", [orderId : orderShipment.orderId, orderItemSeqId : orderShipment.orderItemSeqId]);
+        product = orderItem.getRelatedOne("Product");
         // verify if the product is a member of the given category (based on the report's parameter)
         if (productCategoryIdPar) {
             if (!isProductInCategory(delegator, product.productId, productCategoryIdPar)) {
                 // the production run's product is not a member of the given category, skip it
-                return;
+                continue;
             }
         }
 

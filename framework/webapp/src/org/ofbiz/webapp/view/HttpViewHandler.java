@@ -35,7 +35,10 @@ public class HttpViewHandler extends AbstractViewHandler {
 
     public static final String module = HttpViewHandler.class.getName();
 
+    protected ServletContext context;
+
     public void init(ServletContext context) throws ViewHandlerException {
+        this.context = context;
     }
 
     public void render(String name, String page, String info, String contentType, String encoding, HttpServletRequest request, HttpServletResponse response) throws ViewHandlerException {

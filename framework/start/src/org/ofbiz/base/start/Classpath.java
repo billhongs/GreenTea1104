@@ -59,8 +59,6 @@ public class Classpath {
                         _elements.add(key);
                         return true;
                     }
-                } else {
-                    System.out.println("Warning : Module classpath component '" + component + "' is not valid and will be ignored...");
                 }
             } catch (IOException e) {}
         }

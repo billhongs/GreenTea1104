@@ -19,7 +19,7 @@
 package org.ofbiz.minilang;
 
 /**
- * Thrown to indicate a Mini-language error.
+ * MiniLangException
  */
 @SuppressWarnings("serial")
 public class MiniLangException extends org.ofbiz.base.util.GeneralException {
@@ -34,9 +34,5 @@ public class MiniLangException extends org.ofbiz.base.util.GeneralException {
 
     public MiniLangException(String str, Throwable nested) {
         super(str, nested);
-    }
-
-    public MiniLangException(Throwable nested) {
-        super(nested);
     }
 }

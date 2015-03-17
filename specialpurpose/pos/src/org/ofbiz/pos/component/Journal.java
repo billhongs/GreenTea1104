@@ -32,7 +32,6 @@ import net.xoetrope.xui.style.XStyle;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilProperties;
-import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.pos.PosTransaction;
 import org.ofbiz.pos.screen.PosScreen;
 
@@ -87,12 +86,8 @@ public class Journal {
             jtable.setModel(jmodel);
 
             for (int i = 0; i < width.length; i++) {
-                if (defaultLocale.getLanguage().equals("ar")) {
-                    jtable.setColWidth(width.length - i - 1, width[i]);
-                } else {
                 jtable.setColWidth(i, width[i]);
             }
-        }
         }
         jtable.setSelectedRow(0);
     }
@@ -140,7 +135,7 @@ public class Journal {
 
         PosTransaction tx = PosTransaction.getCurrentTx(pos.getSession());
         XModel jmodel = this.createModel();
-        if (UtilValidate.isNotEmpty(tx)) {
+        if (tx != null && !tx.isEmpty()) {
             tx.appendItemDataModel(jmodel);
             this.appendEmpty(jmodel);
             tx.appendTotalDataModel(jmodel);
@@ -176,33 +171,26 @@ public class Journal {
         }
         jmodel.setTagName("table");
         // create the header
-        XModel headerNode = appendNode(new JournalLineParams(jmodel, "th", "header", ""));
-        if (defaultLocale.getLanguage().equals("ar")) {
-            for (int i = field.length - 1; i >= 0; i--) {
-                appendNode(new JournalLineParams(headerNode, "td", field[i], UtilProperties.getMessage(PosTransaction.resource, name[i], defaultLocale)));
-            }
-        } else {
+        XModel headerNode = appendNode(jmodel, "th", "header", "");
         for (int i = 0 ; i < field.length; i++) {
-                appendNode(new JournalLineParams(headerNode, "td", field[i], UtilProperties.getMessage(PosTransaction.resource, name[i], defaultLocale)));
-        }
+            appendNode(headerNode, "td", field[i],UtilProperties.getMessage(PosTransaction.resource,name[i],defaultLocale));
         }
 
         return jmodel;
     }
 
     private void appendEmpty(XModel jmodel) {
-        XModel headerNode = appendNode(new JournalLineParams(jmodel, "tr", "emptyrow", ""));
+        XModel headerNode = appendNode(jmodel, "tr", "emptyrow", "");
         for (int i = 0 ; i < field.length; i++) {
-            appendNode(new JournalLineParams(headerNode, "td", field[i], ""));
+            appendNode(headerNode, "td", field[i], "");
         }
     }
 
-    public static XModel appendNode(JournalLineParams journalLineParams) {
-        XModel newNode = (XModel) journalLineParams.getNode().append(journalLineParams.getName());
-        newNode.setTagName(journalLineParams.getTag());
-
-        if (journalLineParams.getValue() != null) {
-            newNode.set(journalLineParams.getValue());
+    public static XModel appendNode(XModel node, String tag, String name, String value) {
+        XModel newNode = (XModel) node.append(name);
+        newNode.setTagName(tag);
+        if (value != null) {
+            newNode.set(value);
         }
         return newNode;
     }

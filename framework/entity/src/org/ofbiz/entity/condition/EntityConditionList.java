@@ -19,7 +19,8 @@
 package org.ofbiz.entity.condition;
 
 import java.util.Iterator;
-import java.util.List;
+
+import javolution.context.ObjectFactory;
 
 /**
  * Encapsulates a list of EntityConditions to be used as a single EntityCondition combined as specified
@@ -27,8 +28,17 @@ import java.util.List;
  */
 @SuppressWarnings("serial")
 public class EntityConditionList<T extends EntityCondition> extends EntityConditionListBase<T> {
-    public EntityConditionList(List<T> conditionList, EntityJoinOperator operator) {
-        super(conditionList, operator);
+    public static final String module = EntityConditionList.class.getName();
+
+    protected static final ObjectFactory<EntityConditionList<EntityCondition>> entityConditionListFactory = new ObjectFactory<EntityConditionList<EntityCondition>>() {
+        @Override
+        protected EntityConditionList<EntityCondition> create() {
+            return new EntityConditionList<EntityCondition>();
+        }
+    };
+
+    protected EntityConditionList() {
+        super();
     }
 
     @Override

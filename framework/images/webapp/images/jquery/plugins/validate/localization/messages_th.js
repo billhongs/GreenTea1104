@@ -1,6 +1,6 @@
 /*
  * Translated default messages for the jQuery validation plugin.
- * Locale: TH (Thai; ไทย)
+ * Locale: TH (Thai)
  */
 jQuery.extend(jQuery.validator.messages, {
 	required: "โปรดระบุ",

@@ -23,12 +23,13 @@ partyId = parameters.partyId ? parameters.partyId : userLogin.partyId ;
 
 if (partyId) {
     // get the system user
-    system = from("UserLogin").where("userLoginId", "system").queryOne();
+    system = delegator.findByPrimaryKey("UserLogin", [userLoginId : "system"]);
 
     monthsToInclude = 12;
 
-    Map result = runService('getOrderedSummaryInformation', ["partyId": partyId, "roleTypeId": "PLACING_CUSTOMER", "orderTypeId": "SALES_ORDER",
-            "statusId": "ORDER_COMPLETED", "monthsToInclude": monthsToInclude, "userLogin": system]);
+    Map serviceIn = UtilMisc.toMap("partyId", partyId, "roleTypeId", "PLACING_CUSTOMER", "orderTypeId", "SALES_ORDER",
+            "statusId", "ORDER_COMPLETED", "monthsToInclude", monthsToInclude, "userLogin", system);
+    Map result = dispatcher.runSync("getOrderedSummaryInformation", serviceIn);
 
     context.monthsToInclude = monthsToInclude;
     context.totalSubRemainingAmount = result.totalSubRemainingAmount;

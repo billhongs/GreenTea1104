@@ -23,11 +23,11 @@ under the License.
 </#if>
 <#assign viewIdx = "" />
 <#if requestParameters.viewIndex?has_content>
-<#assign viewIdx = requestParameters.viewIndex! />
+<#assign viewIdx = requestParameters.viewIndex?if_exists />
 </#if>
 <#assign viewSz = "" />
 <#if requestParameters.viewSize?has_content>
-<#assign viewSz = requestParameters.viewSize! />
+<#assign viewSz = requestParameters.viewSize?if_exists />
 </#if>
 
 <#assign sz=0/>
@@ -36,50 +36,50 @@ under the License.
     pickWhen="purposes.contains(\"ARTICLE\") && \"CTNT_PUBLISHED\".equals(content.get(\"statusId\"))"
     returnAfterPickWhen="purposes.contains(\"ARTICLE\")"
     followWhen="contentAssocTypeId != null && contentAssocTypeId.equals(\"never follow\")">
-  <#assign thisNodeTrailCsv=nodeTrailCsv!/>
-  <#assign thisSubContentId=subContentId!/>
+  <#assign thisNodeTrailCsv=nodeTrailCsv?if_exists/>
+  <#assign thisSubContentId=subContentId?if_exists/>
   <#assign thisNode=globalNodeTrail?last/>
   <#if thisNode?has_content>
-  <#assign thisOwnerContentId=thisNode.value.ownerContentId!/>
+  <#assign thisOwnerContentId=thisNode.value.ownerContentId?if_exists/>
   </#if>
 
   <#assign userLoginId=""/>
   <#if content?has_content && content.createdByUserLogin?has_content>
       <#assign userLoginId=content.createdByUserLogin/>
   </#if>
-  <#assign authorName=Static["org.ofbiz.content.ContentManagementWorker"].getUserName(request,userLoginId!)/>
+  <#assign authorName=Static["org.ofbiz.content.ContentManagementWorker"].getUserName(request,userLoginId?if_exists)/>
 
   <tr>
     <td width="40px">&nbsp;</td>
     <td class="blogtext" >
-      <div>
-        by:<#if authorName?has_content>${authorName!}
+      <div class="tabletext">
+        by:<#if authorName?has_content>${authorName?if_exists}
         <#else>
-        <#if content?has_content>${content.createdByUserLogin!}</#if>
+        <#if content?has_content>${content.createdByUserLogin?if_exists}</#if>
         </#if>
   &nbsp;
-        <#if thisNode?? && thisNode.fromDate??>
+        <#if thisNode?exists && thisNode.fromDate?exists>
           <#assign nowTime = thisNode.fromDate?string />
           <#assign shortTime = ""/>
           <#if nowTime?has_content>
               <#assign lastColon=nowTime?last_index_of(":") - 1/>
               <#assign shortTime=nowTime[0..lastColon]/>
           </#if>
-          ${shortTime!}
+          ${shortTime?if_exists}
         </#if>
       </div>
     </td>
-    <td >
-        <#if content?has_content>${content.contentName!}</#if>
+    <td class="tabletext" >
+        <#if content?has_content>${content.contentName?if_exists}</#if>
         --
-        <#if content?has_content>${content.description!}</#if>
+        <#if content?has_content>${content.description?if_exists}</#if>
     </td>
     <td width="40px" valign="bottom">
-<a class="tabButton" href="<@ofbizUrl>showforumarticle?contentId=${thisSubContentId}&amp;nodeTrailCsv=${thisNodeTrailCsv!}&amp;forumId=${contentIdx!}</@ofbizUrl>" >${uiLabelMap.CommonView}</a>
+<a class="tabButton" href="<@ofbizUrl>showforumarticle?contentId=${thisSubContentId}&amp;nodeTrailCsv=${thisNodeTrailCsv?if_exists}&amp;forumId=${contentIdx?if_exists}</@ofbizUrl>" >${uiLabelMap.CommonView}</a>
     </td>
 <@checkPermission mode="equals" entityOperation="_UPDATE" subContentId=content.contentId targetOperation="CONTENT_UPDATE" contentPurposeList="ARTICLE">
     <td width="40px" valign="bottom">
-<a class="tabButton" style="height:14pt;" href="<@ofbizUrl>editforumarticle?contentIdTo=${content.contentId}&amp;nodeTrailCsv=${contentIdx!},${content.contentId}</@ofbizUrl>" >${uiLabelMap.CommonEdit}</a>
+<a class="tabButton" style="height:14pt;" href="<@ofbizUrl>editforumarticle?contentIdTo=${content.contentId}&amp;nodeTrailCsv=${contentIdx?if_exists},${content.contentId}</@ofbizUrl>" >${uiLabelMap.CommonEdit}</a>
     </td>
 </@checkPermission>
   </tr>
@@ -89,31 +89,31 @@ under the License.
 
 
 <#if sz == 0 >
-  <tr><td align="center">${uiLabelMap.CommonNoRecordFound}</td></tr>
+  <tr><td class="tabletext" align="center">${uiLabelMap.CommonNoRecordFound}</td></tr>
 </#if>
 <@wrapSubContentCache subContentId=contentIdx wrapTemplateId=stdWrapId contentPurposeList="ARTICLE">
 </@wrapSubContentCache>
 </table>
 <table border="0" class="summary">
 <#assign targOp="HAS_USER_ROLE"/>
-<#assign pageTargOp=targetOperation!/>
+<#assign pageTargOp=targetOperation?if_exists/>
 <#if pageTargOp?has_content>
     <#assign targOp=pageTargOp/>
 </#if>
 <@checkPermission mode="equals" entityOperation="_CREATE" subContentId=contentDept statusId="CTNT_PUBLISHED" targetOperation=targOp contentPurposeList="ARTICLE" quickCheckContentId=contentIdx>
 <tr><td align="right">
-<a class="tabButton" style="height:14pt;" href="<@ofbizUrl>createforumarticle?forumId=${contentIdx!}&amp;nodeTrailCsv=${contentIdx!}</@ofbizUrl>" >${uiLabelMap.ProductNewArticle}</a>
+<a class="tabButton" style="height:14pt;" href="<@ofbizUrl>createforumarticle?forumId=${contentIdx?if_exists}&amp;nodeTrailCsv=${contentIdx?if_exists}</@ofbizUrl>" >${uiLabelMap.ProductNewArticle}</a>
 </td></tr>
 </@checkPermission>
 <@checkPermission mode="not-equals" entityOperation="_CREATE" subContentId=contentDept statusId="CTNT_PUBLISHED" targetOperation=targOp contentPurposeList="ARTICLE" quickCheckContentId=contentIdx>
-<tr><td align="right">
+<tr><td class="tabletext" align="right">
 ${uiLabelMap.EcommerceLoggedToPost}
 </td></tr>
 </@checkPermission>
 </table>
 <#--
 <@checkPermission mode="not-equals" entityOperation="_CREATE" subContentId=contentIdx statusId="CTNT_PUBLISHED" targetOperation="HAS_USER_ROLE" contentPurposeList="ARTICLE">
-            ${permissionErrorMsg!}
+            ${permissionErrorMsg?if_exists}
 </@checkPermission>
 -->
 
@@ -124,7 +124,7 @@ ${uiLabelMap.EcommerceLoggedToPost}
     <#local csv = "">
     <#local counter = 0>
     <#local len = trail?size>
-    <table border="0" cellspacing="4">
+    <table border="0" class="tabletext" cellspacing="4">
     <#list trail as content>
       <#if counter < (len - endIndexOffset) && startIndex <= counter >
         <#if 0 < counter >
@@ -136,12 +136,12 @@ ${uiLabelMap.EcommerceLoggedToPost}
          <td >
             ${indent}
             <#if content.contentTypeId == "WEB_SITE_PUB_PT" >
-              <a class="tabButton" href="<@ofbizUrl>showforum?forumId=${content.contentId!}&amp;nodeTrailCsv=${csv}</@ofbizUrl>" >${uiLabelMap.CommonBackTo}</a> &nbsp;${content.contentName!}
+              <a class="tabButton" href="<@ofbizUrl>showforum?forumId=${content.contentId?if_exists}&amp;nodeTrailCsv=${csv}</@ofbizUrl>" >${uiLabelMap.CommonBackTo}</a> &nbsp;${content.contentName?if_exists}
             <#else>
-              <a class="tabButton" href="<@ofbizUrl>showforumarticle?contentId=${content.contentId!}&amp;nodeTrailCsv=${csv}</@ofbizUrl>" >${uiLabelMap.CommonBackTo}to</a> &nbsp;${content.contentName!}
+              <a class="tabButton" href="<@ofbizUrl>showforumarticle?contentId=${content.contentId?if_exists}&amp;nodeTrailCsv=${csv}</@ofbizUrl>" >${uiLabelMap.CommonBackTo}to</a> &nbsp;${content.contentName?if_exists}
             </#if>
             <#local indent = indent + "&nbsp;&nbsp;&nbsp;&nbsp;">
-            [${content.contentId!}]</td>
+            [${content.contentId?if_exists}]</td>
         </#if>
        </tr>
       </#if>
@@ -182,10 +182,10 @@ ${uiLabelMap.EcommerceLoggedToPost}
                   <span class="submenutextdisabled">${uiLabelMap.CommonPrevious}</span>
                 </#if>
                 <#if 0 < listSz>
-                  <span class="submenutextinfo">${lowIdxShow} - ${highIdx!} ${uiLabelMap.CommonOf} ${listSz!}</span>
+                  <span class="submenutextinfo">${lowIdxShow} - ${highIdx?if_exists} ${uiLabelMap.CommonOf} ${listSz?if_exists}</span>
                 </#if>
-                <#if highIdx!?number < listSz!?number>
-                  <a href="${requestURL}?${queryString!}&amp;viewSz=${viewSz!}&amp;viewIdx=${viewIdx!?number+1}" class="submenutextright">${uiLabelMap.CommonNext}</a>
+                <#if highIdx?if_exists?number < listSz?if_exists?number>
+                  <a href="${requestURL}?${queryString?if_exists}&amp;viewSz=${viewSz?if_exists}&amp;viewIdx=${viewIdx?if_exists?number+1}" class="submenutextright">${uiLabelMap.CommonNext}</a>
                 <#else>
                   <span class="submenutextrightdisabled">${uiLabelMap.CommonNext}</span>
                 </#if>

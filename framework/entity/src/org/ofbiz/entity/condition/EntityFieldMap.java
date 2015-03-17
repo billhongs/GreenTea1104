@@ -24,6 +24,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javolution.context.ObjectFactory;
+import javolution.util.FastMap;
+
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.entity.util.EntityUtil;
 
@@ -32,14 +35,27 @@ import org.ofbiz.entity.util.EntityUtil;
  *
  */
 @SuppressWarnings("serial")
-public final class EntityFieldMap extends EntityConditionListBase<EntityExpr> {
+public class EntityFieldMap extends EntityConditionListBase<EntityExpr> {
 
-    protected final Map<String, ? extends Object> fieldMap;
+    protected static final ObjectFactory<EntityFieldMap> entityFieldMapFactory = new ObjectFactory<EntityFieldMap>() {
+        @Override
+        protected EntityFieldMap create() {
+            return new EntityFieldMap();
+        }
+    };
+
+    protected Map<String, ? extends Object> fieldMap = null;
+
+    protected EntityFieldMap() {
+        super();
+    }
+
+    public static <V> List<EntityExpr> makeConditionList(EntityComparisonOperator<?,V> op, V... keysValues) {
+        return makeConditionList(EntityUtil.makeFields(keysValues), op);
+    }
 
     public static <V> List<EntityExpr> makeConditionList(Map<String, V> fieldMap, EntityComparisonOperator<?,V> op) {
-        if (fieldMap == null) {
-            return Collections.emptyList();
-        }
+        if (fieldMap == null) return new ArrayList<EntityExpr>();
         List<EntityExpr> list = new ArrayList<EntityExpr>(fieldMap.size());
         for (Map.Entry<String, ? extends Object> entry: fieldMap.entrySet()) {
             list.add(EntityCondition.makeCondition(entry.getKey(), op, entry.getValue()));
@@ -47,13 +63,24 @@ public final class EntityFieldMap extends EntityConditionListBase<EntityExpr> {
         return list;
     }
 
-    public <V> EntityFieldMap(EntityComparisonOperator<?,?> compOp, EntityJoinOperator joinOp, V... keysValues) {
-        this(EntityUtil.makeFields(keysValues), UtilGenerics.<EntityComparisonOperator<String,V>>cast(compOp), joinOp);
+    public <V> void init(EntityComparisonOperator<?,?> compOp, EntityJoinOperator joinOp, V... keysValues) {
+        super.init(makeConditionList(EntityUtil.makeFields(keysValues), UtilGenerics.<EntityComparisonOperator<String,V>>cast(compOp)), joinOp);
+        this.fieldMap = EntityUtil.makeFields(keysValues);
+        if (this.fieldMap == null) this.fieldMap = FastMap.newInstance();
+        this.operator = joinOp;
     }
 
-    public <V> EntityFieldMap(Map<String, V> fieldMap, EntityComparisonOperator<?,?> compOp, EntityJoinOperator joinOp) {
-        super(makeConditionList(fieldMap, UtilGenerics.<EntityComparisonOperator<String,V>>cast(compOp)), joinOp);
-        this.fieldMap = fieldMap == null ? Collections.<String, Object>emptyMap() : fieldMap;
+    public <V> void init(Map<String, V> fieldMap, EntityComparisonOperator<?,?> compOp, EntityJoinOperator joinOp) {
+        super.init(makeConditionList(fieldMap, UtilGenerics.<EntityComparisonOperator<String,V>>cast(compOp)), joinOp);
+        this.fieldMap = fieldMap;
+        if (this.fieldMap == null) this.fieldMap = FastMap.newInstance();
+        this.operator = joinOp;
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        this.fieldMap = null;
     }
 
     public Object getField(String name) {

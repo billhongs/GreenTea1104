@@ -19,22 +19,13 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
 
     <!-- =========================================== -->
     <!-- ======== Anonymous Checkout Events ======== -->
     <!-- =========================================== -->
 
-    <simple-method method-name="createUpdateCustomer" short-description="Create update customer and settings" login-required="false">
-        <set field="require_email" value="true"/>
-        <set field="require_phone" value="true"/>
-        <set field="require_login" value="false"/>
-        <set field="shipToPostalAddress" value="true"/>
-        <set field="billToPostalAddress" value="true"/>
-        <!-- this parameter must be set to true or the createUser method below will use a default password instead of the one entered by user -->
-        <set field="create_allow_password" value="true"/>
-
-        <set field="parameters.roleTypeId" value="CUSTOMER"/>
+    <simple-method method-name="createUpdateUser" short-description="Create or Update User" login-required="false">
 
         <property-to-field resource="security" property="username.lowercase" default="false" field="username_lowercase"/>
         <property-to-field resource="security" property="password.lowercase" default="false" field="password_lowercase"/>
@@ -490,7 +481,20 @@ under the License.
             </else>
             </if-empty>
         </if-not-empty>
+    </simple-method>
 
+    <simple-method method-name="processCustomerSettings" short-description="Process Customer Settings; to be called as a Request Event" login-required="false">
+        <set field="require_email" value="true"/>
+        <set field="require_phone" value="true"/>
+        <set field="require_login" value="false"/>
+        <set field="shipToPostalAddress" value="true"/>
+        <set field="billToPostalAddress" value="true"/>
+        <!-- this parameter must be set to true or the createUser method below will use a default password instead of the one entered by user -->
+        <set field="create_allow_password" value="true"/>
+
+        <set field="parameters.roleTypeId" value="CUSTOMER"/>
+
+        <call-simple-method method-name="createUpdateUser"/>
         <!-- see if we should continue now... -->
         <session-to-field field="cart" session-name="shoppingCart"/>
         <session-to-field field="userLogin"/>
@@ -513,6 +517,7 @@ under the License.
                     }
                 ]]></call-bsh>
             </if-not-empty>
+            <set from-field="partyId" field="partyId"/>
             <if-not-empty field="partyId">
                 <set field="lookupKeyValue.userLoginId" value="anonymous"/>
                 <find-by-primary-key map="lookupKeyValue" entity-name="UserLogin" value-field="userLogin"/>
@@ -542,7 +547,7 @@ under the License.
                 <string value="SHIPPING_LOCATION"/>
                 <field field="parameters.shippingContactMechId"/>
             </call-object-method>
-            <call-object-method obj-field="cart" method-name="setAllShippingContactMechId">
+            <call-object-method obj-field="cart" method-name="setShippingContactMechId">
                 <field field="parameters.shippingContactMechId"/>
             </call-object-method>
         </if-not-empty>
@@ -572,23 +577,23 @@ under the License.
        <session-to-field field="cart" session-name="shoppingCart"/>
        <if-not-empty field="cart">
            <set field="shipmentMethodTypeId" from-field="parameters.shipmentMethodTypeId"/>
-           <call-object-method obj-field="cart" method-name="setAllShipmentMethodTypeId">
+           <call-object-method obj-field="cart" method-name="setShipmentMethodTypeId">
                <field field="shipmentMethodTypeId"/>
            </call-object-method>
 
            <set field="carrierPartyId" from-field="parameters.carrierPartyId"/>
-           <call-object-method obj-field="cart" method-name="setAllCarrierPartyId">
+           <call-object-method obj-field="cart" method-name="setCarrierPartyId">
                <field field="carrierPartyId"/>
            </call-object-method>
 
            <set field="maySplit" from-field="parameters.may_split" type="Boolean" default-value="false"/>
-           <call-object-method obj-field="cart" method-name="setAllMaySplit">
+           <call-object-method obj-field="cart" method-name="setMaySplit">
                <field field="maySplit" type="Boolean"/>
            </call-object-method>
 
            <set field="shippingInstruction" from-field="parameters.shipping_instructions" type="String"/>
            <if-not-empty field="shippingInstruction">
-               <call-object-method obj-field="cart" method-name="setAllShippingInstructions">
+               <call-object-method obj-field="cart" method-name="setShippingInstructions">
                    <field field="shippingInstruction" type="String"/>
                </call-object-method>
            </if-not-empty>
@@ -601,13 +606,13 @@ under the License.
            </if-not-empty>
 
            <set field="isGift" from-field="parameters.is_gift" type="Boolean" default-value="false"/>
-           <call-object-method obj-field="cart" method-name="setAllIsGift">
+           <call-object-method obj-field="cart" method-name="setIsGift">
                <field field="isGift" type="Boolean"/>
            </call-object-method>
 
            <set field="giftMessage" from-field="parameters.gift_message" type="String"/>
            <if-not-empty field="giftMessage">
-               <call-object-method obj-field="cart" method-name="setAllGiftMessage">
+               <call-object-method obj-field="cart" method-name="setGiftMessage">
                    <field field="giftMessage" type="String"/>
                </call-object-method>
            </if-not-empty>

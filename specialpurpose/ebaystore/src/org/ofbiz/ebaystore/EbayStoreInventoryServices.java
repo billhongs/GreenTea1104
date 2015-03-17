@@ -29,7 +29,6 @@ import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -92,7 +91,7 @@ public class EbayStoreInventoryServices {
                 invenReq = new GetSellingManagerInventoryRequestType();
                 invenResp = (GetSellingManagerInventoryResponseType) invenCall.execute(invenReq);
                 if (invenResp != null && "SUCCESS".equals(invenResp.getAck().toString())) {
-                    GenericValue ebayProductStoreInventory = EntityQuery.use(delegator).from("EbayProductStoreInventory").where("productId", productId, "facilityId", context.get("facilityId"), "productStoreId", context.get("productStoreId")).queryOne();
+                    GenericValue ebayProductStoreInventory = delegator.findByPrimaryKey("EbayProductStoreInventory", UtilMisc.toMap("productId", productId, "facilityId", context.get("facilityId"), "productStoreId", context.get("productStoreId")));
 
                     SellingManagerProductType[]  sellingManagerProductTypeList = invenResp.getSellingManagerProduct();
                     for (SellingManagerProductType sellingManagerProductType : sellingManagerProductTypeList) {
@@ -151,9 +150,9 @@ public class EbayStoreInventoryServices {
                 productReq = new AddSellingManagerProductRequestType();
                 productReq.setFolderID(new Long(folderId));
                 SellingManagerProductDetailsType  sellingManagerProductDetailsType = new SellingManagerProductDetailsType();
-                GenericValue ebayProductStoreInventory = EntityQuery.use(delegator).from("EbayProductStoreInventory").where("productId", productId, "facilityId", context.get("facilityId"), "productStoreId", context.get("productStoreId")).queryOne();
+                GenericValue ebayProductStoreInventory = delegator.findByPrimaryKey("EbayProductStoreInventory", UtilMisc.toMap("productId", productId, "facilityId", context.get("facilityId"), "productStoreId", context.get("productStoreId")));
 
-                sellingManagerProductDetailsType.setProductName((EntityQuery.use(delegator).from("Product").where("productId", productId).queryOne()).getString("internalName"));
+                sellingManagerProductDetailsType.setProductName((delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", productId))).getString("internalName"));
                 //Must keep productId in SKU NUMBER because ebay allow productId field only long value.
                 sellingManagerProductDetailsType.setCustomLabel(productId);
                 if (ebayProductStoreInventory!=null) sellingManagerProductDetailsType.setQuantityAvailable(ebayProductStoreInventory.getBigDecimal("availableToPromiseListing").intValue());
@@ -198,7 +197,7 @@ public class EbayStoreInventoryServices {
                 ReviseSellingManagerProductCall call = new ReviseSellingManagerProductCall(EbayStoreHelper.getApiContext((String)context.get("productStoreId"), locale, delegator));
                 req = new ReviseSellingManagerProductRequestType();
                 SellingManagerProductDetailsType  sellingManagerProductDetailsType = new SellingManagerProductDetailsType();
-                GenericValue ebayProductStoreInventory = EntityQuery.use(delegator).from("EbayProductStoreInventory").where("productId", productId, "facilityId", context.get("facilityId"), "productStoreId", context.get("productStoreId")).queryOne();
+                GenericValue ebayProductStoreInventory = delegator.findByPrimaryKey("EbayProductStoreInventory", UtilMisc.toMap("productId", productId, "facilityId", context.get("facilityId"), "productStoreId", context.get("productStoreId")));
                 Long ebayProductId = null;
                 if (ebayProductStoreInventory != null && ebayProductStoreInventory.getLong("ebayProductId") == null) {
                     Debug.logError("Can not update product "+productId+" has no ebay product Id in EbayProductStoreInventory. ", module);
@@ -209,7 +208,7 @@ public class EbayStoreInventoryServices {
                 }
                 sellingManagerProductDetailsType.setProductID(ebayProductId);
 
-                sellingManagerProductDetailsType.setProductName((EntityQuery.use(delegator).from("Product").where("productId", productId).queryOne()).getString("internalName"));
+                sellingManagerProductDetailsType.setProductName((delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", productId))).getString("internalName"));
                 //Must keep productId in SKU NUMBER because ebay allow productId field only long value.
                 sellingManagerProductDetailsType.setCustomLabel(productId);
                 if (ebayProductStoreInventory!=null) sellingManagerProductDetailsType.setQuantityAvailable(ebayProductStoreInventory.getBigDecimal("availableToPromiseListing").intValue());
@@ -338,7 +337,7 @@ public class EbayStoreInventoryServices {
         }
         try {
             if (productStoreId != null && ebayProductId != null) {
-                ebayProductStoreInventory = EntityQuery.use(delegator).from("EbayProductStoreInventory").where("productId", productId, "facilityId", facilityId, "productStoreId", productStoreId).queryOne();
+                ebayProductStoreInventory = delegator.findByPrimaryKey("EbayProductStoreInventory", UtilMisc.toMap("productId", productId, "facilityId", facilityId, "productStoreId", productStoreId));
                 GetSellingManagerInventoryCall call = new GetSellingManagerInventoryCall(EbayStoreHelper.getApiContext(productStoreId, locale, delegator));
                 req = new GetSellingManagerInventoryRequestType();
                 resp = (GetSellingManagerInventoryResponseType) call.execute(req);
@@ -386,7 +385,7 @@ public class EbayStoreInventoryServices {
 
         try {
             if (context.get("productStoreId") != null && context.get("facilityId") != null) {
-                ebayProductStoreInventoryList = EntityQuery.use(delegator).from("EbayProductStoreInventory").where("facilityId",(String)context.get("facilityId"),"productStoreId",(String)context.get("productStoreId")).queryList();
+                ebayProductStoreInventoryList = delegator.findByAnd("EbayProductStoreInventory", UtilMisc.toMap("facilityId",(String)context.get("facilityId"),"productStoreId",(String)context.get("productStoreId")));
                 for (GenericValue ebayProductStoreInventory : ebayProductStoreInventoryList) {
                     if (ebayProductStoreInventory.get("ebayProductId") != null) {
                         dispatcher.runSync("updateEbayInventoryStatusByProductId", UtilMisc.toMap("productStoreId", (String)context.get("productStoreId"), "facilityId", (String)context.get("facilityId"), "folderId", ebayProductStoreInventory.get("folderId"), "productId", ebayProductStoreInventory.get("productId"), "ebayProductId", ebayProductStoreInventory.get("ebayProductId"), "userLogin", context.get("userLogin")));

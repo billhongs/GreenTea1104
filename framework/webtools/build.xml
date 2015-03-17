@@ -45,6 +45,5 @@ under the License.
         <fileset dir="../webapp/lib" includes="*.jar"/>
         <fileset dir="../webapp/build/lib" includes="*.jar"/>
         <fileset dir="../widget/build/lib" includes="*.jar"/>
-        <fileset dir="../testtools/build/lib" includes="*.jar"/>
     </path>
 </project>

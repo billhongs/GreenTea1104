@@ -19,14 +19,14 @@
 
 // figure out the MARKETING_EMAIL of the ContactList owner, for setting in the send email link
 if (!contactList && contactListId) {
-    contactList = from("ContactList").where("contactListId", "contactListId").cache(true).queryOne();
+    contactList = delegator.findOne("ContactList", [contactListId : "contactListId"], true);
 }
 if (contactList) {
-    ownerParty = contactList.getRelatedOne("OwnerParty", false);
+    ownerParty = contactList.getRelatedOne("OwnerParty");
     if (ownerParty) {
-        contactMechs = ownerParty.getRelated("PartyContactMechPurpose", [contactMechPurposeTypeId : "MARKETING_EMAIL"], null, false);
+        contactMechs = ownerParty.getRelatedByAnd("PartyContactMechPurpose", [contactMechPurposeTypeId : "MARKETING_EMAIL"]);
         if (!contactMechs) {
-            contactMechs = ownerParty.getRelated("PartyContactMechPurpose", [contactMechPurposeTypeId : "PRIMARY_EMAIL"], null, false);
+            contactMechs = ownerParty.getRelatedByAnd("PartyContactMechPurpose", [contactMechPurposeTypeId : "PRIMARY_EMAIL"]);
         }
         
         if (contactMechs) {

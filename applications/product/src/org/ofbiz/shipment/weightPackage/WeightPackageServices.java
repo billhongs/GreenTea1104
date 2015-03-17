@@ -31,8 +31,6 @@ import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
-import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ServiceUtil;
 
@@ -66,7 +64,7 @@ public class WeightPackageServices {
         }
         try {
             // Checked no of packages, it should not be greater than ordered quantity
-            List<GenericValue> orderItems = EntityQuery.use(delegator).from("OrderItem").where("orderId", orderId, "statusId", "ITEM_APPROVED").queryList();
+            List<GenericValue> orderItems = delegator.findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId, "statusId", "ITEM_APPROVED"));
             BigDecimal orderedItemQty = ZERO;
             for (GenericValue orderItem : orderItems) {
                 orderedItemQty = orderedItemQty.add(orderItem.getBigDecimal("quantity"));
@@ -131,7 +129,6 @@ public class WeightPackageServices {
         WeightPackageSession weightPackageSession = (WeightPackageSession) context.get("weightPackageSession");
         Locale locale = (Locale) context.get("locale");
 
-        Delegator delegator = dctx.getDelegator();
         String orderId = (String) context.get("orderId");
         String shipmentId = (String) context.get("shipmentId");
         String invoiceId = (String) context.get("invoiceId");
@@ -153,7 +150,7 @@ public class WeightPackageServices {
 
         Map<String, Object> response = FastMap.newInstance();
         try {
-            String getActualShippingQuoteFromUps = EntityUtilProperties.getPropertyValue("shipment.properties", "shipment.ups.shipping", "N", delegator);
+            String getActualShippingQuoteFromUps = UtilProperties.getPropertyValue("shipment.properties", "shipment.ups.shipping", "N");
             String result = weightPackageSession.complete(orderId, locale, getActualShippingQuoteFromUps);
             if ("showWarningForm".equals(result)) {
                 response.put("showWarningForm", true);
@@ -170,7 +167,6 @@ public class WeightPackageServices {
 
     public static Map<String, Object> completeShipment(DispatchContext dctx, Map<String, ? extends Object> context) {
         Locale locale = (Locale) context.get("locale");
-        Delegator delegator = dctx.getDelegator();
         WeightPackageSession weightPackageSession = (WeightPackageSession) context.get("weightPackageSession");
 
         String shipmentId = (String) context.get("shipmentId");
@@ -178,7 +174,7 @@ public class WeightPackageServices {
 
         Map<String, Object> response = FastMap.newInstance();
         try {
-            String getActualShippingQuoteFromUps = EntityUtilProperties.getPropertyValue("shipment.properties", "shipment.ups.shipping", "N", delegator);
+            String getActualShippingQuoteFromUps = UtilProperties.getPropertyValue("shipment.properties", "shipment.ups.shipping", "N");
             if (weightPackageSession.completeShipment(orderId, getActualShippingQuoteFromUps)) {
                 response.put("shipmentId", shipmentId);
             } else {
@@ -192,19 +188,18 @@ public class WeightPackageServices {
 
     public static Map<String, Object> savePackagesInfo(DispatchContext dctx, Map<String, ? extends Object> context) {
         Locale locale = (Locale) context.get("locale");
-        Delegator delegator = dctx.getDelegator();
         WeightPackageSession weightPackageSession = (WeightPackageSession) context.get("weightPackageSession");
 
         String orderId = (String) context.get("orderId");
 
-        String getActualShippingQuoteFromUps = EntityUtilProperties.getPropertyValue("shipment.properties", "shipment.ups.shipping", "N", delegator);
+        String getActualShippingQuoteFromUps = UtilProperties.getPropertyValue("shipment.properties", "shipment.ups.shipping", "N");
         try {
             weightPackageSession.savePackagesInfo(orderId, getActualShippingQuoteFromUps);
         } catch (GeneralException e) {
             return ServiceUtil.returnError(e.getMessage());
         }
 
-        return ServiceUtil.returnSuccess(UtilProperties.getMessage("ProductUiLabels", "FacilityThereIsProblemOccurredInPaymentCapture", locale));
+        return ServiceUtil.returnSuccess(UtilProperties.getMessage("ProductUiLabels", "FacilityThereIsProblemOccuredInPaymentCapture", locale));
     }
 
 }

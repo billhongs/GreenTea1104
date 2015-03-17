@@ -22,10 +22,10 @@ import org.ofbiz.party.contact.ContactHelper;
 import org.ofbiz.entity.condition.EntityCondition;
 
 if (userLogin) {
-    party = userLogin.getRelatedOne("Party", false);
+    party = userLogin.getRelatedOne("Party");
     contactMech = EntityUtil.getFirst(ContactHelper.getContactMech(party, "BILLING_LOCATION", "POSTAL_ADDRESS", false));
     if (contactMech) {
-        postalAddress = contactMech.getRelatedOne("PostalAddress", false);
+        postalAddress = contactMech.getRelatedOne("PostalAddress");
         billToContactMechId = postalAddress.contactMechId;
         context.billToContactMechId = billToContactMechId;
         context.billToName = postalAddress.toName;
@@ -36,19 +36,19 @@ if (userLogin) {
         context.billToPostalCode = postalAddress.postalCode;
         context.billToStateProvinceGeoId = postalAddress.stateProvinceGeoId;
         context.billToCountryGeoId = postalAddress.countryGeoId;
-        billToStateProvinceGeo = from("Geo").where("geoId", postalAddress.stateProvinceGeoId).queryOne();
+        billToStateProvinceGeo = delegator.findOne("Geo", [geoId : postalAddress.stateProvinceGeoId], false);
         if (billToStateProvinceGeo) {
             context.billToStateProvinceGeo = billToStateProvinceGeo.geoName;
         }
-        billToCountryProvinceGeo = from("Geo").where("geoId", postalAddress.countryGeoId).queryOne();
+        billToCountryProvinceGeo = delegator.findOne("Geo", [geoId : postalAddress.countryGeoId], false);
         if (billToCountryProvinceGeo) {
             context.billToCountryProvinceGeo = billToCountryProvinceGeo.geoName;
         }
 
         creditCards = [];
-        paymentMethod = from("PaymentMethod").where("partyId", party.partyId, "paymentMethodTypeId", "CREDIT_CARD").orderBy("fromDate").filterByDate().queryFirst();
+        paymentMethod = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findList("PaymentMethod", EntityCondition.makeCondition([partyId : party.partyId, paymentMethodTypeId : "CREDIT_CARD"]), null, ["fromDate"], null, false)));
         if (paymentMethod) {
-            creditCard = paymentMethod.getRelatedOne("CreditCard", false);
+            creditCard = paymentMethod.getRelatedOne("CreditCard");
             context.paymentMethodTypeId = "CREDIT_CARD";
             context.cardNumber = creditCard.cardNumber;
             context.cardType = creditCard.cardType;
@@ -67,16 +67,16 @@ if (userLogin) {
 
     billToContactMechList = ContactHelper.getContactMech(party, "PHONE_BILLING", "TELECOM_NUMBER", false)
     if (billToContactMechList) {
-        billToTelecomNumber = (EntityUtil.getFirst(billToContactMechList)).getRelatedOne("TelecomNumber", false);
-        pcm = EntityUtil.getFirst(billToTelecomNumber.getRelated("PartyContactMech", null, null, false));
+        billToTelecomNumber = (EntityUtil.getFirst(billToContactMechList)).getRelatedOne("TelecomNumber");
+        pcm = EntityUtil.getFirst(billToTelecomNumber.getRelated("PartyContactMech"));
         context.billToTelecomNumber = billToTelecomNumber;
         context.billToExtension = pcm.extension;
     }
 
     billToFaxNumberList = ContactHelper.getContactMech(party, "FAX_BILLING", "TELECOM_NUMBER", false)
     if (billToFaxNumberList) {
-        billToFaxNumber = (EntityUtil.getFirst(billToFaxNumberList)).getRelatedOne("TelecomNumber", false);
-        faxPartyContactMech = EntityUtil.getFirst(billToFaxNumber.getRelated("PartyContactMech", null, null, false));
+        billToFaxNumber = (EntityUtil.getFirst(billToFaxNumberList)).getRelatedOne("TelecomNumber");
+        faxPartyContactMech = EntityUtil.getFirst(billToFaxNumber.getRelated("PartyContactMech"));
         context.billToFaxNumber = billToFaxNumber;
         context.billToFaxExtension = faxPartyContactMech.extension;
     }

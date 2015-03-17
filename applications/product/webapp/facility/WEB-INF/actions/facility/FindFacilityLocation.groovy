@@ -32,7 +32,7 @@ if (itemId) {
 itemId = session.getAttribute("inventoryItemId");
 context.itemId = itemId;
 
-facility = from("Facility").where("facilityId", facilityId).queryOne();
+facility = delegator.findOne("Facility", [facilityId : facilityId], false);
 context.facility = facility;
 
 UtilHttp.parametersToAttributes(request);
@@ -46,7 +46,7 @@ if (lookup) {
             paramMap.remove(key);
         }
     }
-    foundLocations = from("FacilityLocation").where(paramMap).queryList();
+    foundLocations = delegator.findList("FacilityLocation", EntityCondition.makeCondition(paramMap), null, null, null, false);
     if (foundLocations) {
         context.foundLocations = foundLocations;
     }

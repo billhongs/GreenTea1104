@@ -17,23 +17,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#assign returnPolicyEnabled = ReturnPolicyEnabled!>
-<#assign eBayDetails = EBayDetails!>
+<#assign returnPolicyEnabled = ReturnPolicyEnabled?if_exists>
+<#assign eBayDetails = EBayDetails?if_exists>
 <#if eBayDetails?has_content>
     <#assign returnPolicyDetails = eBayDetails.getReturnPolicyDetails()>
 </#if>
-<#if !returnPolicyEnabled??><#assign not = "not"></#if>
-<#assign  title = "Return policy is "+(not!)+" enabled for this category.">
+<#if !returnPolicyEnabled?exists><#assign not = "not"></#if>
+<#assign  title = "Return policy is "+not?if_exists+" enabled for this category.">
 
 <form name="APIForm" id="APIForm" method="post" action="ReturnPolicyServlet" >
   <table align="center"  border="0">
     <tr><td><img src="ebay.gif" alt="" /></td></tr>
-    <tr><td>${title!}</td></tr>
+    <tr><td>${title?if_exists}</td></tr>
     <tr>
          <td>&nbsp;</td>
     </tr>
     <!-- specify return policy -->
-    <#if returnPolicyEnabled! == true>
+    <#if returnPolicyEnabled?if_exists == true>
         <tr align="left">
             <td><b>Returns accepted:</b></td>
         </tr>
@@ -41,14 +41,14 @@ under the License.
                 <td>
                         <select name="ReturnsAccepted">
                         <#if returnPolicyDetails?has_content>
-                        <#assign retAccpTypeArray = returnPolicyDetails.getReturnsAccepted()!>
+                        <#assign retAccpTypeArray = returnPolicyDetails.getReturnsAccepted()?if_exists>
                         for(int j = 0; j < retAccpTypeArray.length; j++){
                             
                         <#list retAccpTypeArray as retAccpType>
                             <#assign returnAccepted = "">
-                            <option value="${retAccpType.getReturnsAcceptedOption()!}"
-                            <#if returnAccepted?? && returnAccepted.equalsIgnoreCase(retAccpType.getReturnsAcceptedOption()!)>selected="select"</#if>>
-                            ${retAccpType.getDescription()!}</option>
+                            <option value="${retAccpType.getReturnsAcceptedOption()?if_exists}"
+                            <#if returnAccepted != null && returnAccepted.equalsIgnoreCase(retAccpType.getReturnsAcceptedOption()?if_exists)>selected="select"</#if>>
+                            ${retAccpType.getDescription()?if_exists}</option>
                         </#list>
                         </#if>
                         </select>
@@ -64,12 +64,12 @@ under the License.
             <td>
                 <select  name="ReturnsWithin">
                  <#if returnPolicyDetails?has_content>
-                 <#assign retWithinArray = returnPolicyDetails.getReturnsWithin()!>
+                 <#assign retWithinArray = returnPolicyDetails.getReturnsWithin()?if_exists>
                  <#list retWithinArray as retWithin>
                     <#assign returnWithin = "">
-                    <option value="${retWithin.getReturnsWithinOption()!}"
-                    <#if returnWithin?? && returnWithin.equalsIgnoreCase(retWithin.getReturnsWithinOption()!)>selected="select"</#if>>
-                    ${retWithin.getDescription()!}</option>
+                    <option value="${retWithin.getReturnsWithinOption()?if_exists}"
+                    <#if returnWithin!=null && returnWithin.equalsIgnoreCase(retWithin.getReturnsWithinOption()?if_exists)>selected="select"</#if>>
+                    ${retWithin.getDescription()?if_exists}</option>
                 </#list>
                 </#if>
                 </select>
@@ -87,12 +87,12 @@ under the License.
             <td>
                 <select  name="Refund">
                  <#if returnPolicyDetails?has_content>
-                 <#assign refundArray = returnPolicyDetails.getRefund()!>
+                 <#assign refundArray = returnPolicyDetails.getRefund()?if_exists>
                  <#list refundArray as refundAr>
                     <#assign refund = "">
-                    <option value="${refundAr.getRefundOption()!}"
-                    <#if refund?? && refund.equalsIgnoreCase(refundAr.getRefundOption())>selected="select"</#if>>
-                    ${refundArray[j].getDescription()!}</option>
+                    <option value="${refundAr.getRefundOption()?if_exists}"
+                    <#if refund!=null && refund.equalsIgnoreCase(refundAr.getRefundOption())>selected="select"</#if>>
+                    ${refundArray[j].getDescription()?if_exists}</option>
                  </#list>
                  </#if>
                 </select>
@@ -109,12 +109,12 @@ under the License.
             <td>
                 <select name="ShippingCostPaidBy">
                 <#if returnPolicyDetails?has_content>
-                <#assign paidByArray = returnPolicyDetails.getShippingCostPaidBy()!>
+                <#assign paidByArray = returnPolicyDetails.getShippingCostPaidBy()?if_exists>
                 <#list paidByArray as paidBy>
                     <#assign shippingCostPaidBy = "">
-                    <option value="${paidBy.getShippingCostPaidByOption()!}"
-                    <#if shippingCostPaidBy?? && shippingCostPaidBy.equalsIgnoreCase(paidBy.getShippingCostPaidByOption()!)>selected="select"</#if>>
-                    ${paidBy.getDescription()!}</option>
+                    <option value="${paidBy.getShippingCostPaidByOption()?if_exists}"
+                    <#if shippingCostPaidBy!=null && shippingCostPaidBy.equalsIgnoreCase(paidBy.getShippingCostPaidByOption()?if_exists)>selected="select"</#if>>
+                    ${paidBy.getDescription()?if_exists}</option>
                 </#list>
                 </#if>
                 </select>
@@ -130,7 +130,7 @@ under the License.
         </tr>
         <tr align="left">
             <td>
-                <textarea name="ReturnPolicyDetailsDescription" cols="70" rows="6"<#if !returnPolicyDetails.isDescription().booleanValue()>disabled="true"</#if>></textarea>
+                <textarea name="ReturnPolicyDetailsDescription" cols="70" rows="6"<#if !returnPolicyDetails.isDescription()?if_exists.booleanValue()>disabled="true"</#if>></textarea>
             </td>
         </tr>
         <tr>

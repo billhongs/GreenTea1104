@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<#if stepTitleId??>
+<#if stepTitleId?exists>
     <#assign stepTitle = uiLabelMap.get(stepTitleId)>
 </#if>
 <div class="screenlet">
@@ -29,7 +29,7 @@ under the License.
         <#else>
             ${uiLabelMap.OrderSalesOrder}
         </#if>
-        :&nbsp;${stepTitle!}
+        :&nbsp;${stepTitle?if_exists}
       </li>
 
       <#if isLastStep == "N">

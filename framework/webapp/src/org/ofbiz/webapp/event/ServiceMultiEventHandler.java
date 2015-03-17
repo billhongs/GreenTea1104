@@ -19,8 +19,6 @@
 package org.ofbiz.webapp.event;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -31,6 +29,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+
+import javolution.util.FastList;
+import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilGenerics;
@@ -49,10 +50,9 @@ import org.ofbiz.service.ServiceAuthException;
 import org.ofbiz.service.ServiceUtil;
 import org.ofbiz.service.ServiceValidationException;
 import org.ofbiz.webapp.control.ConfigXMLReader;
+import org.ofbiz.webapp.control.RequestHandler;
 import org.ofbiz.webapp.control.ConfigXMLReader.Event;
 import org.ofbiz.webapp.control.ConfigXMLReader.RequestMap;
-import org.ofbiz.webapp.control.RequestHandler;
-import org.ofbiz.webapp.control.WebAppConfigurationException;
 
 /**
  * ServiceMultiEventHandler - Event handler for running a service multiple times; for bulk forms
@@ -74,7 +74,7 @@ public class ServiceMultiEventHandler implements EventHandler {
     }
 
     /**
-     * @see org.ofbiz.webapp.event.EventHandler#invoke(ConfigXMLReader.Event, ConfigXMLReader.RequestMap, javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+     * @see org.ofbiz.webapp.event.EventHandler#invoke(java.lang.String, java.lang.String, javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
      */
     public String invoke(Event event, RequestMap requestMap, HttpServletRequest request, HttpServletResponse response) throws EventHandlerException {
         // TODO: consider changing this to use the new UtilHttp.parseMultiFormData method
@@ -154,24 +154,14 @@ public class ServiceMultiEventHandler implements EventHandler {
         String messageSuffixStr = UtilProperties.getMessage("DefaultMessages", "service.message.suffix", locale);
 
         // prepare the error message and success message lists
-        List<Object> errorMessages = new LinkedList<Object>();
-        List<String> successMessages = new LinkedList<String>();
+        List<Object> errorMessages = FastList.newInstance();
+        List<String> successMessages = FastList.newInstance();
 
         // Check the global-transaction attribute of the event from the controller to see if the
         //  event should be wrapped in a transaction
         String requestUri = RequestHandler.getRequestUri(request.getPathInfo());
-        ConfigXMLReader.ControllerConfig controllerConfig;
-        try {
-            controllerConfig = ConfigXMLReader.getControllerConfig(ConfigXMLReader.getControllerConfigURL(servletContext));
-        } catch (WebAppConfigurationException e) {
-            throw new EventHandlerException(e);
-        }
-        boolean eventGlobalTransaction;
-        try {
-            eventGlobalTransaction = controllerConfig.getRequestMapMap().get(requestUri).event.globalTransaction;
-        } catch (WebAppConfigurationException e) {
-            throw new EventHandlerException(e);
-        }
+        ConfigXMLReader.ControllerConfig controllerConfig = ConfigXMLReader.getControllerConfig(ConfigXMLReader.getControllerConfigURL(servletContext));
+        boolean eventGlobalTransaction = controllerConfig.getRequestMapMap().get(requestUri).event.globalTransaction;
 
         Set<String> urlOnlyParameterNames = UtilHttp.getUrlOnlyParameterMap(request).keySet();
 
@@ -206,7 +196,7 @@ public class ServiceMultiEventHandler implements EventHandler {
                 }
 
                 // build the context
-                Map<String, Object> serviceContext = new HashMap<String, Object>();
+                Map<String, Object> serviceContext = FastMap.newInstance();
                 for (ModelParam modelParam: modelService.getInModelParamList()) {
                     String paramName = modelParam.name;
 
@@ -234,7 +224,7 @@ public class ServiceMultiEventHandler implements EventHandler {
                         if (value == null) {
                             String name = paramName + curSuffix;
 
-                            ServiceEventHandler.checkSecureParameter(requestMap, urlOnlyParameterNames, name, session, serviceName, dctx.getDelegator());
+                            ServiceEventHandler.checkSecureParameter(requestMap, urlOnlyParameterNames, name, session, serviceName);
 
                             String[] paramArr = request.getParameterValues(name);
                             if (paramArr != null) {

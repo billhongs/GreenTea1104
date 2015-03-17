@@ -33,7 +33,6 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ServiceUtil;
@@ -81,7 +80,7 @@ public class PreferenceServices {
 
         Map<String, Object> userPrefMap = null;
         try {
-            GenericValue preference = EntityQuery.use(delegator).from("UserPreference").where(fieldMap).cache(true).queryFirst();
+            GenericValue preference = EntityUtil.getFirst(delegator.findByAndCache("UserPreference", fieldMap));
             if (preference != null) {
                 userPrefMap = PreferenceWorker.createUserPrefMap(preference);
             }
@@ -130,10 +129,10 @@ public class PreferenceServices {
         Map<String, Object> userPrefMap = null;
         try {
             Map<String, String> fieldMap = UtilMisc.toMap("userLoginId", "_NA_", "userPrefGroupTypeId", userPrefGroupTypeId);
-            userPrefMap = PreferenceWorker.createUserPrefMap(EntityQuery.use(delegator).from("UserPreference").where(fieldMap).cache(true).queryList());
+            userPrefMap = PreferenceWorker.createUserPrefMap(delegator.findByAndCache("UserPreference", fieldMap));
             if (userLoginId != null) {
                 fieldMap.put("userLoginId", userLoginId);
-                userPrefMap.putAll(PreferenceWorker.createUserPrefMap(EntityQuery.use(delegator).from("UserPreference").where(fieldMap).cache(true).queryList()));
+                userPrefMap.putAll(PreferenceWorker.createUserPrefMap(delegator.findByAndCache("UserPreference", fieldMap)));
             }
         } catch (GenericEntityException e) {
             Debug.logWarning(e.getMessage(), module);
@@ -208,10 +207,8 @@ public class PreferenceServices {
         }
 
         try {
-            GenericValue rec = EntityQuery.use(delegator)
-                                          .from("UserPreference")
-                                          .where("userLoginId", userLoginId, "userPrefTypeId", userPrefTypeId)
-                                          .queryOne();
+            GenericValue rec = delegator.findOne("UserPreference", 
+                    UtilMisc.toMap("userLoginId", userLoginId, "userPrefTypeId", userPrefTypeId), false);
             if (rec != null) {
                 rec.remove();
             }
@@ -245,7 +242,7 @@ public class PreferenceServices {
 
         try {
             for (Map.Entry<String, Object> mapEntry: userPrefMap.entrySet()) {
-                GenericValue rec = delegator.makeValidValue("UserPreference", PreferenceWorker.toFieldMap(userLoginId, mapEntry.getKey(), userPrefGroupTypeId, mapEntry.getValue()));
+                GenericValue rec = delegator.makeValidValue("UserPreference", PreferenceWorker.toFieldMap(userLoginId, mapEntry.getKey(), userPrefGroupTypeId, (String) mapEntry.getValue()));
                 delegator.createOrStore(rec);
             }
         } catch (GenericEntityException e) {
@@ -280,10 +277,8 @@ public class PreferenceServices {
         }
 
         try {
-            List<GenericValue> resultList = EntityQuery.use(delegator)
-                                                       .from("UserPreference")
-                                                       .where("userLoginId", fromUserLoginId, "userPrefGroupTypeId", userPrefGroupTypeId)
-                                                       .queryList();
+            Map<String, String> fieldMap = UtilMisc.toMap("userLoginId", fromUserLoginId, "userPrefGroupTypeId", userPrefGroupTypeId);
+            List<GenericValue> resultList = delegator.findByAnd("UserPreference", fieldMap);
             if (resultList != null) {
                 for (GenericValue preference: resultList) {
                     preference.set("userLoginId", userLoginId);

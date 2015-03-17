@@ -25,7 +25,7 @@ import javolution.util.FastList;
 partyId = parameters.partyId;
 context.partyId = partyId;
 
-party = from("Party").where("partyId", partyId).queryOne();
+party = delegator.findByPrimaryKey("Party", [partyId : partyId]);
 context.party = party;
 
 // get the sort field
@@ -44,7 +44,7 @@ eventExprs.add(expr);
 expr = EntityCondition.makeCondition("partyIdFrom", EntityOperator.EQUALS, "partyId");
 eventExprs.add(expr);
 ecl = EntityCondition.makeCondition(eventExprs, EntityOperator.OR);
-events = from("CommunicationEvent").where(ecl).orderBy(sortField).queryList();
+events = delegator.findList("CommunicationEvent", ecl, null, [sortField], null, false);
 
 context.eventList = events;
 context.eventListSize = events.size();
