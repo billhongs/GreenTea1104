@@ -20,11 +20,13 @@
 package org.ofbiz.order.order;
 
 import java.math.BigDecimal;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javolution.util.FastList;
+import javolution.util.FastSet;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.GeneralException;
@@ -32,6 +34,7 @@ import org.ofbiz.base.util.ObjectType;
 import org.ofbiz.base.util.StringUtil;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilMisc;
+import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
@@ -43,8 +46,8 @@ import org.ofbiz.entity.condition.EntityExpr;
 import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.model.DynamicViewEntity;
 import org.ofbiz.entity.model.ModelKeyMap;
-import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.security.Security;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
@@ -68,12 +71,13 @@ public class OrderLookupServices {
         Integer viewSize = (Integer) context.get("viewSize");
         String showAll = (String) context.get("showAll");
         String useEntryDate = (String) context.get("useEntryDate");
+        Locale locale = (Locale) context.get("locale");
         if (showAll == null) {
             showAll = "N";
         }
 
         // list of fields to select (initial list)
-        List<String> fieldsToSelect = FastList.newInstance();
+        Set<String> fieldsToSelect = FastSet.newInstance();
         fieldsToSelect.add("orderId");
         fieldsToSelect.add("orderName");
         fieldsToSelect.add("statusId");
@@ -101,7 +105,7 @@ public class OrderLookupServices {
         // dynamic view entity
         DynamicViewEntity dve = new DynamicViewEntity();
         dve.addMemberEntity("OH", "OrderHeader");
-        dve.addAliasAll("OH", ""); // no prefix
+        dve.addAliasAll("OH", "", null); // no prefix
         dve.addRelation("one-nofk", "", "OrderType", UtilMisc.toList(new ModelKeyMap("orderTypeId", "orderTypeId")));
         dve.addRelation("one-nofk", "", "StatusItem", UtilMisc.toList(new ModelKeyMap("statusId", "statusId")));
 
@@ -115,10 +119,8 @@ public class OrderLookupServices {
         // the base order header fields
         List<String> orderTypeList = UtilGenerics.checkList(context.get("orderTypeId"));
         if (orderTypeList != null) {
-            Iterator<String> i = orderTypeList.iterator();
             List<EntityExpr> orExprs = FastList.newInstance();
-            while (i.hasNext()) {
-                String orderTypeId = i.next();
+            for (String orderTypeId : orderTypeList) {
                 paramList.add("orderTypeId=" + orderTypeId);
 
                 if (!"PURCHASE_ORDER".equals(orderTypeId) || ("PURCHASE_ORDER".equals(orderTypeId) && canViewPo)) {
@@ -136,10 +138,8 @@ public class OrderLookupServices {
 
         List<String> orderStatusList = UtilGenerics.checkList(context.get("orderStatusId"));
         if (orderStatusList != null) {
-            Iterator<String> i = orderStatusList.iterator();
             List<EntityCondition> orExprs = FastList.newInstance();
-            while (i.hasNext()) {
-                String orderStatusId = i.next();
+            for (String orderStatusId : orderStatusList) {
                 paramList.add("orderStatusId=" + orderStatusId);
                 if ("PENDING".equals(orderStatusId)) {
                     List<EntityExpr> pendExprs = FastList.newInstance();
@@ -156,10 +156,8 @@ public class OrderLookupServices {
 
         List<String> productStoreList = UtilGenerics.checkList(context.get("productStoreId"));
         if (productStoreList != null) {
-            Iterator<String> i = productStoreList.iterator();
             List<EntityExpr> orExprs = FastList.newInstance();
-            while (i.hasNext()) {
-                String productStoreId = i.next();
+            for (String productStoreId : productStoreList) {
                 paramList.add("productStoreId=" + productStoreId);
                 orExprs.add(EntityCondition.makeCondition("productStoreId", EntityOperator.EQUALS, productStoreId));
             }
@@ -168,10 +166,8 @@ public class OrderLookupServices {
 
         List<String> webSiteList = UtilGenerics.checkList(context.get("orderWebSiteId"));
         if (webSiteList != null) {
-            Iterator<String> i = webSiteList.iterator();
             List<EntityExpr> orExprs = FastList.newInstance();
-            while (i.hasNext()) {
-                String webSiteId = i.next();
+            for (String webSiteId : webSiteList) {
                 paramList.add("webSiteId=" + webSiteId);
                 orExprs.add(EntityCondition.makeCondition("webSiteId", EntityOperator.EQUALS, webSiteId));
             }
@@ -180,10 +176,8 @@ public class OrderLookupServices {
 
         List<String> saleChannelList = UtilGenerics.checkList(context.get("salesChannelEnumId"));
         if (saleChannelList != null) {
-            Iterator<String> i = saleChannelList.iterator();
             List<EntityExpr> orExprs = FastList.newInstance();
-            while (i.hasNext()) {
-                String salesChannelEnumId = i.next();
+            for (String salesChannelEnumId : saleChannelList) {
                 paramList.add("salesChannelEnumId=" + salesChannelEnumId);
                 orExprs.add(EntityCondition.makeCondition("salesChannelEnumId", EntityOperator.EQUALS, salesChannelEnumId));
             }
@@ -261,7 +255,7 @@ public class OrderLookupServices {
         if (UtilValidate.isNotEmpty(userLoginId) && UtilValidate.isEmpty(partyId)) {
             GenericValue ul = null;
             try {
-                ul = delegator.findByPrimaryKeyCache("UserLogin", UtilMisc.toMap("userLoginId", userLoginId));
+                ul = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", userLoginId).cache().queryOne();
             } catch (GenericEntityException e) {
                 Debug.logWarning(e.getMessage(), module);
             }
@@ -335,10 +329,8 @@ public class OrderLookupServices {
 
         if (roleTypeList != null) {
             fieldsToSelect.add("roleTypeId");
-            Iterator<String> i = roleTypeList.iterator();
             List<EntityExpr> orExprs = FastList.newInstance();
-            while (i.hasNext()) {
-                String roleTypeId = i.next();
+            for (String roleTypeId : roleTypeList) {
                 paramList.add("roleTypeId=" + roleTypeId);
                 orExprs.add(makeExpr("roleTypeId", roleTypeId));
             }
@@ -352,7 +344,11 @@ public class OrderLookupServices {
         String budgetId = (String) context.get("budgetId");
         String quoteId = (String) context.get("quoteId");
 
-        if (correspondingPoId != null || subscriptionId != null || productId != null || budgetId != null || quoteId != null) {
+        String goodIdentificationTypeId = (String) context.get("goodIdentificationTypeId");
+        String goodIdentificationIdValue = (String) context.get("goodIdentificationIdValue");
+        boolean hasGoodIdentification = UtilValidate.isNotEmpty(goodIdentificationTypeId) && UtilValidate.isNotEmpty(goodIdentificationIdValue);
+
+        if (correspondingPoId != null || subscriptionId != null || productId != null || budgetId != null || quoteId != null || hasGoodIdentification) {
             dve.addMemberEntity("OI", "OrderItem");
             dve.addAlias("OI", "correspondingPoId");
             dve.addAlias("OI", "subscriptionId");
@@ -360,6 +356,17 @@ public class OrderLookupServices {
             dve.addAlias("OI", "budgetId");
             dve.addAlias("OI", "quoteId");
             dve.addViewLink("OH", "OI", Boolean.FALSE, UtilMisc.toList(new ModelKeyMap("orderId", "orderId")));
+
+            if (hasGoodIdentification) {
+                dve.addMemberEntity("GOODID", "GoodIdentification");
+                dve.addAlias("GOODID", "goodIdentificationTypeId");
+                dve.addAlias("GOODID", "idValue");
+                dve.addViewLink("OI", "GOODID", Boolean.FALSE, UtilMisc.toList(new ModelKeyMap("productId", "productId")));
+                paramList.add("goodIdentificationTypeId=" + goodIdentificationTypeId);
+                conditions.add(makeExpr("goodIdentificationTypeId", goodIdentificationTypeId));
+                paramList.add("goodIdentificationIdValue=" + goodIdentificationIdValue);
+                conditions.add(makeExpr("idValue", goodIdentificationIdValue));
+            }
         }
 
         if (UtilValidate.isNotEmpty(correspondingPoId)) {
@@ -379,7 +386,7 @@ public class OrderLookupServices {
             } else {
                 GenericValue product = null;
                 try {
-                    product = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", productId));
+                    product = EntityQuery.use(delegator).from("Product").where("productId", productId).queryOne();
                 } catch (GenericEntityException e) {
                     Debug.logWarning(e.getMessage(), module);
                 }
@@ -397,9 +404,7 @@ public class OrderLookupServices {
                         }
                         List<GenericValue> variants = UtilGenerics.checkList(varLookup.get("assocProducts"));
                         if (variants != null) {
-                            Iterator<GenericValue> i = variants.iterator();
-                            while (i.hasNext()) {
-                                GenericValue v = i.next();
+                            for (GenericValue v : variants) {
                                 orExprs.add(EntityCondition.makeCondition("productId", EntityOperator.EQUALS, v.getString("productIdTo")));
                             }
                         }
@@ -407,6 +412,9 @@ public class OrderLookupServices {
                     } else {
                         conditions.add(EntityCondition.makeCondition("productId", EntityOperator.EQUALS, productId));
                     }
+                } else {
+                    String failMsg = UtilProperties.getMessage("OrderErrorUiLabels", "OrderFindOrderProductInvalid", UtilMisc.toMap("productId", productId), locale);
+                    return ServiceUtil.returnFailure(failMsg);
                 }
             }
         }
@@ -426,11 +434,17 @@ public class OrderLookupServices {
         String finAccountId = (String) context.get("finAccountId");
         String cardNumber = (String) context.get("cardNumber");
         String accountNumber = (String) context.get("accountNumber");
+        String paymentStatusId = (String) context.get("paymentStatusId");
 
-        if (finAccountId != null || cardNumber != null || accountNumber != null) {
+        if (UtilValidate.isNotEmpty(paymentStatusId)) {
+            paramList.add("paymentStatusId=" + paymentStatusId);
+            conditions.add(makeExpr("paymentStatusId", paymentStatusId));
+        }
+        if (finAccountId != null || cardNumber != null || accountNumber != null || paymentStatusId != null) {
             dve.addMemberEntity("OP", "OrderPaymentPreference");
             dve.addAlias("OP", "finAccountId");
             dve.addAlias("OP", "paymentMethodId");
+            dve.addAlias("OP", "paymentStatusId", "statusId", null, false, false, null);
             dve.addViewLink("OH", "OP", Boolean.FALSE, UtilMisc.toList(new ModelKeyMap("orderId", "orderId")));
         }
 
@@ -553,9 +567,6 @@ public class OrderLookupServices {
             conditions.add(exprs);
         }
 
-        // set distinct on so we only get one row per order
-        EntityFindOptions findOpts = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, true);
-
         // create the main condition
         EntityCondition cond = null;
         if (conditions.size() > 0 || showAll.equalsIgnoreCase("Y")) {
@@ -572,13 +583,20 @@ public class OrderLookupServices {
         // get the index for the partial list
         int lowIndex = (((viewIndex.intValue() - 1) * viewSize.intValue()) + 1);
         int highIndex = viewIndex.intValue() * viewSize.intValue();
-        findOpts.setMaxRows(highIndex);
 
         if (cond != null) {
             EntityListIterator eli = null;
             try {
                 // do the lookup
-                eli = delegator.findListIteratorByCondition(dve, cond, null, fieldsToSelect, orderBy, findOpts);
+                eli = EntityQuery.use(delegator)
+                        .select(fieldsToSelect)
+                        .from(dve)
+                        .where(cond)
+                        .orderBy(orderBy)
+                        .distinct() // set distinct on so we only get one row per order
+                        .maxRows(highIndex)
+                        .cursorScrollInsensitive()
+                        .queryIterator();
 
                 orderCount = eli.getResultsSizeAfterPartialList();
 
@@ -639,9 +657,7 @@ public class OrderLookupServices {
 
         if ("Y".equals(doFilter) && orderList.size() > 0) {
             paramList.add("filterInventoryProblems=Y");
-            Iterator<GenericValue> i = orderList.iterator();
-            while (i.hasNext()) {
-                GenericValue orderHeader = i.next();
+            for (GenericValue orderHeader : orderList) {
                 OrderReadHelper orh = new OrderReadHelper(orderHeader);
                 BigDecimal backorderQty = orh.getOrderBackorderQuantity();
                 if (backorderQty.compareTo(BigDecimal.ZERO) == 1) {
@@ -682,9 +698,7 @@ public class OrderLookupServices {
         }
 
         if (doPoFilter && orderList.size() > 0) {
-            Iterator<GenericValue> i = orderList.iterator();
-            while (i.hasNext()) {
-                GenericValue orderHeader = i.next();
+            for (GenericValue orderHeader : orderList) {
                 OrderReadHelper orh = new OrderReadHelper(orderHeader);
                 String orderType = orh.getOrderTypeId();
                 String orderId = orh.getOrderId();

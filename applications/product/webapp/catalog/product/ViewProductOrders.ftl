@@ -50,7 +50,7 @@ under the License.
     <form name="paginationForm" method="post" action="<@ofbizUrl>viewProductOrder</@ofbizUrl>">
       <input type="hidden" name="viewSize"/>
       <input type="hidden" name="viewIndex"/>
-      <#if paramIdList?exists && paramIdList?has_content>
+      <#if paramIdList?? && paramIdList?has_content>
         <#list paramIdList as paramIds>
           <#assign paramId = paramIds.split("=")/>
           <#if "productId" == paramId[0]>
@@ -70,19 +70,19 @@ under the License.
         <td>${uiLabelMap.OrderQuantity}</td>
         <td>${uiLabelMap.OrderOrderType}</td>
       </tr>
-      <#if orderList?has_content && productId?exists>
+      <#if orderList?has_content && productId??>
         <#list orderList as order>
-          <#assign orderItems = delegator.findByAnd("OrderItem", {"orderId" : order.orderId, "productId" : productId})/>
+          <#assign orderItems = delegator.findByAnd("OrderItem", {"orderId" : order.orderId, "productId" : productId}, null, false)/>
           <#list orderItems as orderItem>
             <tr>
               <td><a href="/ordermgr/control/orderview?orderId=${orderItem.orderId}" class='buttontext'>${orderItem.orderId}</a></td>
-              <#assign currentItemStatus = orderItem.getRelatedOne("StatusItem")/>
+              <#assign currentItemStatus = orderItem.getRelatedOne("StatusItem", false)/>
               <td>${currentItemStatus.get("description",locale)?default(currentItemStatus.statusId)}</td>
               <td>${orderItem.orderItemSeqId}</td>
               <td>${order.orderDate}</td>
               <td>${orderItem.unitPrice}</td>
               <td>${orderItem.quantity}</td>
-              <#assign currentOrderType = order.getRelatedOne("OrderType")/>
+              <#assign currentOrderType = order.getRelatedOne("OrderType", false)/>
               <td>${currentOrderType.get("description",locale)?default(currentOrderType.orderTypeId)}</td>
             </tr>
           </#list>

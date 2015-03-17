@@ -30,7 +30,7 @@ under the License.
                 <set field="title" value="${uiLabelMap.PageTitleLookupProduct}"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="entityName" value="Product"/>
-                <set field="searchFields" value="[productId, brandName, internalName]"/>
+                <set field="searchFields" value="[productId, internalName, brandName]"/>
             </actions>
             <widgets>
                 <decorator-screen name="LookupDecorator" location="component://common/widget/CommonScreens.xml">
@@ -80,7 +80,8 @@ under the License.
                 <set field="entityName" value="Product"/>
                 <set field="queryString" from-field="result.queryString"/>
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
+                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
                 <script location="component://product/webapp/catalog/WEB-INF/actions/lookup/LookupVariantProduct.groovy"/>
             </actions>
             <widgets>
@@ -217,6 +218,33 @@ under the License.
                     </decorator-section>
                     <decorator-section name="search-results">
                         <include-form name="listLookupSupplierProduct" location="component://product/widget/catalog/FieldLookupForms.xml"/>
+                    </decorator-section>
+                </decorator-screen>
+            </widgets>
+        </section>
+    </screen>
+    <screen name="LookupCostComponentCalc">
+        <section>
+            <condition>
+                <if-service-permission service-name="catalogPermissionCheck" main-action="VIEW"/>
+            </condition>
+            <actions>
+                <property-map resource="ProductUiLabels" map-name="uiLabelMap" global="true"/>
+                <set field="title" value="${uiLabelMap.PageTitleLookupCostComponentCalc}"/>
+                <set field="queryString" from-field="result.queryString"/>
+                <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer"/>
+                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
+                <set field="entityName" value="CostComponentCalc"/>
+                <set field="searchFields" value="[costComponentCalcId, description, costGlAccountTypeId, offsettingGlAccountTypeId]"/>
+            </actions>
+            <widgets>
+                <decorator-screen name="LookupDecorator" location="component://common/widget/CommonScreens.xml">
+                    <decorator-section name="search-options">
+                        <include-form name="lookupCostComponentCalc" location="component://product/widget/catalog/FieldLookupForms.xml"/>
+                    </decorator-section>
+                    <decorator-section name="search-results">
+                        <include-form name="listLookupCostComponentCalc" location="component://product/widget/catalog/FieldLookupForms.xml"/>
                     </decorator-section>
                 </decorator-screen>
             </widgets>

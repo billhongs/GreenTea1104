@@ -27,16 +27,16 @@ returnId = request.getParameter("returnId");
 
 facility = null;
 if (facilityId) {
-    facility = delegator.findOne("Facility", [facilityId : facilityId], false);
+    facility = from("Facility").where("facilityId", facilityId).queryOne();
 }
 
 returnHeader = null;
 returnItems = null;
 if (returnId) {
-    returnHeader = delegator.findOne("ReturnHeader", [returnId : returnId], false);
+    returnHeader = from("ReturnHeader").where("returnId", returnId).queryOne();
     if (returnHeader) {
         if ("RETURN_ACCEPTED".equals(returnHeader.statusId)) {
-            returnItems = returnHeader.getRelated("ReturnItem");
+            returnItems = returnHeader.getRelated("ReturnItem", null, null, false);
         } else if ("RETURN_REQUESTED".equals(returnHeader.statusId)) {
             uiLabelMap = UtilProperties.getResourceBundleMap("ProductErrorUiLabels", locale);
             ProductReturnRequestedOK = uiLabelMap.ProductReturnRequestedOK;
@@ -55,7 +55,7 @@ if (returnItems) {
     context.returnItemsSize = returnItems.size();
     returnItems.each { thisItem ->
         totalReceived = 0.0;
-        receipts = thisItem.getRelated("ShipmentReceipt");
+        receipts = thisItem.getRelated("ShipmentReceipt", null, null, false);
         if (receipts) {
             receipts.each { rec ->
                 accepted = rec.getDouble("quantityAccepted");
@@ -71,14 +71,14 @@ if (returnItems) {
 }
 
 if (returnHeader) {
-    context.receivedItems = delegator.findList("ShipmentReceipt", EntityCondition.makeCondition("returnId", returnId), null, null, null, false);
+    context.receivedItems = from("ShipmentReceipt").where("returnId", returnId).queryList();
 }
 
 // facilities
-facilities = delegator.findList("Facility", null, null, null, null, false);
+facilities = from("Facility").queryList();
 
 //all possible inventory item types
-inventoryItemTypes = delegator.findList("InventoryItemType", null, null, ['description'], null, true);
+inventoryItemTypes = from("InventoryItemType").orderBy("description").cache(true).queryList();
 
 context.facilityId = facilityId;
 context.facility = facility;

@@ -16,11 +16,11 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
 <#assign extInfo = parameters.extInfo?default("N")>
 <#assign inventoryItemId = parameters.inventoryItemId?default("")>
 <#assign serialNumber = parameters.serialNumber?default("")>
 <#assign softIdentifier = parameters.softIdentifier?default("")>
+<#assign sortField = parameters.sortField!/>
 <#-- Only allow the search fields to be hidden when we have some results -->
 <#if partyList?has_content>
   <#assign hideFields = parameters.hideFields?default("N")>
@@ -29,9 +29,9 @@ under the License.
 </#if>
 <h1>${uiLabelMap.PageTitleFindParty}</h1>
 <#if (parameters.firstName?has_content || parameters.lastName?has_content)>
-  <#assign createUrl = "editperson?create_new=Y&amp;lastName=${parameters.lastName?if_exists}&amp;firstName=${parameters.firstName?if_exists}"/>
+  <#assign createUrl = "editperson?create_new=Y&amp;lastName=${parameters.lastName!}&amp;firstName=${parameters.firstName!}"/>
 <#elseif (parameters.groupName?has_content)>
-  <#assign createUrl = "editpartygroup?create_new=Y&amp;groupName=${parameters.groupName?if_exists}"/>
+  <#assign createUrl = "editpartygroup?create_new=Y&amp;groupName=${parameters.groupName!}"/>
 <#else>
   <#assign createUrl = "createnew"/>
 </#if>
@@ -41,22 +41,9 @@ under the License.
 <#if partyList?has_content>
     <ul>
   <#if hideFields == "Y">
-      <li class="collapsed"><a href="<@ofbizUrl>findparty?hideFields=N${paramList}</@ofbizUrl>" title="${uiLabelMap.CommonShowLookupFields}">&nbsp;</a></li>
+      <li class="collapsed"><a href="<@ofbizUrl>findparty?hideFields=N&sortField=${sortField!}${paramList}</@ofbizUrl>" title="${uiLabelMap.CommonShowLookupFields}">&nbsp;</a></li>
   <#else>
-      <li class="expanded"><a href="<@ofbizUrl>findparty?hideFields=Y${paramList}</@ofbizUrl>" title="${uiLabelMap.CommonHideFields}">&nbsp;</a></li>
-  </#if>
-  <#if (partyListSize > 0)>
-    <#if (partyListSize > highIndex)>
-      <li><a class="nav-next" href="<@ofbizUrl>findparty?VIEW_SIZE=${viewSize}&amp;VIEW_INDEX=${viewIndex+1}&amp;hideFields=${hideFields}${paramList}</@ofbizUrl>">${uiLabelMap.CommonNext}</a></li>
-    <#else>
-      <li class="disabled">${uiLabelMap.CommonNext}</li>
-    </#if>
-      <li>${lowIndex} - ${highIndex} ${uiLabelMap.CommonOf} ${partyListSize}</li>
-    <#if (viewIndex > 0)>
-      <li><a class="nav-previous" href="<@ofbizUrl>findparty?VIEW_SIZE=${viewSize}&amp;VIEW_INDEX=${viewIndex-1}&amp;hideFields=${hideFields}${paramList}</@ofbizUrl>">${uiLabelMap.CommonPrevious}</a></li>
-    <#else>
-      <li class="disabled">${uiLabelMap.CommonPrevious}</li>
-    </#if>
+      <li class="expanded"><a href="<@ofbizUrl>findparty?hideFields=Y&sortField=${sortField!}${paramList}</@ofbizUrl>" title="${uiLabelMap.CommonHideFields}">&nbsp;</a></li>
   </#if>
     </ul>
     <br class="clear"/>
@@ -85,23 +72,23 @@ under the License.
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyPartyId}</td>
-            <td><input type="text" name="partyId" value="${parameters.partyId?if_exists}"/></td>
+            <td><input type="text" name="partyId" value="${parameters.partyId!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyUserLogin}</td>
-            <td><input type="text" name="userLoginId" value="${parameters.userLoginId?if_exists}"/></td>
+            <td><input type="text" name="userLoginId" value="${parameters.userLoginId!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyLastName}</td>
-            <td><input type="text" name="lastName" value="${parameters.lastName?if_exists}"/></td>
+            <td><input type="text" name="lastName" value="${parameters.lastName!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyFirstName}</td>
-            <td><input type="text" name="firstName" value="${parameters.firstName?if_exists}"/></td>
+            <td><input type="text" name="firstName" value="${parameters.firstName!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyPartyGroupName}</td>
-            <td><input type="text" name="groupName" value="${parameters.groupName?if_exists}"/></td>
+            <td><input type="text" name="groupName" value="${parameters.groupName!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyRoleType}</td>
@@ -135,29 +122,29 @@ under the License.
           </tr>
           <tr>
             <td class="label">${uiLabelMap.ProductInventoryItemId}</td>
-            <td><input type="text" name="inventoryItemId" value="${parameters.inventoryItemId?if_exists}"/></td>
+            <td><input type="text" name="inventoryItemId" value="${parameters.inventoryItemId!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.ProductSerialNumber}</td>
-            <td><input type="text" name="serialNumber" value="${parameters.serialNumber?if_exists}"/></td>
+            <td><input type="text" name="serialNumber" value="${parameters.serialNumber!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.ProductSoftIdentifier}</td>
-            <td><input type="text" name="softIdentifier" value="${parameters.softIdentifier?if_exists}"/></td>
+            <td><input type="text" name="softIdentifier" value="${parameters.softIdentifier!}"/></td>
           </tr>
 <#if extInfo == "P">
           <tr><td colspan="3"><hr /></td></tr>
           <tr>
             <td class="label">${uiLabelMap.CommonAddress1}</td>
-            <td><input type="text" name="address1" value="${parameters.address1?if_exists}"/></td>
+            <td><input type="text" name="address1" value="${parameters.address1!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.CommonAddress2}</td>
-            <td><input type="text" name="address2" value="${parameters.address2?if_exists}"/></td>
+            <td><input type="text" name="address2" value="${parameters.address2!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.CommonCity}</td>
-            <td><input type="text" name="city" value="${parameters.city?if_exists}"/></td>
+            <td><input type="text" name="city" value="${parameters.city!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.CommonStateProvince}</td>
@@ -174,29 +161,29 @@ under the License.
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyPostalCode}</td>
-            <td><input type="text" name="postalCode" value="${parameters.postalCode?if_exists}"/></td>
+            <td><input type="text" name="postalCode" value="${parameters.postalCode!}"/></td>
           </tr>
 </#if>
 <#if extInfo == "T">
           <tr><td colspan="3"><hr /></td></tr>
           <tr>
-            <td class="label">${uiLabelMap.PartyCountryCode}</td>
-            <td><input type="text" name="countryCode" value="${parameters.countryCode?if_exists}"/></td>
+            <td class="label">${uiLabelMap.CommonCountryCode}</td>
+            <td><input type="text" name="countryCode" value="${parameters.countryCode!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyAreaCode}</td>
-            <td><input type="text" name="areaCode" value="${parameters.areaCode?if_exists}"/></td>
+            <td><input type="text" name="areaCode" value="${parameters.areaCode!}"/></td>
           </tr>
           <tr>
             <td class="label">${uiLabelMap.PartyContactNumber}</td>
-            <td><input type="text" name="contactNumber" value="${parameters.contactNumber?if_exists}"/></td>
+            <td><input type="text" name="contactNumber" value="${parameters.contactNumber!}"/></td>
           </tr>
 </#if>
 <#if extInfo == "O">
           <tr><td colspan="3"><hr /></td></tr>
           <tr>
             <td class="label">${uiLabelMap.PartyContactInformation}</td>
-            <td><input type="text" name="infoString" value="${parameters.infoString?if_exists}"/></td>
+            <td><input type="text" name="infoString" value="${parameters.infoString!}"/></td>
           </tr>
 </#if>
           <tr>
@@ -212,7 +199,7 @@ under the License.
       document.lookupparty.partyId.focus();
     </script>
 
-<#if partyList?exists>
+<#if partyList??>
   <#if hideFields != "Y">
     <hr />
   </#if>
@@ -220,6 +207,16 @@ under the License.
       <h2>${uiLabelMap.CommonSearchResults}</h2>
     </div>
   <#if partyList?has_content>
+    <#-- Pagination -->
+    <#include "component://common/webcommon/includes/htmlTemplate.ftl"/>
+    <#assign commonUrl = "findparty?hideFields=" + hideFields + paramList + "&sortField=" + (sortField!) + "&"/>
+    <#assign viewIndexFirst = 0/>
+    <#assign viewIndexPrevious = viewIndex - 1/>
+    <#assign viewIndexNext = viewIndex + 1/>
+    <#assign viewIndexLast = Static["org.ofbiz.base.util.UtilMisc"].getViewLastIndex(partyListSize, viewSize) />
+    <#assign messageMap = Static["org.ofbiz.base.util.UtilMisc"].toMap("lowCount", lowIndex, "highCount", highIndex, "total", partyListSize)/>
+    <#assign commonDisplaying = Static["org.ofbiz.base.util.UtilProperties"].getMessage("CommonUiLabels", "CommonDisplaying", messageMap, locale)/>
+    <@nextPrev commonUrl=commonUrl ajaxEnabled=false javaScriptEnabled=false paginateStyle="nav-pager" paginateFirstStyle="nav-first" viewIndex=viewIndex highIndex=highIndex listSize=partyListSize viewSize=viewSize ajaxFirstUrl="" firstUrl="" paginateFirstLabel="" paginatePreviousStyle="nav-previous" ajaxPreviousUrl="" previousUrl="" paginatePreviousLabel="" pageLabel="" ajaxSelectUrl="" selectUrl="" ajaxSelectSizeUrl="" selectSizeUrl="" commonDisplaying=commonDisplaying paginateNextStyle="nav-next" ajaxNextUrl="" nextUrl="" paginateNextLabel="" paginateLastStyle="nav-last" ajaxLastUrl="" lastUrl="" paginateLastLabel="" paginateViewSizeLabel="" />
     <table class="basic-table hover-bar" cellspacing="0">
       <tr class="header-row-2">
         <td>${uiLabelMap.PartyPartyId}</td>
@@ -246,19 +243,29 @@ under the License.
         <td>${uiLabelMap.PartyRelatedCompany}</td>
         <td>${uiLabelMap.PartyType}</td>
         <td>${uiLabelMap.PartyMainRole}</td>
+        <td>
+            <a href="<@ofbizUrl>findparty</@ofbizUrl>?<#if sortField?has_content><#if sortField == "createdDate">sortField=-createdDate<#elseif sortField == "-createdDate">sortField=createdDate<#else>sortField=createdDate</#if><#else>sortField=createdDate</#if>${paramList!}&VIEW_SIZE=${viewSize!}&VIEW_INDEX=${viewIndex!}" 
+                <#if sortField?has_content><#if sortField == "createdDate">class="sort-order-desc"<#elseif sortField == "-createdDate">class="sort-order-asc"<#else>class="sort-order"</#if><#else>class="sort-order"</#if>>${uiLabelMap.FormFieldTitle_createdDate}
+            </a>
+        </td>
+        <td>
+            <a href="<@ofbizUrl>findparty</@ofbizUrl>?<#if sortField?has_content><#if sortField == "lastModifiedDate">sortField=-lastModifiedDate<#elseif sortField == "-lastModifiedDate">sortField=lastModifiedDate<#else>sortField=lastModifiedDate</#if><#else>sortField=lastModifiedDate</#if>${paramList!}&VIEW_SIZE=${viewSize!}&VIEW_INDEX=${viewIndex!}" 
+                <#if sortField?has_content><#if sortField == "lastModifiedDate">class="sort-order-desc"<#elseif sortField == "-lastModifiedDate">class="sort-order-asc"<#else>class="sort-order"</#if><#else>class="sort-order"</#if>>${uiLabelMap.FormFieldTitle_lastModifiedDate}
+            </a>
+        </td>
         <td>&nbsp;</td>
       </tr>
     <#assign alt_row = false>
     <#assign rowCount = 0>
     <#list partyList as partyRow>
-      <#assign partyType = partyRow.getRelatedOne("PartyType")?if_exists>
+      <#assign partyType = partyRow.getRelatedOne("PartyType", false)!>
       <tr valign="middle"<#if alt_row> class="alternate-row"</#if>>
         <td><a href="<@ofbizUrl>viewprofile?partyId=${partyRow.partyId}</@ofbizUrl>">${partyRow.partyId}</a></td>
         <td>
       <#if partyRow.containsKey("userLoginId")>
           ${partyRow.userLoginId?default("N/A")}
       <#else>
-        <#assign userLogins = partyRow.getRelated("UserLogin")>
+        <#assign userLogins = partyRow.getRelated("UserLogin", null, null, false)>
         <#if (userLogins.size() > 0)>
           <#if (userLogins.size() > 1)>
           (${uiLabelMap.CommonMany})
@@ -286,48 +293,51 @@ under the License.
       </#if>
         </td>
       <#if extInfo?default("") == "T">
-        <td>${partyRow.areaCode?if_exists}</td>
+        <td>${partyRow.areaCode!}</td>
       </#if>
       <#if extInfo?default("") == "P" >
-        <td>${partyRow.city?if_exists}, ${partyRow.stateProvinceGeoId?if_exists}</td>
+        <td>${partyRow.city!}, ${partyRow.stateProvinceGeoId!}</td>
       </#if>
       <#if extInfo?default("") == "P">
-        <td>${partyRow.postalCode?if_exists}</td>
+        <td>${partyRow.postalCode!}</td>
       </#if>
       <#if inventoryItemId?default("") != "">
-        <td>${partyRow.inventoryItemId?if_exists}</td>
+        <td>${partyRow.inventoryItemId!}</td>
       </#if>
       <#if serialNumber?default("") != "">
-        <td>${partyRow.serialNumber?if_exists}</td>
+        <td>${partyRow.serialNumber!}</td>
       </#if>
       <#if softIdentifier?default("") != "">
-        <td>${partyRow.softIdentifier?if_exists}</td>
+        <td>${partyRow.softIdentifier!}</td>
       </#if>
-      <#if partyType?exists>
+      <#if partyType??>
         <td>
         <#if partyType.partyTypeId?has_content && partyType.partyTypeId=="PERSON">
-          <#assign partyRelateCom = delegator.findByAnd("PartyRelationship", {"partyIdTo", partyRow.partyId,"roleTypeIdFrom","ACCOUNT","roleTypeIdTo","CONTACT"})>
+          <#assign partyRelateCom = delegator.findByAnd("PartyRelationship", {"partyIdTo", partyRow.partyId,"roleTypeIdFrom","ACCOUNT","roleTypeIdTo","CONTACT"}, null, false)>
           <#if partyRelateCom?has_content>
             <#list partyRelateCom as partyRelationship>
               <#if partyRelationship.partyIdFrom?has_content>
                 <#assign companyName=Static["org.ofbiz.party.party.PartyHelper"].getPartyName(delegator, partyRelationship.partyIdFrom, true)>
-          ${companyName?if_exists}
+          ${companyName!}
               </#if>
             </#list>
           </#if>
         </#if>
         </td>
-        <td><#if partyType.description?exists>${partyType.get("description", locale)}<#else>???</#if></td>
+        <td><#if partyType.description??>${partyType.get("description", locale)}<#else>???</#if></td>
       <#else>
         <td></td><td></td>
       </#if>
         <td>
       <#assign mainRole = dispatcher.runSync("getPartyMainRole", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", partyRow.partyId, "userLogin", userLogin))/>
-              ${mainRole.description?if_exists}
+              ${mainRole.description!}
         </td>
+        <#assign partyDate = delegator.findOne("Party", {"partyId":partyRow.partyId}, true)/>
+        <td>${partyDate.createdDate!}</td>
+        <td>${partyDate.lastModifiedDate!}</td>
         <td class="button-col align-float">
           <a href="<@ofbizUrl>viewprofile?partyId=${partyRow.partyId}</@ofbizUrl>">${uiLabelMap.CommonDetails}</a>
-      <#if security.hasRolePermission("ORDERMGR", "_VIEW", "", "", session)>
+      <#if security.hasEntityPermission("ORDERMGR", "_VIEW", session)>
           <form name= "searchorders_o_${rowCount}" method= "post" action= "/ordermgr/control/searchorders">
             <input type= "hidden" name= "lookupFlag" value= "Y" />
             <input type= "hidden" name= "hideFields" value= "Y" />
@@ -354,7 +364,7 @@ under the License.
       <h3>${uiLabelMap.PartyNoPartiesFound}</h3>
     </div>
   </#if>
-  <#if lookupErrorMessage?exists>
+  <#if lookupErrorMessage??>
     <h3>${lookupErrorMessage}</h3>
   </#if>
   </div>

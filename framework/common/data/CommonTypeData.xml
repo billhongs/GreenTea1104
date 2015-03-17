@@ -64,26 +64,6 @@ under the License.
     <Enumeration description="Lang: Spanish" enumCode="LANG_SP" enumId="KWTR_LANG_SP" sequenceId="21" enumTypeId="KW_THES_REL"/>
     <Enumeration description="Lang: French" enumCode="LANG_FR" enumId="KWTR_LANG_FR" sequenceId="22" enumTypeId="KW_THES_REL"/>
 
-    <GeoType description="City" geoTypeId="CITY" hasTable="N" parentTypeId=""/>
-    <GeoType description="Group" geoTypeId="GROUP" hasTable="N" parentTypeId=""/>
-    <GeoType description="State" geoTypeId="STATE" hasTable="N" parentTypeId=""/>
-    <GeoType description="Postal Code" geoTypeId="POSTAL_CODE" hasTable="N" parentTypeId=""/>
-    <GeoType description="Country" geoTypeId="COUNTRY" hasTable="N" parentTypeId=""/>
-    <GeoType description="County" geoTypeId="COUNTY" hasTable="N" parentTypeId=""/>
-    <GeoType description="County-City" geoTypeId="COUNTY_CITY" hasTable="N" parentTypeId=""/>
-    <GeoType description="Municipality" geoTypeId="MUNICIPALITY" hasTable="N" parentTypeId=""/>
-    <GeoType description="Province" geoTypeId="PROVINCE" hasTable="N" parentTypeId=""/>
-    <GeoType description="Region" geoTypeId="REGION" hasTable="N" parentTypeId=""/>
-    <GeoType description="Territory" geoTypeId="TERRITORY" hasTable="N" parentTypeId=""/>
-    <GeoType description="Sales Territory" geoTypeId="SALES_TERRITORY" hasTable="N" parentTypeId="TERRITORY"/>
-    <GeoType description="Service Territory" geoTypeId="SERVICE_TERRITORY" hasTable="N" parentTypeId="TERRITORY"/>
-
-    <GeoAssocType geoAssocTypeId="GROUP_MEMBER" description="Geo Group Member"/>
-    <GeoAssocType geoAssocTypeId="REGIONS" description="For a region of a larger Geo, i.e. states, counties, provinces..."/>
-    <GeoAssocType geoAssocTypeId="COUNTY_CITY" description="City in a county"/>
-    <GeoAssocType geoAssocTypeId="COUNTY_SEAT" description="Administrative Main City of a County"/>
-    <GeoAssocType geoAssocTypeId="POSTAL_CODE" description="Postal code associated to a GeoType"/>
-
     <!-- sync status -->
     <StatusType description="Synchronize" hasTable="N" parentTypeId="" statusTypeId="SYNCHRONIZE_STATUS"/>
     <StatusItem description="Not-Synchronized" sequenceId="01" statusCode="NOT_SYNCHRONIZED" statusId="NOT_SYNCHRONIZED" statusTypeId="SYNCHRONIZE_STATUS"/>
@@ -129,8 +109,6 @@ under the License.
     <VisualThemeSet visualThemeSetId="BACKOFFICE" description="Themes to be used for backoffice applications"/>
     <VisualThemeSet visualThemeSetId="ECOMMERCE"  description="Themes to be used for ECommerce applications"/>
 
-    <WebSite webSiteId="WEBTOOLS" siteName="Web Tools" visualThemeSetId="BACKOFFICE"/>
-
     <!-- Uom Conversion Purposes -->
     <EnumerationType enumTypeId="CONVERSION_PURPOSE" description="Conversion Purpose"/>
     <Enumeration enumId="INTERNAL_CONVERSION" enumTypeId="CONVERSION_PURPOSE" enumCode="INTERNAL" sequenceId="10" description="Internal Conversion"/>
@@ -142,5 +120,18 @@ under the License.
     <ServerHitType description="View" hitTypeId="VIEW"/>
     <ServerHitType description="Entity" hitTypeId="ENTITY"/>
     <ServerHitType description="Service" hitTypeId="SERVICE"/>
+
+    <!-- Keyword Type -->
+    <EnumerationType enumTypeId="KEYWORD_TYPE" hasTable="N" description="Keyword Type"/>
+    <Enumeration enumId="KWT_KEYWORD" enumTypeId="KEYWORD_TYPE" enumCode="KEYWORD" sequenceId="01" description="Keyword"/>
+    <Enumeration enumId="KWT_TAG" enumTypeId="KEYWORD_TYPE" enumCode="TAG" sequenceId="02" description="Tag"/>
+
+    <!-- Keyword Status -->
+    <StatusType statusTypeId="KEYWORD_STATUS" hasTable="N" description="Keyword"/>
+    <StatusItem statusId="KW_APPROVED" statusTypeId="KEYWORD_STATUS" statusCode="APPROVED" sequenceId="01" description="Approved"/>
+    <StatusItem statusId="KW_PENDING" statusTypeId="KEYWORD_STATUS" statusCode="PENDING" sequenceId="02" description="Pending"/>
+    <StatusItem statusId="KW_DISAPPROVED" statusTypeId="KEYWORD_STATUS" statusCode="DISAPPROVED" sequenceId="03" description="Disapproved"/>
+    <StatusValidChange condition="" statusId="KW_PENDING" statusIdTo="KW_APPROVED" transitionName="Review Approved"/>
+    <StatusValidChange condition="" statusId="KW_PENDING" statusIdTo="KW_DISAPPROVED" transitionName="Review Disapproved"/>
 
 </entity-engine-xml>

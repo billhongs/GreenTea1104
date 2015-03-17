@@ -40,12 +40,12 @@ context.partyId = partyId;
 request.removeAttribute("_EVENT_MESSAGE_");
 
 if (partyId && !partyId.equals("_NA_")) {
-    party = delegator.findByPrimaryKey("Party", [partyId : partyId]);
-    person = party.getRelatedOne("Person");
+    party = from("Party").where("partyId", partyId).queryOne();
+    person = party.getRelatedOne("Person", false);
     context.party = party;
     context.person = person;
     if (party) {
-        context.paymentMethodList = EntityUtil.filterByDate(party.getRelated("PaymentMethod"));
+        context.paymentMethodList = EntityUtil.filterByDate(party.getRelated("PaymentMethod", null, null, false));
 
         billingAccountList = BillingAccountWorker.makePartyBillingAccountList(userLogin, currencyUomId, partyId, delegator, dispatcher);
         if (billingAccountList) {
@@ -57,14 +57,12 @@ if (partyId && !partyId.equals("_NA_")) {
 
 if (parameters.useShipAddr && cart.getShippingContactMechId()) {
     shippingContactMech = cart.getShippingContactMechId();
-    postalAddress = delegator.findByPrimaryKey("PostalAddress", [contactMechId : shippingContactMech]);
+    postalAddress = from("PostalAddress").where("contactMechId", shippingContactMech).queryOne();
     context.useEntityFields = "Y";
     context.postalFields = postalAddress;
 
     if (postalAddress && partyId) {
-        partyContactMechs = delegator.findByAnd("PartyContactMech", [partyId : partyId, contactMechId : postalAddress.contactMechId], ["-fromDate"]);
-        partyContactMechs = EntityUtil.filterByDate(partyContactMechs);
-        partyContactMech = EntityUtil.getFirst(partyContactMechs);
+        partyContactMech = from("PartyContactMech").where("partyId", partyId, "contactMechId", postalAddress.contactMechId).orderBy("-fromDate").filterByDate().queryFirst();
         context.partyContactMech = partyContactMech;
     }
 } else {
@@ -75,26 +73,26 @@ if (cart && !parameters.singleUsePayment) {
     if (cart.getPaymentMethodIds() ) {
         checkOutPaymentId = cart.getPaymentMethodIds()[0];
         context.checkOutPaymentId = checkOutPaymentId;
-        paymentMethod = delegator.findByPrimaryKey("PaymentMethod", [paymentMethodId : checkOutPaymentId]);
+        paymentMethod = from("PaymentMethod").where("paymentMethodId", checkOutPaymentId).queryOne();
         account = null;
 
         if ("CREDIT_CARD".equals(paymentMethod.paymentMethodTypeId)) {
-            account = paymentMethod.getRelatedOne("CreditCard");
+            account = paymentMethod.getRelatedOne("CreditCard", false);
             context.creditCard = account;
             context.paymentMethodType = "CC";
         } else if ("EFT_ACCOUNT".equals(paymentMethod.paymentMethodTypeId)) {
-            account = paymentMethod.getRelatedOne("EftAccount");
+            account = paymentMethod.getRelatedOne("EftAccount", false);
             context.eftAccount = account;
             context.paymentMethodType = "EFT";
         } else if ("GIFT_CARD".equals(paymentMethod.paymentMethodTypeId)) {
-            account = paymentMethod.getRelatedOne("GiftCard");
+            account = paymentMethod.getRelatedOne("GiftCard", false);
             context.giftCard = account;
             context.paymentMethodType = "GC";
         } else {
             context.paymentMethodType = "offline";
         }
         if (account && parameters.useShipAddr) {
-            address = account.getRelatedOne("PostalAddress");
+            address = account.getRelatedOne("PostalAddress", false);
             context.postalAddress = address;
             context.postalFields = address;
         }

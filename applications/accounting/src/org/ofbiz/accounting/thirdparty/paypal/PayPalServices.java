@@ -54,6 +54,7 @@ import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityFunction;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.order.shoppingcart.CartItemModifyException;
@@ -205,7 +206,7 @@ public class PayPalServices {
         inMap.put("postalCode", paramMap.get("SHIPTOZIP"));
 
         try {
-            GenericValue userLogin = delegator.findOne("UserLogin", true, UtilMisc.toMap("userLoginId", "system"));
+            GenericValue userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").cache().queryOne();
             inMap.put("userLogin", userLogin);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
@@ -246,8 +247,8 @@ public class PayPalServices {
             if (estimate == null || estimate.compareTo(BigDecimal.ZERO) < 0) {
                 continue;
             }
-            cart.setShipmentMethodTypeId(shipMethod.getString("shipmentMethodTypeId"));
-            cart.setCarrierPartyId(shipMethod.getString("partyId"));
+            cart.setAllShipmentMethodTypeId(shipMethod.getString("shipmentMethodTypeId"));
+            cart.setAllCarrierPartyId(shipMethod.getString("partyId"));
             try {
                 coh.calcAndAddTax();
             } catch (GeneralException e) {
@@ -286,9 +287,9 @@ public class PayPalServices {
 
         // Remove the temporary ship address
         try {
-            GenericValue postalAddress = delegator.findOne("PostalAddress", false, UtilMisc.toMap("contactMechId", contactMechId));
+            GenericValue postalAddress = EntityQuery.use(delegator).from("PostalAddress").where("contactMechId", contactMechId).queryOne();
             postalAddress.remove();
-            GenericValue contactMech = delegator.findOne("ContactMech", false, UtilMisc.toMap("contactMechId", contactMechId));
+            GenericValue contactMech = EntityQuery.use(delegator).from("ContactMech").where("contactMechId", contactMechId).queryOne();
             contactMech.remove();
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
@@ -383,7 +384,7 @@ public class PayPalServices {
 
         if (cart.getUserLogin() == null) {
             try {
-                GenericValue userLogin = delegator.findOne("UserLogin", false, "userLoginId", "anonymous");
+                GenericValue userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "anonymous").queryOne();
                 try {
                     cart.setUserLogin(userLogin, dispatcher);
                 } catch (CartItemModifyException e) {
@@ -406,7 +407,7 @@ public class PayPalServices {
         if (partyId != null) {
             GenericValue party = null;
             try {
-                party = delegator.findOne("Party", false, "partyId", partyId);
+                party = EntityQuery.use(delegator).from("Party").where("partyId", partyId).queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -449,22 +450,23 @@ public class PayPalServices {
         if (!newParty) {
             EntityCondition cond = EntityCondition.makeCondition(UtilMisc.toList(
                     EntityCondition.makeCondition(UtilMisc.toMap("partyId", partyId, "contactMechTypeId", "EMAIL_ADDRESS")),
-                    EntityCondition.makeCondition(EntityFunction.UPPER_FIELD("infoString"), EntityComparisonOperator.EQUALS, EntityFunction.UPPER(emailAddress)),
-                    EntityUtil.getFilterByDateExpr()
+                    EntityCondition.makeCondition(EntityFunction.UPPER_FIELD("infoString"), EntityComparisonOperator.EQUALS, EntityFunction.UPPER(emailAddress))
 
            ));
             try {
-                GenericValue matchingEmail = EntityUtil.getFirst(delegator.findList("PartyAndContactMech", cond, null, UtilMisc.toList("fromDate"), null, false));
+                GenericValue matchingEmail = EntityQuery.use(delegator).from("PartyAndContactMech").where(cond).orderBy("fromDate").filterByDate().queryFirst();
                 if (matchingEmail != null) {
                     emailContactMechId = matchingEmail.getString("contactMechId");
                 } else {
                     // No email found so we'll need to create one but first check if it should be PRIMARY or just BILLING
-                    cond = EntityCondition.makeCondition(UtilMisc.toList(
-                            EntityCondition.makeCondition(UtilMisc.toMap("partyId", partyId, "contactMechTypeId", "EMAIL_ADDRESS", "contactMechPurposeTypeId", "PRIMARY_EMAIL")),
-                            EntityCondition.makeConditionDate("contactFromDate", "contactThruDate"),
-                            EntityCondition.makeConditionDate("purposeFromDate", "purposeThruDate")));
-                    List<GenericValue> primaryEmails = delegator.findList("PartyContactWithPurpose", cond, null, null, null, false);
-                    if (UtilValidate.isNotEmpty(primaryEmails)) emailContactPurposeTypeId = "BILLING_EMAIL";
+                    long primaryEmails = EntityQuery.use(delegator)
+                            .from("PartyContactWithPurpose")
+                            .where("partyId", partyId, 
+                                    "contactMechTypeId", "EMAIL_ADDRESS", 
+                                    "contactMechPurposeTypeId", "PRIMARY_EMAIL")
+                            .filterByDate("contactFromDate", "contactThruDate", "purposeFromDate", "purposeThruDate")
+                            .queryCount();
+                    if (primaryEmails > 0) emailContactPurposeTypeId = "BILLING_EMAIL";
                 }
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
@@ -535,18 +537,16 @@ public class PayPalServices {
             EntityCondition cond = EntityCondition.makeCondition(UtilMisc.toList(
                     EntityCondition.makeCondition(postalMap),
                     EntityCondition.makeCondition(UtilMisc.toMap("attnName", null, "directions", null, "postalCodeExt", null,"postalCodeGeoId", null)),
-                    EntityUtil.getFilterByDateExpr(),
                     EntityCondition.makeCondition("partyId", partyId)
            ));
             try {
-                GenericValue postalMatch = EntityUtil.getFirst(delegator.findList("PartyAndPostalAddress", cond, null, UtilMisc.toList("fromDate"), null, false));
+                GenericValue postalMatch = EntityQuery.use(delegator).from("PartyAndPostalAddress")
+                        .where(cond).orderBy("fromDate").filterByDate().queryFirst();
                 if (postalMatch != null) {
                     postalContactId = postalMatch.getString("contactMechId");
-                    EntityCondition purposeCond = EntityCondition.makeCondition(UtilMisc.toList(
-                            EntityCondition.makeCondition(UtilMisc.toMap("partyId", partyId, "contactMechId", postalContactId)),
-                            EntityUtil.getFilterByDateExpr()
-                   ));
-                    List<GenericValue> postalPurposes = delegator.findList("PartyContactMechPurpose", purposeCond, null, null, null, false);
+                    List<GenericValue> postalPurposes = EntityQuery.use(delegator).from("PartyContactMechPurpose")
+                            .where("partyId", partyId, "contactMechId", postalContactId)
+                            .filterByDate().queryList();
                     List<Object> purposeStrings = EntityUtil.getFieldListFromEntityList(postalPurposes, "contactMechPurposeTypeId", false);
                     if (UtilValidate.isNotEmpty(purposeStrings) && purposeStrings.contains("SHIPPING_LOCATION")) {
                         needsShippingPurpose = false;
@@ -594,18 +594,21 @@ public class PayPalServices {
         // that was shown to the customer
         String shipMethod = decoder.get("SHIPPINGOPTIONNAME");
         if ("Calculated Offline".equals(shipMethod)) {
-            cart.setCarrierPartyId("_NA_");
-            cart.setShipmentMethodTypeId("NO_SHIPPING");
+            cart.setAllCarrierPartyId("_NA_");
+            cart.setAllShipmentMethodTypeId("NO_SHIPPING");
         } else {
             String[] shipMethodSplit = shipMethod.split(" - ");
-            cart.setCarrierPartyId(shipMethodSplit[0]);
+            cart.setAllCarrierPartyId(shipMethodSplit[0]);
             String shippingMethodTypeDesc = StringUtils.join(shipMethodSplit, " - ", 1, shipMethodSplit.length);
             try {
-                EntityCondition cond = EntityCondition.makeCondition(
-                        UtilMisc.toMap("productStoreId", cart.getProductStoreId(), "partyId", shipMethodSplit[0], "roleTypeId", "CARRIER", "description", shippingMethodTypeDesc)
-               );
-                GenericValue shipmentMethod = EntityUtil.getFirst(delegator.findList("ProductStoreShipmentMethView", cond, null, null, null, false));
-                cart.setShipmentMethodTypeId(shipmentMethod.getString("shipmentMethodTypeId"));
+                GenericValue shipmentMethod = EntityQuery.use(delegator)
+                        .from("ProductStoreShipmentMethView")
+                        .where("productStoreId", cart.getProductStoreId(), 
+                                "partyId", shipMethodSplit[0], 
+                                "roleTypeId", "CARRIER", 
+                                "description", shippingMethodTypeDesc)
+                        .queryFirst();
+                cart.setAllShipmentMethodTypeId(shipmentMethod.getString("shipmentMethodTypeId"));
             } catch (GenericEntityException e1) {
                 Debug.logError(e1, module);
             }
@@ -619,7 +622,7 @@ public class PayPalServices {
             }
         }
         cart.cleanUpShipGroups();
-        cart.setShippingContactMechId(postalContactId);
+        cart.setAllShippingContactMechId(postalContactId);
         Map<String, Object> result = ShippingEvents.getShipGroupEstimate(dispatcher, delegator, cart, 0);
         if (result.get(ModelService.RESPONSE_MESSAGE).equals(ModelService.RESPOND_ERROR)) {
             return ServiceUtil.returnError((String) result.get(ModelService.ERROR_MESSAGE));
@@ -678,8 +681,8 @@ public class PayPalServices {
         GenericValue payPalPaymentSetting = getPaymentMethodGatewayPayPal(dctx, context, null);
         GenericValue payPalPaymentMethod = null;
         try {
-            payPalPaymentMethod = paymentPref.getRelatedOne("PaymentMethod");
-            payPalPaymentMethod = payPalPaymentMethod.getRelatedOne("PayPalPaymentMethod");
+            payPalPaymentMethod = paymentPref.getRelatedOne("PaymentMethod", false);
+            payPalPaymentMethod = payPalPaymentMethod.getRelatedOne("PayPalPaymentMethod", false);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(e.getMessage());
@@ -983,7 +986,7 @@ public class PayPalServices {
         }
         if (paymentGatewayConfigId != null) {
             try {
-                payPalGatewayConfig = delegator.findOne("PaymentGatewayPayPal", true, "paymentGatewayConfigId", paymentGatewayConfigId);
+                payPalGatewayConfig = EntityQuery.use(delegator).from("PaymentGatewayPayPal").where("paymentGatewayConfigId", paymentGatewayConfigId).cache().queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -1019,8 +1022,8 @@ public class PayPalServices {
     private static String getCountryGeoIdFromGeoCode(String geoCode, Delegator delegator) {
         String geoId = null;
         try {
-            EntityCondition cond =EntityCondition.makeCondition(UtilMisc.toMap("geoTypeId", "COUNTRY", "geoCode", geoCode));
-            GenericValue countryGeo = EntityUtil.getFirst(delegator.findList("Geo", cond, null, null, null, true));
+            GenericValue countryGeo = EntityQuery.use(delegator).from("Geo")
+                    .where("geoTypeId", "COUNTRY", "geoCode", geoCode).cache().queryFirst();
             if (countryGeo != null) {
                 geoId = countryGeo.getString("geoId");
             }
@@ -1045,7 +1048,8 @@ public class PayPalServices {
         EntityCondition cond = EntityCondition.makeCondition(conditionList);
         GenericValue geoAssocAndGeoTo = null;
         try {
-            geoAssocAndGeoTo = EntityUtil.getFirst(delegator.findList("GeoAssocAndGeoTo", cond, null, null, null, true));
+            geoAssocAndGeoTo = EntityQuery.use(delegator).from("GeoAssocAndGeoTo").where(cond).cache().queryFirst();
+            
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }

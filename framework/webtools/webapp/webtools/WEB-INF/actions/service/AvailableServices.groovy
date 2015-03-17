@@ -25,9 +25,10 @@ import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.service.eca.ServiceEcaUtil;
 import org.ofbiz.service.ModelPermGroup;
 import org.ofbiz.service.ModelPermission;
-import org.ofbiz.service.GenericDispatcher;
+import org.ofbiz.service.ServiceContainer;
 import org.ofbiz.base.util.UtilHttp;
 import org.ofbiz.base.util.UtilProperties;
+import org.ofbiz.entity.util.EntityUtilProperties;
 
 List getEcaListForService(String selectedService) {
     ecaMap = org.ofbiz.service.eca.ServiceEcaUtil.getServiceEventMap(selectedService);
@@ -331,17 +332,14 @@ List getEcaListForService(String selectedService) {
 
 //Local Dispatchers
 dispArrList = new TreeSet();
-dispArrList.addAll(GenericDispatcher.getAllDispatcherNames());
+dispArrList.addAll(ServiceContainer.getAllDispatcherNames());
 context.dispArrList = dispArrList;
 
 uiLabelMap = UtilProperties.getResourceBundleMap("WebtoolsUiLabels", locale);
 uiLabelMap.addBottomResourceBundle("CommonUiLabels");
 
-selDisp = parameters.selDisp ?: "webtools";
-
-curLocalDispatcher = dispatcher.getLocalDispatcher(selDisp, delegator);
-curDispatchContext = curLocalDispatcher.getDispatchContext();
-context.dispatcherName = curLocalDispatcher.getName();
+curDispatchContext = dispatcher.getDispatchContext();
+context.dispatcherName = dispatcher.getName();
 
 selectedService = parameters.sel_service_name;
 
@@ -350,10 +348,9 @@ if (selectedService) {
 
     curServiceMap.serviceName = selectedService;
     curServiceModel = curDispatchContext.getModelService(selectedService);
-    curServiceMap.description = curServiceModel.description;
 
     if (curServiceModel != null) {
-
+        curServiceMap.description = curServiceModel.description;
         engineName = curServiceModel.engineName ?: "NA";
         defaultEntityName = curServiceModel.defaultEntityName ?: "NA";
         export = curServiceModel.export ? uiLabelMap.CommonTrue : uiLabelMap.CommonFalse;
@@ -379,6 +376,7 @@ if (selectedService) {
         curServiceMap.defaultEntityName = defaultEntityName;
         curServiceMap.invoke = invoke;
         curServiceMap.location = location;
+        curServiceMap.definitionLocation = curServiceModel.definitionLocation.replaceFirst("file:/" + System.getProperty("ofbiz.home") + "/", "");
         curServiceMap.requireNewTransaction = requireNewTransaction;
         curServiceMap.export = export;
         curServiceMap.exportBool = exportBool;
@@ -479,7 +477,7 @@ if (selectedService) {
 
     if (showWsdl?.equals("true")) {
         try {
-            wsdl = curServiceModel.toWSDL("http://${request.getServerName()}:${UtilProperties.getPropertyValue("url.properties", "port.http", "80")}${parameters._CONTROL_PATH_}/SOAPService");
+            wsdl = curServiceModel.toWSDL("http://${request.getServerName()}:${EntityUtilProperties.getPropertyValue("url.properties", "port.http", "80", delegator)}${parameters._CONTROL_PATH_}/SOAPService");
             curServiceMap.wsdl = UtilXml.writeXmlDocument(wsdl);
         } catch (WSDLException ex) {
             curServiceMap.wsdl = ex.getLocalizedMessage();
@@ -540,6 +538,11 @@ if (!selectedService) {
                 }
             }
 
+            if (canIncludeService && constraintName.equals("definitionLocation")) {
+                fullPath = "file:/" + System.getProperty("ofbiz.home") + "/" + constraintVal;
+                canIncludeService = curServiceModel.definitionLocation.equals(fullPath);
+            }
+
             if (canIncludeService && constraintName.equals("alpha")) {
                 canIncludeService = (serviceName[0]).equals(constraintVal);
                 if (constraintVal.equals("NA")) {
@@ -559,6 +562,7 @@ if (!selectedService) {
             curServiceMap.defaultEntityName = defaultEntityName;
             curServiceMap.invoke = invoke;
             curServiceMap.location = location;
+            curServiceMap.definitionLocation = curServiceModel.definitionLocation.replaceFirst("file:/" + System.getProperty("ofbiz.home") + "/", "");
             curServiceMap.requireNewTransaction = requireNewTransaction;
 
             servicesList.add(curServiceMap);

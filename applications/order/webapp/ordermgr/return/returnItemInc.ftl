@@ -26,7 +26,7 @@ under the License.
     </tr>
 
     <#-- information about orders and amount refunded/credited on past returns -->
-    <#if orh?exists>
+    <#if orh??>
     <tr><td colspan="10">
         <table cellspacing="0" class="basic-table">
           <tr>
@@ -62,7 +62,7 @@ under the License.
         <#if orderItem.getEntityName() == "OrderAdjustment">
             <#-- this is an order item adjustment -->
             <#assign returnAdjustmentType = returnItemTypeMap.get(orderItem.get("orderAdjustmentTypeId"))/>
-            <#assign adjustmentType = orderItem.getRelatedOne("OrderAdjustmentType")/>
+            <#assign adjustmentType = orderItem.getRelatedOne("OrderAdjustmentType", false)/>
             <#assign description = orderItem.description?default(adjustmentType.get("description",locale))/>
 
             <tr id="returnItemId_tableRow_${rowCount}" valign="middle"<#if alt_row> class="alternate-row"</#if>>
@@ -90,9 +90,9 @@ under the License.
             </tr>
         <#else>
             <#-- this is an order item -->
-            <#assign returnItemType = (returnItemTypeMap.get(returnableItems.get(orderItem).get("itemTypeKey")))?if_exists/>
+            <#assign returnItemType = (returnItemTypeMap.get(returnableItems.get(orderItem).get("itemTypeKey")))!/>
             <#-- need some order item information -->
-            <#assign orderHeader = orderItem.getRelatedOne("OrderHeader")>
+            <#assign orderHeader = orderItem.getRelatedOne("OrderHeader", false)>
             <#assign itemCount = orderItem.quantity>
             <#assign itemPrice = orderItem.unitPrice>
             <#-- end of order item information -->
@@ -102,14 +102,14 @@ under the License.
             <input type="hidden" name="returnItemTypeId_o_${rowCount}" value="${returnItemType}"/>
             <input type="hidden" name="orderId_o_${rowCount}" value="${orderItem.orderId}"/>
             <input type="hidden" name="orderItemSeqId_o_${rowCount}" value="${orderItem.orderItemSeqId}"/>
-            <input type="hidden" name="description_o_${rowCount}" value="${orderItem.itemDescription?if_exists}"/>
+            <input type="hidden" name="description_o_${rowCount}" value="${orderItem.itemDescription!}"/>
 
                 <div>
-                  <#if orderItem.productId?exists>
+                  <#if orderItem.productId??>
                     ${orderItem.productId}&nbsp;
                     <input type="hidden" name="productId_o_${rowCount}" value="${orderItem.productId}"/>
                   </#if>
-                  ${orderItem.itemDescription?if_exists}
+                  ${orderItem.itemDescription!}
                 </div>
               </td>
               <td align='center'>
@@ -122,7 +122,14 @@ under the License.
                 <div><@ofbizCurrency amount=orderItem.unitPrice isoCode=orderHeader.currencyUom/></div>
               </td>
               <td>
-                <input type="text" size="8" name="returnPrice_o_${rowCount}" value="${returnableItems.get(orderItem).get("returnablePrice")?string("##0.00")}"/>
+                <#if orderItem.productId??>
+                  <#assign product = orderItem.getRelatedOne("Product", false)/>
+                  <#if product.productTypeId == "ASSET_USAGE_OUT_IN">
+                    <input type="text" size="8" name="returnPrice_o_${rowCount}" value="0.00"/>
+                  <#else>
+                    <input type="text" size="8" name="returnPrice_o_${rowCount}" value="${returnableItems.get(orderItem).get("returnablePrice")?string("##0.00")}"/>
+                  </#if>
+                </#if>
               </td>
               <td>
                 <select name="returnReasonId_o_${rowCount}">
@@ -170,7 +177,7 @@ under the License.
       </tr>
       <#list orderHeaderAdjustments as adj>
         <#assign returnAdjustmentType = returnItemTypeMap.get(adj.get("orderAdjustmentTypeId"))/>
-        <#assign adjustmentType = adj.getRelatedOne("OrderAdjustmentType")/>
+        <#assign adjustmentType = adj.getRelatedOne("OrderAdjustmentType", false)/>
         <#assign description = adj.description?default(adjustmentType.get("description",locale))/>
 
         <tr>

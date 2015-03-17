@@ -18,7 +18,12 @@
  *******************************************************************************/
 package org.ofbiz.accounting.invoice;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -31,6 +36,8 @@ import javolution.util.FastList;
 import javolution.util.FastMap;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVRecord;
 import org.ofbiz.accounting.payment.PaymentGatewayServices;
 import org.ofbiz.accounting.payment.PaymentWorker;
 import org.ofbiz.accounting.util.UtilAccounting;
@@ -48,8 +55,9 @@ import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityExpr;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityFindOptions;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.product.product.ProductWorker;
 import org.ofbiz.service.DispatchContext;
@@ -115,12 +123,13 @@ public class InvoiceServices {
         LocalDispatcher dispatcher = dctx.getDispatcher();
         Locale locale = (Locale) context.get("locale");
         try {
-            List<GenericValue> orderItems = delegator.findByAnd("OrderItem", UtilMisc.toMap("orderId", (String) context.get("orderId")), UtilMisc.toList("orderItemSeqId"));
+            List<GenericValue> orderItems = EntityQuery.use(delegator).from("OrderItem")
+                    .where("orderId", context.get("orderId")).orderBy("orderItemSeqId").queryList();
             if (orderItems.size() > 0) {
                 context.put("billItems", orderItems);
             }
             // get the system userid and store in context otherwise the invoice add service does not work
-            GenericValue userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
+            GenericValue userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
             if (userLogin != null) {
                 context.put("userLogin", userLogin);
             }
@@ -165,7 +174,7 @@ public class InvoiceServices {
         }
 
         try {
-            GenericValue orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
+            GenericValue orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
             if (orderHeader == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
                         "AccountingNoOrderHeader", locale));
@@ -210,7 +219,7 @@ public class InvoiceServices {
             BigDecimal invoiceSubTotal = ZERO;
             BigDecimal invoiceQuantity = ZERO;
 
-            GenericValue billingAccount = orderHeader.getRelatedOne("BillingAccount");
+            GenericValue billingAccount = orderHeader.getRelatedOne("BillingAccount", false);
             String billingAccountId = billingAccount != null ? billingAccount.getString("billingAccountId") : null;
 
             Timestamp invoiceDate = (Timestamp)context.get("eventDate");
@@ -251,7 +260,7 @@ public class InvoiceServices {
             }
 
             // order roles to invoice roles
-            List<GenericValue> orderRoles = orderHeader.getRelated("OrderRole");
+            List<GenericValue> orderRoles = orderHeader.getRelated("OrderRole", null, null, false);
             Map<String, Object> createInvoiceRoleContext = FastMap.newInstance();
             createInvoiceRoleContext.put("invoiceId", invoiceId);
             createInvoiceRoleContext.put("userLogin", userLogin);
@@ -278,13 +287,13 @@ public class InvoiceServices {
                  * jacopoc: billing account terms were already copied as order terms
                  *          when the order was created.
                 // get the billing account terms
-                billingAccountTerms = billingAccount.getRelated("BillingAccountTerm");
+                billingAccountTerms = billingAccount.getRelated("BillingAccountTerm", null, null, false);
 
                 // set the invoice terms as defined for the billing account
                 createInvoiceTerms(delegator, dispatcher, invoiceId, billingAccountTerms, userLogin, locale);
                 */
                 // set the invoice bill_to_customer from the billing account
-                List<GenericValue> billToRoles = billingAccount.getRelated("BillingAccountRole", UtilMisc.toMap("roleTypeId", "BILL_TO_CUSTOMER"), null);
+                List<GenericValue> billToRoles = billingAccount.getRelated("BillingAccountRole", UtilMisc.toMap("roleTypeId", "BILL_TO_CUSTOMER"), null, false);
                 for (GenericValue billToRole : billToRoles) {
                     if (!(billToRole.getString("partyId").equals(billToCustomerPartyId))) {
                         createInvoiceRoleContext = UtilMisc.toMap("invoiceId", invoiceId, "partyId", billToRole.get("partyId"),
@@ -325,7 +334,7 @@ public class InvoiceServices {
             }
 
             // get a list of the payment method types
-            //DEJ20050705 doesn't appear to be used: List paymentPreferences = orderHeader.getRelated("OrderPaymentPreference");
+            //DEJ20050705 doesn't appear to be used: List paymentPreferences = orderHeader.getRelated("OrderPaymentPreference", null, null, false);
 
             // create the bill-from (or pay-to) contact mech as the primary PAYMENT_LOCATION of the party from the store
             GenericValue payToAddress = null;
@@ -333,8 +342,7 @@ public class InvoiceServices {
                 // for purchase orders, the pay to address is the BILLING_LOCATION of the vendor
                 GenericValue billFromVendor = orh.getPartyFromRole("BILL_FROM_VENDOR");
                 if (billFromVendor != null) {
-                    List<GenericValue> billingContactMechs = billFromVendor.getRelatedOne("Party").getRelatedByAnd("PartyContactMechPurpose",
-                            UtilMisc.toMap("contactMechPurposeTypeId", "BILLING_LOCATION"));
+                    List<GenericValue> billingContactMechs = billFromVendor.getRelatedOne("Party", false).getRelated("PartyContactMechPurpose", UtilMisc.toMap("contactMechPurposeTypeId", "BILLING_LOCATION"), null, false);
                     if (UtilValidate.isNotEmpty(billingContactMechs)) {
                         payToAddress = EntityUtil.getFirst(billingContactMechs);
                     }
@@ -373,9 +381,9 @@ public class InvoiceServices {
                 }
 
                 if (orderItem == null && itemIssuance != null) {
-                    orderItem = itemIssuance.getRelatedOne("OrderItem");
+                    orderItem = itemIssuance.getRelatedOne("OrderItem", false);
                 } else if ((orderItem == null) && (shipmentReceipt != null)) {
-                    orderItem = shipmentReceipt.getRelatedOne("OrderItem");
+                    orderItem = shipmentReceipt.getRelatedOne("OrderItem", false);
                 } else if ((orderItem == null) && (itemIssuance == null) && (shipmentReceipt == null)) {
                     Debug.logError("Cannot create invoice when orderItem, itemIssuance, and shipmentReceipt are all null", module);
                     return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -383,7 +391,7 @@ public class InvoiceServices {
                 }
                 GenericValue product = null;
                 if (orderItem.get("productId") != null) {
-                    product = orderItem.getRelatedOne("Product");
+                    product = orderItem.getRelatedOne("Product", false);
                 }
 
                 // get some quantities
@@ -479,7 +487,9 @@ public class InvoiceServices {
                 }
 
                 if ("ItemIssuance".equals(currentValue.getEntityName())) {
-                    List<GenericValue> shipmentItemBillings = delegator.findByAnd("ShipmentItemBilling", UtilMisc.toMap("shipmentId", currentValue.get("shipmentId")));
+                    List<GenericValue> shipmentItemBillings = EntityQuery.use(delegator).from("ShipmentItemBilling")
+                            .where("shipmentId", currentValue.get("shipmentId"), "shipmentItemSeqId", currentValue.get("shipmentItemSeqId"))
+                            .queryList();
                     if (UtilValidate.isEmpty(shipmentItemBillings)) {
 
                         // create the ShipmentItemBilling record
@@ -496,7 +506,7 @@ public class InvoiceServices {
                 invoiceItemSeqId = UtilFormatOut.formatPaddedNumber(invoiceItemSeqNum, INVOICE_ITEM_SEQUENCE_ID_DIGITS);
 
                 // Get the original order item from the DB, in case the quantity has been overridden
-                GenericValue originalOrderItem = delegator.findByPrimaryKey("OrderItem", UtilMisc.toMap("orderId", orderId, "orderItemSeqId", orderItem.getString("orderItemSeqId")));
+                GenericValue originalOrderItem = EntityQuery.use(delegator).from("OrderItem").where("orderId", orderId, "orderItemSeqId", orderItem.get("orderItemSeqId")).queryOne();
 
                 // create the item adjustment as line items
                 List<GenericValue> itemAdjustments = OrderReadHelper.getOrderItemAdjustmentList(orderItem, orh.getAdjustments());
@@ -581,7 +591,7 @@ public class InvoiceServices {
                         // represent an organization override for the payToPartyId
                         if (UtilValidate.isNotEmpty(adj.getString("productPromoId"))) {
                             try {
-                                GenericValue productPromo = adj.getRelatedOne("ProductPromo");
+                                GenericValue productPromo = adj.getRelatedOne("ProductPromo", false);
                                 if (UtilValidate.isNotEmpty(productPromo.getString("overrideOrgPartyId"))) {
                                     createInvoiceItemAdjContext.put("overrideOrgPartyId", productPromo.getString("overrideOrgPartyId"));
                                 }
@@ -716,8 +726,9 @@ public class InvoiceServices {
             if (prorateTaxes == null) {
                 prorateTaxes = "Y";
             }
-            for (GenericValue adj : taxAdjustments.keySet()) {
-                BigDecimal adjAlreadyInvoicedAmount = taxAdjustments.get(adj);
+            for (Map.Entry<GenericValue, BigDecimal> entry : taxAdjustments.entrySet()) {
+                GenericValue adj = entry.getKey();
+                BigDecimal adjAlreadyInvoicedAmount = entry.getValue();
                 BigDecimal adjAmount = null;
 
                 if ("N".equalsIgnoreCase(prorateTaxes)) {
@@ -750,13 +761,13 @@ public class InvoiceServices {
             }
 
             // check for previous order payments
-            List<EntityExpr> paymentPrefConds = UtilMisc.toList(
-                    EntityCondition.makeCondition("orderId", EntityOperator.EQUALS, orderId),
-                    EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "PAYMENT_CANCELLED"));
-            List<GenericValue> orderPaymentPrefs = delegator.findList("OrderPaymentPreference", EntityCondition.makeCondition(paymentPrefConds, EntityOperator.AND), null, null, null, false);
+            List<GenericValue> orderPaymentPrefs = EntityQuery.use(delegator).from("OrderPaymentPreference")
+                    .where(EntityCondition.makeCondition("orderId", EntityOperator.EQUALS, orderId),
+                            EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "PAYMENT_CANCELLED")
+                    ).queryList();
             List<GenericValue> currentPayments = FastList.newInstance();
             for (GenericValue paymentPref : orderPaymentPrefs) {
-                List<GenericValue> payments = paymentPref.getRelated("Payment");
+                List<GenericValue> payments = paymentPref.getRelated("Payment", null, null, false);
                 currentPayments.addAll(payments);
             }
             // apply these payments to the invoice if they have any remaining amount to apply
@@ -834,24 +845,26 @@ public class InvoiceServices {
                 List<EntityExpr> invoiceRoleConds = UtilMisc.toList(
                         EntityCondition.makeCondition("invoiceId", EntityOperator.EQUALS, salesInvoiceId),
                         EntityCondition.makeCondition("roleTypeId", EntityOperator.EQUALS, "BILL_FROM_VENDOR"));
-                billFromVendorInvoiceRoles = EntityUtil.getFieldListFromEntityList(delegator.findList("InvoiceRole", EntityCondition.makeCondition(invoiceRoleConds, EntityOperator.AND), null, null, null, false), "partyId", true);
+                EntityQuery roleQuery = EntityQuery.use(delegator).select("partyId").from("InvoiceRole").where(invoiceRoleConds);
+                billFromVendorInvoiceRoles = EntityUtil.getFieldListFromEntityList(roleQuery.queryList(), "partyId", true);
+
                 invoiceRoleConds = UtilMisc.toList(
                         EntityCondition.makeCondition("invoiceId", EntityOperator.EQUALS, salesInvoiceId),
                         EntityCondition.makeCondition("roleTypeId", EntityOperator.EQUALS, "SALES_REP"));
                 // if the receiving parties is empty then we will create commission invoices for all sales agent associated to sales invoice.
                 if (UtilValidate.isEmpty(salesRepPartyIds)) {
-                    salesRepPartyIds = EntityUtil.getFieldListFromEntityList(delegator.findList("InvoiceRole", EntityCondition.makeCondition(invoiceRoleConds, EntityOperator.AND), null, null, null, false), "partyId", true);
+                    salesRepPartyIds = EntityUtil.getFieldListFromEntityList(roleQuery.where(invoiceRoleConds).queryList(), "partyId", true);
                     if (UtilValidate.isEmpty(salesRepPartyIds)) {
                         return ServiceUtil.returnError(UtilProperties.getMessage(resource,
                         "No party found with role sales representative for sales invoice "+ salesInvoiceId, locale));
                     }
                 } else {
-                    List<String> salesInvoiceRolePartyIds = EntityUtil.getFieldListFromEntityList(delegator.findList("InvoiceRole", EntityCondition.makeCondition(invoiceRoleConds, EntityOperator.AND), null, null, null, false), "partyId", true);
+                    List<String> salesInvoiceRolePartyIds = EntityUtil.getFieldListFromEntityList(roleQuery.where(invoiceRoleConds).queryList(), "partyId", true);
                     if (UtilValidate.isNotEmpty(salesInvoiceRolePartyIds)) {
                         salesRepPartyIds = UtilGenerics.checkList(CollectionUtils.intersection(salesRepPartyIds, salesInvoiceRolePartyIds));
                     }
                 }
-                invoice = delegator.findOne("Invoice", UtilMisc.toMap("invoiceId", salesInvoiceId), false);
+                invoice = EntityQuery.use(delegator).from("Invoice").where("invoiceId", salesInvoiceId).queryOne();
                 String invoiceTypeId = invoice.getString("invoiceTypeId");
                 if ("CUST_RTN_INVOICE".equals(invoiceTypeId)) {
                     isReturn = true;
@@ -860,7 +873,7 @@ public class InvoiceServices {
                     return ServiceUtil.returnError(UtilProperties.getMessage(resource,
                             "AccountingInvoiceCommissionInvalid", locale));
                 }
-                invoiceItems = delegator.findList("InvoiceItem", EntityCondition.makeCondition("invoiceId", EntityOperator.EQUALS, salesInvoiceId), null, null, null, false);
+                invoiceItems = EntityQuery.use(delegator).from("InvoiceItem").where("invoiceId", salesInvoiceId).queryList();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
@@ -951,38 +964,30 @@ public class InvoiceServices {
             }
             String invoiceId = (String) createInvoiceResult.get("invoiceId");
             // create the bill-from (or pay-to) contact mech as the primary PAYMENT_LOCATION of the party from the store
-            List<EntityExpr> partyContactMechPurposeConds = UtilMisc.toList(
-                    EntityCondition.makeCondition("partyId", EntityOperator.EQUALS, partyIdBillTo),
-                    EntityCondition.makeCondition("contactMechPurposeTypeId", EntityOperator.EQUALS, "BILLING_LOCATION"));
-            List<GenericValue> partyContactMechPurposes = new ArrayList<GenericValue>();
+            GenericValue partyContactMechPurpose = null;
             try {
-                partyContactMechPurposes = delegator.findList("PartyContactMechPurpose",
-                        EntityCondition.makeCondition(partyContactMechPurposeConds, EntityOperator.AND), null, null, null, false);
+                partyContactMechPurpose = EntityQuery.use(delegator).from("PartyContactMechPurpose")
+                        .where("partyId", partyIdBillTo, "contactMechPurposeTypeId", "BILLING_LOCATION").queryFirst();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
-            if (partyContactMechPurposes.size() > 0) {
-                GenericValue address = partyContactMechPurposes.get(0);
+            if (partyContactMechPurpose != null) {
                 GenericValue invoiceContactMech = delegator.makeValue("InvoiceContactMech", UtilMisc.toMap(
                         "invoiceId", invoiceId,
-                        "contactMechId", address.getString("contactMechId"),
+                        "contactMechId", partyContactMechPurpose.getString("contactMechId"),
                         "contactMechPurposeTypeId", "BILLING_LOCATION"));
                 toStore.add(invoiceContactMech);
             }
-            partyContactMechPurposeConds = UtilMisc.toList(
-                    EntityCondition.makeCondition("partyId", EntityOperator.EQUALS, partyIdBillTo),
-                    EntityCondition.makeCondition("contactMechPurposeTypeId", EntityOperator.EQUALS, "PAYMENT_LOCATION"));
             try {
-                partyContactMechPurposes = delegator.findList("PartyContactMechPurpose",
-                        EntityCondition.makeCondition(partyContactMechPurposeConds, EntityOperator.AND), null, null, null, false);
+                partyContactMechPurpose = EntityQuery.use(delegator).from("PartyContactMechPurpose")
+                        .where("partyId", partyIdBillTo, "contactMechPurposeTypeId", "PAYMENT_LOCATION").queryFirst();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
-            if (partyContactMechPurposes.size() > 0) {
-                GenericValue address = partyContactMechPurposes.get(0);
+            if (partyContactMechPurpose != null) {
                 GenericValue invoiceContactMech = delegator.makeValue("InvoiceContactMech", UtilMisc.toMap(
                         "invoiceId", invoiceId,
-                        "contactMechId", address.getString("contactMechId"),
+                        "contactMechId", partyContactMechPurpose.getString("contactMechId"),
                         "contactMechPurposeTypeId", "PAYMENT_LOCATION"));
                 toStore.add(invoiceContactMech);
             }
@@ -1028,7 +1033,7 @@ public class InvoiceServices {
                         "AccountingInvoiceCommissionEntityDataProblem",
                         UtilMisc.toMap("reason", e.toString()), locale));
             }
-            invoicesCreated.add(UtilMisc.<String, String>toMap("commissionInvoiceId",invoiceId, "salesRepresentative ",partyIdBillFrom));;
+            invoicesCreated.add(UtilMisc.<String, String>toMap("commissionInvoiceId",invoiceId, "salesRepresentative ",partyIdBillFrom));
         }
         String invCreated = new Integer(invoicesCreated.size()).toString();
         Map<String, Object> result = ServiceUtil.returnSuccess(UtilProperties.getMessage(resource, 
@@ -1066,23 +1071,50 @@ public class InvoiceServices {
 
     public static Map<String, Object> createInvoicesFromShipment(DispatchContext dctx, Map<String, Object> context) {
         //Delegator delegator = dctx.getDelegator();
+        Delegator delegator = dctx.getDelegator();
         LocalDispatcher dispatcher = dctx.getDispatcher();
         String shipmentId = (String) context.get("shipmentId");
         Locale locale = (Locale) context.get("locale");
         List<String> invoicesCreated = FastList.newInstance();
-
-        Map<String, Object> serviceContext = UtilMisc.toMap("shipmentIds", UtilMisc.toList(shipmentId), "eventDate", context.get("eventDate"), "userLogin", context.get("userLogin"));
-        try {
-            Map<String, Object> result = dispatcher.runSync("createInvoicesFromShipments", serviceContext);
-            invoicesCreated = UtilGenerics.checkList(result.get("invoicesCreated"));
-        } catch (GenericServiceException e) {
-            Debug.logError(e, "Trouble calling createInvoicesFromShipment service; invoice not created for shipment [" + shipmentId + "]", module);
-            return ServiceUtil.returnError(UtilProperties.getMessage(resource,
-                    "AccountingTroubleCallingCreateInvoicesFromShipmentService",
-                    UtilMisc.toMap("shipmentId", shipmentId), locale));
-        }
         Map<String, Object> response = ServiceUtil.returnSuccess();
-        response.put("invoicesCreated", invoicesCreated);
+        GenericValue orderShipment = null;
+        String invoicePerShipment = null;
+
+        try {
+            orderShipment = EntityQuery.use(delegator).from("OrderShipment").where("shipmentId", shipmentId).queryFirst();
+        } catch (GenericEntityException e) {
+            return ServiceUtil.returnError(e.getMessage());
+        }
+
+        if (orderShipment != null) {
+            String orderId = orderShipment.getString("orderId");
+            try {
+                GenericValue orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
+                invoicePerShipment = orderHeader.getString("invoicePerShipment");
+            } catch (GenericEntityException e) {
+                return ServiceUtil.returnError(e.getMessage());
+            }
+        } 
+        
+        // Either no orderShipment exists, or there's a null invoicePerShipment in the OrderHeader.
+        // In either case, use the default value from the properties
+        if (invoicePerShipment == null) {
+            invoicePerShipment = EntityUtilProperties.getPropertyValue("AccountingConfig","create.invoice.per.shipment", delegator);
+        }
+
+        if ("Y".equals(invoicePerShipment)) {
+            Map<String, Object> serviceContext = UtilMisc.toMap("shipmentIds", UtilMisc.toList(shipmentId), "eventDate", context.get("eventDate"), "userLogin", context.get("userLogin"));
+            try {
+                Map<String, Object> result = dispatcher.runSync("createInvoicesFromShipments", serviceContext);
+                invoicesCreated = UtilGenerics.checkList(result.get("invoicesCreated"));
+            } catch (GenericServiceException e) {
+                Debug.logError(e, "Trouble calling createInvoicesFromShipment service; invoice not created for shipment [" + shipmentId + "]", module);
+                return ServiceUtil.returnError(UtilProperties.getMessage(resource,
+                        "AccountingTroubleCallingCreateInvoicesFromShipmentService",
+                        UtilMisc.toMap("shipmentId", shipmentId), locale));
+            }
+            response.put("invoicesCreated", invoicesCreated);
+        }
         return response;
     }
 
@@ -1099,7 +1131,7 @@ public class InvoiceServices {
         // 2.b If the invoice is in status other then IN-Process, skip this. These would be already paid and captured.
 
         try {
-            delegator.findByPrimaryKey("Shipment", UtilMisc.toMap("shipmentId", shipmentId));
+            EntityQuery.use(delegator).from("Shipment").where("shipmentId", shipmentId).queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Trouble getting Shipment entity for shipment " + shipmentId, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -1108,10 +1140,8 @@ public class InvoiceServices {
         }
         List<GenericValue> itemIssuances = FastList.newInstance();
         try {
-            EntityFindOptions findOptions = new EntityFindOptions();
-            findOptions.setDistinct(true);
-            Set<String> fieldsToSelect = UtilMisc.toSet("orderId", "shipmentId");
-            itemIssuances = delegator.findList("ItemIssuance", EntityCondition.makeCondition("shipmentId", shipmentId), fieldsToSelect, UtilMisc.toList("orderId"), findOptions, false);
+            itemIssuances = EntityQuery.use(delegator).select("orderId", "shipmentId")
+                    .from("ItemIssuance").orderBy("orderId").distinct().queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting issued items from shipments", module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -1124,16 +1154,16 @@ public class InvoiceServices {
         // The orders can now be placed in separate groups, each for
         // 1. The group of orders for which payment is already captured. No grouping and action required.
         // 2. The group of orders for which invoice is IN-Process status.
-        Map<String, Object> ordersWithInProcessInvoice = FastMap.newInstance();
+        Map<String, GenericValue> ordersWithInProcessInvoice = FastMap.newInstance();
 
         for (GenericValue itemIssuance : itemIssuances) {
             String orderId = itemIssuance.getString("orderId");
             Map<String, Object> billFields = FastMap.newInstance();
             billFields.put("orderId", orderId);
 
-            List<GenericValue> orderItemBillings = FastList.newInstance();
+            GenericValue orderItemBilling = null;
             try {
-                orderItemBillings = delegator.findByAnd("OrderItemBilling", billFields);
+                orderItemBilling = EntityQuery.use(delegator).from("OrderItemBilling").where(billFields).queryFirst();
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Problem looking up OrderItemBilling records for " + billFields, module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -1141,12 +1171,11 @@ public class InvoiceServices {
                         UtilMisc.toMap("billFields", billFields), locale));
             }
             // if none found, the order does not have any invoice
-            if (orderItemBillings.size() != 0) {
+            if (orderItemBilling != null) {
                 // orders already have an invoice
-                GenericValue orderItemBilling = EntityUtil.getFirst(orderItemBillings);
                 GenericValue invoice = null;
                 try {
-                    invoice = orderItemBilling.getRelatedOne("Invoice");
+                    invoice = orderItemBilling.getRelatedOne("Invoice", false);
                 } catch (GenericEntityException e) {
                     Debug.logError(e, module);
                     return ServiceUtil.returnError(e.getMessage());
@@ -1160,9 +1189,7 @@ public class InvoiceServices {
         }
 
      // For In-Process invoice, move the status to ready and capture the payment
-        Set<String> invoicesInProcess = ordersWithInProcessInvoice.keySet();
-        for (String orderId : invoicesInProcess) {
-            GenericValue invoice = (GenericValue) ordersWithInProcessInvoice.get(orderId);
+        for (GenericValue invoice : ordersWithInProcessInvoice.values()) {
             String invoiceId = invoice.getString("invoiceId");
             Map<String, Object> setInvoiceStatusResult = FastMap.newInstance();
             try {
@@ -1216,7 +1243,7 @@ public class InvoiceServices {
         //DEJ20060520: not used? planned to be used? List shipmentIdList = new LinkedList();
         for (String tmpShipmentId : shipmentIds) {
             try {
-                GenericValue shipment = delegator.findByPrimaryKey("Shipment", UtilMisc.toMap("shipmentId", tmpShipmentId));
+                GenericValue shipment = EntityQuery.use(delegator).from("Shipment").where("shipmentId", tmpShipmentId).queryOne();
                 if ((shipment.getString("shipmentTypeId") != null) && (shipment.getString("shipmentTypeId").equals("PURCHASE_SHIPMENT"))) {
                     purchaseShipmentFound = true;
                 } else if ((shipment.getString("shipmentTypeId") != null) && (shipment.getString("shipmentTypeId").equals("DROP_SHIPMENT"))) {
@@ -1237,7 +1264,7 @@ public class InvoiceServices {
                         UtilMisc.toMap("tmpShipmentId", tmpShipmentId), locale));
             }
         }
-        EntityCondition shipmentIdsCond = EntityCondition.makeCondition("shipmentId", EntityOperator.IN, shipmentIds);
+        EntityQuery shipmentQuery = EntityQuery.use(delegator).where(EntityCondition.makeCondition("shipmentId", EntityOperator.IN, shipmentIds)).orderBy("shipmentId");
         // check the status of the shipment
 
         // get the items of the shipment.  They can come from ItemIssuance if the shipment were from a sales order, ShipmentReceipt
@@ -1246,20 +1273,21 @@ public class InvoiceServices {
         List<GenericValue> orderItemAssocs = null;
         try {
             if (purchaseShipmentFound) {
-                items = delegator.findList("ShipmentReceipt", shipmentIdsCond, null, UtilMisc.toList("shipmentId"), null, false);
+                items = shipmentQuery.from("ShipmentReceipt").queryList();
                 // filter out items which have been received but are not actually owned by an internal organization, so they should not be on a purchase invoice
                 Iterator<GenericValue> itemsIter = items.iterator();
                 while (itemsIter.hasNext()) {
                     GenericValue item = itemsIter.next();
-                    GenericValue inventoryItem = item.getRelatedOne("InventoryItem");
-                    GenericValue ownerPartyRole = delegator.findByPrimaryKeyCache("PartyRole", UtilMisc.toMap("partyId", inventoryItem.getString("ownerPartyId"), "roleTypeId", "INTERNAL_ORGANIZATIO"));
+                    GenericValue inventoryItem = item.getRelatedOne("InventoryItem", false);
+                    GenericValue ownerPartyRole = EntityQuery.use(delegator).from("PartyRole")
+                            .where("partyId", inventoryItem.get("ownerPartyId"), "roleTypeId", "INTERNAL_ORGANIZATIO").cache().queryOne();
                     if (UtilValidate.isEmpty(ownerPartyRole)) {
                         itemsIter.remove();
                     }
                 }
             } else if (dropShipmentFound) {
 
-                List<GenericValue> shipments = delegator.findList("Shipment", shipmentIdsCond, null, null, null, false);
+                List<GenericValue> shipments = shipmentQuery.from("Shipment").queryList();
 
                 // Get the list of purchase order IDs related to the shipments
                 List<String> purchaseOrderIds = EntityUtil.getFieldListFromEntityList(shipments, "primaryOrderId", true);
@@ -1268,17 +1296,19 @@ public class InvoiceServices {
 
                     // If a sales invoice is being created for a drop shipment, we have to reference the original sales order items
                     // Get the list of the linked orderIds (original sales orders)
-                    orderItemAssocs = delegator.findList("OrderItemAssoc", EntityCondition.makeCondition("toOrderId", EntityOperator.IN, purchaseOrderIds), null, null, null, false);
+                    orderItemAssocs = EntityQuery.use(delegator).from("OrderItemAssoc")
+                            .where(EntityCondition.makeCondition("toOrderId", EntityOperator.IN, purchaseOrderIds)).queryList();
 
                     // Get only the order items which are indirectly related to the purchase order - this limits the list to the drop ship group(s)
-                    items = EntityUtil.getRelated("FromOrderItem", orderItemAssocs);
+                    items = EntityUtil.getRelated("FromOrderItem", null, orderItemAssocs, false);
                 } else {
 
                     // If it's a purchase invoice being created, the order items for that purchase orders can be used directly
-                    items = delegator.findList("OrderItem", EntityCondition.makeCondition("orderId", EntityOperator.IN, purchaseOrderIds), null, null, null, false);
+                    items = EntityQuery.use(delegator).from("OrderItem")
+                            .where(EntityCondition.makeCondition("orderId", EntityOperator.IN, purchaseOrderIds)).queryList();
                 }
             } else {
-                items = delegator.findList("ItemIssuance", shipmentIdsCond, null, UtilMisc.toList("shipmentId"), null, false);
+                items = shipmentQuery.from("ItemIssuance").queryList();
             }
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting issued items from shipments", module);
@@ -1319,7 +1349,7 @@ public class InvoiceServices {
             }
             List<GenericValue> itemBillings = null;
             try {
-                itemBillings = delegator.findList("OrderItemBillingAndInvoiceAndItem", EntityCondition.makeCondition(billFields, EntityOperator.AND), null, null, null, false);
+                itemBillings = EntityQuery.use(delegator).from("OrderItemBillingAndInvoiceAndItem").where(billFields).queryList();
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Problem looking up OrderItemBilling records for " + billFields, module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -1369,7 +1399,7 @@ public class InvoiceServices {
                     List<GenericValue> billed = null;
                     BigDecimal orderedQty = null;
                     try {
-                        orderItem = issue.getEntityName().equals("OrderItem") ? issue : issue.getRelatedOne("OrderItem");
+                        orderItem = issue.getEntityName().equals("OrderItem") ? issue : issue.getRelatedOne("OrderItem", false);
 
                         // total ordered
                         orderedQty = orderItem.getBigDecimal("quantity");
@@ -1378,11 +1408,11 @@ public class InvoiceServices {
 
                             // Override the issueQty with the quantity from the purchase order item
                             GenericValue orderItemAssoc = EntityUtil.getFirst(EntityUtil.filterByAnd(orderItemAssocs, UtilMisc.toMap("orderId", issue.getString("orderId"), "orderItemSeqId", issue.getString("orderItemSeqId"))));
-                            GenericValue purchaseOrderItem = orderItemAssoc.getRelatedOne("ToOrderItem");
+                            GenericValue purchaseOrderItem = orderItemAssoc.getRelatedOne("ToOrderItem", false);
                             orderItem.set("quantity", purchaseOrderItem.getBigDecimal("quantity"));
                             issueQty = purchaseOrderItem.getBigDecimal("quantity");
                         }
-                        billed = delegator.findList("OrderItemBillingAndInvoiceAndItem", EntityCondition.makeCondition(lookup, EntityOperator.AND), null, null, null, false);
+                        billed = EntityQuery.use(delegator).from("OrderItemBillingAndInvoiceAndItem").where(lookup).queryList();
                     } catch (GenericEntityException e) {
                         Debug.logError(e, "Problem getting OrderItem/OrderItemBilling records " + lookup, module);
                         return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -1465,15 +1495,16 @@ public class InvoiceServices {
 
                         // Get the list of shipments which are associated with the filtered purchase orders
                         if (! UtilValidate.isEmpty(invoiceablePrimaryOrderIds)) {
-                            List<EntityExpr> invoiceableShipmentConds = UtilMisc.toList(
-                                    EntityCondition.makeCondition("primaryOrderId", EntityOperator.IN, invoiceablePrimaryOrderIds),
-                                    EntityCondition.makeCondition("shipmentId", EntityOperator.IN, shipmentIds));
-                            invoiceableShipments = delegator.findList("Shipment", EntityCondition.makeCondition(invoiceableShipmentConds, EntityOperator.AND), null, null, null, false);
+                            invoiceableShipments = EntityQuery.use(delegator).from("Shipment").where(
+                                    UtilMisc.toList(
+                                            EntityCondition.makeCondition("primaryOrderId", EntityOperator.IN, invoiceablePrimaryOrderIds),
+                                            EntityCondition.makeCondition("shipmentId", EntityOperator.IN, shipmentIds))
+                                    ).queryList();
                         }
                     } else {
                         List<String> invoiceableShipmentIds = EntityUtil.getFieldListFromEntityList(toBillItems, "shipmentId", true);
                         if (UtilValidate.isNotEmpty(invoiceableShipmentIds)) {
-                            invoiceableShipments = delegator.findList("Shipment", EntityCondition.makeCondition("shipmentId", EntityOperator.IN, invoiceableShipmentIds), null, null, null, false);
+                            invoiceableShipments = EntityQuery.use(delegator).from("Shipment").where(EntityCondition.makeCondition("shipmentId", EntityOperator.IN, invoiceableShipmentIds)).queryList();
                         }
                     }
                 } catch (GenericEntityException e) {
@@ -1498,9 +1529,10 @@ public class InvoiceServices {
                 if (totalAdditionalShippingCharges.signum() == 1) {
 
                     // Add an OrderAdjustment to the order for each additional shipping charge
-                    for (GenericValue shipment : additionalShippingCharges.keySet()) {
+                    for (Map.Entry<GenericValue, BigDecimal> entry : additionalShippingCharges.entrySet()) {
+                        GenericValue shipment = entry.getKey();
+                        BigDecimal additionalShippingCharge = entry.getValue();
                         String shipmentId = shipment.getString("shipmentId");
-                        BigDecimal additionalShippingCharge = additionalShippingCharges.get(shipment);
                         Map<String, Object> createOrderAdjustmentContext = FastMap.newInstance();
                         createOrderAdjustmentContext.put("orderId", orderId);
                         createOrderAdjustmentContext.put("orderAdjustmentTypeId", "SHIPPING_CHARGES");
@@ -1527,7 +1559,7 @@ public class InvoiceServices {
                         GenericValue payToParty = orh.getBillFromParty();
                         GenericValue destinationContactMech = null;
                         try {
-                            destinationContactMech = shipment.getRelatedOne("DestinationPostalAddress");
+                            destinationContactMech = shipment.getRelatedOne("DestinationPostalAddress", false);
                         } catch (GenericEntityException e) {
                             Debug.logError(e, "Trouble calling createInvoicesFromShipment service; invoice not created for shipment " + shipmentId, module);
                             return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -1582,7 +1614,8 @@ public class InvoiceServices {
                         // If part of the order was paid via credit card, try to charge it for the additional shipping
                         List<GenericValue> orderPaymentPreferences = null;
                         try {
-                            orderPaymentPreferences = delegator.findByAnd("OrderPaymentPreference", UtilMisc.toMap("orderId", orderId, "paymentMethodTypeId", "CREDIT_CARD"));
+                            orderPaymentPreferences = EntityQuery.use(delegator).from("OrderPaymentPreference")
+                                    .where("orderId", orderId, "paymentMethodTypeId", "CREDIT_CARD").queryList();
                         } catch (GenericEntityException e) {
                             Debug.logError(e, "Problem getting OrderPaymentPreference records", module);
                             return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -1668,16 +1701,15 @@ public class InvoiceServices {
             }
 
             String invoiceId = null;
-            List<GenericValue> shipmentItemBillings = null;
+            GenericValue shipmentItemBilling = null;
             String shipmentId = shipmentIds.get(0);
             try {
-                shipmentItemBillings = delegator.findByAnd("ShipmentItemBilling", UtilMisc.toMap("shipmentId", shipmentId));
+                shipmentItemBilling = EntityQuery.use(delegator).from("ShipmentItemBilling").where("shipmentId", shipmentId).queryFirst();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource,
                         "AccountingProblemGettingShipmentItemBilling", locale));
             }
-            if (UtilValidate.isNotEmpty(shipmentItemBillings)) {
-                GenericValue shipmentItemBilling = EntityUtil.getFirst(shipmentItemBillings);
+            if (shipmentItemBilling != null) {
                 invoiceId = shipmentItemBilling.getString("invoiceId");
             }
 
@@ -1702,10 +1734,10 @@ public class InvoiceServices {
         GenericValue itemMap = null;
         try {
             if (UtilValidate.isNotEmpty(key1)) {
-                itemMap = delegator.findByPrimaryKeyCache("InvoiceItemTypeMap", UtilMisc.toMap("invoiceItemMapKey", key1, "invoiceTypeId", invoiceTypeId));
+                itemMap = EntityQuery.use(delegator).from("InvoiceItemTypeMap").where("invoiceItemMapKey", key1, "invoiceTypeId", invoiceTypeId).cache().queryOne();
             }
             if (itemMap == null && UtilValidate.isNotEmpty(key2)) {
-                itemMap = delegator.findByPrimaryKeyCache("InvoiceItemTypeMap", UtilMisc.toMap("invoiceItemMapKey", key2, "invoiceTypeId", invoiceTypeId));
+                itemMap = EntityQuery.use(delegator).from("InvoiceItemTypeMap").where("invoiceItemMapKey", key2, "invoiceTypeId", invoiceTypeId).cache().queryOne();
             }
         } catch (GenericEntityException e) {
             Debug.logError(e, "Trouble getting InvoiceItemTypeMap entity record", module);
@@ -1733,7 +1765,7 @@ public class InvoiceServices {
         try {
 
             // get the shipment and validate that it is a sales return
-            GenericValue shipment = delegator.findByPrimaryKey("Shipment", UtilMisc.toMap("shipmentId", shipmentId));
+            GenericValue shipment = EntityQuery.use(delegator).from("Shipment").where("shipmentId", shipmentId).queryOne();
             if (shipment == null) {
                 return ServiceUtil.returnError(errorMsg + UtilProperties.getMessage(resource, 
                         "AccountingShipmentNotFound", locale));
@@ -1750,9 +1782,9 @@ public class InvoiceServices {
             // get the items of the shipment. They can come from ItemIssuance if the shipment were from a purchase return, ShipmentReceipt if it were from a sales return
             List<GenericValue> shippedItems = null;
             if (salesReturnFound) {
-                shippedItems = shipment.getRelated("ShipmentReceipt");
+                shippedItems = shipment.getRelated("ShipmentReceipt", null, null, false);
             } else if (purchaseReturnFound) {
-                shippedItems = shipment.getRelated("ItemIssuance");
+                shippedItems = shipment.getRelated("ItemIssuance", null, null, false);
             }
             if (shippedItems == null) {
                 Debug.logInfo("No items issued for shipments", module);
@@ -1768,21 +1800,26 @@ public class InvoiceServices {
                 if (item.getEntityName().equals("ShipmentReceipt")) {
                     returnId = item.getString("returnId");
                 } else if (item.getEntityName().equals("ItemIssuance")) {
-                    GenericValue returnItemShipment = EntityUtil.getFirst(delegator.findByAnd("ReturnItemShipment", UtilMisc.toMap("shipmentId", item.getString("shipmentId"), "shipmentItemSeqId", item.getString("shipmentItemSeqId"))));
+                    GenericValue returnItemShipment = EntityQuery.use(delegator).from("ReturnItemShipment")
+                            .where("shipmentId", item.get("shipmentId"), "shipmentItemSeqId", item.get("shipmentItemSeqId"))
+                            .queryFirst();
                     returnId = returnItemShipment.getString("returnId");
                     returnItemSeqId = returnItemShipment.getString("returnItemSeqId");
                 }
 
                 // see if there are ReturnItemBillings for this item
-                List<GenericValue> billings = null;
+                Long billingCount = 0L;
                 if (item.getEntityName().equals("ShipmentReceipt")) {
-                    billings = delegator.findByAnd("ReturnItemBilling", UtilMisc.toMap("shipmentReceiptId", item.getString("receiptId"), "returnId", returnId,
-                                "returnItemSeqId", item.get("returnItemSeqId")));
+                    billingCount = EntityQuery.use(delegator).from("ReturnItemBilling")
+                            .where("shipmentReceiptId", item.get("receiptId"),
+                                    "returnId", returnId,
+                                    "returnItemSeqId", item.get("returnItemSeqId"))
+                                    .queryCount();
                 } else if (item.getEntityName().equals("ItemIssuance")) {
-                    billings = delegator.findByAnd("ReturnItemBilling", UtilMisc.toMap("returnId", returnId, "returnItemSeqId", returnItemSeqId));
+                    billingCount = EntityQuery.use(delegator).from("ReturnItemBilling").where("returnId", returnId, "returnItemSeqId", returnItemSeqId).queryCount();
                 }
                 // if there are billings, we have already billed the item, so skip it
-                if (UtilValidate.isNotEmpty(billings)) continue;
+                if (billingCount > 0) continue;
 
                 // get the List of items shipped to/from this returnId
                 List<GenericValue> billItems = itemsShippedGroupedByReturn.get(returnId);
@@ -1796,8 +1833,9 @@ public class InvoiceServices {
             }
 
             // loop through the returnId keys in the map and invoke the createInvoiceFromReturn service for each
-            for (String returnId : itemsShippedGroupedByReturn.keySet()) {
-                List<GenericValue> billItems = itemsShippedGroupedByReturn.get(returnId);
+            for (Map.Entry<String, List<GenericValue>> entry : itemsShippedGroupedByReturn.entrySet()) {
+                String returnId = entry.getKey();
+                List<GenericValue> billItems = entry.getValue();
                 if (Debug.verboseOn()) {
                     Debug.logVerbose("Creating invoice for return [" + returnId + "] with items: " + billItems.toString(), module);
                 }
@@ -1837,7 +1875,7 @@ public class InvoiceServices {
             String invoiceTypeId;
             String description;
             // get the return header
-            GenericValue returnHeader = delegator.findByPrimaryKey("ReturnHeader", UtilMisc.toMap("returnId", returnId));                                                  
+            GenericValue returnHeader = EntityQuery.use(delegator).from("ReturnHeader").where("returnId", returnId).queryOne();
             if (returnHeader == null || returnHeader.get("returnHeaderTypeId") == null) {
                 return ServiceUtil.returnError("Return type cannot be null");                                                      
             }
@@ -1887,14 +1925,14 @@ public class InvoiceServices {
                 // we need the related return item and product
                 GenericValue returnItem = null;
                 if (shipmentReceiptFound) {
-                    returnItem = item.getRelatedOneCache("ReturnItem");
+                    returnItem = item.getRelatedOne("ReturnItem", true);
                 } else if (itemIssuanceFound) {
-                    GenericValue shipmentItem = item.getRelatedOneCache("ShipmentItem");
-                    GenericValue returnItemShipment = EntityUtil.getFirst(shipmentItem.getRelated("ReturnItemShipment"));
-                    returnItem = returnItemShipment.getRelatedOneCache("ReturnItem");
+                    GenericValue shipmentItem = item.getRelatedOne("ShipmentItem", true);
+                    GenericValue returnItemShipment = EntityUtil.getFirst(shipmentItem.getRelated("ReturnItemShipment", null, null, false));
+                    returnItem = returnItemShipment.getRelatedOne("ReturnItem", true);
                 }
                 if (returnItem == null) continue; // Just to prevent NPE
-                GenericValue product = returnItem.getRelatedOneCache("Product");
+                GenericValue product = returnItem.getRelatedOne("Product", true);
 
                 // extract the return price as a big decimal for convenience
                 BigDecimal returnPrice = returnItem.getBigDecimal("returnPrice");
@@ -1965,7 +2003,7 @@ public class InvoiceServices {
                 promisedTotal = promisedTotal.add(promisedAmount).setScale(DECIMALS, ROUNDING);
 
                 // for each adjustment related to this ReturnItem, create a separate invoice item
-                List<GenericValue> adjustments = returnItem.getRelatedCache("ReturnAdjustment");
+                List<GenericValue> adjustments = returnItem.getRelated("ReturnAdjustment", null, null, true);
                 for (GenericValue adjustment : adjustments) {
 
                     if (adjustment.get("amount") == null) {
@@ -2032,7 +2070,7 @@ public class InvoiceServices {
             }
 
             // loop through return-wide adjustments and create invoice items for each
-            List<GenericValue> adjustments = returnHeader.getRelatedByAndCache("ReturnAdjustment", UtilMisc.toMap("returnItemSeqId", "_NA_"));
+            List<GenericValue> adjustments = returnHeader.getRelated("ReturnAdjustment", UtilMisc.toMap("returnItemSeqId", "_NA_"), null, true);
             for (GenericValue adjustment : adjustments) {
 
                 // determine invoice item type from the return item type
@@ -2107,7 +2145,7 @@ public class InvoiceServices {
         String invoiceId = (String) context.get("invoiceId");
         GenericValue invoice = null ;
         try {
-            invoice = delegator.findByPrimaryKey("Invoice", UtilMisc.toMap("invoiceId", invoiceId));
+            invoice = EntityQuery.use(delegator).from("Invoice").where("invoiceId", invoiceId).queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting Invoice for Invoice ID" + invoiceId, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource,
@@ -2122,7 +2160,7 @@ public class InvoiceServices {
         // Get the payment applications that can be used to pay the invoice
         List<GenericValue> paymentAppl = null;
         try {
-            paymentAppl = delegator.findByAnd("PaymentAndApplication", UtilMisc.toMap("invoiceId", invoiceId));
+            paymentAppl = EntityQuery.use(delegator).from("PaymentAndApplication").where("invoiceId", invoiceId).queryList();
             // For each payment application, select only those that are RECEIVED or SENT based on whether the payment is a RECEIPT or DISBURSEMENT respectively
             for (Iterator<GenericValue> iter = paymentAppl.iterator(); iter.hasNext();) {
                 GenericValue payment = iter.next();
@@ -2157,8 +2195,7 @@ public class InvoiceServices {
         }
 
         BigDecimal totalPayments = ZERO;
-        for (String paymentId : payments.keySet()) {
-            BigDecimal amount = payments.get(paymentId);
+        for (BigDecimal amount : payments.values()) {
             if (amount == null) amount = ZERO;
             totalPayments = totalPayments.add(amount).setScale(DECIMALS, ROUNDING);
         }
@@ -2356,7 +2393,6 @@ public class InvoiceServices {
         if (amountApplied != null) {
             context.put("amountApplied", amountApplied);
         } else {
-            amountApplied = ZERO;
             context.put("amountApplied", ZERO);
         }
 
@@ -2391,7 +2427,7 @@ public class InvoiceServices {
             context.put("useHighestAmount","Y");
         }
 
-        String defaultInvoiceProcessing = UtilProperties.getPropertyValue("AccountingConfig","invoiceProcessing");
+        String defaultInvoiceProcessing = EntityUtilProperties.getPropertyValue("AccountingConfig","invoiceProcessing", delegator);
 
         boolean debug = true; // show processing messages in the log..or not....
 
@@ -2472,7 +2508,7 @@ public class InvoiceServices {
             errorMessageList.add(UtilProperties.getMessage(resource, "AccountingPaymentIdBlankNotSupplied", locale));
         } else {
             try {
-                payment = delegator.findByPrimaryKey("Payment", UtilMisc.toMap("paymentId", paymentId));
+                payment = EntityQuery.use(delegator).from("Payment").where("paymentId", paymentId).queryOne();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
@@ -2506,7 +2542,7 @@ public class InvoiceServices {
         GenericValue toPayment = null;
         if (toPaymentId != null && !toPaymentId.equals("")) {
             try {
-                toPayment = delegator.findByPrimaryKey("Payment", UtilMisc.toMap("paymentId", toPaymentId));
+                toPayment = EntityQuery.use(delegator).from("Payment").where("paymentId", toPaymentId).queryOne();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
@@ -2562,7 +2598,7 @@ public class InvoiceServices {
         if (invoiceId != null) {
             GenericValue invoice = null;
             try {
-                invoice = delegator.findByPrimaryKey("Invoice", UtilMisc.toMap("invoiceId", invoiceId));
+                invoice = EntityQuery.use(delegator).from("Invoice").where("invoiceId", invoiceId).queryOne();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
@@ -2581,8 +2617,7 @@ public class InvoiceServices {
         GenericValue billingAccount = null;
         if (billingAccountId != null && !billingAccountId.equals("")) {
             try {
-                billingAccount = delegator.findByPrimaryKey("BillingAccount", 
-                        UtilMisc.toMap("billingAccountId", billingAccountId));
+                billingAccount = EntityQuery.use(delegator).from("BillingAccount").where("billingAccountId", billingAccountId).queryOne();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
@@ -2611,7 +2646,7 @@ public class InvoiceServices {
         GenericValue invoiceItem = null;
         if (invoiceId != null) {
             try {
-                invoice = delegator.findByPrimaryKey("Invoice", UtilMisc.toMap("invoiceId", invoiceId));
+                invoice = EntityQuery.use(delegator).from("Invoice").where("invoiceId", invoiceId).queryOne();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
@@ -2690,8 +2725,7 @@ public class InvoiceServices {
             if (invoiceItemSeqId != null) {
                 // when itemSeqNr not provided delay checking on invoiceItemSeqId
                 try {
-                    invoiceItem = delegator.findByPrimaryKey("InvoiceItem",
-                            UtilMisc.toMap("invoiceId", invoiceId, "invoiceItemSeqId", invoiceItemSeqId));
+                    invoiceItem = EntityQuery.use(delegator).from("InvoiceItem").where("invoiceId", invoiceId, "invoiceItemSeqId", invoiceItemSeqId).queryOne();
                 } catch (GenericEntityException e) {
                     return ServiceUtil.returnError(e.getMessage());
                 }
@@ -2765,8 +2799,7 @@ public class InvoiceServices {
             // prepare for creation
         } else { // retrieve existing paymentApplication
             try {
-                paymentApplication = delegator.findByPrimaryKey("PaymentApplication", 
-                        UtilMisc.toMap("paymentApplicationId", paymentApplicationId));
+                paymentApplication = EntityQuery.use(delegator).from("PaymentApplication").where("paymentApplicationId", paymentApplicationId).queryOne();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(e.getMessage());
             }
@@ -3026,7 +3059,7 @@ public class InvoiceServices {
                 // get the invoice items
                 List<GenericValue> invoiceItems = null;
                 try {
-                    invoiceItems = delegator.findByAnd("InvoiceItem", UtilMisc.toMap("invoiceId", invoiceId));
+                    invoiceItems = EntityQuery.use(delegator).from("InvoiceItem").where("invoiceId", invoiceId).queryList();
                 } catch (GenericEntityException e) {
                     return ServiceUtil.returnError(e.getMessage());
                 }
@@ -3054,7 +3087,7 @@ public class InvoiceServices {
                         // item, if available
                         List<GenericValue> paymentApplications = null;
                         try {
-                            paymentApplications = currentInvoiceItem.getRelated("PaymentApplication");
+                            paymentApplications = currentInvoiceItem.getRelated("PaymentApplication", null, null, false);
                         } catch (GenericEntityException e) {
                             return ServiceUtil.returnError(e.getMessage());
                         }
@@ -3170,7 +3203,7 @@ public class InvoiceServices {
         BigDecimal invoicedTotal = ZERO;
         List<GenericValue> invoicedAdjustments = null;
         try {
-            invoicedAdjustments = delegator.findByAnd("OrderAdjustmentBilling", UtilMisc.toMap("orderAdjustmentId", orderAdjustment.getString("orderAdjustmentId")));
+            invoicedAdjustments = EntityQuery.use(delegator).from("OrderAdjustmentBilling").where("orderAdjustmentId", orderAdjustment.get("orderAdjustmentId")).queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Accounting trouble calling calculateInvoicedAdjustmentTotal service", module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -3193,7 +3226,7 @@ public class InvoiceServices {
      */
     private static Map<String, Object> storePaymentApplication(Delegator delegator, GenericValue paymentApplication,Locale locale) {
         Map<String, Object> results = ServiceUtil.returnSuccess(UtilProperties.getMessage(resource, 
-                "AccountingSuccessFull", locale));
+                "AccountingSuccessful", locale));
         boolean debug = true;
         if (debug) Debug.logInfo("Start updating the paymentApplication table ", module);
 
@@ -3205,13 +3238,14 @@ public class InvoiceServices {
         // check if a record already exists with this data
         List<GenericValue> checkAppls = null;
         try {
-            checkAppls = delegator.findByAnd("PaymentApplication", UtilMisc.toMap(
-                    "invoiceId", paymentApplication.get("invoiceId"),
-                    "invoiceItemSeqId", paymentApplication.get("invoiceItemSeqId"),
-                    "billingAccountId", paymentApplication.get("billingAccountId"),
-                    "paymentId", paymentApplication.get("paymentId"),
-                    "toPaymentId", paymentApplication.get("toPaymentId"),
-                    "taxAuthGeoId", paymentApplication.get("taxAuthGeoId")));
+            checkAppls = EntityQuery.use(delegator).from("PaymentApplication")
+                    .where("invoiceId", paymentApplication.get("invoiceId"),
+                            "invoiceItemSeqId", paymentApplication.get("invoiceItemSeqId"),
+                            "billingAccountId", paymentApplication.get("billingAccountId"),
+                            "paymentId", paymentApplication.get("paymentId"),
+                            "toPaymentId", paymentApplication.get("toPaymentId"),
+                            "taxAuthGeoId", paymentApplication.get("taxAuthGeoId"))
+                    .queryList();
         } catch (GenericEntityException e) {
             return ServiceUtil.returnError(e.getMessage());
         }
@@ -3289,10 +3323,10 @@ public class InvoiceServices {
 
         String paymentId = (String) context.get("paymentId");
         try {
-            GenericValue payment = delegator.findByPrimaryKey("Payment", UtilMisc.toMap("paymentId", paymentId));
+            GenericValue payment = EntityQuery.use(delegator).from("Payment").where("paymentId", paymentId).queryOne();
             if (payment == null) throw new GenericServiceException("Payment with ID [" + paymentId  + "] not found!");
 
-            List<GenericValue> paymentApplications = payment.getRelated("PaymentApplication");
+            List<GenericValue> paymentApplications = payment.getRelated("PaymentApplication", null, null, false);
             if (UtilValidate.isEmpty(paymentApplications)) return ServiceUtil.returnSuccess();
 
             // TODO: this is inefficient -- instead use HashSet to construct a distinct Set of invoiceIds, then iterate over it and call checkInvoicePaymentAppls
@@ -3312,5 +3346,165 @@ public class InvoiceServices {
             return ServiceUtil.returnError(ee.getMessage());
         }
     }
+    
+    public static Map<String, Object> importInvoice(DispatchContext dctx, Map<String, Object> context) {
+        Delegator delegator = dctx.getDelegator();
+        LocalDispatcher dispatcher = dctx.getDispatcher();
+        GenericValue userLogin = (GenericValue) context.get("userLogin");
+        ByteBuffer fileBytes = (ByteBuffer) context.get("uploadedFile");
+        String organizationPartyId = (String) context.get("organizationPartyId");
+        String encoding = System.getProperty("file.encoding");
+        String csvString = Charset.forName(encoding).decode(fileBytes).toString();
+        final BufferedReader csvReader = new BufferedReader(new StringReader(csvString));
+        CSVFormat fmt = CSVFormat.DEFAULT.withHeader();
+        List<String> errMsgs = FastList.newInstance();
+        List<String> newErrMsgs = FastList.newInstance();
+        String lastInvoiceId = null;
+        String currentInvoiceId = null;
+        String newInvoiceId = null;
+        int invoicesCreated = 0;
 
+        if (fileBytes == null) {
+            return ServiceUtil.returnError("Uploaded file data not found");
+        }
+
+        try {
+            for (final CSVRecord rec : fmt.parse(csvReader)) {
+                currentInvoiceId =  rec.get("invoiceId");
+                if (lastInvoiceId == null || !currentInvoiceId.equals(lastInvoiceId)) {
+                    newInvoiceId = null;
+                    Map<String, Object> invoice = UtilMisc.toMap(
+                            "invoiceTypeId", rec.get("invoiceTypeId"),
+                            "partyIdFrom", rec.get("partyIdFrom"),
+                            "partyId", rec.get("partyId"),
+                            "invoiceDate", rec.get("invoiceDate"),
+                            "dueDate", rec.get("dueDate"),
+                            "currencyUomId", rec.get("currencyUomId"),
+                            "description", rec.get("description"),
+                            "referenceNumber", rec.get("referenceNumber") + "   Imported: orginal InvoiceId: " + currentInvoiceId,
+                            "userLogin", userLogin
+                            );
+
+                    // replace values if required
+                    if (UtilValidate.isNotEmpty(rec.get("partyIdFromTrans"))) {
+                        invoice.put("partyIdFrom", rec.get("partyIdFromTrans"));
+                    }
+                    if (UtilValidate.isNotEmpty(rec.get("partyIdTrans"))) {
+                        invoice.put("partyId", rec.get("partyIdTrans"));
+                    }
+
+                    // invoice validation
+                    try {
+                        newErrMsgs = FastList.newInstance();
+                        if (UtilValidate.isEmpty(invoice.get("partyIdFrom"))) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": Mandatory Party Id From and Party Id From Trans missing for invoice: " + currentInvoiceId);
+                        } else if (EntityQuery.use(delegator).from("Party").where("partyId", invoice.get("partyIdFrom")).queryOne() == null) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": partyIdFrom: " + invoice.get("partyIdFrom") + " not found for invoice: " + currentInvoiceId);
+                        }
+                        if (UtilValidate.isEmpty(invoice.get("partyId"))) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": Mandatory Party Id and Party Id Trans missing for invoice: " + currentInvoiceId);
+                        } else if (EntityQuery.use(delegator).from("Party").where("partyId", invoice.get("partyId")).queryOne() == null) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": partyId: " + invoice.get("partyId") + " not found for invoice: " + currentInvoiceId);
+                        }
+                        if (UtilValidate.isEmpty(invoice.get("invoiceTypeId"))) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": Mandatory Invoice Type missing for invoice: " + currentInvoiceId);
+                        } else if (EntityQuery.use(delegator).from("InvoiceType").where("invoiceTypeId", invoice.get("invoiceTypeId")).queryOne() == null) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": InvoiceItem type id: " + invoice.get("invoiceTypeId") + " not found for invoice: " + currentInvoiceId);
+                        }
+                        GenericValue invoiceType = EntityQuery.use(delegator).from("InvoiceType").where("invoiceTypeId", invoice.get("invoiceTypeId")).queryOne();
+                        if ("PURCHASE_INVOICE".equals(invoiceType.getString("parentTypeId")) && !invoice.get("partyId").equals(organizationPartyId)) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": A purchase type invoice should have the partyId 'To' being the organizationPartyId(=" + organizationPartyId + ")! however is " + invoice.get("partyId") +"! invoice: " + currentInvoiceId);
+                        }
+                        if ("SALES_INVOICE".equals(invoiceType.getString("parentTypeId")) && !invoice.get("partyIdFrom").equals(organizationPartyId)) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": A sales type invoice should have the partyId 'from' being the organizationPartyId(=" + organizationPartyId + ")! however is " + invoice.get("partyIdFrom") +"! invoice: " + currentInvoiceId);
+                        }
+
+
+                    } catch (GenericEntityException e) {
+                        Debug.logError("Valication checking problem against database. due to " + e.getMessage(), module);
+                    }
+
+                    if (newErrMsgs.size() > 0) {
+                        errMsgs.addAll(newErrMsgs);
+                    } else {
+                        Map<String, Object> invoiceResult = null;
+                        try {
+                            invoiceResult = dispatcher.runSync("createInvoice", invoice);
+                        } catch (GenericServiceException e) {
+                            csvReader.close();
+                            Debug.logError(e, module);
+                            return ServiceUtil.returnError(e.getMessage());
+                        }
+                        newInvoiceId = (String) invoiceResult.get("invoiceId");
+                        invoicesCreated++;
+                    }
+                    lastInvoiceId = currentInvoiceId;
+                }
+
+
+                if (newInvoiceId != null) {
+                    Map<String, Object> invoiceItem = UtilMisc.toMap(
+                            "invoiceId", newInvoiceId,
+                            "invoiceItemSeqId", rec.get("invoiceItemSeqId"),
+                            "invoiceItemTypeId", rec.get("invoiceItemTypeId"),
+                            "productId", rec.get("productId"),
+                            "description", rec.get("itemDescription"),
+                            "amount", rec.get("amount"),
+                            "quantity", rec.get("quantity"),
+                            "userLogin", userLogin
+                            );
+
+                    if (UtilValidate.isNotEmpty(rec.get("productIdTrans"))) {
+                        invoiceItem.put("productId", rec.get("productIdTrans"));
+                    }
+                    // invoice item validation
+                    try {
+                        newErrMsgs = FastList.newInstance();
+                        if (UtilValidate.isEmpty(invoiceItem.get("invoiceItemSeqId"))) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": Mandatory item sequence Id missing for invoice: " + currentInvoiceId);
+                        } 
+                        if (UtilValidate.isEmpty(invoiceItem.get("invoiceItemTypeId"))) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": Mandatory invoice item type missing for invoice: " + currentInvoiceId);
+                        } else if (EntityQuery.use(delegator).from("InvoiceItemType").where("invoiceItemTypeId", invoiceItem.get("invoiceItemTypeId")).queryOne() == null) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": InvoiceItem Item type id: " + invoiceItem.get("invoiceItemTypeId") + " not found for invoice: " + currentInvoiceId + " Item seqId:" + invoiceItem.get("invoiceItemSeqId"));
+                        } 
+                        if (UtilValidate.isEmpty(invoiceItem.get("productId")) && UtilValidate.isEmpty(invoiceItem.get("description"))) {
+                        }                    
+                        if (UtilValidate.isNotEmpty(invoiceItem.get("productId")) && EntityQuery.use(delegator).from("Product").where("productId", invoiceItem.get("productId")).queryOne() == null) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": Product Id: " + invoiceItem.get("productId") + " not found for invoice: " + currentInvoiceId + " Item seqId:" + invoiceItem.get("invoiceItemSeqId"));
+                        } 
+                        if (UtilValidate.isEmpty(invoiceItem.get("amount")) && UtilValidate.isEmpty(invoiceItem.get("quantity"))) {
+                            newErrMsgs.add("Line number " + rec.getRecordNumber() + ": Either or both quantity and amount is required for invoice: " + currentInvoiceId + " Item seqId:" + invoiceItem.get("invoiceItemSeqId"));
+                        }                    
+                    } catch (GenericEntityException e) {
+                        Debug.logError("Validation checking problem against database. due to " + e.getMessage(), module);
+                    }
+
+                    if (newErrMsgs.size() > 0) {
+                        errMsgs.addAll(newErrMsgs);
+                    } else {
+                        try {
+                            dispatcher.runSync("createInvoiceItem", invoiceItem);
+                        } catch (GenericServiceException e) {
+                            csvReader.close();
+                            Debug.logError(e, module);
+                            return ServiceUtil.returnError(e.getMessage());
+                        }
+                    }
+                }
+            }
+
+        } catch (IOException e) {
+            Debug.logError(e, module);
+            return ServiceUtil.returnError(e.getMessage());
+        }
+
+        if (errMsgs.size() > 0) {
+            return ServiceUtil.returnError(errMsgs);
+        }
+
+        Map<String, Object> result = ServiceUtil.returnSuccess(invoicesCreated + " new invoice(s) created");
+        result.put("organizationPartyId", organizationPartyId);
+        return result;
+    }
 }

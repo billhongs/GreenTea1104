@@ -57,10 +57,8 @@ under the License.
     <target name="init"/>
 
     <if>
-        <condition>
-            <available file="${src.dir}"/>
-        </condition>
-        <commands>
+        <available file="${src.dir}"/>
+        <then>
             <selector id="src-extra-set">
                 <or>
                     <filename name="**/*.properties"/>
@@ -76,7 +74,7 @@ under the License.
                 </or>
             </selector>
             <property name="src.extra.dir" value="${src.dir}"/>
-        </commands>
+        </then>            
         <else>
             <selector id="src-extra-set">
                 <filename name="**" negate="true"/>
@@ -90,7 +88,7 @@ under the License.
     <!-- ================================================================== -->
 
     <target name="classes" depends="prepare">
-        <javac16/>
+        <javac17/>
     </target>
 
     <target name="jar" depends="classes">
@@ -102,12 +100,7 @@ under the License.
     <!-- ================================================================== -->
 
     <target name="docs" depends="prepare-docs">
-        <default-javadoc sourcepathref="src-path">
-            <fileset dir="${src.dir}">
-                <patternset refid="src.inc.set"/>
-                <patternset refid="src.exc.set"/>
-            </fileset>
-        </default-javadoc>
+        <default-javadoc/>
     </target>
 
     <macrodef name="run-junit">
@@ -136,21 +129,13 @@ under the License.
         <run-junit/>
     </target>
 
+    <patternset id="cobertura-src-dirs">
+        <include name="src"/>
+    </patternset>
+
     <target name="tests-cobertura" depends="jar">
         <mkdir dir="${build.dir}/cobertura-lib"/>
-        <taskdef resource="tasks.properties">
-            <classpath>
-                <fileset dir="${ofbiz.home.dir}/framework/base/lib">
-                    <include name="cobertura-1.9.3.jar" />
-                    <include name="log4j-1.2.15.jar" />
-                </fileset>
-                <fileset dir="${ofbiz.home.dir}/framework/base/lib/scripting">
-                    <include name="asm-3.2.jar" />
-                    <include name="asm-tree-3.2.jar" />
-                    <include name="jakarta-oro-2.0.8.jar" />
-                </fileset>
-            </classpath>
-        </taskdef>
+        <taskdef resource="tasks.properties" classpathref="cobertura.class.path"/>
         <delete file="${build.dir}/test-results/cobertura.dat"/>
         <cobertura-instrument datafile="${build.dir}/test-results/cobertura.dat" todir="${build.dir}/cobertura-lib">
             <fileset dir="${build.dir}/lib">
@@ -162,8 +147,7 @@ under the License.
         <mkdir dir="${build.dir}/test-results/cobertura-report"/>
         <cobertura-report datafile="${build.dir}/test-results/cobertura.dat" destdir="${build.dir}/test-results/cobertura-report">
             <dirset dir=".">
-                <patternset refid="src-dirs"/>
-                <include name="src"/>
+                <patternset refid="cobertura-src-dirs"/>
             </dirset>
 
             <include name="**/*.java"/>
@@ -171,4 +155,69 @@ under the License.
     </target>
 
     <target name="all" depends="jar,docs"/>
+    
+    <!-- ================================================================== -->
+    <!-- Apply patches if exist                                             -->
+    <!-- ================================================================== -->
+    <!--
+        This macro applies all patches found in ./patches/@{deployment} relative to ${ofbiz.home.dir}
+        and stops the build process if patches fail (to save time deleting all the rejects)
+        We use patch command here instead of svn patch because it's supposed to run in a server where patch is intalled in path
+    -->
+    <macrodef name="apply-patches">
+        <attribute name="deployment" default="dev" />
+        <sequential>
+            <!-- patch task can't handle a fileset => create a global patch -->
+            <if>
+                <available file="patches"/>
+                <then>          
+                    <concat destfile="patches/@{deployment}.patch" encoding="UTF-8" outputencoding="UTF-8">
+                        <!-- exclude the patch itself in case it's still there -->
+                        <fileset dir="patches" includes="@{deployment}/*.patch"/>
+                    </concat>
+                    <patch strip="0" patchfile="patches/@{deployment}.patch" dir="${ofbiz.home.dir}" failonerror="true"/>
+                    <delete>
+                        <fileset dir="patches" includes="@{deployment}.patch"/>
+                    </delete>
+                </then>
+            </if>
+        </sequential>
+    </macrodef>
+    
+    <target name="prepare-to-build-dev"
+        description="Does everything needed to get you a ready to start building OFBiz for development. This include generic patches for OFBiz itself, not only hot-deploy components">
+        <apply-patches deployment="dev" />
+    </target>
+    
+    <target name="prepare-to-build-test"
+        description="Does everything needed to get you a ready to start building OFBiz for integration testing">
+        <apply-patches deployment="test" />
+    </target>
+    
+    <target name="prepare-to-build-qa"
+        description="Does everything needed to get you a ready to start building OFBiz in QA-Environment">
+        <apply-patches deployment="qa" />
+        
+        <!-- need to use flatten here as qa dir might not exist and thus can't be included in "dir" -->
+        <copy toDir="config/" overwrite="true" flatten="true">
+            <fileset dir="patches" includes="qa/*.properties"/>
+        </copy>
+    </target>
+    
+    <target name="prepare-to-build-production"
+        description="Does everything needed to get you a ready to start building OFBiz in production">
+        <apply-patches deployment="production" />
+        
+        <!-- need to use flatten here as production dir might not exist and thus can't be included in "dir" -->
+        <copy toDir="config/" overwrite="true" flatten="true">
+            <fileset dir="patches" includes="production/*.properties"/>
+        </copy>
+        <!-- Some files might need to be deleted in production, notably some specific script files -->
+        <!--exec executable="svn" dir="${ofbiz.home.dir}">
+            <arg value="delete"/>
+            <arg value="filename.sh"/>
+        </exec-->
+    </target>
+    
+    
 </project>

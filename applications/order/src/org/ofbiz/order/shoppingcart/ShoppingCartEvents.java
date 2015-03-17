@@ -23,6 +23,7 @@ import java.math.MathContext;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -52,6 +53,7 @@ import org.ofbiz.entity.GenericPK;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.order.shoppingcart.product.ProductPromoWorker;
 import org.ofbiz.product.catalog.CatalogWorker;
@@ -94,6 +96,58 @@ public class ShoppingCartEvents {
             }
         }
         return "success";
+    }
+
+    public static String removePromotion(HttpServletRequest request,HttpServletResponse response) {
+        LocalDispatcher dispatcher = (LocalDispatcher) request.getAttribute("dispatcher");
+        ShoppingCart cart = getCartObject(request);
+        String promoCodeId = (String) request.getParameter("promoCode");
+        String result = "error";
+
+        if (!promoCodeId.isEmpty()) {
+            cart.getProductPromoCodesEntered().clear();
+            GenericValue productPromoCode = null;
+            try {
+                productPromoCode = dispatcher.getDelegator().findOne("ProductPromoCode", UtilMisc.toMap("productPromoCodeId", promoCodeId), false);
+                if (!productPromoCode.isEmpty()) {
+                    String productPromoId = productPromoCode.getString("productPromoId");
+                    GenericValue productPromoAction = null;
+                    Map<String, String> productPromoActionMap = new HashMap<String, String>();
+                    productPromoActionMap.put("productPromoId", productPromoId);
+                    productPromoActionMap.put("productPromoRuleId", "01");
+                    productPromoActionMap.put("productPromoActionSeqId", "01");
+
+                    productPromoAction = dispatcher.getDelegator().findOne("ProductPromoAction", productPromoActionMap, false);
+                    if (!productPromoAction.isEmpty()) {
+                        int index = cart.getAdjustmentPromoIndex(productPromoId);
+                        /*Remove order adjustment*/
+                        if (index != -1) {
+                            cart.removeAdjustment(index);
+                            result = "success";
+                        }
+
+                        /*Remove product  adjustment*/
+                        for (ShoppingCartItem checkItem : cart) {
+                            List<GenericValue> itemAdjustments = checkItem.getAdjustments();
+                            if (!itemAdjustments.isEmpty()) {
+                                index = 0;
+                                for (GenericValue adjustment : itemAdjustments ) {
+                                    if(adjustment.get("productPromoId").equals(productPromoId)) {
+                                        checkItem.getAdjustments().remove(index);
+                                        result = "success";
+                                    }
+                                    index++;
+                                }
+                            }
+                        }
+                        cart.removeProductPromoUse(productPromoId);
+                    }
+                }
+            } catch (GenericEntityException e) {
+                Debug.logError(e.getMessage(), module);
+            }
+        }
+        return result;
     }
 
     public static String addItemGroup(HttpServletRequest request, HttpServletResponse response) {
@@ -148,6 +202,7 @@ public class ShoppingCartEvents {
         String shipAfterDateStr = null;
         Timestamp shipBeforeDate = null;
         Timestamp shipAfterDate = null;
+        String numberOfDay = null;
 
         // not used right now: Map attributes = null;
         String catalogId = CatalogWorker.getCurrentCatalogId(request);
@@ -299,9 +354,17 @@ public class ShoppingCartEvents {
         if (priceStr == null) {
             priceStr = "0";  // default price is 0
         }
-
+        
+        if ("ASSET_USAGE_OUT_IN".equals(ProductWorker.getProductTypeId(delegator, productId))) {
+            if (paramMap.containsKey("numberOfDay")) {
+                numberOfDay = (String) paramMap.remove("numberOfDay");
+                reservStart = UtilDateTime.addDaysToTimestamp(UtilDateTime.nowTimestamp(), 1);
+                reservEnd = UtilDateTime.addDaysToTimestamp(reservStart, Integer.valueOf(numberOfDay));
+            }
+        }
+        
         // get the renting data
-        if ("ASSET_USAGE".equals(ProductWorker.getProductTypeId(delegator, productId))) {
+        if ("ASSET_USAGE".equals(ProductWorker.getProductTypeId(delegator, productId)) || "ASSET_USAGE_OUT_IN".equals(ProductWorker.getProductTypeId(delegator, productId))) {
             if (paramMap.containsKey("reservStart")) {
                 reservStartStr = (String) paramMap.remove("reservStart");
                 if (reservStartStr.length() == 10) // only date provided, no time string?
@@ -401,8 +464,14 @@ public class ShoppingCartEvents {
         // parse the quantity
         try {
             quantity = (BigDecimal) ObjectType.simpleTypeConvert(quantityStr, "BigDecimal", null, locale);
-            //For quantity we should test if we allow to add decimal quantity for this product an productStore : if not then round to 0
+            //For quantity we should test if we allow to add decimal quantity for this product an productStore : 
+            // if not and if quantity is in decimal format then return error.
             if(! ProductWorker.isDecimalQuantityOrderAllowed(delegator, productId, cart.getProductStoreId())){
+                BigDecimal remainder = quantity.remainder(BigDecimal.ONE);
+                if (remainder.compareTo(BigDecimal.ZERO) != 0) {
+                    request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resource_error, "cart.addToCart.quantityInDecimalNotAllowed", locale));
+                    return "error";
+                }
                 quantity = quantity.setScale(0, UtilNumber.getBigDecimalRoundingMode("order.rounding"));
             }
             else {
@@ -510,12 +579,9 @@ public class ShoppingCartEvents {
                     EntityCondition cond = EntityCondition.makeCondition(UtilMisc.toList(
                             EntityCondition.makeCondition(EntityCondition.makeCondition("productId", EntityOperator.EQUALS, productId), EntityOperator.OR, EntityCondition.makeCondition("productIdTo", EntityOperator.EQUALS, productId)),
                             EntityCondition.makeCondition("productAssocTypeId", EntityOperator.EQUALS, "PRODUCT_INCOMPATABLE")), EntityOperator.AND);
-                    productAssocs = delegator.findList("ProductAssoc", cond, null, null, null, false);
-                    productAssocs = EntityUtil.filterByDate(productAssocs);
+                    productAssocs = EntityQuery.use(delegator).from("ProductAssoc").where(cond).filterByDate().queryList();
                     List<String> productList = FastList.newInstance();
-                    Iterator<GenericValue> iter = productAssocs.iterator();
-                    while (iter.hasNext()) {
-                        GenericValue productAssoc = iter.next();
+                    for (GenericValue productAssoc : productAssocs) {
                         if (productId.equals(productAssoc.getString("productId"))) {
                             productList.add(productAssoc.getString("productIdTo"));
                             continue;
@@ -525,9 +591,7 @@ public class ShoppingCartEvents {
                             continue;
                         }
                     }
-                    Iterator<ShoppingCartItem> sciIter = cart.iterator();
-                    while (sciIter.hasNext()) {
-                        ShoppingCartItem sci = sciIter.next();
+                    for (ShoppingCartItem sci : cart) {
                         if (productList.contains(sci.getProductId())) {
                             try {
                                 cart.removeCartItem(sci, dispatcher);
@@ -539,14 +603,9 @@ public class ShoppingCartEvents {
                 }
                 if ("Y".equals(addToCartReplaceUpsell)) {
                     List<GenericValue> productList = null;
-                    EntityCondition cond = EntityCondition.makeCondition(UtilMisc.toList(
-                            EntityCondition.makeCondition("productIdTo", EntityOperator.EQUALS, productId),
-                            EntityCondition.makeCondition("productAssocTypeId", EntityOperator.EQUALS, "PRODUCT_UPGRADE")), EntityOperator.AND);
-                    productList = delegator.findList("ProductAssoc", cond, UtilMisc.toSet("productId"), null, null, false);
+                    productList = EntityQuery.use(delegator).select("productId").from("ProductAssoc").where("productIdTo", productId, "productAssocTypeId", "PRODUCT_UPGRADE").queryList();
                     if (productList != null) {
-                        Iterator<ShoppingCartItem> sciIter = cart.iterator();
-                        while (sciIter.hasNext()) {
-                            ShoppingCartItem sci = sciIter.next();
+                        for (ShoppingCartItem sci : cart) {
                             if (productList.contains(sci.getProductId())) {
                                 try {
                                     cart.removeCartItem(sci, dispatcher);
@@ -566,7 +625,7 @@ public class ShoppingCartEvents {
         if(ProductWorker.isAlternativePacking(delegator, productId , parentProductId)){
             GenericValue parentProduct = null;
             try {
-                parentProduct = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", parentProductId));
+                parentProduct = EntityQuery.use(delegator).from("Product").where("productId", parentProductId).queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Error getting parent product", module);
             }
@@ -584,6 +643,16 @@ public class ShoppingCartEvents {
                 shipBeforeDate, shipAfterDate, configWrapper, itemGroupNumber, paramMap, parentProductId);
         controlDirective = processResult(result, request);
 
+        Integer itemId = (Integer)result.get("itemId");
+        if (UtilValidate.isNotEmpty(itemId)) {
+            request.setAttribute("itemId", itemId);
+        }
+        for (int shipGroupIndex = 0; shipGroupIndex < cart.getShipGroupSize(); shipGroupIndex++) {
+            String shipContactMechId = cart.getShippingContactMechId(shipGroupIndex);
+            if (UtilValidate.isNotEmpty(shipContactMechId)) {
+                cart.setShipmentMethodTypeId(shipGroupIndex, null);
+            }
+        }
         // Determine where to send the browser
         if (controlDirective.equals(ERROR)) {
             return "error";
@@ -660,7 +729,7 @@ public class ShoppingCartEvents {
         // check the preferred currency of the supplier, if set, use that for the cart, otherwise use system defaults.
         ShoppingCart cart = null;
         try {
-            GenericValue supplierParty = delegator.findOne("Party", UtilMisc.toMap("partyId", supplierPartyId), false);
+            GenericValue supplierParty = EntityQuery.use(delegator).from("Party").where("partyId", supplierPartyId).queryOne();
             if (UtilValidate.isNotEmpty(supplierParty.getString("preferredCurrencyUomId"))) {
                 cart = new WebShoppingCart(request, locale, supplierParty.getString("preferredCurrencyUomId"));
             } else {
@@ -681,7 +750,7 @@ public class ShoppingCartEvents {
         if (UtilValidate.isNotEmpty(orderId)) {
             GenericValue thisOrder = null;
             try {
-                thisOrder = delegator.findOne("OrderHeader", UtilMisc.toMap("orderId", orderId), false);
+                thisOrder = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError(e.getMessage(), module);
             }
@@ -842,9 +911,14 @@ public class ShoppingCartEvents {
         HttpSession session = request.getSession();
         GenericValue userLogin = (GenericValue) session.getAttribute("userLogin");
         if (userLogin != null && "anonymous".equals(userLogin.get("userLoginId"))) {
+            Locale locale = UtilHttp.getLocale(session);
+            
             // here we want to do a full logout, but not using the normal logout stuff because it saves things in the UserLogin record that we don't want changed for the anonymous user
             session.invalidate();
             session = request.getSession(true);
+            if (null != locale) {
+                UtilHttp.setLocale(session, locale);
+            }
 
             // to allow the display of the order confirmation page put the userLogin in the request, but leave it out of the session
             request.setAttribute("temporaryAnonymousUserLogin", userLogin);
@@ -1239,7 +1313,7 @@ public class ShoppingCartEvents {
         }
 
         try {
-            termType = delegator.findOne("TermType", UtilMisc.toMap("termTypeId", termTypeId), false);
+            termType = EntityQuery.use(delegator).from("TermType").where("termTypeId", termTypeId).queryOne();
         } catch (GenericEntityException gee) {
             request.setAttribute("_ERROR_MESSAGE_", gee.getMessage());
             return "error";
@@ -1396,7 +1470,7 @@ public class ShoppingCartEvents {
             List<GenericValue> orderAdjustments = new ArrayList<GenericValue>();
             orderAdjustments = cart.getAdjustments();
             try {
-                orderAdjustmentList = delegator.findList("OrderAdjustment", EntityCondition.makeCondition("orderId", EntityOperator.EQUALS, orderId), null, null, null, false);
+                orderAdjustmentList = EntityQuery.use(delegator).from("OrderAdjustment").where("orderId", orderId).queryList();
             } catch (Exception e) {
                 Debug.logError(e, module);
             }
@@ -1548,12 +1622,13 @@ public class ShoppingCartEvents {
                         // if the user is a rep of the store, then he also has permission
                         List<GenericValue> storeReps = null;
                         try {
-                            storeReps = delegator.findByAnd("ProductStoreRole", UtilMisc.toMap("productStoreId", productStore.getString("productStoreId"),
-                                                            "partyId", userLogin.getString("partyId"), "roleTypeId", "SALES_REP"));
+                            storeReps = EntityQuery.use(delegator).from("ProductStoreRole")
+                                    .where("productStoreId", productStore.getString("productStoreId"), "partyId", userLogin.getString("partyId"), "roleTypeId", "SALES_REP")
+                                    .filterByDate()
+                                    .queryList();
                         } catch (GenericEntityException gee) {
                             //
                         }
-                        storeReps = EntityUtil.filterByDate(storeReps);
                         if (UtilValidate.isNotEmpty(storeReps)) {
                             hasPermission = true;
                         }
@@ -1600,7 +1675,7 @@ public class ShoppingCartEvents {
             if (UtilValidate.isEmpty(partyId) && UtilValidate.isNotEmpty(userLoginId)) {
                 GenericValue thisUserLogin = null;
                 try {
-                    thisUserLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", userLoginId));
+                    thisUserLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", userLoginId).queryOne();
                 } catch (GenericEntityException gee) {
                     //
                 }
@@ -1613,7 +1688,7 @@ public class ShoppingCartEvents {
             if (UtilValidate.isNotEmpty(partyId)) {
                 GenericValue thisParty = null;
                 try {
-                    thisParty = delegator.findByPrimaryKey("Party", UtilMisc.toMap("partyId", partyId));
+                    thisParty = EntityQuery.use(delegator).from("Party").where("partyId", partyId).queryOne();
                 } catch (GenericEntityException gee) {
                     //
                 }
@@ -1669,7 +1744,7 @@ public class ShoppingCartEvents {
             String productPromoId = (String)context.get(keyPrefix + i);
             if (UtilValidate.isNotEmpty(productPromoId)) {
                 try {
-                    GenericValue promo = delegator.findByPrimaryKey("ProductPromo", UtilMisc.toMap("productPromoId", productPromoId));
+                    GenericValue promo = EntityQuery.use(delegator).from("ProductPromo").where("productPromoId", productPromoId).queryOne();
                     if (promo != null) {
                         manualPromotions.add(promo);
                     }
@@ -1738,6 +1813,25 @@ public class ShoppingCartEvents {
                 } catch (Exception e) {
                     Debug.logWarning(e, "Problems parsing quantity string: " + quantityStr, module);
                     quantity = BigDecimal.ZERO;
+                }
+
+                try {
+                    //For quantity we should test if we allow to add decimal quantity for this product an productStore : 
+                    // if not and if quantity is in decimal format then return error.
+                    if(! ProductWorker.isDecimalQuantityOrderAllowed(delegator, productId, cart.getProductStoreId())){
+                        BigDecimal remainder = quantity.remainder(BigDecimal.ONE);
+                        if (remainder.compareTo(BigDecimal.ZERO) != 0) {
+                            request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resource_error, "cart.addToCart.quantityInDecimalNotAllowed", cart.getLocale()));
+                            return "error";
+                        }
+                        quantity = quantity.setScale(0, UtilNumber.getBigDecimalRoundingMode("order.rounding"));
+                    }
+                    else {
+                        quantity = quantity.setScale(UtilNumber.getBigDecimalScale("order.decimals"), UtilNumber.getBigDecimalRoundingMode("order.rounding"));
+                    }
+                } catch (GenericEntityException e) {
+                    Debug.logWarning(e.getMessage(), module);
+                    quantity = BigDecimal.ONE;
                 }
 
                 // get the selected amount
@@ -1815,7 +1909,8 @@ public class ShoppingCartEvents {
         // set the agreement if specified otherwise set the currency
         if (UtilValidate.isNotEmpty(agreementId)) {
             result = cartHelper.selectAgreement(agreementId);
-        } else if (UtilValidate.isNotEmpty(currencyUomId)) {
+        } 
+        if (UtilValidate.isNotEmpty(cart.getCurrency()) && UtilValidate.isNotEmpty(currencyUomId)) {
             result = cartHelper.setCurrency(currencyUomId);
         }
         if (ServiceUtil.isError(result)) {
@@ -1830,7 +1925,7 @@ public class ShoppingCartEvents {
         if (UtilValidate.isNotEmpty(orderId)) {
             GenericValue thisOrder = null;
             try {
-                thisOrder = delegator.findOne("OrderHeader", UtilMisc.toMap("orderId", orderId), false);
+                thisOrder = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError(e.getMessage(), module);
             }
@@ -1982,7 +2077,7 @@ public class ShoppingCartEvents {
                     appendOrderItemMap.put("shipGroupSeqId", shipGroupSeqId);
                     try {
                         Map<String, Object> result = dispatcher.runSync("appendOrderItem", appendOrderItemMap);
-                        request.setAttribute("shoppingCart", (ShoppingCart) result.get("shoppingCart"));
+                        request.setAttribute("shoppingCart", result.get("shoppingCart"));
                         ShoppingCartEvents.destroyCart(request, response);
                     } catch (GenericServiceException e) {
                         Debug.logError(e, "Failed to execute service appendOrderItem", module);

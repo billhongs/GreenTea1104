@@ -42,7 +42,7 @@ under the License.
     <div class="screenlet">
         <div class="screenlet-title-bar">
             <ul>
-                <li class="h3">${uiLabelMap.ProductPackOrder}&nbsp;in&nbsp;${facility.facilityName?if_exists} [${facilityId?if_exists}]</li>
+                <li class="h3">${uiLabelMap.ProductPackOrder}&nbsp;in&nbsp;${facility.facilityName!} [${facilityId!}]</li>
             </ul>
             <br class="clear"/>
         </div>
@@ -58,8 +58,8 @@ under the License.
                     <ul>
                     <#list invoiceIds as invoiceId>
                       <li>
-                        ${uiLabelMap.CommonNbr}<a href="/accounting/control/invoiceOverview?invoiceId=${invoiceId}&amp;externalLoginKey=${externalLoginKey}" target="_blank" class="buttontext">${invoiceId}</a>
-                        (<a href="/accounting/control/invoice.pdf?invoiceId=${invoiceId}&amp;externalLoginKey=${externalLoginKey}" target="_blank" class="buttontext">PDF</a>)
+                        ${uiLabelMap.CommonNbr}<a href="/accounting/control/invoiceOverview?invoiceId=${invoiceId}${StringUtil.wrapString(externalKeyParam)}" target="_blank" class="buttontext">${invoiceId}</a>
+                        (<a href="/accounting/control/invoice.pdf?invoiceId=${invoiceId}${StringUtil.wrapString(externalKeyParam)}" target="_blank" class="buttontext">PDF</a>)
                       </li>
                     </#list>
                     </ul>
@@ -70,13 +70,13 @@ under the License.
 
             <!-- select order form -->
             <form name="selectOrderForm" method="post" action="<@ofbizUrl>PackOrder</@ofbizUrl>">
-              <input type="hidden" name="facilityId" value="${facilityId?if_exists}" />
+              <input type="hidden" name="facilityId" value="${facilityId!}" />
               <table cellspacing="0" class="basic-table">
                 <tr>
                   <td width="25%" align="right"><span class="label">${uiLabelMap.ProductOrderId}</span></td>
                   <td width="1">&nbsp;</td>
                   <td width="25%">
-                    <input type="text" name="orderId" size="20" maxlength="20" value="${orderId?if_exists}"/>
+                    <input type="text" name="orderId" size="20" maxlength="20" value="${orderId!}"/>
                     /
                     <input type="text" name="shipGroupSeqId" size="6" maxlength="6" value="${shipGroupSeqId?default("00001")}"/>
                   </td>
@@ -97,13 +97,13 @@ under the License.
 
             <!-- select picklist bin form -->
             <form name="selectPicklistBinForm" method="post" action="<@ofbizUrl>PackOrder</@ofbizUrl>" style="margin: 0;">
-              <input type="hidden" name="facilityId" value="${facilityId?if_exists}" />
+              <input type="hidden" name="facilityId" value="${facilityId!}" />
               <table cellspacing="0" class="basic-table">
                 <tr>
                   <td width="25%" align='right'><span class="label">${uiLabelMap.FormFieldTitle_picklistBinId}</span></td>
                   <td width="1">&nbsp;</td>
                   <td width="25%">
-                    <input type="text" name="picklistBinId" size="29" maxlength="60" value="${picklistBinId?if_exists}"/>
+                    <input type="text" name="picklistBinId" size="29" maxlength="60" value="${picklistBinId!}"/>
                   </td>
                   <td><span class="label">${uiLabelMap.ProductHideGrid}</span>&nbsp;<input type="checkbox" name="hideGrid" value="Y" <#if (hideGrid == "Y")>checked=""</#if> /></td>
                   <td>&nbsp;</td>
@@ -119,14 +119,14 @@ under the License.
               </table>
             </form>
             <form name="clearPackForm" method="post" action="<@ofbizUrl>ClearPackAll</@ofbizUrl>">
-              <input type="hidden" name="orderId" value="${orderId?if_exists}"/>
-              <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId?if_exists}"/>
-              <input type="hidden" name="facilityId" value="${facilityId?if_exists}"/>
+              <input type="hidden" name="orderId" value="${orderId!}"/>
+              <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId!}"/>
+              <input type="hidden" name="facilityId" value="${facilityId!}"/>
             </form>
             <form name="incPkgSeq" method="post" action="<@ofbizUrl>SetNextPackageSeq</@ofbizUrl>">
-              <input type="hidden" name="orderId" value="${orderId?if_exists}"/>
-              <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId?if_exists}"/>
-              <input type="hidden" name="facilityId" value="${facilityId?if_exists}"/>
+              <input type="hidden" name="orderId" value="${orderId!}"/>
+              <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId!}"/>
+              <input type="hidden" name="facilityId" value="${facilityId!}"/>
             </form>
             <form name="clearPackLineForm" method="post" action="<@ofbizUrl>ClearPackLine</@ofbizUrl>">
                 <input type="hidden" name="facilityId"/>
@@ -150,29 +150,33 @@ under the License.
         </div>
         <div class="screenlet-body">
               <#if orderItemShipGroup?has_content>
-                <#assign postalAddress = orderItemShipGroup.getRelatedOne("PostalAddress")>
+                <#if (orderItemShipGroup.contactMechId)?has_content>
+                  <#assign postalAddress = orderItemShipGroup.getRelatedOne("PostalAddress", false)>
+                </#if>
                 <#assign carrier = orderItemShipGroup.carrierPartyId?default("N/A")>
                 <table cellpadding="4" cellspacing="4" class="basic-table">
                   <tr>
                     <td valign="top">
-                      <span class="label">${uiLabelMap.ProductShipToAddress}</span>
-                      <br />
-                      ${uiLabelMap.CommonTo}: ${postalAddress.toName?default("")}
-                      <br />
-                      <#if postalAddress.attnName?has_content>
-                          ${uiLabelMap.CommonAttn}: ${postalAddress.attnName}
-                          <br />
+                      <#if postalAddress?exists >
+                        <span class="label">${uiLabelMap.ProductShipToAddress}</span>
+                        <br />
+                        ${uiLabelMap.CommonTo}: ${postalAddress.toName?default("")}
+                        <br />
+                        <#if postalAddress.attnName?has_content>
+                            ${uiLabelMap.CommonAttn}: ${postalAddress.attnName}
+                            <br />
+                        </#if>
+                        ${postalAddress.address1}
+                        <br />
+                        <#if postalAddress.address2?has_content>
+                            ${postalAddress.address2}
+                            <br />
+                        </#if>
+                        ${postalAddress.city!}, ${postalAddress.stateProvinceGeoId!} ${postalAddress.postalCode!}
+                        <br />
+                        ${postalAddress.countryGeoId!}
+                        <br />
                       </#if>
-                      ${postalAddress.address1}
-                      <br />
-                      <#if postalAddress.address2?has_content>
-                          ${postalAddress.address2}
-                          <br />
-                      </#if>
-                      ${postalAddress.city?if_exists}, ${postalAddress.stateProvinceGeoId?if_exists} ${postalAddress.postalCode?if_exists}
-                      <br />
-                      ${postalAddress.countryGeoId}
-                      <br />
                     </td>
                     <td>&nbsp;</td>
                     <td valign="top">
@@ -189,12 +193,13 @@ under the License.
                         <font color="${color}">${carrier}</font>
                         &nbsp;
                       </#if>
-                      ${orderItemShipGroup.shipmentMethodTypeId?default("??")}
+                      <#assign description = (delegator.findOne("ShipmentMethodType", {"shipmentMethodTypeId":orderItemShipGroup.shipmentMethodTypeId}, false)).description>
+                      ${description!"??"}
                       <br />
                       <span class="label">${uiLabelMap.ProductEstimatedShipCostForShipGroup}</span>
                       <br />
                       <#if shipmentCostEstimateForShipGroup?exists>
-                          <@ofbizCurrency amount=shipmentCostEstimateForShipGroup isoCode=orderReadHelper.getCurrency()?if_exists/>
+                          <@ofbizCurrency amount=shipmentCostEstimateForShipGroup isoCode=orderReadHelper.getCurrency()!/>
                           <br />
                       </#if>
                     </td>
@@ -215,7 +220,7 @@ under the License.
                   <input type="hidden" name="packageSeq" value="${packingSession.getCurrentPackageSeq()}"/>
                   <input type="hidden" name="orderId" value="${orderId}"/>
                   <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId}"/>
-                  <input type="hidden" name="facilityId" value="${facilityId?if_exists}"/>
+                  <input type="hidden" name="facilityId" value="${facilityId!}"/>
                   <input type="hidden" name="hideGrid" value="${hideGrid}"/>
                   <table cellpadding="2" cellspacing="0" class="basic-table">
                     <tr>
@@ -239,14 +244,14 @@ under the License.
               </#if>
 
               <!-- auto grid form -->
-              <#assign itemInfos = packingSession.getItemInfos()?if_exists>
+              <#assign itemInfos = packingSession.getItemInfos()!>
               <#if showInput != "N" && hideGrid != "Y" && itemInfos?has_content>
                 <br />
                 <form name="multiPackForm" method="post" action="<@ofbizUrl>ProcessBulkPackOrder</@ofbizUrl>">
-                  <input type="hidden" name="facilityId" value="${facilityId?if_exists}" />
-                  <input type="hidden" name="orderId" value="${orderId?if_exists}" />
-                  <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId?if_exists}" />
-                  <input type="hidden" name="originFacilityId" value="${facilityId?if_exists}" />
+                  <input type="hidden" name="facilityId" value="${facilityId!}" />
+                  <input type="hidden" name="orderId" value="${orderId!}" />
+                  <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId!}" />
+                  <input type="hidden" name="originFacilityId" value="${facilityId!}" />
                   <input type="hidden" name="hideGrid" value="${hideGrid}"/>
 
                   <table class="basic-table" cellspacing='0'>
@@ -261,9 +266,6 @@ under the License.
                       <td>&nbsp;</td>
                       <td align="center">${uiLabelMap.ProductPackQty}</td>
                       <td align="center">${uiLabelMap.ProductPackedWeight}&nbsp;(${("uiLabelMap.ProductShipmentUomAbbreviation_" + defaultWeightUomId)?eval})</td>
-                      <#if carrierShipmentBoxTypes?has_content>
-                        <td align="center">${uiLabelMap.ProductShipmentBoxType}</td>
-                      </#if>
                       <td align="center">${uiLabelMap.ProductPackage}</td>
                       <td align="right">&nbsp;<b>*</b>&nbsp;${uiLabelMap.ProductPackages}</td>
                     </tr>
@@ -273,10 +275,10 @@ under the License.
                       <#list itemInfos as itemInfo>
                       <#-- <#list itemInfos as orderItem>  -->
                         <#assign orderItem = itemInfo.orderItem/>
-                        <#assign shippedQuantity = orderReadHelper.getItemShippedQuantity(orderItem)?if_exists>
+                        <#assign shippedQuantity = orderReadHelper.getItemShippedQuantity(orderItem)!>
                         <#assign orderItemQuantity = itemInfo.quantity/>
-                        <#assign orderProduct = orderItem.getRelatedOne("Product")?if_exists/>
-                        <#assign product = Static["org.ofbiz.product.product.ProductWorker"].findProduct(delegator, itemInfo.productId)?if_exists/>
+                        <#assign orderProduct = orderItem.getRelatedOne("Product", false)!/>
+                        <#assign product = Static["org.ofbiz.product.product.ProductWorker"].findProduct(delegator, itemInfo.productId)!/>
                         <#--
                         <#if orderItem.cancelQuantity?exists>
                           <#assign orderItemQuantity = orderItem.quantity - orderItem.cancelQuantity>
@@ -295,9 +297,9 @@ under the License.
                               </#if>
                           </td>
                           <td>
-                              <a href="/catalog/control/EditProduct?productId=${orderProduct.productId?if_exists}${externalKeyParam}" class="buttontext" target="_blank">${(orderProduct.internalName)?if_exists}</a>
+                              <a href="/catalog/control/EditProduct?productId=${orderProduct.productId!}${StringUtil.wrapString(externalKeyParam)}" class="buttontext" target="_blank">${(orderProduct.internalName)!}</a>
                               <#if orderProduct.productId != product.productId>
-                                  &nbsp;[<a href="/catalog/control/EditProduct?productId=${product.productId?if_exists}${externalKeyParam}" class="buttontext" target="_blank">${(product.internalName)?if_exists}</a>]
+                                  &nbsp;[<a href="/catalog/control/EditProduct?productId=${product.productId!}${StringUtil.wrapString(externalKeyParam)}" class="buttontext" target="_blank">${(product.internalName)!}</a>]
                               </#if>
                           </td>
                           <td align="right">${orderItemQuantity}</td>
@@ -310,17 +312,6 @@ under the License.
                           <td align="center">
                             <input type="text" size="7" name="wgt_${rowKey}" value="" />
                           </td>
-                          <#if carrierShipmentBoxTypes?has_content>
-                            <td align="center">
-                              <select name="boxType_${rowKey}">
-                                <option value=""></option>
-                                <#list carrierShipmentBoxTypes as carrierShipmentBoxType>
-                                  <#assign shipmentBoxType = carrierShipmentBoxType.getRelatedOne("ShipmentBoxType") />
-                                  <option value="${shipmentBoxType.shipmentBoxTypeId}">${shipmentBoxType.description?default(shipmentBoxType.shipmentBoxTypeId)}</option>
-                                </#list>
-                              </select>
-                            </td>
-                          </#if>
                           <td align="center">
                             <select name="pkg_${rowKey}">
                               <#if packingSession.getPackageSeqIds()?exists>
@@ -341,7 +332,7 @@ under the License.
                           <td align="right">
                             <input type="text" size="7" name="numPackages_${rowKey}" value="1" />
                           </td>
-                          <input type="hidden" name="prd_${rowKey}" value="${itemInfo.productId?if_exists}"/>
+                          <input type="hidden" name="prd_${rowKey}" value="${itemInfo.productId!}"/>
                           <input type="hidden" name="ite_${rowKey}" value="${orderItem.orderItemSeqId}"/>
                         </tr>
                         <#assign rowKey = rowKey + 1>
@@ -363,9 +354,9 @@ under the License.
               <!-- complete form -->
               <#if showInput != "N">
                 <form name="completePackForm" method="post" action="<@ofbizUrl>CompletePack</@ofbizUrl>">
-                  <input type="hidden" name="orderId" value="${orderId?if_exists}"/>
-                  <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId?if_exists}"/>
-                  <input type="hidden" name="facilityId" value="${facilityId?if_exists}"/>
+                  <input type="hidden" name="orderId" value="${orderId!}"/>
+                  <input type="hidden" name="shipGroupSeqId" value="${shipGroupSeqId!}"/>
+                  <input type="hidden" name="facilityId" value="${facilityId!}"/>
                   <input type="hidden" name="forceComplete" value="${forceComplete?default('false')}"/>
                   <input type="hidden" name="weightUomId" value="${defaultWeightUomId}"/>
                   <input type="hidden" name="showInput" value="N"/>
@@ -379,22 +370,38 @@ under the License.
                                 <br />
                                 <#list packageSeqIds as packageSeqId>
                                     ${uiLabelMap.ProductPackage} ${packageSeqId}
-                                    <input type="text" size="7" name="packageWeight_${packageSeqId}" value="${packingSession.getPackageWeight(packageSeqId?int)?if_exists}" />
+                                    <input type="text" size="7" name="packageWeight_${packageSeqId}" value="${packingSession.getPackageWeight(packageSeqId?int)!}" />
                                     <br />
                                 </#list>
                                 <#if orderItemShipGroup?has_content>
-                                    <input type="hidden" name="shippingContactMechId" value="${orderItemShipGroup.contactMechId?if_exists}"/>
-                                    <input type="hidden" name="shipmentMethodTypeId" value="${orderItemShipGroup.shipmentMethodTypeId?if_exists}"/>
-                                    <input type="hidden" name="carrierPartyId" value="${orderItemShipGroup.carrierPartyId?if_exists}"/>
-                                    <input type="hidden" name="carrierRoleTypeId" value="${orderItemShipGroup.carrierRoleTypeId?if_exists}"/>
-                                    <input type="hidden" name="productStoreId" value="${productStoreId?if_exists}"/>
+                                    <input type="hidden" name="shippingContactMechId" value="${orderItemShipGroup.contactMechId!}"/>
+                                    <input type="hidden" name="shipmentMethodTypeId" value="${orderItemShipGroup.shipmentMethodTypeId!}"/>
+                                    <input type="hidden" name="carrierPartyId" value="${orderItemShipGroup.carrierPartyId!}"/>
+                                    <input type="hidden" name="carrierRoleTypeId" value="${orderItemShipGroup.carrierRoleTypeId!}"/>
+                                    <input type="hidden" name="productStoreId" value="${productStoreId!}"/>
                                 </#if>
                             </td>
+                            <#if carrierShipmentBoxTypes?has_content>
+                              <td>
+                                <span class="label">${uiLabelMap.ProductShipmentBoxType}</span>
+                                <br/>
+                                <#list packageSeqIds as packageSeqId>
+                                  <select name="boxType_${packageSeqId}">
+                                    <option value=""></option>
+                                    <#list carrierShipmentBoxTypes as carrierShipmentBoxType>
+                                      <#assign shipmentBoxType = carrierShipmentBoxType.getRelatedOne("ShipmentBoxType", false) />
+                                      <option value="${shipmentBoxType.shipmentBoxTypeId}">${shipmentBoxType.description?default(shipmentBoxType.shipmentBoxTypeId)}</option>
+                                    </#list>
+                                  </select>
+                                  <br/>
+                                </#list>
+                              </td>
+                            </#if>
                         </#if>
                         <td nowrap="nowrap">
                             <span class="label">${uiLabelMap.ProductAdditionalShippingCharge}:</span>
                             <br />
-                            <input type="text" name="additionalShippingCharge" value="${packingSession.getAdditionalShippingCharge()?if_exists}" size="20"/>
+                            <input type="text" name="additionalShippingCharge" value="${packingSession.getAdditionalShippingCharge()!}" size="20"/>
                             <#if packageSeqIds?has_content>
                                 <a href="javascript:document.completePackForm.action='<@ofbizUrl>calcPackSessionAdditionalShippingCharge</@ofbizUrl>';document.completePackForm.submit();" class="buttontext">${uiLabelMap.ProductEstimateShipCost}</a>
                                 <br />
@@ -403,7 +410,7 @@ under the License.
                       <td>
                         <span class="label">${uiLabelMap.ProductHandlingInstructions}:</span>
                         <br />
-                        <textarea name="handlingInstructions" rows="2" cols="30">${packingSession.getHandlingInstructions()?if_exists}</textarea>
+                        <textarea name="handlingInstructions" rows="2" cols="30">${packingSession.getHandlingInstructions()!}</textarea>
                       </td>
                       <td align="right">
                         <div>
@@ -423,14 +430,14 @@ under the License.
     </div>
 
     <!-- display items in packages, per packed package and in order -->
-    <#assign linesByPackageResultMap = packingSession.getPackingSessionLinesByPackage()?if_exists>
-    <#assign packageMap = linesByPackageResultMap.get("packageMap")?if_exists>
-    <#assign sortedKeys = linesByPackageResultMap.get("sortedKeys")?if_exists>
+    <#assign linesByPackageResultMap = packingSession.getPackingSessionLinesByPackage()!>
+    <#assign packageMap = linesByPackageResultMap.get("packageMap")!>
+    <#assign sortedKeys = linesByPackageResultMap.get("sortedKeys")!>
     <#if ((packageMap?has_content) && (sortedKeys?has_content))>
       <div class="screenlet">
         <div class="screenlet-title-bar">
             <ul>
-                <li class="h3">${uiLabelMap.ProductPackages} : ${sortedKeys.size()?if_exists}</li>
+                <li class="h3">${uiLabelMap.ProductPackages} : ${sortedKeys.size()!}</li>
             </ul>
             <br class="clear"/>
         </div>
@@ -439,8 +446,8 @@ under the License.
               <#assign packedLines = packageMap.get(key)>
               <#if packedLines?has_content>
                 <br />
-                <#assign packedLine = packedLines.get(0)?if_exists>
-                <span class="label" style="font-size:1.2em">${uiLabelMap.ProductPackage}&nbsp;${packedLine.getPackageSeq()?if_exists}</span>
+                <#assign packedLine = packedLines.get(0)!>
+                <span class="label" style="font-size:1.2em">${uiLabelMap.ProductPackage}&nbsp;${packedLine.getPackageSeq()!}</span>
                 <br />
                 <table class="basic-table" cellspacing='0'>
                   <tr class="header-row">
@@ -459,11 +466,11 @@ under the License.
                       <td>${line.getOrderItemSeqId()}</td>
                       <td>${line.getProductId()?default("N/A")}</td>
                       <td>
-                          <a href="/catalog/control/EditProduct?productId=${line.getProductId()?if_exists}${externalKeyParam}" class="buttontext" target="_blank">${product.internalName?if_exists?default("[N/A]")}</a>
+                          <a href="/catalog/control/EditProduct?productId=${line.getProductId()!}${StringUtil.wrapString(externalKeyParam)}" class="buttontext" target="_blank">${product.internalName!?default("[N/A]")}</a>
                       </td>
                       <td>${line.getInventoryItemId()}</td>
                       <td align="right">${line.getQuantity()}</td>
-                      <td align="right">${line.getWeight()} (${packingSession.getPackageWeight(line.getPackageSeq()?int)?if_exists})</td>
+                      <td align="right">${line.getWeight()} (${packingSession.getPackageWeight(line.getPackageSeq()?int)!})</td>
                       <td align="right">${line.getPackageSeq()}</td>
                       <td align="right"><a href="javascript:clearLine('${facilityId}', '${line.getOrderId()}', '${line.getOrderItemSeqId()}', '${line.getProductId()?default("")}', '${line.getShipGroupSeqId()}', '${line.getInventoryItemId()}', '${line.getPackageSeq()}')" class="buttontext">${uiLabelMap.CommonClear}</a></td>
                     </tr>
@@ -476,12 +483,12 @@ under the License.
     </#if>
 
     <!-- packed items display -->
-    <#assign packedLines = packingSession.getLines()?if_exists>
+    <#assign packedLines = packingSession.getLines()!>
     <#if packedLines?has_content>
       <div class="screenlet">
           <div class="screenlet-title-bar">
               <ul>
-                  <li class="h3">${uiLabelMap.ProductItems} (${uiLabelMap.ProductPackages}): ${packedLines.size()?if_exists}</li>
+                  <li class="h3">${uiLabelMap.ProductItems} (${uiLabelMap.ProductPackages}): ${packedLines.size()!}</li>
               </ul>
               <br class="clear"/>
           </div>
@@ -503,11 +510,11 @@ under the License.
                       <td>${line.getOrderItemSeqId()}</td>
                       <td>${line.getProductId()?default("N/A")}</td>
                       <td>
-                          <a href="/catalog/control/EditProduct?productId=${line.getProductId()?if_exists}${externalKeyParam}" class="buttontext" target="_blank">${product.internalName?if_exists?default("[N/A]")}</a>
+                          <a href="/catalog/control/EditProduct?productId=${line.getProductId()!}${StringUtil.wrapString(externalKeyParam)}" class="buttontext" target="_blank">${product.internalName!?default("[N/A]")}</a>
                       </td>
                       <td>${line.getInventoryItemId()}</td>
                       <td align="right">${line.getQuantity()}</td>
-                      <td align="right">${line.getWeight()} (${packingSession.getPackageWeight(line.getPackageSeq()?int)?if_exists})</td>
+                      <td align="right">${line.getWeight()} (${packingSession.getPackageWeight(line.getPackageSeq()?int)!})</td>
                       <td align="right">${line.getPackageSeq()}</td>
                       <td align="right"><a href="javascript:clearLine('${facilityId}', '${line.getOrderId()}', '${line.getOrderItemSeqId()}', '${line.getProductId()?default("")}', '${line.getShipGroupSeqId()}', '${line.getInventoryItemId()}', '${line.getPackageSeq()}')" class="buttontext">${uiLabelMap.CommonClear}</a></td>
                   </tr>

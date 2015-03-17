@@ -23,14 +23,13 @@ under the License.
 </head>
 <body class="ecbody">
     <form name="tellafriend" action="<@ofbizUrl>emailFriend</@ofbizUrl>" method="post">
-      <#if requestParameters.productId?exists>
-        <input type="hidden" name="pageUrl" value="<@ofbizUrl fullPath="true" encode="false" secure="false">/product?product_id=${requestParameters.productId}</@ofbizUrl>" />
-      <#elseif requestParameters.categoryId?exists>
-        <input type="hidden" name="pageUrl" value="<@ofbizUrl fullPath="true" encode="false" secure="false">/category?category_id=${requestParameters.categoryId}</@ofbizUrl>" />
-      <#else>
-        <#assign cancel = "Y">
-      </#if>
-      <#if !cancel?exists>
+        <#if (requestParameters.productId)?? || (requestParameters.productId)??>
+            <input type="hidden" name="pageUrl" value="<@ofbizCatalogAltUrl fullPath="true" secure="false" productCategoryId=requestParameters.categoryId!"" productId=requestParameters.productId!""/>" />
+        <#else>
+            <#assign cancel = "Y">
+        </#if>
+        <input type="hidden" name="webSiteId" value="${context.webSiteId!}">
+      <#if !cancel??>
         <table>
           <tr>
             <td>${uiLabelMap.CommonYouremail}:</td>
@@ -60,7 +59,7 @@ under the License.
         window.close();
         // -->
         </script>
-        <div class="tabletext">${uiLabelMap.EcommerceTellAFriendSorry}</div>
+        <div>${uiLabelMap.EcommerceTellAFriendSorry}</div>
       </#if>
     </form>
 </body>

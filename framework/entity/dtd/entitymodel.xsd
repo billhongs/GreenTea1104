@@ -39,6 +39,9 @@ under the License.
             <xs:enumeration value="count-distinct"/>
             <xs:enumeration value="upper"/>
             <xs:enumeration value="lower"/>
+            <xs:enumeration value="extract-year"/>
+            <xs:enumeration value="extract-month"/>
+            <xs:enumeration value="extract-day"/>
         </xs:restriction>
     </xs:simpleType>
 
@@ -86,12 +89,28 @@ under the License.
         <xs:attribute name="package-name" type="xs:string" use="required"/>
         <xs:attribute name="default-resource-name" type="xs:string"/>
         <xs:attribute name="dependent-on" type="xs:string"/>
-        <xs:attribute name="sequence-bank-size" type="xs:string"/>
+        <xs:attribute name="sequence-bank-size" type="xs:string">
+            <xs:annotation>
+                <xs:documentation>
+                    The 10 default value is defined in the SequenceBank class by the defaultBankSize constant.
+                    Can't be more than 5000 which is defined by the maxBankSize constant.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
         <xs:attribute name="enable-lock" default="false" type="boolean"/>
         <xs:attribute name="no-auto-stamp" default="false" type="boolean"/>
         <xs:attribute name="never-cache" default="false" type="boolean"/>
         <xs:attribute name="never-check" default="false" type="boolean"/>
         <xs:attribute name="auto-clear-cache" default="true" type="boolean"/>
+        <xs:attribute name="redefinition" type="boolean">
+            <xs:annotation>
+                <xs:documentation>
+                    Indicates if this entity redefines an existing entity.
+                    When set to "true" it will suppress "Entity is defined more than once" warnings.
+                    Defaults to "false".
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
         <xs:attribute name="title" type="xs:string"/>
         <xs:attribute name="copyright" type="xs:string"/>
         <xs:attribute name="author" type="xs:string"/>
@@ -119,7 +138,15 @@ under the License.
         <xs:attribute name="name" type="xs:string" use="required"/>
         <xs:attribute name="col-name" type="xs:string"/>
         <xs:attribute name="type" type="xs:string" use="required"/>
-        <xs:attribute name="encrypt" default="false" type="boolean"/>
+        <xs:attribute name="encrypt" default="false">
+            <xs:simpleType>
+                <xs:restriction base="xs:token">
+                    <xs:enumeration value="true"/>
+                    <xs:enumeration value="false"/>
+                    <xs:enumeration value="salt"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
         <xs:attribute name="enable-audit-log" default="false" type="boolean">
             <xs:annotation>
                 <xs:documentation>
@@ -134,8 +161,15 @@ under the License.
                     This makes the field NOT NULL on the database (like primary key fields).
                     It's possible to use an id-ne similiar field type.
                     But rows can be added from outside of ofbiz (e.g. database manager, third party programm, etc).
-                    This patch uses the ability of a database to set not null constraints.
+                    This uses the ability of a database to set not null constraints.
                     Defaults to false.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="field-set" default="" type="xs:string">
+            <xs:annotation>
+                <xs:documentation>
+                    Any fields that have the same field-set will be selected together in generated queries.
                 </xs:documentation>
             </xs:annotation>
         </xs:attribute>
@@ -240,6 +274,15 @@ under the License.
         <xs:attribute name="copyright" type="xs:string"/>
         <xs:attribute name="author" type="xs:string"/>
         <xs:attribute name="version" type="xs:string"/>
+        <xs:attribute name="redefinition" type="boolean">
+            <xs:annotation>
+                <xs:documentation>
+                    Indicates if this entity redefines an existing entity.
+                    When set to "true" it will suppress "Entity is defined more than once" warnings.
+                    Defaults to "false".
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
     </xs:attributeGroup>
     <xs:element name="member-entity">
         <xs:complexType>
@@ -267,6 +310,13 @@ under the License.
         <xs:attribute name="prefix" type="xs:string"/>
         <xs:attribute name="group-by" default="false" type="boolean"/>
         <xs:attribute name="function" type="aggregate-function"/>
+        <xs:attribute name="field-set" default="" type="xs:string">
+            <xs:annotation>
+                <xs:documentation>
+                    Any fields that have the same field-set will be selected together in generated queries.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
     </xs:attributeGroup>
     <xs:element name="exclude">
         <xs:complexType>
@@ -293,6 +343,13 @@ under the License.
         <xs:attribute name="prim-key" type="xs:string"/>
         <xs:attribute name="group-by" default="false" type="boolean"/>
         <xs:attribute name="function" type="aggregate-function"/>
+        <xs:attribute name="field-set" default="" type="xs:string">
+            <xs:annotation>
+                <xs:documentation>
+                    Any fields that have the same field-set will be selected together in generated queries.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
     </xs:attributeGroup>
     <xs:element name="complex-alias">
         <xs:annotation>
@@ -325,9 +382,10 @@ under the License.
         </xs:complexType>
     </xs:element>
     <xs:attributeGroup name="attlist.complex-alias-field">
-        <xs:attribute name="entity-alias" type="xs:string" use="required"/>
-        <xs:attribute name="field" type="xs:string" use="required"/>
+        <xs:attribute name="entity-alias" type="xs:string"/>
+        <xs:attribute name="field" type="xs:string"/>
         <xs:attribute name="default-value" type="xs:string"/>
+        <xs:attribute name="value" type="xs:string"/>
         <xs:attribute name="function" type="aggregate-function"/>
     </xs:attributeGroup>
     <xs:element name="view-link">
@@ -452,7 +510,13 @@ under the License.
     <xs:element name="extend-entity">
         <xs:complexType>
             <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="unbounded" ref="field"/>
+                <xs:element minOccurs="0" maxOccurs="unbounded" ref="field">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Only overrides of type, colName, description and enable-audit-log are currently supported
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
                 <xs:element minOccurs="0" maxOccurs="unbounded" ref="relation"/>
                 <xs:element minOccurs="0" maxOccurs="unbounded" ref="index"/>
             </xs:sequence>
@@ -463,7 +527,14 @@ under the License.
         <xs:attribute name="entity-name" type="xs:string" use="required"/>
         <xs:attribute name="default-resource-name" type="xs:string"/>
         <xs:attribute name="dependent-on" type="xs:string"/>
-        <xs:attribute name="sequence-bank-size" type="xs:string"/>
+        <xs:attribute name="sequence-bank-size" type="xs:string">
+            <xs:annotation>
+                <xs:documentation>
+                    The 10 default value is defined in the SequenceBank class by the defaultBankSize constant.
+                    Can't be more than 5000 which is defined by the maxBankSize constant.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
         <xs:attribute name="enable-lock" type="boolean"/>
         <xs:attribute name="no-auto-stamp" type="boolean"/>
         <xs:attribute name="never-cache" type="boolean"/>

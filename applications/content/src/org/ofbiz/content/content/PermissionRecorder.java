@@ -18,7 +18,6 @@
  *******************************************************************************/
 package org.ofbiz.content.content;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -99,7 +98,7 @@ public class PermissionRecorder {
     }
 
     public void setContentPurposeOperations(List<GenericValue> opList) {
-       contentPurposeOperations = (GenericValue [])opList.toArray();
+       contentPurposeOperations = opList.toArray(new GenericValue[opList.size()]);
     }
 
     public void setPrivilegeEnumId(String id) {
@@ -115,7 +114,7 @@ public class PermissionRecorder {
     }
 
     public void setStatusTargets(List<String> opList) {
-       statusTargets = (String [])opList.toArray();
+       statusTargets = opList.toArray(new String[opList.size()]);
     }
 
     public String [] getTargetOperations() {
@@ -123,7 +122,7 @@ public class PermissionRecorder {
     }
 
     public void setTargetOperations(List<String> opList) {
-       targetOperations = (String [])opList.toArray();
+       targetOperations = opList.toArray(new String[opList.size()]);
     }
 
     public void setCurrentContentId(String id) {
@@ -236,9 +235,7 @@ public class PermissionRecorder {
         sb.append("<td class=\"headr\" >Pass/Fail</td>");
         sb.append("</tr>");
 
-        Iterator<Map<String, Object>> iter = permCheckResults.iterator();
-        while (iter.hasNext()) {
-            Map<String, Object> cMap = iter.next();
+        for (Map<String, Object> cMap : permCheckResults) {
             sb.append(renderCurrentContentMapHtml(cMap));
         }
         sb.append("</table>");
@@ -248,9 +245,7 @@ public class PermissionRecorder {
     public String renderCurrentContentMapHtml(Map<String, Object> cMap) {
         StringBuilder sb = new StringBuilder();
         List<Map<String, Object>> resultList = UtilGenerics.checkList(cMap.get("checkResultList"));
-        Iterator<Map<String, Object>> iter = resultList.iterator();
-        while (iter.hasNext()) {
-            Map<String, Object> rMap = iter.next();
+        for (Map<String, Object> rMap : resultList) {
             //if (Debug.infoOn()) Debug.logInfo("renderCCMapHtml, (1):" + rMap, module);
             sb.append(renderResultRowHtml(rMap, cMap));
         }

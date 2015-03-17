@@ -116,6 +116,7 @@
         <alias-all entity-alias="IMIE"/>
         <alias-all entity-alias="IYIM">
             <exclude field="facilityId"/>
+            <exclude field="fixedAssetId"/>
         </alias-all>
         <alias entity-alias="PT" name="productId"/>
         <alias entity-alias="PT" name="productTypeId"/>
@@ -132,6 +133,7 @@
         <alias entity-alias="PT" name="isVariant"/>
         <alias entity-alias="PT" name="createdDate"/>
         <alias entity-alias="PT" name="createdByUserLogin"/>
+        <alias entity-alias="IYIM" name="inventoryItemFixedAssetId" field="fixedAssetId"/>
         <view-link entity-alias="IMIE" rel-entity-alias="IYIM">
             <key-map field-name="inventoryItemId"/>
         </view-link>
@@ -154,6 +156,7 @@
         <alias-all entity-alias="IMIE"/>
         <alias-all entity-alias="IYIM">
             <exclude field="facilityId"/>
+            <exclude field="fixedAssetId"/>
         </alias-all>
         <alias entity-alias="PT" name="productId"/>
         <alias entity-alias="PT" name="productTypeId"/>
@@ -170,6 +173,7 @@
         <alias entity-alias="PT" name="isVariant"/>
         <alias entity-alias="PT" name="createdDate"/>
         <alias entity-alias="PT" name="createdByUserLogin"/>
+        <alias entity-alias="IYIM" name="inventoryItemFixedAssetId" field="fixedAssetId"/>
         <view-link entity-alias="PT" rel-entity-alias="IYIM">
             <key-map field-name="productId"/>
         </view-link>

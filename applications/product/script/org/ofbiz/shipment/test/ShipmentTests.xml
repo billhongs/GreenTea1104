@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
     <simple-method method-name="testPackingServices" short-description="test packing services" login-required="false">
 
         <set field="packSingleItemInMap.productId" value="GZ-2644"/>
@@ -203,10 +203,10 @@ under the License.
         <log level="info" message="====================Create a Shipment Route Segment test case=========================================="/>
         <entity-and list="shipments" entity-name="Shipment">
             <field-map field-name="primaryOrderId" value="DEMO10090"/>
+            <field-map field-name="shipmentId" value="9998"/>
         </entity-and>
         <first-from-list entry="shipment" list="shipments"/>
         <set field="shipRouteSegMap.shipmentId" from-field="shipment.shipmentId"/>
-
         <entity-one entity-name="UserLogin" value-field="shipRouteSegMap.userLogin">
             <field-map field-name="userLoginId" value="system"/>
         </entity-one>

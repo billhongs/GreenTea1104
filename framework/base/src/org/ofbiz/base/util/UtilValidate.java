@@ -19,13 +19,13 @@
 package org.ofbiz.base.util;
 
 import java.sql.Timestamp;
-import com.ibm.icu.util.Calendar;
 import java.util.Collection;
 import java.util.Map;
 
-import org.apache.commons.validator.EmailValidator;
-
+import org.apache.commons.validator.routines.EmailValidator;
 import org.ofbiz.base.lang.IsEmpty;
+
+import com.ibm.icu.util.Calendar;
 
 /**
  * General input/data validation methods
@@ -149,8 +149,8 @@ public class UtilValidate {
     public static final String isDatePrefixMsg = "The Day, Month, and Year for ";
     public static final String isDateSuffixMsg = " do not form a valid date.  Please reenter them now.";
     public static final String isHourMsg = "The Hour must be a number between 0 and 23.";
-    public static final String isMinuteMsg = "The Hour must be a number between 0 and 59.";
-    public static final String isSecondMsg = "The Hour must be a number between 0 and 59.";
+    public static final String isMinuteMsg = "The Minute must be a number between 0 and 59.";
+    public static final String isSecondMsg = "The Second must be a number between 0 and 59.";
     public static final String isTimeMsg = "The Time must be a valid time formed like: HH:MM or HH:MM:SS.";
     public static final String isDateMsg = "The Date must be a valid date formed like: MM/YY, MM/YYYY, MM/DD/YY, or MM/DD/YYYY.";
     public static final String isDateAfterToday = "The Date must be a valid date after today, and formed like: MM/YY, MM/YYYY, MM/DD/YY, or MM/DD/YYYY.";
@@ -206,32 +206,32 @@ public class UtilValidate {
 
     /** Check whether string s is empty. */
     public static boolean isEmpty(String s) {
-        return ((s == null) || (s.length() == 0));
+        return (s == null) || s.length() == 0;
     }
 
     /** Check whether collection c is empty. */
     public static <E> boolean isEmpty(Collection<E> c) {
-        return ((c == null) || (c.size() == 0));
+        return (c == null) || c.isEmpty();
     }
 
     /** Check whether map m is empty. */
     public static <K,E> boolean isEmpty(Map<K,E> m) {
-        return ((m == null) || (m.size() == 0));
+        return (m == null) || m.isEmpty();
     }
 
     /** Check whether charsequence c is empty. */
     public static <E> boolean isEmpty(CharSequence c) {
-        return ((c == null) || (c.length() == 0));
+        return (c == null) || c.length() == 0;
     }
 
     /** Check whether string s is NOT empty. */
     public static boolean isNotEmpty(String s) {
-        return ((s != null) && (s.length() > 0));
+        return (s != null) && s.length() > 0;
     }
 
     /** Check whether collection c is NOT empty. */
     public static <E> boolean isNotEmpty(Collection<E> c) {
-        return ((c != null) && (c.size() > 0));
+        return (c != null) && !c.isEmpty();
     }
 
     /** Check whether charsequence c is NOT empty. */
@@ -264,31 +264,31 @@ public class UtilValidate {
     /** Removes all characters which appear in string bag from string s. */
     public static String stripCharsInBag(String s, String bag) {
         int i;
-        String returnString = "";
+        StringBuilder stringBuilder = new StringBuilder("");
 
         // Search through string's characters one by one.
         // If character is not in bag, append to returnString.
         for (i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
 
-            if (bag.indexOf(c) == -1) returnString += c;
+            if (bag.indexOf(c) == -1) stringBuilder.append(c);
         }
-        return returnString;
+        return stringBuilder.toString();
     }
 
     /** Removes all characters which do NOT appear in string bag from string s. */
     public static String stripCharsNotInBag(String s, String bag) {
         int i;
-        String returnString = "";
+        StringBuilder stringBuilder = new StringBuilder("");
 
         // Search through string's characters one by one.
         // If character is in bag, append to returnString.
         for (i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
 
-            if (bag.indexOf(c) != -1) returnString += c;
+            if (bag.indexOf(c) != -1) stringBuilder.append(c);
         }
-        return returnString;
+        return stringBuilder.toString();
     }
 
     /** Removes all whitespace characters from s.
@@ -300,7 +300,7 @@ public class UtilValidate {
     /** Returns true if single character c(actually a string) is contained within string s. */
     public static boolean charInString(char c, String s) {
         return (s.indexOf(c) != -1);
-        // for(int i = 0; i < s.length; i++) {
+        // for (int i = 0; i < s.length; i++) {
         // if (s.charAt(i) == c) return true;
         // }
         // return false;
@@ -1052,7 +1052,9 @@ public class UtilValidate {
     public static boolean isCreditCard(String stPassed) {
         if (isEmpty(stPassed)) return defaultEmptyOK;
         String st = stripCharsInBag(stPassed, creditCardDelimiters);
-
+		
+		if (!isInteger(st)) return false;
+		
         // encoding only works on cars with less the 19 digits
         if (st.length() > 19) return false;
         return sumIsMod10(getLuhnSum(st));
@@ -1241,16 +1243,16 @@ public class UtilValidate {
 
         if (!isCreditCard(cc)) return "Unknown";
 
-        if (isMasterCard(cc)) return "MasterCard";
-        if (isVisa(cc)) return "Visa";
-        if (isAmericanExpress(cc)) return "AmericanExpress";
-        if (isDinersClub(cc)) return "DinersClub";
-        if (isDiscover(cc)) return "Discover";
-        if (isEnRoute(cc)) return "EnRoute";
-        if (isJCB(cc)) return "JCB";
-        if (isSolo(cc)) return "Solo";
-        if (isswitch (cc)) return "Switch";
-        if (isVisaElectron(cc)) return "VisaElectron";
+        if (isMasterCard(cc)) return "CCT_MASTERCARD";
+        if (isVisa(cc)) return "CCT_VISA";
+        if (isAmericanExpress(cc)) return "CCT_AMERICANEXPRESS";
+        if (isDinersClub(cc)) return "CCT_DINERSCLUB";
+        if (isDiscover(cc)) return "CCT_DISCOVER";
+        if (isEnRoute(cc)) return "CCT_ENROUTE";
+        if (isJCB(cc)) return "CCT_JCB";
+        if (isSolo(cc)) return "CCT_SOLO";
+        if (isswitch (cc)) return "CCT_SWITCH";
+        if (isVisaElectron(cc)) return "CCT_VISAELECTRON";
         return "Unknown";
     }
 
@@ -1264,17 +1266,17 @@ public class UtilValidate {
         if (isEmpty(cardNumberPassed)) return defaultEmptyOK;
         String cardNumber = stripCharsInBag(cardNumberPassed, creditCardDelimiters);
 
-        if ((cardType.equalsIgnoreCase("VISA")) && (isVisa(cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("MASTERCARD")) && (isMasterCard(cardNumber))) return true;
-        if (((cardType.equalsIgnoreCase("AMERICANEXPRESS")) || (cardType.equalsIgnoreCase("AMEX"))) && (isAmericanExpress(cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("DISCOVER")) && (isDiscover(cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("JCB")) && (isJCB(cardNumber))) return true;
-        if (((cardType.equalsIgnoreCase("DINERSCLUB")) || (cardType.equalsIgnoreCase("DINERS"))) && (isDinersClub(cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("CARTEBLANCHE")) && (isCarteBlanche(cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("ENROUTE")) && (isEnRoute(cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("SOLO")) && (isSolo(cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("SWITCH")) && (isswitch (cardNumber))) return true;
-        if ((cardType.equalsIgnoreCase("VISAELECTRON")) && (isVisaElectron(cardNumber))) return true;
+        if (("CCT_VISA".equalsIgnoreCase(cardType)) && (isVisa(cardNumber))) return true;
+        if (("CCT_MASTERCARD".equalsIgnoreCase(cardType)) && (isMasterCard(cardNumber))) return true;
+        if ((("CCT_AMERICANEXPRESS".equalsIgnoreCase(cardType)) || ("CCT_AMEX".equalsIgnoreCase(cardType))) && (isAmericanExpress(cardNumber))) return true;
+        if (("CCT_DISCOVER".equalsIgnoreCase(cardType)) && (isDiscover(cardNumber))) return true;
+        if (("CCT_JCB".equalsIgnoreCase(cardType)) && (isJCB(cardNumber))) return true;
+        if ((("CCT_DINERSCLUB".equalsIgnoreCase(cardType)) || ("CCT_DINERS".equalsIgnoreCase(cardType))) && (isDinersClub(cardNumber))) return true;
+        if (("CCT_CARTEBLANCHE".equalsIgnoreCase(cardType)) && (isCarteBlanche(cardNumber))) return true;
+        if (("CCT_ENROUTE".equalsIgnoreCase(cardType)) && (isEnRoute(cardNumber))) return true;
+        if (("CCT_SOLO".equalsIgnoreCase(cardType)) && (isSolo(cardNumber))) return true;
+        if (("CCT_SWITCH".equalsIgnoreCase(cardType)) && (isswitch (cardNumber))) return true;
+        if (("CCT_VISAELECTRON".equalsIgnoreCase(cardType)) && (isVisaElectron(cardNumber))) return true;
         return false;
     }
 

@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
     <simple-method method-name="createRequirement" short-description="Create a new requirement">
         <make-value value-field="newEntity" entity-name="Requirement"/>
         <sequenced-id sequence-name="Requirement" field="requirementId"/>
@@ -52,6 +52,7 @@ under the License.
     <simple-method method-name="deleteRequirement" short-description="Delete a requirement">
         <entity-one entity-name="Requirement" value-field="requirement" auto-field-map="true"/>
         <check-errors/>
+        <remove-related value-field="requirement" relation-name="RequirementRole"/>
         <remove-related value-field="requirement" relation-name="RequirementCustRequest"/>
         <remove-value value-field="requirement"/>
     </simple-method>

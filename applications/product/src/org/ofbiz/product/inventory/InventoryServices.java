@@ -21,7 +21,7 @@ package org.ofbiz.product.inventory;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.sql.Timestamp;
-import com.ibm.icu.util.Calendar;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,11 +46,14 @@ import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.model.DynamicViewEntity;
 import org.ofbiz.entity.model.ModelKeyMap;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityTypeUtil;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ServiceUtil;
+
+import com.ibm.icu.util.Calendar;
 
 /**
  * Inventory Services
@@ -71,7 +74,7 @@ public class InventoryServices {
         Locale locale = (Locale) context.get("locale");
 
         try {
-            inventoryItem = delegator.findByPrimaryKey("InventoryItem", UtilMisc.toMap("inventoryItemId", inventoryItemId));
+            inventoryItem = EntityQuery.use(delegator).from("InventoryItem").where("inventoryItemId", inventoryItemId).queryOne();
         } catch (GenericEntityException e) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
                     "ProductNotFindInventoryItemWithId", locale) + inventoryItemId);
@@ -223,10 +226,9 @@ public class InventoryServices {
         Locale locale = (Locale) context.get("locale");
 
         try {
-            inventoryTransfer = delegator.findByPrimaryKey("InventoryTransfer",
-                    UtilMisc.toMap("inventoryTransferId", inventoryTransferId));
-            inventoryItem = inventoryTransfer.getRelatedOne("InventoryItem");
-            destinationFacility = inventoryTransfer.getRelatedOne("ToFacility");
+            inventoryTransfer = EntityQuery.use(delegator).from("InventoryTransfer").where("inventoryTransferId", inventoryTransferId).queryOne();
+            inventoryItem = inventoryTransfer.getRelatedOne("InventoryItem", false);
+            destinationFacility = inventoryTransfer.getRelatedOne("ToFacility", false);
         } catch (GenericEntityException e) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
                     "ProductInventoryItemLookupProblem", 
@@ -336,14 +338,13 @@ public class InventoryServices {
         Locale locale = (Locale) context.get("locale");
 
         try {
-            inventoryTransfer = delegator.findByPrimaryKey("InventoryTransfer",
-                    UtilMisc.toMap("inventoryTransferId", inventoryTransferId));
+            inventoryTransfer = EntityQuery.use(delegator).from("InventoryTransfer").where("inventoryTransferId", inventoryTransferId).queryOne();
             if (UtilValidate.isEmpty(inventoryTransfer)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
                         "ProductInventoryItemTransferNotFound", 
                         UtilMisc.toMap("inventoryTransferId", inventoryTransferId), locale));
             }
-            inventoryItem = inventoryTransfer.getRelatedOne("InventoryItem");
+            inventoryItem = inventoryTransfer.getRelatedOne("InventoryItem", false);
         } catch (GenericEntityException e) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
                     "ProductInventoryItemLookupProblem", 
@@ -426,8 +427,7 @@ public class InventoryServices {
         // find all inventory items w/ a negative ATP
         List<GenericValue> inventoryItems = null;
         try {
-            EntityExpr ee = EntityCondition.makeCondition("availableToPromiseTotal", EntityOperator.LESS_THAN, BigDecimal.ZERO);
-            inventoryItems = delegator.findList("InventoryItem", ee, null, null, null, false);
+            inventoryItems = EntityQuery.use(delegator).from("InventoryItem").where(EntityCondition.makeCondition("availableToPromiseTotal", EntityOperator.LESS_THAN, BigDecimal.ZERO)).queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Trouble getting inventory items", module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -445,14 +445,13 @@ public class InventoryServices {
             // get the incomming shipment information for the item
             List<GenericValue> shipmentAndItems = null;
             try {
-                List<EntityExpr> exprs = FastList.newInstance();
+                List<EntityExpr> exprs = new ArrayList<EntityExpr>();
                 exprs.add(EntityCondition.makeCondition("productId", EntityOperator.EQUALS, inventoryItem.get("productId")));
                 exprs.add(EntityCondition.makeCondition("destinationFacilityId", EntityOperator.EQUALS, inventoryItem.get("facilityId")));
                 exprs.add(EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "SHIPMENT_DELIVERED"));
                 exprs.add(EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "SHIPMENT_CANCELLED"));
 
-                EntityConditionList<EntityExpr> ecl = EntityCondition.makeCondition(exprs, EntityOperator.AND);
-                shipmentAndItems = delegator.findList("ShipmentAndItem", ecl, null, UtilMisc.toList("estimatedArrivalDate"), null, false);
+                shipmentAndItems = EntityQuery.use(delegator).from("ShipmentAndItem").where(EntityCondition.makeCondition(exprs, EntityOperator.AND)).orderBy("estimatedArrivalDate").queryList();
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Problem getting ShipmentAndItem records", module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -462,7 +461,7 @@ public class InventoryServices {
             // get the reservations in order of newest first
             List<GenericValue> reservations = null;
             try {
-                reservations = inventoryItem.getRelated("OrderItemShipGrpInvRes", null, UtilMisc.toList("-reservedDatetime"));
+                reservations = inventoryItem.getRelated("OrderItemShipGrpInvRes", null, UtilMisc.toList("-reservedDatetime"), false);
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Problem getting related reservations", module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -590,8 +589,7 @@ public class InventoryServices {
 
             List<GenericValue> orderItemShipGroups = null;
             try {
-                orderItemShipGroups= delegator.findByAnd("OrderItemShipGroup",
-                        UtilMisc.toMap("orderId", orderId));
+                orderItemShipGroups= EntityQuery.use(delegator).from("OrderItemShipGroup").where("orderId", orderId).queryList();
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Cannot get OrderItemShipGroups from orderId" + orderId, module);
             }
@@ -600,15 +598,10 @@ public class InventoryServices {
                 List<GenericValue> orderItems = FastList.newInstance();
                 List<GenericValue> orderItemShipGroupAssoc = null;
                 try {
-                    orderItemShipGroupAssoc =
-                        delegator.findByAnd("OrderItemShipGroupAssoc",
-                                UtilMisc.toMap("shipGroupSeqId",
-                                        orderItemShipGroup.get("shipGroupSeqId"),
-                                        "orderId",
-                                        orderId));
+                    orderItemShipGroupAssoc = EntityQuery.use(delegator).from("OrderItemShipGroupAssoc").where("shipGroupSeqId", orderItemShipGroup.get("shipGroupSeqId"), "orderId", orderId).queryList();
 
                     for (GenericValue assoc: orderItemShipGroupAssoc) {
-                        GenericValue orderItem = assoc.getRelatedOne("OrderItem");
+                        GenericValue orderItem = assoc.getRelatedOne("OrderItem", false);
                         if (orderItem != null) {
                             orderItems.add(orderItem);
                         }
@@ -781,9 +774,9 @@ public class InventoryServices {
         List<GenericValue> facilities = null;
         try {
             if (facilityId != null) {
-                facilities = delegator.findByAnd("Facility", UtilMisc.toMap("facilityId", facilityId));
+                facilities = EntityQuery.use(delegator).from("Facility").where("facilityId", facilityId).queryList();
             } else {
-                facilities = delegator.findList("Facility", null, null, null, null, false);
+                facilities = EntityQuery.use(delegator).from("Facility").queryList();
             }
         } catch (GenericEntityException e) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -799,7 +792,7 @@ public class InventoryServices {
 
             GenericValue product = null;
             try {
-                product = orderItem.getRelatedOneCache("Product");
+                product = orderItem.getRelatedOne("Product", true);
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Couldn't get product.", module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, 
@@ -864,7 +857,7 @@ public class InventoryServices {
         Timestamp checkTime = (Timestamp)context.get("checkTime");
         String facilityId = (String)context.get("facilityId");
         String productId = (String)context.get("productId");
-        String minimumStockStr = (String)context.get("minimumStock");
+        BigDecimal minimumStock = (BigDecimal)context.get("minimumStock");
         String statusId = (String)context.get("statusId");
 
         Map<String, Object> result = FastMap.newInstance();
@@ -873,7 +866,7 @@ public class InventoryServices {
         Map<String, String> contextInput = UtilMisc.toMap("productId", productId, "facilityId", facilityId, "statusId", statusId);
         GenericValue product = null;
         try {
-            product = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", productId));
+            product = EntityQuery.use(delegator).from("Product").where("productId", productId).queryOne();
         } catch (GenericEntityException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -894,10 +887,7 @@ public class InventoryServices {
             }
         }
         // filter for quantities
-        BigDecimal minimumStock = BigDecimal.ZERO;
-        if (minimumStockStr != null) {
-            minimumStock = new BigDecimal(minimumStockStr);
-        }
+        minimumStock = minimumStock != null ? minimumStock : BigDecimal.ZERO;
 
         BigDecimal quantityOnHandTotal = BigDecimal.ZERO;
         if (resultOutput.get("quantityOnHandTotal") != null) {
@@ -912,8 +902,8 @@ public class InventoryServices {
         BigDecimal offsetATPQtyAvailable = availableToPromiseTotal.subtract(minimumStock);
 
         BigDecimal quantityOnOrder = InventoryWorker.getOutstandingPurchasedQuantity(productId, delegator);
-        result.put("totalQuantityOnHand", resultOutput.get("quantityOnHandTotal").toString());
-        result.put("totalAvailableToPromise", resultOutput.get("availableToPromiseTotal").toString());
+        result.put("totalQuantityOnHand", resultOutput.get("quantityOnHandTotal"));
+        result.put("totalAvailableToPromise", resultOutput.get("availableToPromiseTotal"));
         result.put("quantityOnOrder", quantityOnOrder);
 
         result.put("offsetQOHQtyAvailable", offsetQOHQtyAvailable);
@@ -921,7 +911,7 @@ public class InventoryServices {
 
         List<GenericValue> productPrices = null;
         try {
-            productPrices = delegator.findByAndCache("ProductPrice", UtilMisc.toMap("productId",productId), UtilMisc.toList("-fromDate"));
+            productPrices = EntityQuery.use(delegator).from("ProductPrice").where("productId",productId).orderBy("-fromDate").cache(true).queryList();
         } catch (GenericEntityException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -929,13 +919,13 @@ public class InventoryServices {
         //change this for product price
         for (GenericValue onePrice: productPrices) {
             if (onePrice.getString("productPriceTypeId").equals("DEFAULT_PRICE")) { //defaultPrice
-                result.put("defultPrice", onePrice.getBigDecimal("price"));
+                result.put("defaultPrice", onePrice.getBigDecimal("price"));
             } else if (onePrice.getString("productPriceTypeId").equals("WHOLESALE_PRICE")) {//
                 result.put("wholeSalePrice", onePrice.getBigDecimal("price"));
             } else if (onePrice.getString("productPriceTypeId").equals("LIST_PRICE")) {//listPrice
                 result.put("listPrice", onePrice.getBigDecimal("price"));
             } else {
-                result.put("defultPrice", onePrice.getBigDecimal("price"));
+                result.put("defaultPrice", onePrice.getBigDecimal("price"));
                 result.put("listPrice", onePrice.getBigDecimal("price"));
                 result.put("wholeSalePrice", onePrice.getBigDecimal("price"));
             }
@@ -979,17 +969,16 @@ public class InventoryServices {
             // Make a query against the sales usage view entity
             EntityListIterator salesUsageIt = null;
             try {
-                salesUsageIt = delegator.findListIteratorByCondition(salesUsageViewEntity,
-                        EntityCondition.makeCondition(
-                            UtilMisc.toList(
-                                EntityCondition.makeCondition("facilityId", EntityOperator.EQUALS, facilityId),
-                                EntityCondition.makeCondition("productId", EntityOperator.EQUALS, productId),
-                                EntityCondition.makeCondition("statusId", EntityOperator.IN, UtilMisc.toList("ORDER_COMPLETED", "ORDER_APPROVED", "ORDER_HELD")),
-                                EntityCondition.makeCondition("orderTypeId", EntityOperator.EQUALS, "SALES_ORDER"),
-                                EntityCondition.makeCondition("orderDate", EntityOperator.GREATER_THAN_EQUAL_TO, checkTime)
-                           ),
-                        EntityOperator.AND),
-                    null, null, null, null);
+                EntityCondition cond = EntityCondition.makeCondition(
+                        UtilMisc.toList(
+                            EntityCondition.makeCondition("facilityId", EntityOperator.EQUALS, facilityId),
+                            EntityCondition.makeCondition("productId", EntityOperator.EQUALS, productId),
+                            EntityCondition.makeCondition("statusId", EntityOperator.IN, UtilMisc.toList("ORDER_COMPLETED", "ORDER_APPROVED", "ORDER_HELD")),
+                            EntityCondition.makeCondition("orderTypeId", EntityOperator.EQUALS, "SALES_ORDER"),
+                            EntityCondition.makeCondition("orderDate", EntityOperator.GREATER_THAN_EQUAL_TO, checkTime)
+                       ),
+                    EntityOperator.AND);
+                salesUsageIt = EntityQuery.use(delegator).from(salesUsageViewEntity).where(cond).queryIterator();
             } catch (GenericEntityException e2) {
                 // TODO Auto-generated catch block
                 e2.printStackTrace();
@@ -1017,16 +1006,15 @@ public class InventoryServices {
             // Make a query against the production usage view entity
             EntityListIterator productionUsageIt = null;
             try {
-                productionUsageIt = delegator.findListIteratorByCondition(productionUsageViewEntity,
-                        EntityCondition.makeCondition(
+                EntityCondition conditions = EntityCondition.makeCondition(
                             UtilMisc.toList(
                                 EntityCondition.makeCondition("facilityId", EntityOperator.EQUALS, facilityId),
                                 EntityCondition.makeCondition("productId", EntityOperator.EQUALS, productId),
                                 EntityCondition.makeCondition("workEffortTypeId", EntityOperator.EQUALS, "PROD_ORDER_TASK"),
                                 EntityCondition.makeCondition("actualCompletionDate", EntityOperator.GREATER_THAN_EQUAL_TO, checkTime)
                            ),
-                        EntityOperator.AND),
-                    null, null, null, null);
+                        EntityOperator.AND);
+                productionUsageIt = EntityQuery.use(delegator).from(productionUsageViewEntity).where(conditions).queryIterator();
             } catch (GenericEntityException e1) {
                 // TODO Auto-generated catch block
                 e1.printStackTrace();

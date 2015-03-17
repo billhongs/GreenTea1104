@@ -50,6 +50,7 @@ under the License.
 
     <ContentAssocType contentAssocTypeId="COMPDOC_PART" description="Composite Document Part"/>
     <ContentAssocType contentAssocTypeId="INSTANCE" description="Instance Of"/>
+    <ContentAssocType contentAssocTypeId="ALTERNATIVE_URL" description="Alternative URL"/>
 
     <ContentAssocPredicate contentAssocPredicateId="member-of" description="The object is a member of the subject."/>
     <ContentAssocPredicate contentAssocPredicateId="defines" description="The object defines the subject."/>
@@ -137,7 +138,6 @@ under the License.
 
     <DataTemplateType dataTemplateTypeId="NONE" description="No Template" extension=""/>
     <DataTemplateType dataTemplateTypeId="FTL" description="FreeMarker" extension="ftl"/>
-    <DataTemplateType dataTemplateTypeId="VTL" description="Velocity" extension="vtl"/>
     <DataTemplateType dataTemplateTypeId="WM" description="WebMacro" extension="wm"/>
     <DataTemplateType dataTemplateTypeId="XSLT" description="XSLT" extension="xsl"/>
     <DataTemplateType dataTemplateTypeId="SCREEN_COMBINED" description="Screen widget" extension="xml"/>
@@ -219,7 +219,7 @@ under the License.
     <SurveyQuestionType surveyQuestionTypeId="TEXTAREA" description="Text (multi-line)"/>
     <SurveyQuestionType surveyQuestionTypeId="URL" description="URL"/>
 
-    <DataResource dataResourceId="STDWRAP001" dataResourceTypeId="ELECTRONIC_TEXT" dataTemplateTypeId="FTL"/>
+    <DataResource dataResourceId="STDWRAP001" dataResourceTypeId="ELECTRONIC_TEXT" dataTemplateTypeId="FTL" dataResourceName="Standard SubContent Wrapper" mimeTypeId="text/html"/>
     <ElectronicText dataResourceId="STDWRAP001">
         <textData><![CDATA[<#assign mapKey=wrapMapKey?if_exists/>
 <#assign subDataResourceId=wrapDataResourceId?if_exists/>
@@ -228,7 +228,7 @@ under the License.
 <#assign mimeTypeId=wrapMimeTypeId?if_exists/>
 <#assign subContentId=wrapSubContentId?if_exists/>
 <div id="divTwo" class="wrapOuter">
-    <div class="tabletext">
+    <div>
     ${mapKey?if_exists}
     <a class="buttontext" href="javascript:lookupSubContent('<@ofbizUrl>/LookupSubContent</@ofbizUrl>', '${contentIdTo?if_exists}','${mapKey?if_exists}',  '${subDataResourceTypeId?if_exists}', '${mimeTypeId?if_exists}')">[Find]</a>
     <#assign ofbizRequest=""/>
@@ -252,12 +252,11 @@ under the License.
 </div>
 </div>]]></textData>
     </ElectronicText>
-    <Content contentId="STDWRAP001" contentTypeId="DOCUMENT" dataResourceId="STDWRAP001" contentName="Standard SubContent Wrapper" description="Standard SubContent Wrapper"/>
+    <Content contentId="STDWRAP001" contentTypeId="DOCUMENT" dataResourceId="STDWRAP001" contentName="Standard SubContent Wrapper" description="Standard SubContent Wrapper" mimeTypeId="text/html"/>
 
-    <WebSite webSiteId="CONTENT_SITE" siteName="Content Manager" visualThemeSetId="BACKOFFICE"/>
-
-    <Content contentId="TREE_ROOT"/>
-    <DataResource dataResourceId="DOCBOOK_HTML_TEMPL" dataResourceTypeId="OFBIZ_FILE" objectInfo="applications/content/template/docbook/html/docbook.xsl" dataTemplateTypeId="XSLT" statusId="CTNT_IN_PROGRESS" dataResourceName="Help template file" mimeTypeId="text/html" isPublic="Y"/>
-    <DataResource dataResourceId="DOCBOOK_PDF_TEMPL" dataResourceTypeId="OFBIZ_FILE" objectInfo="applications/content/template/docbook/fo/docbook.xsl" dataTemplateTypeId="XSLT" statusId="CTNT_IN_PROGRESS" dataResourceName="Help template file" mimeTypeId="text/html" isPublic="Y"/>
+    <WebAnalyticsType description="Web Analytics" hasTable="N" parentTypeId="" webAnalyticsTypeId="WEB_ANALYTICS"/>
+    <WebAnalyticsType webAnalyticsTypeId="GOOGLE_ANALYTICS" parentTypeId="WEB_ANALYTICS" hasTable="N" description="Google Analytics"/>
+    <WebAnalyticsType webAnalyticsTypeId="BING_ANALYTICS" parentTypeId="WEB_ANALYTICS" hasTable="N" description="Bing Analytics"/>
+    <WebAnalyticsType webAnalyticsTypeId="BACKEND_ANALYTICS" parentTypeId="WEB_ANALYTICS" hasTable="N" description="Backend Analytics"/>
 
 </entity-engine-xml>

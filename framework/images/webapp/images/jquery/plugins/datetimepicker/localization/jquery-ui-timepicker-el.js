@@ -7,11 +7,15 @@
 		hourText: 'Ώρες',
 		minuteText: 'Λεπτά',
 		secondText: 'Δευτερόλεπτα',
+		millisecText: 'μιλιδευτερόλεπτο',
+		microsecText: 'Microseconds',
 		timezoneText: 'Ζώνη ώρας',
 		currentText: 'Τώρα',
 		closeText: 'Κλείσιμο',
-		timeFormat: 'hh:mm',
-		ampm: false
+		timeFormat: 'HH:mm',
+		amNames: ['π.μ.', 'AM', 'A'],
+		pmNames: ['μ.μ.', 'PM', 'P'],
+		isRTL: false
 	};
 	$.timepicker.setDefaults($.timepicker.regional['el']);
 })(jQuery);

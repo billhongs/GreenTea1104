@@ -29,7 +29,9 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.ModelService;
+import org.ofbiz.service.job.JobManager;
 
 /**
  * ServiceSemaphore
@@ -72,7 +74,9 @@ public class ServiceSemaphore {
         if (mode == SEMAPHORE_MODE_NONE) return;
 
         // remove the lock file
-        dbWrite(lock, true);
+        if (lock != null) {
+            dbWrite(lock, true);
+        }
     }
 
     private void waitOrFail() throws SemaphoreWaitException, SemaphoreFailException {
@@ -117,13 +121,13 @@ public class ServiceSemaphore {
         GenericValue semaphore;
 
         try {
-            semaphore = delegator.findOne("ServiceSemaphore", false, "serviceName", model.name);
+            semaphore = EntityQuery.use(delegator).from("ServiceSemaphore").where("serviceName", model.name).queryOne();
         } catch (GenericEntityException e) {
             throw new SemaphoreFailException(e);
         }
 
         if (semaphore == null) {
-            semaphore = delegator.makeValue("ServiceSemaphore", "serviceName", model.name, "lockThread", threadName, "lockTime", lockTime);
+            semaphore = delegator.makeValue("ServiceSemaphore", "serviceName", model.name, "lockedByInstanceId", JobManager.instanceId, "lockThread", threadName, "lockTime", lockTime);
 
             // use the special method below so we can reuse the unqiue tx functions
             dbWrite(semaphore, false);

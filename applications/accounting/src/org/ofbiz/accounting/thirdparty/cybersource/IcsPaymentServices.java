@@ -39,6 +39,7 @@ import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ServiceUtil;
 
@@ -90,7 +91,7 @@ public class IcsPaymentServices {
         }
         // process the reply
         Map<String, Object> result = ServiceUtil.returnSuccess();
-        processAuthResult(reply, result);
+        processAuthResult(reply, result, delegator);
         return result;
     }
 
@@ -401,8 +402,8 @@ public class IcsPaymentServices {
         if (party != null) {
             GenericValue avsOverride = null;
             try {
-                avsOverride = party.getDelegator().findByPrimaryKey("PartyIcsAvsOverride",
-                        UtilMisc.toMap("partyId", party.getString("partyId")));
+                avsOverride = party.getDelegator().findOne("PartyIcsAvsOverride",
+                        UtilMisc.toMap("partyId", party.getString("partyId")), false);
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -504,7 +505,7 @@ public class IcsPaymentServices {
                 GenericValue item = (GenericValue) orderItem;
                 GenericValue product = null;
                 try {
-                    product = item.getRelatedOne("Product");
+                    product = item.getRelatedOne("Product", false);
                 } catch (GenericEntityException e) {
                     Debug.logError(e, "ERROR: Unable to get Product from OrderItem, not passing info to CyberSource");
                 }
@@ -534,9 +535,9 @@ public class IcsPaymentServices {
         return processAmount.setScale(decimals, rounding).toPlainString();
     }
 
-    private static void processAuthResult(Map<String, Object> reply, Map<String, Object> result) {
+    private static void processAuthResult(Map<String, Object> reply, Map<String, Object> result, Delegator delegator) {
         String decision = getDecision(reply);
-        String checkModeStatus = UtilProperties.getPropertyValue("payment.properties", "payment.cybersource.ignoreStatus");
+        String checkModeStatus = EntityUtilProperties.getPropertyValue("payment.properties", "payment.cybersource.ignoreStatus", delegator);
         if ("ACCEPT".equalsIgnoreCase(decision)) {
             result.put("authCode", reply.get("ccAuthReply_authorizationCode"));
             result.put("authResult", Boolean.TRUE);
@@ -673,7 +674,7 @@ public class IcsPaymentServices {
         String returnValue = "";
         if (UtilValidate.isNotEmpty(paymentGatewayConfigId)) {
             try {
-                GenericValue cyberSource = delegator.findOne("PaymentGatewayCyberSource", UtilMisc.toMap("paymentGatewayConfigId", paymentGatewayConfigId), false);
+                GenericValue cyberSource = EntityQuery.use(delegator).from("PaymentGatewayCyberSource").where("paymentGatewayConfigId", paymentGatewayConfigId).queryOne();
                 if (UtilValidate.isNotEmpty(cyberSource)) {
                     Object cyberSourceField = cyberSource.get(paymentGatewayConfigParameterName);
                     if (cyberSourceField != null) {
@@ -684,7 +685,7 @@ public class IcsPaymentServices {
                 Debug.logError(e, module);
             }
         } else {
-            String value = UtilProperties.getPropertyValue(resource, parameterName);
+            String value = EntityUtilProperties.getPropertyValue(resource, parameterName, delegator);
             if (value != null) {
                 returnValue = value.trim();
             }

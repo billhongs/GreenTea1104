@@ -19,21 +19,20 @@
 
 import org.ofbiz.base.util.*;
 import org.ofbiz.entity.*;
-import org.ofbiz.widget.html.*;
+import org.ofbiz.widget.renderer.html.HtmlFormWrapper;
 
 orderId = request.getParameter("orderId");
 orderTypeId = null;
-orderHeader = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
+orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
 if (orderHeader) {
     orderTypeId = orderHeader.orderTypeId;
 }
 
 //Determine whether a schedule has already been defined for this PO
-schedule = delegator.findByPrimaryKey("OrderDeliverySchedule", [orderId : orderId, orderItemSeqId : "_NA_"]);
+schedule = from("OrderDeliverySchedule").where("orderId", orderId, "orderItemSeqId", "_NA_").queryOne();
 
 // Determine whether the current user can VIEW the order
-checkMap = [orderId : orderId, userLogin : session.getAttribute("userLogin"), checkAction : "VIEW"];
-checkResult = dispatcher.runSync("checkSupplierRelatedOrderPermission", checkMap);
+checkResult = runService('checkSupplierRelatedOrderPermission', [orderId : orderId, userLogin : session.getAttribute("userLogin"), checkAction : "VIEW"]);
 hasSupplierRelatedPermissionStr = checkResult.hasSupplierRelatedPermission;
 
 // Determine what the reuslt is, no result is FALSE

@@ -103,7 +103,7 @@ under the License.
       <field name="visitId" type="id"></field>
       <field name="fromDate" type="date-time"></field>
       <field name="thruDate" type="date-time"></field>
-      <field name="passwordUsed" type="short-varchar" encrypt="true"></field>
+      <field name="passwordUsed" type="long-varchar" encrypt="true"></field>
       <field name="successfulLogin" type="indicator"></field>
       <prim-key field="userLoginId"/>
       <prim-key field="fromDate"/>
@@ -157,20 +157,7 @@ under the License.
             title="Security Component - Security Permission Entity">
       <field name="permissionId" type="id-long-ne"></field>
       <field name="description" type="description"></field>
-      <field name="dynamicAccess" type="value"></field>
       <prim-key field="permissionId"/>
-    </entity>
-    <entity entity-name="SecurityPermissionAutoGrant"
-            package-name="org.ofbiz.security.securitygroup"
-            default-resource-name="SecurityEntityLabels"
-            title="Security Component - Security Permission Auto Grant Entity">
-      <field name="permissionId" type="id-long-ne"></field>
-      <field name="grantPermission" type="id-vlong-ne"></field>
-      <prim-key field="permissionId"/>
-      <prim-key field="grantPermission"/>
-      <relation type="one" fk-name="SEC_PERM_AUTO_GRNT" rel-entity-name="SecurityPermission">
-        <key-map field-name="permissionId"/>
-      </relation>
     </entity>
     <view-entity entity-name="UserLoginAndSecurityGroup"
           package-name="org.ofbiz.security.securitygroup"
@@ -239,7 +226,7 @@ under the License.
           title="Security Component - Protected View Entity">
       <description>Login View couple currently tarpitted : any access to the view for the login is denied</description>
       <field name="viewNameId" type="id-long-ne"><description>name of view protected from data theft</description></field>
-      <field name="userLoginId" type="id-ne"/>
+      <field name="userLoginId" type="id-vlong-ne"/>
       <field name="tarpitReleaseDateTime" type="numeric"><description>Date/Time at which the login will gain anew access to the view (in milliseconds from midnight, January 1, 1970 UTC , 0 meaning no tarpit to allow the admin to free a view and to keep history</description></field>
       <prim-key field="viewNameId"/>
       <prim-key field="userLoginId"/>

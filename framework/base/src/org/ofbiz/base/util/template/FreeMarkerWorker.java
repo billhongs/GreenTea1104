@@ -31,7 +31,9 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,12 +44,10 @@ import java.util.TimeZone;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 
-import javolution.util.FastList;
-import javolution.util.FastMap;
-
 import org.ofbiz.base.location.FlexibleLocation;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.StringUtil;
+import org.ofbiz.base.util.UtilCodec;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilProperties;
@@ -58,14 +58,17 @@ import freemarker.cache.TemplateLoader;
 import freemarker.core.Environment;
 import freemarker.ext.beans.BeanModel;
 import freemarker.ext.beans.BeansWrapper;
+import freemarker.ext.beans.BeansWrapperBuilder;
 import freemarker.template.Configuration;
 import freemarker.template.SimpleHash;
 import freemarker.template.SimpleScalar;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
+import freemarker.template.TemplateHashModel;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
+import freemarker.template.Version;
 
 /** FreeMarkerWorker - Freemarker Template Engine Utilities.
  *
@@ -74,16 +77,28 @@ public class FreeMarkerWorker {
 
     public static final String module = FreeMarkerWorker.class.getName();
 
+    public static final Version version = new Version(2, 3, 22);
+
     // use soft references for this so that things from Content records don't kill all of our memory, or maybe not for performance reasons... hmmm, leave to config file...
-    public static UtilCache<String, Template> cachedTemplates = UtilCache.createUtilCache("template.ftl.general", 0, 0, false);
-    protected static BeansWrapper defaultOfbizWrapper = BeansWrapper.getDefaultInstance();
-    protected static Configuration defaultOfbizConfig = makeConfiguration(defaultOfbizWrapper);
+    private static final UtilCache<String, Template> cachedTemplates = UtilCache.createUtilCache("template.ftl.general", 0, 0, false);
+    private static final BeansWrapper defaultOfbizWrapper = new BeansWrapperBuilder(version).build();
+    private static final Configuration defaultOfbizConfig = makeConfiguration(defaultOfbizWrapper);
+
+    public static BeansWrapper getDefaultOfbizWrapper() {
+        return defaultOfbizWrapper;
+    }
 
     public static Configuration makeConfiguration(BeansWrapper wrapper) {
-        Configuration newConfig = new Configuration();
+        Configuration newConfig = new Configuration(version);
 
         newConfig.setObjectWrapper(wrapper);
-        newConfig.setSharedVariable("Static", wrapper.getStaticModels());
+        TemplateHashModel staticModels = wrapper.getStaticModels();
+        newConfig.setSharedVariable("Static", staticModels);
+        try {
+            newConfig.setSharedVariable("EntityQuery", staticModels.get("org.ofbiz.entity.util.EntityQuery"));
+        } catch (TemplateModelException e) {
+            Debug.logError(e, module);
+        }
         newConfig.setLocalizedLookup(false);
         newConfig.setSharedVariable("StringUtil", new BeanModel(StringUtil.INSTANCE, wrapper));
         newConfig.setTemplateLoader(new FlexibleTemplateLoader());
@@ -108,7 +123,7 @@ public class FreeMarkerWorker {
             URL propertyURL = resources.nextElement();
             Debug.logInfo("loading properties: " + propertyURL, module);
             Properties props = UtilProperties.getProperties(propertyURL);
-            if (props == null || props.isEmpty()) {
+            if (UtilValidate.isEmpty(props)) {
                 Debug.logError("Unable to locate properties file " + propertyURL, module);
             } else {
                 loadTransforms(loader, props, newConfig);
@@ -166,7 +181,7 @@ public class FreeMarkerWorker {
      * @param useCache try to get template from cache
      */
     public static void renderTemplate(String templateLocation, String templateString, Map<String, Object> context, Appendable outWriter, boolean useCache) throws TemplateException, IOException {
-        if (UtilValidate.isEmpty(templateString)) {
+        if (templateString == null) {
             renderTemplate(templateLocation, context, outWriter);
         } else {
             renderTemplateFromString(templateString, templateLocation, context, outWriter, useCache);
@@ -178,7 +193,6 @@ public class FreeMarkerWorker {
      * @param templateLocation A unique ID for this template - used for caching
      * @param context The context Map
      * @param outWriter The Writer to render to
-     * @param useCache try to get template from cache
      */
     public static void renderTemplate(String templateLocation, Map<String, Object> context, Appendable outWriter) throws TemplateException, IOException {
         Template template = getTemplate(templateLocation);
@@ -186,55 +200,40 @@ public class FreeMarkerWorker {
     }
 
     /**
-     * @deprecated, replaced by {@link #renderTemplateFromString(String templateString, String templateLocation, Map<String, Object> context, Appendable outWriter, boolean useCache)}
+     * @deprecated Renamed to {@link #renderTemplateFromString(String, String, Map, Appendable, boolean)}
      */
     @Deprecated
     public static Environment renderTemplateFromString(String templateString, String templateLocation, Map<String, Object> context, Appendable outWriter) throws TemplateException, IOException {
         Template template = cachedTemplates.get(templateLocation);
         if (template == null) {
-            synchronized (cachedTemplates) {
-                template = cachedTemplates.get(templateLocation);
-                if (template == null) {
-                    Reader templateReader = new StringReader(templateString);
-                    template = new Template(templateLocation, templateReader, defaultOfbizConfig);
-                    templateReader.close();
-                    cachedTemplates.put(templateLocation, template);
-                }
-            }
+            Reader templateReader = new StringReader(templateString);
+            template = new Template(templateLocation, templateReader, defaultOfbizConfig);
+            templateReader.close();
+            template = cachedTemplates.putIfAbsentAndGet(templateLocation, template);
         }
         return renderTemplate(template, context, outWriter);
     }
 
     public static Environment renderTemplateFromString(String templateString, String templateLocation, Map<String, Object> context, Appendable outWriter, boolean useCache) throws TemplateException, IOException {
         Template template = null;
-        if (useCache){
+        if (useCache) {
             template = cachedTemplates.get(templateLocation);
-        }
-        if (template == null) {
-            if (useCache){
-                synchronized (cachedTemplates) {
-                    template = cachedTemplates.get(templateLocation);
-                    if (template == null) {
-                        Reader templateReader = new StringReader(templateString);
-                        template = new Template(templateLocation, templateReader, defaultOfbizConfig);
-                        templateReader.close();
-                        cachedTemplates.put(templateLocation, template);
-                    }
-                }
-            } else {
+            if (template == null) {
                 Reader templateReader = new StringReader(templateString);
                 template = new Template(templateLocation, templateReader, defaultOfbizConfig);
                 templateReader.close();
+                template = cachedTemplates.putIfAbsentAndGet(templateLocation, template);
             }
+        } else {
+            Reader templateReader = new StringReader(templateString);
+            template = new Template(templateLocation, templateReader, defaultOfbizConfig);
+            templateReader.close();
         }
-
         return renderTemplate(template, context, outWriter);
     }
 
     public static void clearTemplateFromCache(String templateLocation) {
-        synchronized (cachedTemplates) {
-            cachedTemplates.remove(templateLocation);
-        }
+        cachedTemplates.remove(templateLocation);
     }
 
     /**
@@ -278,6 +277,14 @@ public class FreeMarkerWorker {
         env.setTimeZone(timeZone);
     }
 
+    /**
+     * Returns a <code>Configuration</code> instance initialized to OFBiz defaults. Client code should
+     * call this method instead of creating its own <code>Configuration</code> instance. The instance
+     * returned by this method includes the <code>component://</code> resolver and the OFBiz custom
+     * transformations.
+     * 
+     * @return A <code>Configuration</code> instance.
+     */
     public static Configuration getDefaultOfbizConfig() {
         return defaultOfbizConfig;
     }
@@ -325,16 +332,11 @@ public class FreeMarkerWorker {
     public static Template getTemplate(String templateLocation, UtilCache<String, Template> cache, Configuration config) throws TemplateException, IOException {
         Template template = cache.get(templateLocation);
         if (template == null) {
-            synchronized (cache) {
-                template = cache.get(templateLocation);
-                if (template == null) {
-                    // only make the reader if we need it, and then close it right after!
-                    Reader templateReader = makeReader(templateLocation);
-                    template = new Template(templateLocation, templateReader, config);
-                    templateReader.close();
-                    cache.put(templateLocation, template);
-                }
-            }
+            // only make the reader if we need it, and then close it right after!
+            Reader templateReader = makeReader(templateLocation);
+            template = new Template(templateLocation, templateReader, config);
+            templateReader.close();
+            template = cache.putIfAbsentAndGet(templateLocation, template);
         }
         return template;
     }
@@ -454,7 +456,8 @@ public class FreeMarkerWorker {
         return returnObj;
     }
 
-    public static Object unwrap(Object o) {
+    @SuppressWarnings("unchecked")
+    public static <T> T unwrap(Object o) {
         Object returnObj = null;
 
         if (o == TemplateModel.NOTHING) {
@@ -465,13 +468,13 @@ public class FreeMarkerWorker {
             returnObj = ((BeanModel) o).getWrappedObject();
         }
 
-        return returnObj;
+        return (T) returnObj;
     }
 
     public static void checkForLoop(String path, Map<String, Object> ctx) throws IOException {
         List<String> templateList = UtilGenerics.checkList(ctx.get("templateList"));
         if (templateList == null) {
-            templateList = FastList.newInstance();
+            templateList = new LinkedList<String>();
         } else {
             if (templateList.contains(path)) {
                 throw new IOException(path + " has already been visited.");
@@ -482,7 +485,7 @@ public class FreeMarkerWorker {
     }
 
     public static Map<String, Object> createEnvironmentMap(Environment env) {
-        Map<String, Object> templateRoot = FastMap.newInstance();
+        Map<String, Object> templateRoot = new HashMap<String, Object>();
         Set<String> varNames = null;
         try {
             varNames = UtilGenerics.checkSet(env.getKnownVariableNames());
@@ -514,7 +517,7 @@ public class FreeMarkerWorker {
     }
 
     public static Map<String, Object> saveValues(Map<String, Object> context, String [] saveKeyNames) {
-        Map<String, Object> saveMap = FastMap.newInstance();
+        Map<String, Object> saveMap = new HashMap<String, Object>();
         for (String key: saveKeyNames) {
             Object o = context.get(key);
             if (o instanceof Map<?, ?>) {
@@ -610,10 +613,9 @@ public class FreeMarkerWorker {
     }
 
     public static TemplateModel autoWrap(Object obj, Environment env) {
-       BeansWrapper wrapper = BeansWrapper.getDefaultInstance();
        TemplateModel templateModelObj = null;
        try {
-           templateModelObj = wrapper.wrap(obj);
+           templateModelObj = getDefaultOfbizWrapper().wrap(obj);
        } catch (TemplateModelException e) {
            throw new RuntimeException(e.getMessage());
        }
@@ -686,7 +688,7 @@ public class FreeMarkerWorker {
             te.printStackTrace(pw);
             String stackTrace = tempWriter.toString();
 
-            StringUtil.SimpleEncoder simpleEncoder = FreeMarkerWorker.getWrappedObject("simpleEncoder", env);
+            UtilCodec.SimpleEncoder simpleEncoder = FreeMarkerWorker.getWrappedObject("simpleEncoder", env);
             if (simpleEncoder != null) {
                 stackTrace = simpleEncoder.encode(stackTrace);
             }

@@ -1,11 +1,11 @@
 /*
  * Translated default messages for the jQuery validation plugin.
- * Locale: RU
+ * Locale: RU (Russian; русский язык)
  */
 jQuery.extend(jQuery.validator.messages, {
         required: "Это поле необходимо заполнить.",
         remote: "Пожалуйста, введите правильное значение.",
-        email: "Пожалуйста, введите корретный адрес электронной почты.",
+        email: "Пожалуйста, введите корректный адрес электронной почты.",
         url: "Пожалуйста, введите корректный URL.",
         date: "Пожалуйста, введите корректную дату.",
         dateISO: "Пожалуйста, введите корректную дату в формате ISO.",

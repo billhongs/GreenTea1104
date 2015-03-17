@@ -20,36 +20,36 @@
 import org.ofbiz.entity.*
 import org.ofbiz.entity.condition.*
 import org.ofbiz.base.util.*
-import org.ofbiz.widget.html.*
+import org.ofbiz.widget.renderer.html.*
 
 surveyQuestionId = parameters.surveyQuestionId;
 context.surveyQuestionId = surveyQuestionId;
 
-surveyQuestion = delegator.findOne("SurveyQuestion", [surveyQuestionId : surveyQuestionId], false);
+surveyQuestion = from("SurveyQuestion").where("surveyQuestionId", surveyQuestionId).queryOne();
 
-surveyQuestionAndApplList = delegator.findList("SurveyQuestionAndAppl", EntityCondition.makeCondition([surveyId : surveyId]), null, ['sequenceNum'], null, false);
-surveyPageList = delegator.findList("SurveyPage", EntityCondition.makeCondition([surveyId : surveyId]), null, ['sequenceNum'], null, false);
-surveyMultiRespList = delegator.findList("SurveyMultiResp", EntityCondition.makeCondition([surveyId : surveyId]), null, ['multiRespTitle'], null, false);
+surveyQuestionAndApplList = from("SurveyQuestionAndAppl").where("surveyId", surveyId).orderBy("sequenceNum").queryList();
+surveyPageList = from("SurveyPage").where("surveyId", surveyId).orderBy("sequenceNum").queryList();
+surveyMultiRespList = from("SurveyMultiResp").where("surveyId", surveyId).orderBy("multiRespTitle").queryList();
 
-HtmlFormWrapper createSurveyQuestionWrapper = new HtmlFormWrapper("component://content/webapp/content/survey/SurveyForms.xml", "CreateSurveyQuestion", request, response);
+HtmlFormWrapper createSurveyQuestionWrapper = new HtmlFormWrapper("component://content/widget/survey/SurveyForms.xml", "CreateSurveyQuestion", request, response);
 createSurveyQuestionWrapper.putInContext("surveyId", surveyId);
 createSurveyQuestionWrapper.putInContext("surveyQuestion", surveyQuestion);
 
-HtmlFormWrapper createSurveyQuestionCategoryWrapper = new HtmlFormWrapper("component://content/webapp/content/survey/SurveyForms.xml", "CreateSurveyQuestionCategory", request, response);
+HtmlFormWrapper createSurveyQuestionCategoryWrapper = new HtmlFormWrapper("component://content/widget/survey/SurveyForms.xml", "CreateSurveyQuestionCategory", request, response);
 createSurveyQuestionCategoryWrapper.putInContext("surveyId", surveyId);
 
 if (surveyQuestion && surveyQuestion.surveyQuestionTypeId && "OPTION".equals(surveyQuestion.surveyQuestionTypeId)) {
     // get the options
-    questionOptions = delegator.findList("SurveyQuestionOption", EntityCondition.makeCondition([surveyQuestionId : surveyQuestionId]), null, ['sequenceNum'], null, false);
+    questionOptions = from("SurveyQuestionOption").where("surveyQuestionId", surveyQuestionId).orderBy("sequenceNum").queryList();
     context.questionOptions = questionOptions;
 
-    HtmlFormWrapper createSurveyOptionWrapper = new HtmlFormWrapper("component://content/webapp/content/survey/SurveyForms.xml", "CreateSurveyQuestionOption", request, response);
+    HtmlFormWrapper createSurveyOptionWrapper = new HtmlFormWrapper("component://content/widget/survey/SurveyForms.xml", "CreateSurveyQuestionOption", request, response);
 
     // survey question option
     optionSeqId = parameters.surveyOptionSeqId;
     surveyQuestionOption = null;
     if (optionSeqId) {
-        surveyQuestionOption = delegator.findOne("SurveyQuestionOption", [surveyQuestionId : surveyQuestionId, surveyOptionSeqId : optionSeqId], false);
+        surveyQuestionOption = from("SurveyQuestionOption").where("surveyQuestionId", surveyQuestionId, "surveyOptionSeqId", optionSeqId).queryOne();
     }
     context.surveyQuestionOption = surveyQuestionOption;
 
@@ -63,12 +63,12 @@ surveyQuestionCategoryId = parameters.surveyQuestionCategoryId;
 surveyQuestionCategory = null;
 categoryQuestions = null;
 if (surveyQuestionCategoryId) {
-    surveyQuestionCategory = delegator.findOne("SurveyQuestionCategory", [surveyQuestionCategoryId : surveyQuestionCategoryId], false);
+    surveyQuestionCategory = from("SurveyQuestionCategory").where("surveyQuestionCategoryId", surveyQuestionCategoryId).queryOne();
     if (surveyQuestionCategory) {
-        categoryQuestions = surveyQuestionCategory.getRelated("SurveyQuestion");
+        categoryQuestions = surveyQuestionCategory.getRelated("SurveyQuestion", null, null, false);
     }
 }
-questionCategories = delegator.findList("SurveyQuestionCategory", null, null, ['description'], null, false);
+questionCategories = from("SurveyQuestionCategory").orderBy("description").queryList();
 context.surveyQuestion = surveyQuestion;
 
 context.surveyQuestionAndApplList = surveyQuestionAndApplList;

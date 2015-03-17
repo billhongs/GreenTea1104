@@ -32,6 +32,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import javolution.util.FastMap;
 
+import org.ofbiz.base.config.GenericConfigException;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilGenerics;
@@ -40,12 +41,11 @@ import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.ebay.EbayHelper;
 import org.ofbiz.entity.Delegator;
-import org.ofbiz.entity.GenericDelegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.serialize.SerializeException;
 import org.ofbiz.entity.serialize.XmlSerializer;
-import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -173,7 +173,7 @@ public class EbayStoreHelper {
                 Debug.logError("Require field partyId.",module);
                 return false;
             }
-            partyRole = delegator.findByPrimaryKey("PartyRole", UtilMisc.toMap("partyId", partyId, "roleTypeId", "EBAY_ACCOUNT"));
+            partyRole = EntityQuery.use(delegator).from("PartyRole").where("partyId", partyId, "roleTypeId", "EBAY_ACCOUNT").queryOne();
             if (partyRole == null) {
                 Debug.logError("Party Id ".concat(partyId).concat("not have roleTypeId EBAY_ACCOUNT"),module);
                 return false;
@@ -193,7 +193,7 @@ public class EbayStoreHelper {
                 Debug.logError("Require field partyId.",module);
                 return ebayCategoryId;
             }
-            productCategoryRoles = delegator.findByAnd("ProductCategoryRole", UtilMisc.toMap("productCategoryId", productCategoryId, "partyId", partyId, "roleTypeId", "EBAY_ACCOUNT"));
+            productCategoryRoles = EntityQuery.use(delegator).from("ProductCategoryRole").where("productCategoryId", productCategoryId, "partyId", partyId, "roleTypeId", "EBAY_ACCOUNT").queryList();
             if (productCategoryRoles != null && productCategoryRoles.size()>0) {
                 for (GenericValue productCategoryRole : productCategoryRoles) {
                     ebayCategoryId = productCategoryRole.getString("comments");
@@ -238,14 +238,14 @@ public class EbayStoreHelper {
                     break;
                 } else {
                     // check from child category level 1
-                    List<GenericValue> productCategoryRollupList = delegator.findByAnd("ProductCategoryRollup",  UtilMisc.toMap("parentProductCategoryId",catalogCategory.getString("productCategoryId")));
+                    List<GenericValue> productCategoryRollupList = EntityQuery.use(delegator).from("ProductCategoryRollup").where("parentProductCategoryId",catalogCategory.getString("productCategoryId")).queryList();
                     for (GenericValue productCategoryRollup : productCategoryRollupList) {
                         if (productCategoryRollup.containsValue(productCategoryId)) {
                             flag = true;
                             break;
                         } else {
                             // check from level 2
-                            List<GenericValue> prodCategoryRollupList = delegator.findByAnd("ProductCategoryRollup",  UtilMisc.toMap("parentProductCategoryId",productCategoryRollup.getString("productCategoryId")));
+                            List<GenericValue> prodCategoryRollupList = EntityQuery.use(delegator).from("ProductCategoryRollup").where("parentProductCategoryId",productCategoryRollup.getString("productCategoryId")).queryList();
                             for (GenericValue prodCategoryRollup : prodCategoryRollupList) {
                                 if (prodCategoryRollup.containsValue(productCategoryId)) {
                                     flag = true;
@@ -273,10 +273,10 @@ public class EbayStoreHelper {
         String autoPrefEnumId = (String) context.get("autoPrefEnumId");
         String serviceName = (String) context.get("serviceName");
         try {
-            GenericValue ebayProductPref = delegator.findByPrimaryKey("EbayProductStorePref", UtilMisc.toMap("productStoreId", productStoreId, "autoPrefEnumId", autoPrefEnumId));
+            GenericValue ebayProductPref = EntityQuery.use(delegator).from("EbayProductStorePref").where("productStoreId", productStoreId, "autoPrefEnumId", autoPrefEnumId).queryOne();
             String jobId = ebayProductPref.getString("autoPrefJobId");
             if (UtilValidate.isNotEmpty(jobId)) {
-                List<GenericValue> jobs = delegator.findByAnd("JobSandbox", UtilMisc.toMap("parentJobId", jobId, "statusId", "SERVICE_PENDING"));
+                List<GenericValue> jobs = EntityQuery.use(delegator).from("JobSandbox").where("parentJobId", jobId, "statusId", "SERVICE_PENDING").queryList();
                 if (jobs.size() == 0) {
                     Map<String, Object>inMap = FastMap.newInstance();
                     inMap.put("jobId", jobId);
@@ -304,7 +304,7 @@ public class EbayStoreHelper {
                 info = RecurrenceInfo.makeInfo(delegator, startTime, 4, 1, -1);
                 infoId = info.primaryKey();
                 // set the persisted fields
-                GenericValue enumeration = delegator.findByPrimaryKey("Enumeration", UtilMisc.toMap("enumId", autoPrefEnumId));
+                GenericValue enumeration = EntityQuery.use(delegator).from("Enumeration").where("enumId", autoPrefEnumId).queryOne();
                     jobName = enumeration.getString("description");
                     if (jobName == null) {
                         jobName = Long.toString((new Date().getTime()));
@@ -313,7 +313,7 @@ public class EbayStoreHelper {
                         "serviceName", serviceName, "statusId", "SERVICE_PENDING", "recurrenceInfoId", infoId, "runtimeDataId", runtimeDataId);
 
                 // set the pool ID
-                jFields.put("poolId", ServiceConfigUtil.getSendPool());
+                jFields.put("poolId", ServiceConfigUtil.getServiceEngine().getThreadPool().getSendToPool());
 
                 // set the loader name
                 jFields.put("loaderName", delegator.getDelegatorName());
@@ -341,6 +341,8 @@ public class EbayStoreHelper {
             return ServiceUtil.returnError(e.getMessage());
         }catch (RecurrenceInfoException e) {
             return ServiceUtil.returnError(e.getMessage());
+        } catch (GenericConfigException e) {
+            return ServiceUtil.returnError(e.getMessage());
         }
         return result;
     }
@@ -353,9 +355,9 @@ public class EbayStoreHelper {
         String productStoreId = (String) context.get("productStoreId");
         String autoPrefEnumId = (String) context.get("autoPrefEnumId");
         try {
-            GenericValue ebayProductPref = delegator.findByPrimaryKey("EbayProductStorePref", UtilMisc.toMap("productStoreId", productStoreId, "autoPrefEnumId", autoPrefEnumId));
+            GenericValue ebayProductPref = EntityQuery.use(delegator).from("EbayProductStorePref").where("productStoreId", productStoreId, "autoPrefEnumId", autoPrefEnumId).queryOne();
             String jobId = ebayProductPref.getString("autoPrefJobId");
-            List<GenericValue> jobs = delegator.findByAnd("JobSandbox", UtilMisc.toMap("parentJobId", jobId ,"statusId", "SERVICE_PENDING"));
+            List<GenericValue> jobs = EntityQuery.use(delegator).from("JobSandbox").where("parentJobId", jobId ,"statusId", "SERVICE_PENDING").queryList();
 
             Map<String, Object>inMap = FastMap.newInstance();
             inMap.put("userLogin", userLogin);
@@ -436,7 +438,7 @@ public class EbayStoreHelper {
         AddItemRequestType req = new AddItemRequestType();
         AddItemResponseType resp = null;
         try {
-            GenericValue userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "system"));
+            GenericValue userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "system").queryOne();
             ItemType item = addItemCall.getItem();
             req.setItem(item);
             resp = (AddItemResponseType) addItemCall.execute(req);
@@ -468,7 +470,7 @@ public class EbayStoreHelper {
         HashMap<String, Object> attributeMapList = UtilGenerics.cast(context.get("attributeMapList"));
         String productListingId = (String) context.get("productListingId");
         try {
-           List<GenericValue> attributeToClears = delegator.findByAnd("EbayProductListingAttribute", UtilMisc.toMap("productListingId", productListingId));
+           List<GenericValue> attributeToClears = EntityQuery.use(delegator).from("EbayProductListingAttribute").where("productListingId", productListingId).queryList();
            for (int clearCount = 0; clearCount < attributeToClears.size(); clearCount++) {
               GenericValue valueToClear = attributeToClears.get(clearCount);
               if (valueToClear != null) {
@@ -493,7 +495,7 @@ public class EbayStoreHelper {
     public static ItemType prepareAddItem(Delegator delegator, GenericValue attribute) {
         ItemType item = new ItemType();
         try {
-            List<GenericValue> attrs = delegator.findByAnd("EbayProductListingAttribute", UtilMisc.toMap("productListingId", attribute.getString("productListingId")));
+            List<GenericValue> attrs = EntityQuery.use(delegator).from("EbayProductListingAttribute").where("productListingId", attribute.getString("productListingId")).queryList();
             AmountType amount = new AmountType();
             AmountType shippingServiceCost = new AmountType();
             PictureDetailsType picture = new PictureDetailsType();
@@ -616,12 +618,12 @@ public class EbayStoreHelper {
     GetOrdersRequestType req = new GetOrdersRequestType();
     GetOrdersResponseType resp = null;
     try {
-        GenericValue orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
+        GenericValue orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
         if (UtilValidate.isNotEmpty(orderHeader)) {
             String externalId = orderHeader.getString("externalId").toString();
-            List<GenericValue> orderShipment = orderHeader.getRelated("OrderShipment");
+            List<GenericValue> orderShipment = orderHeader.getRelated("OrderShipment", null, null, false);
             if (orderShipment.size() > 0) {
-                List<GenericValue> trackingOrders = orderHeader.getRelated("TrackingCodeOrder");
+                List<GenericValue> trackingOrders = orderHeader.getRelated("TrackingCodeOrder", null, null, false);
                 ApiContext apiContext = EbayStoreHelper.getApiContext(productStoreId, locale, delegator);
                 GetOrdersCall ordersCall = new GetOrdersCall(apiContext);
                 OrderIDArrayType orderIdArr = new OrderIDArrayType();
@@ -712,10 +714,10 @@ public class EbayStoreHelper {
         }
     }
 
-    public static boolean isReserveInventory(GenericDelegator delegator, String productId, String productStoreId) {
+    public static boolean isReserveInventory(Delegator delegator, String productId, String productStoreId) {
         boolean isReserve = false;
         try {
-            GenericValue ebayProductStore = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("EbayProductStoreInventory", UtilMisc.toMap("productStoreId", productStoreId, "productId", productId))));
+            GenericValue ebayProductStore = EntityQuery.use(delegator).from("EbayProductStoreInventory").where("productStoreId", productStoreId, "productId", productId).filterByDate().queryFirst();
             if (UtilValidate.isNotEmpty(ebayProductStore)) {
                 BigDecimal atp = ebayProductStore.getBigDecimal("availableToPromiseListing");
                 int intAtp = atp.intValue();

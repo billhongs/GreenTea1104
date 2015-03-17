@@ -49,6 +49,8 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
+import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -125,7 +127,7 @@ public class ProductsExportToGoogle {
                             if (prodCatMemb != null) {
                                 String productId = prodCatMemb.getString("productId");
                                 if (productId != null) {
-                                    GenericValue prod = prodCatMemb.getRelatedOne("Product");
+                                    GenericValue prod = prodCatMemb.getRelatedOne("Product", false);
                                     Timestamp salesDiscontinuationDate = prod.getTimestamp("salesDiscontinuationDate");
                                     // do not consider discontinued product
                                     if (salesDiscontinuationDate == null) {
@@ -327,7 +329,7 @@ public class ProductsExportToGoogle {
             if (UtilValidate.isNotEmpty(productStoreId)) {
                 GenericValue googleBaseConfig = null;
                 try {
-                    googleBaseConfig = delegator.findOne("GoogleBaseConfig", false, UtilMisc.toMap("productStoreId", productStoreId));
+                    googleBaseConfig = EntityQuery.use(delegator).from("GoogleBaseConfig").where(UtilMisc.toMap("productStoreId", productStoreId)).queryOne();
                 } catch (GenericEntityException e) {
                     Debug.logError("Unable to find value for GoogleBaseConfig", module);
                     e.printStackTrace();
@@ -396,7 +398,7 @@ public class ProductsExportToGoogle {
                 return ServiceUtil.returnFailure(UtilProperties.getMessage(resource, "productsExportToGoogle.invalidCountryCode", locale));
             }
             // Get the list of products to be exported to Google Base
-            List<GenericValue> productsList  = delegator.findList("Product", EntityCondition.makeCondition("productId", EntityOperator.IN, selectResult), null, null, null, false);
+            List<GenericValue> productsList  = EntityQuery.use(delegator).from("Product").where(EntityCondition.makeCondition("productId", EntityOperator.IN, selectResult)).queryList();
 
             // Get the tracking code
             if (UtilValidate.isEmpty(trackingCodeId) || "_NA_".equals(trackingCodeId)) {
@@ -430,19 +432,19 @@ public class ProductsExportToGoogle {
                 String link = webSiteUrl + "/" + webSiteMountPoint + "/control/product/~product_id=" + prod.getString("productId") + trackingCodeId + utmSource + utmMedium + utmTerm + utmContent + utmCampaign;
                 String productName = null;
                 String productDescription = null;
-                String productURL = null;
-                List<GenericValue> productAndInfos = delegator.findByAnd("ProductContentAndInfo", UtilMisc.toMap("productId", prod.getString("productId"), "localeString", localeString, "thruDate", null));
+                //String productURL = null;
+                List<GenericValue> productAndInfos = EntityQuery.use(delegator).from("ProductContentAndInfo").where("productId", prod.getString("productId"), "localeString", localeString, "thruDate", null).queryList();
                 if (productAndInfos.size() > 0) {
                     for (GenericValue productContentAndInfo : productAndInfos ) {
                         String dataReSourceId = productContentAndInfo.getString("dataResourceId");
-                        GenericValue electronicText = delegator.findByPrimaryKey("ElectronicText", UtilMisc.toMap("dataResourceId", dataReSourceId));
+                        GenericValue electronicText = EntityQuery.use(delegator).from("ElectronicText").where("dataResourceId", dataReSourceId).queryOne();
                         if ("PRODUCT_NAME".equals(productContentAndInfo.getString("productContentTypeId")))
                             productName = electronicText.getString("textData");
                         if ("LONG_DESCRIPTION".equals(productContentAndInfo.getString("productContentTypeId")))
                             productDescription = electronicText.getString("textData");
-                        if ("PRODUCT_URL".equals(productContentAndInfo.getString("productContentTypeId")))
-                            productURL = electronicText.getString("textData") + utmSource + utmMedium + utmTerm + utmContent + utmCampaign;
-                        }
+                        //if ("PRODUCT_URL".equals(productContentAndInfo.getString("productContentTypeId")))
+                            //productURL = electronicText.getString("textData") + utmSource + utmMedium + utmTerm + utmContent + utmCampaign;
+                    }
                 } else {
                     productName = prod.getString("internalName");
                     productDescription = prod.getString("longDescription");
@@ -494,7 +496,7 @@ public class ProductsExportToGoogle {
                 String googleProductId = null;
                 if (!"insert".equals(actionType)) {
                     try {
-                        googleProduct = delegator.findByPrimaryKey("GoodIdentification", UtilMisc.toMap("productId", prod.getString("productId"), "goodIdentificationTypeId", "GOOGLE_ID_" + localeString));
+                        googleProduct = EntityQuery.use(delegator).from("GoodIdentification").where("productId", prod.getString("productId"), "goodIdentificationTypeId", "GOOGLE_ID_" + localeString).queryOne();
                         if (UtilValidate.isNotEmpty(googleProduct)) {
                             googleProductId = googleProduct.getString("idValue");
                         }
@@ -546,12 +548,12 @@ public class ProductsExportToGoogle {
                 // item_type is the categories in which your product should belong.
                 UtilXml.addChildElementNSValue(entryElem, "g:item_type", "products", feedDocument, googleBaseNSUrl);
 
-                List<GenericValue> productCategoryMembers = delegator.findList("ProductCategoryMember", EntityCondition.makeCondition("productId", EntityOperator.EQUALS, prod.getString("productId")), null, UtilMisc.toList("productCategoryId"), null, false);
+                List<GenericValue> productCategoryMembers = EntityQuery.use(delegator).from("ProductCategoryMember").where("productId", prod.getString("productId")).orderBy("productCategoryId").queryList();
 
                 Iterator<GenericValue> productCategoryMembersIter = productCategoryMembers.iterator();
                 while (productCategoryMembersIter.hasNext()) {
                     GenericValue productCategoryMember = productCategoryMembersIter.next();
-                    GenericValue productCategory = productCategoryMember.getRelatedOne("ProductCategory");
+                    GenericValue productCategory = productCategoryMember.getRelatedOne("ProductCategory", false);
                     String productCategoryId = productCategory.getString("productCategoryId");
                     String checkCategory = null;
                     if ("GB".equals(countryCode)) {
@@ -582,7 +584,7 @@ public class ProductsExportToGoogle {
                     UtilXml.addChildElementNSValue(entryElem, "g:brand", prod.getString("brandName"), feedDocument, googleBaseNSUrl);
                 }
                 try {
-                    googleProduct = delegator.findByPrimaryKey("GoodIdentification", UtilMisc.toMap("productId", prod.getString("productId"), "goodIdentificationTypeId", "SKU"));
+                    googleProduct = EntityQuery.use(delegator).from("GoodIdentification").where("productId", prod.getString("productId"), "goodIdentificationTypeId", "SKU").queryOne();
                     if (UtilValidate.isNotEmpty(googleProduct)) {
                         UtilXml.addChildElementNSValue(entryElem, "g:ean", googleProduct.getString("idValue"), feedDocument, googleBaseNSUrl);
                     }
@@ -633,7 +635,7 @@ public class ProductsExportToGoogle {
         result.put("newProductsInGoogle", newProductsInGoogle);
         result.put("productsRemovedFromGoogle", productsRemovedFromGoogle);
         result.put("localeString", localeString);
-        //Debug.logInfo("======returning with result: " + result);
+        //Debug.logInfo("======returning with result: " + result, module);
         return result;
     }
 
@@ -655,7 +657,7 @@ public class ProductsExportToGoogle {
     private static Map<String, Object> readResponseFromGoogle(String msg, List<String> newProductsInGoogle, List<String> productsRemovedFromGoogle,
             LocalDispatcher dispatcher, Delegator delegator, Locale locale, String localeString) {
         List<String> message = FastList.newInstance();
-        // Debug.logInfo("====get xml response from google: " + msg);
+        // Debug.logInfo("====get xml response from google: " + msg, module);
         try {
             Document docResponse = UtilXml.readXmlDocument(msg, true);
             Element elemResponse = docResponse.getDocumentElement();
@@ -724,7 +726,7 @@ public class ProductsExportToGoogle {
         if (UtilValidate.isNotEmpty(productStoreId)) {
             GenericValue googleBaseConfig = null;
             try {
-                googleBaseConfig = delegator.findOne("GoogleBaseConfig", false, UtilMisc.toMap("productStoreId", productStoreId));
+                googleBaseConfig = EntityQuery.use(delegator).from("GoogleBaseConfig").where(UtilMisc.toMap("productStoreId", productStoreId)).queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError("Unable to find value for GoogleBaseConfig", module);
                 e.printStackTrace();
@@ -737,11 +739,11 @@ public class ProductsExportToGoogle {
                buildGoogleBaseConfigContext.put("postItemsUrl", googleBaseConfig.getString("postItemsUrl"));
             }
         } else {
-            buildGoogleBaseConfigContext.put("developerKey", UtilProperties.getPropertyValue(configString, "googleBaseExport.developerKey"));
-            buildGoogleBaseConfigContext.put("authenticationUrl", UtilProperties.getPropertyValue(configString, "googleBaseExport.authenticationUrl"));
-            buildGoogleBaseConfigContext.put("accountEmail", UtilProperties.getPropertyValue(configString, "googleBaseExport.accountEmail"));
-            buildGoogleBaseConfigContext.put("accountPassword", UtilProperties.getPropertyValue(configString, "googleBaseExport.accountPassword"));
-            buildGoogleBaseConfigContext.put("postItemsUrl", UtilProperties.getPropertyValue(configString, "googleBaseExport.postItemsUrl"));
+            buildGoogleBaseConfigContext.put("developerKey", EntityUtilProperties.getPropertyValue(configString, "googleBaseExport.developerKey", delegator));
+            buildGoogleBaseConfigContext.put("authenticationUrl", EntityUtilProperties.getPropertyValue(configString, "googleBaseExport.authenticationUrl", delegator));
+            buildGoogleBaseConfigContext.put("accountEmail", EntityUtilProperties.getPropertyValue(configString, "googleBaseExport.accountEmail", delegator));
+            buildGoogleBaseConfigContext.put("accountPassword", EntityUtilProperties.getPropertyValue(configString, "googleBaseExport.accountPassword", delegator));
+            buildGoogleBaseConfigContext.put("postItemsUrl", EntityUtilProperties.getPropertyValue(configString, "googleBaseExport.postItemsUrl", delegator));
         }
         return buildGoogleBaseConfigContext;
     }
@@ -756,7 +758,7 @@ public class ProductsExportToGoogle {
             }
             
             //Add quantity item
-            List<GenericValue> inventoryItems = delegator.findByAnd("InventoryItem", UtilMisc.toMap("productId", product.getString("productId")));
+            List<GenericValue> inventoryItems = EntityQuery.use(delegator).from("InventoryItem").where("productId", product.getString("productId")).queryList();
             if (UtilValidate.isNotEmpty(inventoryItems)) {
                 BigDecimal totalquantity = new BigDecimal(0);
                 for (GenericValue inventoryItem : inventoryItems) {
@@ -774,11 +776,11 @@ public class ProductsExportToGoogle {
             UtilXml.addChildElementNSValue(entryElem, "g:online_only", "y", feedDocument, googleBaseNSUrl);
             //Add shipping weight
             if (UtilValidate.isNotEmpty(product.getString("weight")) && UtilValidate.isNotEmpty(product.getString("weightUomId"))) {
-                GenericValue uom = delegator.findByPrimaryKey("Uom", UtilMisc.toMap("uomId", product.getString("weightUomId")));
+                GenericValue uom = EntityQuery.use(delegator).from("Uom").where("uomId", product.getString("weightUomId")).queryOne();
                 String shippingWeight = product.getString("weight") + " " + uom.getString("description");
                 UtilXml.addChildElementNSValue(entryElem, "g:shipping_weight", shippingWeight, feedDocument, googleBaseNSUrl);
             }
-            List<GenericValue> productFeatureAndAppls = delegator.findByAnd("ProductFeatureAndAppl", UtilMisc.toMap("productId", product.getString("productId")));
+            List<GenericValue> productFeatureAndAppls = EntityQuery.use(delegator).from("ProductFeatureAndAppl").where("productId", product.getString("productId")).queryList();
             if (productFeatureAndAppls.size() > 0) {
                 for (GenericValue productFeatureAndAppl : productFeatureAndAppls) {
                     //Add Genre

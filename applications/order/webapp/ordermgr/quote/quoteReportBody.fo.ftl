@@ -41,11 +41,11 @@ under the License.
                     <#assign rowColor = "white">
                     <#assign totalQuoteAmount = 0.0>
                     <#list quoteItems as quoteItem>
-                        <#if quoteItem.productId?exists>
-                            <#assign product = quoteItem.getRelatedOne("Product")>
+                        <#if quoteItem.productId??>
+                            <#assign product = quoteItem.getRelatedOne("Product", false)>
                         </#if>
                         <#assign quoteItemAmount = quoteItem.quoteUnitPrice?default(0) * quoteItem.quantity?default(0)>
-                        <#assign quoteItemAdjustments = quoteItem.getRelated("QuoteAdjustment")>
+                        <#assign quoteItemAdjustments = quoteItem.getRelated("QuoteAdjustment", null, null, false)>
                         <#assign totalQuoteItemAdjustmentAmount = 0.0>
                         <#list quoteItemAdjustments as quoteItemAdjustment>
                             <#assign totalQuoteItemAdjustmentAmount = quoteItemAdjustment.amount?default(0) + totalQuoteItemAdjustmentAmount>
@@ -58,13 +58,13 @@ under the License.
                                 <fo:block>${quoteItem.quoteItemSeqId}</fo:block>
                             </fo:table-cell>
                             <fo:table-cell padding="2pt" background-color="${rowColor}">
-                                <fo:block>${(product.internalName)?if_exists} [${quoteItem.productId?if_exists}]</fo:block>
+                                <fo:block>${(product.internalName)!} [${quoteItem.productId!}]</fo:block>
                             </fo:table-cell>
                             <fo:table-cell padding="2pt" background-color="${rowColor}">
-                                <fo:block text-align="right">${quoteItem.quantity?if_exists}</fo:block>
+                                <fo:block text-align="right">${quoteItem.quantity!}</fo:block>
                             </fo:table-cell>
                             <fo:table-cell padding="2pt" background-color="${rowColor}">
-                                <fo:block text-align="right">${quoteItem.selectedAmount?if_exists}</fo:block>
+                                <fo:block text-align="right">${quoteItem.selectedAmount!}</fo:block>
                             </fo:table-cell>
                             <fo:table-cell padding="2pt" background-color="${rowColor}">
                                 <fo:block text-align="right"><@ofbizCurrency amount=quoteItem.quoteUnitPrice isoCode=quote.currencyUomId/></fo:block>
@@ -78,7 +78,7 @@ under the License.
 
                         </fo:table-row>
                         <#list quoteItemAdjustments as quoteItemAdjustment>
-                            <#assign adjustmentType = quoteItemAdjustment.getRelatedOne("OrderAdjustmentType")>
+                            <#assign adjustmentType = quoteItemAdjustment.getRelatedOne("OrderAdjustmentType", false)>
                             <fo:table-row>
                                 <fo:table-cell padding="2pt" background-color="${rowColor}">
                                 </fo:table-cell>
@@ -89,7 +89,7 @@ under the License.
                                 <fo:table-cell padding="2pt" background-color="${rowColor}">
                                 </fo:table-cell>
                                 <fo:table-cell padding="2pt" background-color="${rowColor}">
-                                    <fo:block font-size="7pt" text-align="right">${adjustmentType.get("description",locale)?if_exists}</fo:block>
+                                    <fo:block font-size="7pt" text-align="right">${adjustmentType.get("description",locale)!}</fo:block>
                                 </fo:table-cell>
                                 <fo:table-cell padding="2pt" background-color="${rowColor}">
                                     <fo:block font-size="7pt" text-align="right"><@ofbizCurrency amount=quoteItemAdjustment.amount isoCode=quote.currencyUomId/></fo:block>
@@ -126,12 +126,12 @@ under the License.
                         </fo:table-row>
                         <#assign totalQuoteHeaderAdjustmentAmount = 0.0>
                         <#list quoteAdjustments as quoteAdjustment>
-                            <#assign adjustmentType = quoteAdjustment.getRelatedOne("OrderAdjustmentType")>
-                            <#if !quoteAdjustment.quoteItemSeqId?exists>
+                            <#assign adjustmentType = quoteAdjustment.getRelatedOne("OrderAdjustmentType", false)>
+                            <#if !quoteAdjustment.quoteItemSeqId??>
                                 <#assign totalQuoteHeaderAdjustmentAmount = quoteAdjustment.amount?default(0) + totalQuoteHeaderAdjustmentAmount>
                                 <fo:table-row>
                                     <fo:table-cell padding="2pt">
-                                        <fo:block font-weight="bold" text-align="right">${adjustmentType.get("description", locale)?if_exists}</fo:block>
+                                        <fo:block font-weight="bold" text-align="right">${adjustmentType.get("description", locale)!}</fo:block>
                                     </fo:table-cell>
                                     <fo:table-cell padding="2pt">
                                         <fo:block text-align="right"><@ofbizCurrency amount=quoteAdjustment.amount isoCode=quote.currencyUomId/></fo:block>

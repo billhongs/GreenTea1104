@@ -30,9 +30,9 @@ under the License.
     <#if invoiceDetailList?has_content>
       <#list invoiceDetailList as invoiceDetail>
         <#assign invoice = invoiceDetail.invoice />
-        <#if invoiceDetail.billingParty?has_content>
-          <#assign billingParty = invoiceDetail.billingParty />
-          <#assign partyName = delegator.findOne("PartyNameView", {"partyId" : billingParty.partyId}, true)>
+        <#if invoiceDetail.billToParty?has_content>
+          <#assign billToParty = invoiceDetail.billToParty />
+          <#assign partyName = delegator.findOne("PartyNameView", {"partyId" : billToParty.partyId}, true)>
         </#if>
         <fo:page-sequence master-reference="main">
           <fo:flow flow-name="xsl-region-body" font-family="Helvetica">
@@ -55,25 +55,25 @@ under the License.
                           <fo:table-body>
                             <fo:table-row>
                               <fo:table-cell>
-                                <fo:block number-columns-spanned="2" font-weight="bold">${invoice.getRelatedOne("InvoiceType").get("description",locale)?if_exists}</fo:block>
+                                <fo:block number-columns-spanned="2" font-weight="bold">${invoice.getRelatedOne("InvoiceType", false).get("description",locale)!}</fo:block>
                               </fo:table-cell>
                             </fo:table-row>
                             <fo:table-row>
                               <fo:table-cell><fo:block>${uiLabelMap.AccountingInvoiceDateAbbr}:</fo:block></fo:table-cell>
-                              <fo:table-cell><fo:block>${invoiceDetail.invoiceDate?if_exists}</fo:block></fo:table-cell>
+                              <fo:table-cell><fo:block>${invoiceDetail.invoiceDate!}</fo:block></fo:table-cell>
                             </fo:table-row>
                             <fo:table-row>
                               <fo:table-cell><fo:block>${uiLabelMap.AccountingCustNr}:</fo:block></fo:table-cell>
                               <fo:table-cell>
                                 <fo:block>
-                                  <#if partyName?has_content>${partyName.firstName?if_exists} ${partyName.lastName?if_exists} ${partyName.groupName?if_exists}</#if>
+                                  <#if partyName?has_content>${partyName.firstName!} ${partyName.lastName!} ${partyName.groupName!}</#if>
                                 </fo:block>
                               </fo:table-cell>
                             </fo:table-row>
-                            <#if invoiceDetail.billingPartyTaxId?has_content>
+                            <#if invoiceDetail.billToPartyTaxId?has_content>
                               <fo:table-row>
                                 <fo:table-cell><fo:block>${uiLabelMap.PartyTaxId}:</fo:block></fo:table-cell>
-                                <fo:table-cell><fo:block> ${invoiceDetail.billingPartyTaxId}</fo:block></fo:table-cell>
+                                <fo:table-cell><fo:block> ${invoiceDetail.billToPartyTaxId}</fo:block></fo:table-cell>
                               </fo:table-row>
                             </#if>
                             <fo:table-row>
@@ -95,7 +95,7 @@ under the License.
               </fo:table>
             </fo:block>
               
-            <#if billingParty?has_content>
+            <#if billToParty?has_content>
               <fo:block>
                 <fo:table width="100%" table-layout="fixed" space-after="0.3in">
                   <fo:table-column column-width="3.5in"/>
@@ -105,21 +105,21 @@ under the License.
                         <fo:block>${uiLabelMap.CommonTo}: </fo:block>
                         <#if invoiceDetail.billingAddress?has_content>
                           <#assign billingAddress = invoiceDetail.billingAddress />
-                          <#assign billingPartyNameResult = dispatcher.runSync("getPartyNameForDate", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", billingParty.partyId, "compareDate", invoice.invoiceDate, "userLogin", userLogin))/>
-                          <fo:block>${billingPartyNameResult.fullName?default(billingAddress.toName)?default("Billing Name Not Found")}</fo:block>
-                          <#if billingAddress.attnName?exists>
+                          <#assign billToPartyNameResult = dispatcher.runSync("getPartyNameForDate", Static["org.ofbiz.base.util.UtilMisc"].toMap("partyId", billToParty.partyId, "compareDate", invoice.invoiceDate, "userLogin", userLogin))/>
+                          <fo:block>${billToPartyNameResult.fullName?default(billingAddress.toName)?default("Billing Name Not Found")}</fo:block>
+                          <#if billingAddress.attnName??>
                             <fo:block>${billingAddress.attnName}</fo:block>
                           </#if>
-                          <fo:block>${billingAddress.address1?if_exists}</fo:block>
-                          <#if billingAddress.address2?exists>
+                          <fo:block>${billingAddress.address1!}</fo:block>
+                          <#if billingAddress.address2??>
                             <fo:block>${billingAddress.address2}</fo:block>
                           </#if>
                           <fo:block>
-                            <#assign stateGeo = (delegator.findOne("Geo", {"geoId", billingAddress.stateProvinceGeoId?if_exists}, false))?if_exists />
-                            ${billingAddress.city?if_exists} <#if stateGeo?has_content>${stateGeo.geoName?if_exists}</#if> ${billingAddress.postalCode?if_exists}
+                            <#assign stateGeo = (delegator.findOne("Geo", {"geoId", billingAddress.stateProvinceGeoId!}, false))! />
+                            ${billingAddress.city!} <#if stateGeo?has_content>${stateGeo.geoName!}</#if> ${billingAddress.postalCode!}
                           </fo:block>
                         <#else>
-                          <fo:block>${uiLabelMap.AccountingNoGenBilAddressFound} <#if partyName?has_content>${partyName.firstName?if_exists} ${partyName.lastName?if_exists} ${partyName.groupName?if_exists}</#if></fo:block>
+                          <fo:block>${uiLabelMap.AccountingNoGenBilAddressFound} <#if partyName?has_content>${partyName.firstName!} ${partyName.lastName!} ${partyName.groupName!}</#if></fo:block>
                         </#if>
                       </fo:table-cell>
                     </fo:table-row>
@@ -130,7 +130,7 @@ under the License.
             
             <fo:block>
               <#if invoiceDetail.orders?has_content>
-                <#assign orders = invoiceDetail.orders?if_exists />
+                <#assign orders = invoiceDetail.orders! />
                 <fo:table width="100%" table-layout="fixed" space-after="0.3in">
                   <fo:table-column column-width="1in"/>
                   <fo:table-column column-width="5.5in"/>
@@ -148,7 +148,7 @@ under the License.
               </#if>
               
               <#if invoiceDetail.invoiceItems?has_content>
-                <#assign invoiceItems = invoiceDetail.invoiceItems?if_exists />
+                <#assign invoiceItems = invoiceDetail.invoiceItems! />
                 <fo:table width="100%" table-layout="fixed">
                   <fo:table-column column-width="20mm"/>
                   <fo:table-column column-width="20mm"/>
@@ -184,13 +184,13 @@ under the License.
                     <#assign newShipmentId = "">
                     <#-- if the item has a description, then use its description.  Otherwise, use the description of the invoiceItemType -->
                     <#list invoiceItems as invoiceItem>
-                      <#assign itemType = invoiceItem.getRelatedOne("InvoiceItemType")>
-                      <#assign taxRate = invoiceItem.getRelatedOne("TaxAuthorityRateProduct")?if_exists>
-                      <#assign itemBillings = invoiceItem.getRelated("OrderItemBilling")?if_exists>
+                      <#assign itemType = invoiceItem.getRelatedOne("InvoiceItemType", false)>
+                      <#assign taxRate = invoiceItem.getRelatedOne("TaxAuthorityRateProduct", false)!>
+                      <#assign itemBillings = invoiceItem.getRelated("OrderItemBilling", null, null, false)!>
                       <#if itemBillings?has_content>
                         <#assign itemBilling = Static["org.ofbiz.entity.util.EntityUtil"].getFirst(itemBillings)>
                         <#if itemBilling?has_content>
-                          <#assign itemIssuance = itemBilling.getRelatedOne("ItemIssuance")?if_exists>
+                          <#assign itemIssuance = itemBilling.getRelatedOne("ItemIssuance", false)!>
                           <#if itemIssuance?has_content>
                             <#assign newShipmentId = itemIssuance.shipmentId>
                           </#if>
@@ -204,7 +204,7 @@ under the License.
                         <#assign description=itemType.get("description",locale)>
                       </#if>
   
-                      <#if newShipmentId?exists & newShipmentId != currentShipmentId>
+                      <#if newShipmentId?? & newShipmentId != currentShipmentId>
                         <#-- the shipment id is printed at the beginning for each
                            group of invoice items created for the same shipment
                         -->
@@ -230,19 +230,19 @@ under the License.
                           <fo:block> ${invoiceItem.invoiceItemSeqId} </fo:block>
                         </fo:table-cell>
                         <fo:table-cell>
-                          <fo:block text-align="left">${invoiceItem.productId?if_exists} </fo:block>
+                          <fo:block text-align="left">${invoiceItem.productId!} </fo:block>
                         </fo:table-cell>
                         <fo:table-cell>
-                          <fo:block text-align="right">${description?if_exists}</fo:block>
+                          <fo:block text-align="right">${description!}</fo:block>
                         </fo:table-cell>
                         <fo:table-cell>
-                          <fo:block text-align="center"> <#if invoiceItem.quantity?exists>${invoiceItem.quantity?string.number}</#if> </fo:block>
+                          <fo:block text-align="center"> <#if invoiceItem.quantity??>${invoiceItem.quantity?string.number}</#if> </fo:block>
                         </fo:table-cell>
                         <fo:table-cell text-align="right">
-                          <fo:block> <#if invoiceItem.quantity?exists><@ofbizCurrency amount=invoiceItem.amount?if_exists isoCode=invoice.currencyUomId?if_exists/></#if> </fo:block>
+                          <fo:block> <#if invoiceItem.quantity??><@ofbizCurrency amount=invoiceItem.amount! isoCode=invoice.currencyUomId!/></#if> </fo:block>
                         </fo:table-cell>
                         <fo:table-cell text-align="right">
-                          <fo:block> <@ofbizCurrency amount=(Static["org.ofbiz.accounting.invoice.InvoiceWorker"].getInvoiceItemTotal(invoiceItem)) isoCode=invoice.currencyUomId?if_exists/> </fo:block>
+                          <fo:block> <@ofbizCurrency amount=(Static["org.ofbiz.accounting.invoice.InvoiceWorker"].getInvoiceItemTotal(invoiceItem)) isoCode=invoice.currencyUomId!/> </fo:block>
                         </fo:table-cell>
                       </fo:table-row>
                     </#list>
@@ -258,8 +258,8 @@ under the License.
                       <fo:table-cell text-align="right" number-columns-spanned="2">
                         <fo:block font-weight="bold">
                           <#if invoiceDetail.invoiceTotal?has_content>
-                            <#assign invoiceTotal = invoiceDetail.invoiceTotal?if_exists />
-                            <@ofbizCurrency amount=invoiceTotal isoCode=invoice.currencyUomId?if_exists/>
+                            <#assign invoiceTotal = invoiceDetail.invoiceTotal! />
+                            <@ofbizCurrency amount=invoiceTotal isoCode=invoice.currencyUomId!/>
                           </#if>
                         </fo:block>
                       </fo:table-cell>
@@ -279,8 +279,8 @@ under the License.
                       <fo:table-cell number-columns-spanned="1" text-align="right">
                         <fo:block>
                           <#if invoiceDetail.invoiceNoTaxTotal?has_content>
-                            <#assign invoiceNoTaxTotal = invoiceDetail.invoiceNoTaxTotal?if_exists />
-                            <@ofbizCurrency amount=invoiceNoTaxTotal isoCode=invoice.currencyUomId?if_exists/>
+                            <#assign invoiceNoTaxTotal = invoiceDetail.invoiceNoTaxTotal! />
+                            <@ofbizCurrency amount=invoiceNoTaxTotal isoCode=invoice.currencyUomId!/>
                           </#if>
                         </fo:block>
                       </fo:table-cell>

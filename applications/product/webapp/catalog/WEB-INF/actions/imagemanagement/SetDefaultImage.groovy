@@ -26,26 +26,30 @@ import javax.imageio.ImageIO;
 
 import org.ofbiz.entity.*;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.base.util.*;
 import org.ofbiz.base.util.string.*;
 import org.ofbiz.product.image.ScaleImage;
 
 context.nowTimestampString = UtilDateTime.nowTimestamp().toString();
 
-imageManagementPath = FlexibleStringExpander.expandString(UtilProperties.getPropertyValue("catalog", "image.management.path"), context);
+imageManagementPath = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.management.path", delegator), context);
 
 String fileType = "original";
 String productId = request.getParameter("productId");
 
-productContentList = delegator.findByAnd("ProductContentAndInfo", UtilMisc.toMap("productId", productId, "productContentTypeId", "DEFAULT_IMAGE"));
+productContentList = from("ProductContentAndInfo").where("productId", productId, "productContentTypeId", "DEFAULT_IMAGE").queryList();
 if (productContentList) {
     dataResourceName = productContentList.get(0).drDataResourceName
 }
 
 // make the image file formats
-imageFilenameFormat = UtilProperties.getPropertyValue('catalog', 'image.filename.format');
-imageServerPath = FlexibleStringExpander.expandString(UtilProperties.getPropertyValue("catalog", "image.server.path"), context);
-imageUrlPrefix = UtilProperties.getPropertyValue('catalog', 'image.url.prefix');
+context.tenantId = delegator.getDelegatorTenantId();
+imageFilenameFormat = EntityUtilProperties.getPropertyValue('catalog', 'image.filename.format', delegator);
+imageServerPath = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.server.path", delegator), context);
+imageUrlPrefix = FlexibleStringExpander.expandString(EntityUtilProperties.getPropertyValue("catalog", "image.url.prefix",delegator), context);
+imageServerPath = imageServerPath.endsWith("/") ? imageServerPath.substring(0, imageServerPath.length()-1) : imageServerPath;
+imageUrlPrefix = imageUrlPrefix.endsWith("/") ? imageUrlPrefix.substring(0, imageUrlPrefix.length()-1) : imageUrlPrefix;
 context.imageFilenameFormat = imageFilenameFormat;
 context.imageServerPath = imageServerPath;
 context.imageUrlPrefix = imageUrlPrefix;
@@ -59,13 +63,13 @@ context.imageNameOriginal = imageUrlPrefix + "/" + filenameExpander.expandString
 
 // Start ProductContent stuff
 if (productId) {
-    product = delegator.findByPrimaryKey("Product",["productId" : productId]);
+    product = from("Product").where("productId", productId).queryOne();
     context.productId = productId;
 }
 
 productContent = null;
 if (product) {
-    productContent = product.getRelated('ProductContent', null, ['productContentTypeId']);
+    productContent = product.getRelated('ProductContent', null, ['productContentTypeId'], false);
 }
 context.productContent = productContent;
 // End ProductContent stuff
@@ -105,7 +109,12 @@ if (fileType) {
     }
 
     defaultFileName = "temp_" + dataResourceName;
-    BufferedImage bufImg = ImageIO.read(new File(imageManagementPath + "/" + productId + "/" + dataResourceName));
+    checkPathFile = imageManagementPath + "/" + productId + "/" + dataResourceName;
+    if (checkPathFile.equals(productContentList.get(0).drObjectInfo)) {
+        BufferedImage bufImg = ImageIO.read(new File(imageManagementPath + "/" + productId + "/" + dataResourceName));
+    } else {
+        BufferedImage bufImg = ImageIO.read(new File(productContentList.get(0).drObjectInfo));
+    }
     ImageIO.write((RenderedImage) bufImg, "jpg", new File(imageManagementPath + "/" + productId + "/" + defaultFileName));
 
     clientFileName = dataResourceName;
@@ -159,6 +168,7 @@ if (fileType) {
 
             // call scaleImageInAllSize
             if (fileType.equals("original")) {
+                context.delegator = delegator;
                 result = ScaleImage.scaleImageInAllSize(context, filenameToUse, "main", "0");
 
                 if (result.containsKey("responseMessage") && result.get("responseMessage").equals("success")) {

@@ -19,25 +19,24 @@ under the License.
 <#escape x as x?xml>
 
 <fo:block text-align="left">
-    <#if logoImageUrl?has_content><fo:external-graphic src="<@ofbizContentUrl>${logoImageUrl}</@ofbizContentUrl>" overflow="hidden" height="40px" content-height="scale-to-fit"/></#if>
+    <#if logoImageUrl?has_content><fo:external-graphic src="<@ofbizContentUrl>${logoImageUrl}</@ofbizContentUrl>" overflow="hidden" height="40px" content-height="scale-to-fit" content-width="2.00in"/></#if>
 </fo:block>
 
 <fo:block font-size="8pt">
     <fo:block>${companyName}</fo:block>
-    <#if postalAddress?exists>
+    <#if postalAddress??>
         <#if postalAddress?has_content>
-            <fo:block>${postalAddress.address1?if_exists}</fo:block>
-            <#if postalAddress.address2?has_content><fo:block>${postalAddress.address2?if_exists}</fo:block></#if>
-            <fo:block>${postalAddress.city?if_exists}, ${stateProvinceAbbr?if_exists} ${postalAddress.postalCode?if_exists}, ${countryName?if_exists}</fo:block>
+            ${setContextField("postalAddress", postalAddress)}
+            ${screens.render("component://party/widget/partymgr/PartyScreens.xml#postalAddressPdfFormatter")}
         </#if>
     <#else>
         <fo:block>${uiLabelMap.CommonNoPostalAddress}</fo:block>
         <fo:block>${uiLabelMap.CommonFor}: ${companyName}</fo:block>
     </#if>
 
-    <#if sendingPartyTaxId?exists || phone?exists || email?exists || website?exists || eftAccount?exists>
+    <#if sendingPartyTaxId?? || phone?? || email?? || website?? || eftAccount??>
     <fo:list-block provisional-distance-between-starts=".5in">
-        <#if sendingPartyTaxId?exists>
+        <#if sendingPartyTaxId??>
         <fo:list-item>
             <fo:list-item-label>
                 <fo:block>${uiLabelMap.PartyTaxId}:</fo:block>
@@ -47,43 +46,43 @@ under the License.
             </fo:list-item-body>
         </fo:list-item>
         </#if>
-        <#if phone?exists>
+        <#if phone??>
         <fo:list-item>
             <fo:list-item-label>
                 <fo:block>${uiLabelMap.CommonTelephoneAbbr}:</fo:block>
             </fo:list-item-label>
             <fo:list-item-body start-indent="body-start()">
-                <fo:block><#if phone.countryCode?exists>${phone.countryCode}-</#if><#if phone.areaCode?exists>${phone.areaCode}-</#if>${phone.contactNumber?if_exists}</fo:block>
+                <fo:block><#if phone.countryCode??>${phone.countryCode}-</#if><#if phone.areaCode??>${phone.areaCode}-</#if>${phone.contactNumber!}</fo:block>
             </fo:list-item-body>
         </fo:list-item>
         </#if>
-        <#if email?exists>
+        <#if email??>
         <fo:list-item>
             <fo:list-item-label>
                 <fo:block>${uiLabelMap.CommonEmail}:</fo:block>
             </fo:list-item-label>
             <fo:list-item-body start-indent="body-start()">
-                <fo:block>${email.infoString?if_exists}</fo:block>
+                <fo:block>${email.infoString!}</fo:block>
             </fo:list-item-body>
         </fo:list-item>
         </#if>
-        <#if website?exists>
+        <#if website??>
         <fo:list-item>
             <fo:list-item-label>
                 <fo:block>${uiLabelMap.CommonWebsite}:</fo:block>
             </fo:list-item-label>
             <fo:list-item-body start-indent="body-start()">
-                <fo:block>${website.infoString?if_exists}</fo:block>
+                <fo:block>${website.infoString!}</fo:block>
             </fo:list-item-body>
         </fo:list-item>
         </#if>
-        <#if eftAccount?exists>
+        <#if eftAccount??>
         <fo:list-item>
             <fo:list-item-label>
                 <fo:block>${uiLabelMap.CommonFinBankName}:</fo:block>
             </fo:list-item-label>
             <fo:list-item-body start-indent="body-start()">
-                <fo:block>${eftAccount.bankName?if_exists}</fo:block>
+                <fo:block>${eftAccount.bankName!}</fo:block>
             </fo:list-item-body>
         </fo:list-item>
         <fo:list-item>
@@ -91,7 +90,7 @@ under the License.
                 <fo:block>${uiLabelMap.CommonRouting}:</fo:block>
             </fo:list-item-label>
             <fo:list-item-body start-indent="body-start()">
-                <fo:block>${eftAccount.routingNumber?if_exists}</fo:block>
+                <fo:block>${eftAccount.routingNumber!}</fo:block>
             </fo:list-item-body>
         </fo:list-item>
         <fo:list-item>
@@ -99,7 +98,7 @@ under the License.
                 <fo:block>${uiLabelMap.CommonBankAccntNrAbbr}:</fo:block>
             </fo:list-item-label>
             <fo:list-item-body start-indent="body-start()">
-                <fo:block>${eftAccount.accountNumber?if_exists}</fo:block>
+                <fo:block>${eftAccount.accountNumber!}</fo:block>
             </fo:list-item-body>
         </fo:list-item>
         </#if>

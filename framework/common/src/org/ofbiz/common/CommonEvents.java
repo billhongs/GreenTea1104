@@ -28,8 +28,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -40,14 +41,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import javolution.util.FastMap;
-import net.sf.json.JSON;
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
-import net.sf.json.JSONSerializer;
 
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
+import org.ofbiz.base.lang.JSON;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.StringUtil;
 import org.ofbiz.base.util.UtilGenerics;
@@ -59,6 +56,8 @@ import org.ofbiz.base.util.cache.UtilCache;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.security.Security;
 
 /**
@@ -68,7 +67,21 @@ public class CommonEvents {
 
     public static final String module = CommonEvents.class.getName();
 
-    public static UtilCache<String, Map<String, String>> appletSessions = UtilCache.createUtilCache("AppletSessions", 0, 600000, true);
+    private static final String[] ignoreAttrs = new String[] { // Attributes removed for security reason; _ERROR_MESSAGE_ is kept
+        "javax.servlet.request.key_size",
+        "_CONTEXT_ROOT_",
+        "_FORWARDED_FROM_SERVLET_",
+        "javax.servlet.request.ssl_session",
+        "javax.servlet.request.ssl_session_id",
+        "multiPartMap",
+        "javax.servlet.request.cipher_suite",
+        "targetRequestUri",
+        "_SERVER_ROOT_URL_",
+        "_CONTROL_PATH_",
+        "thisRequestUri"
+    };
+
+    private static final UtilCache<String, Map<String, String>> appletSessions = UtilCache.createUtilCache("AppletSessions", 0, 600000, true);
 
     public static String checkAppletRequest(HttpServletRequest request, HttpServletResponse response) {
         Delegator delegator = (Delegator) request.getAttribute("delegator");
@@ -81,7 +94,7 @@ public class CommonEvents {
 
         GenericValue visit = null;
         try {
-            visit = delegator.findOne("Visit", false, "visitId", visitId);
+            visit = EntityQuery.use(delegator).from("Visit").where("visitId", visitId).queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Cannot Visit Object", module);
         }
@@ -115,15 +128,15 @@ public class CommonEvents {
 
         GenericValue visit = null;
         try {
-            visit = delegator.findOne("Visit", false, "visitId", visitId);
+            visit = EntityQuery.use(delegator).from("Visit").where("visitId", visitId).queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Cannot Visit Object", module);
         }
 
         if (visit.getString("sessionId").equals(sessionId)) {
             String currentPage = request.getParameter("currentPage");
-            if (appletSessions.containsKey(sessionId)) {
-                Map<String, String> sessionMap = appletSessions.get(sessionId);
+            Map<String, String> sessionMap = appletSessions.get(sessionId);
+            if (sessionMap != null) {
                 String followers = sessionMap.get("followers");
                 List<String> folList = StringUtil.split(followers, ",");
                 for (String follower: folList) {
@@ -155,7 +168,7 @@ public class CommonEvents {
             String followerSessionId = request.getParameter("followerSid");
             String followSessionId = request.getParameter("followSid");
             Map<String, String> follow = appletSessions.get(followSessionId);
-            if (follow == null) follow = FastMap.newInstance();
+            if (follow == null) follow = new LinkedHashMap<String, String>();
             String followerListStr = follow.get("followers");
             if (followerListStr == null) {
                 followerListStr = followerSessionId;
@@ -177,7 +190,7 @@ public class CommonEvents {
             String followerSessionId = request.getParameter("followerSid");
             String pageUrl = request.getParameter("pageUrl");
             Map<String, String> follow = appletSessions.get(followerSessionId);
-            if (follow == null) follow = FastMap.newInstance();
+            if (follow == null) follow = new LinkedHashMap<String, String>();
             follow.put("followPage", pageUrl);
             appletSessions.put(followerSessionId, follow);
         }
@@ -266,30 +279,44 @@ public class CommonEvents {
 
     public static String jsonResponseFromRequestAttributes(HttpServletRequest request, HttpServletResponse response) {
         // pull out the service response from the request attribute
+
         Map<String, Object> attrMap = UtilHttp.getJSONAttributeMap(request);
 
-        // create a JSON Object for return
-        JSONObject json = JSONObject.fromObject(attrMap);
-        writeJSONtoResponse(json, response);
-
+        for (String ignoreAttr : ignoreAttrs) {
+            if (attrMap.containsKey(ignoreAttr)) {
+                attrMap.remove(ignoreAttr);
+            }
+        }
+        try {
+            JSON json = JSON.from(attrMap);
+            writeJSONtoResponse(json, request.getMethod(), response);
+        } catch (Exception e) {
+            return "error";
+        }
         return "success";
     }
 
-    private static void writeJSONtoResponse(JSON json, HttpServletResponse response) {
+    private static void writeJSONtoResponse(JSON json, String httpMethod, HttpServletResponse response) throws UnsupportedEncodingException {
         String jsonStr = json.toString();
         if (jsonStr == null) {
             Debug.logError("JSON Object was empty; fatal error!", module);
             return;
         }
 
+        // This was added for security reason (OFBIZ-5409), you might need to remove the "//" prefix when handling the JSON response
+        // Though normally you simply have to access the data you want, so should not be annoyed by the "//" prefix
+        if ("GET".equalsIgnoreCase(httpMethod)) {
+            Debug.logWarning("for security reason (OFBIZ-5409) the the '//' prefix was added handling the JSON response.  "
+                    + "Normally you simply have to access the data you want, so should not be annoyed by the '//' prefix."
+                    + "You might need to remove it if you use Ajax GET responses (not recommended)."
+                    + "In case, the util.js scrpt is there to help you", module);
+            jsonStr = "//" + jsonStr;
+        }
+
         // set the X-JSON content type
         response.setContentType("application/x-json");
         // jsonStr.length is not reliable for unicode characters
-        try {
-            response.setContentLength(jsonStr.getBytes("UTF8").length);
-        } catch (UnsupportedEncodingException e) {
-            Debug.logError("Problems with Json encoding: " + e, module);
-        }
+        response.setContentLength(jsonStr.getBytes("UTF8").length);
 
         // return the JSON String
         Writer out;
@@ -302,90 +329,73 @@ public class CommonEvents {
         }
     }
 
-
-    public static String getJSONuiLabelArray(HttpServletRequest request, HttpServletResponse response) {
-        String requiredLabels = request.getParameter("requiredLabels");
-
-        JSONObject uiLabelObject = null;
-        if (UtilValidate.isNotEmpty(requiredLabels)) {
-            uiLabelObject = new JSONObject();
-            // Transform JSON String to Object
-            uiLabelObject = (JSONObject) JSONSerializer.toJSON(requiredLabels);
+    public static String getJSONuiLabelArray(HttpServletRequest request, HttpServletResponse response)
+            throws UnsupportedEncodingException, IOException {
+        // Format - {resource1 : [key1, key2 ...], resource2 : [key1, key2, ...], ...}
+        String jsonString = request.getParameter("requiredLabels");
+        Map<String, List<String>> uiLabelObject = null;
+        if (UtilValidate.isNotEmpty(jsonString)) {
+            JSON json = JSON.from(jsonString);
+            uiLabelObject = UtilGenerics.<Map<String, List<String>>> cast(json.toObject(Map.class));
         }
-
-        JSONObject jsonUiLabel = new JSONObject();
+        if (UtilValidate.isEmpty(uiLabelObject)) {
+            Debug.logError("No resource and labels found in JSON string: " + jsonString, module);
+            return "error";
+        }
         Locale locale = request.getLocale();
-        if(!uiLabelObject.isEmpty()) {
-            Set<String> resourceSet = UtilGenerics.checkSet(uiLabelObject.keySet());
-            // Iterate over the resouce set
-            for (String resource : resourceSet) {
-                JSONArray labels = uiLabelObject.getJSONArray(resource);
-                if (labels.isEmpty() || labels == null) {
-                    continue;
+        Map<String, List<String>> uiLabelMap = new HashMap<String, List<String>>();
+        Set<Map.Entry<String, List<String>>> entrySet = uiLabelObject.entrySet();
+        for (Map.Entry<String, List<String>> entry : entrySet) {
+            String resource = entry.getKey();
+            List<String> resourceKeys = entry.getValue();
+            if (resourceKeys != null) {
+                List<String> labels = new ArrayList<String>(resourceKeys.size());
+                for (String resourceKey : resourceKeys) {
+                    String label = UtilProperties.getMessage(resource, resourceKey, locale);
+                    labels.add(label);
                 }
-
-                // Iterate over the uiLabel List
-                Iterator<String> jsonLabelIterator = UtilGenerics.cast(labels.iterator());
-                JSONArray resourceLabelList = new JSONArray();
-                while(jsonLabelIterator.hasNext()) {
-                    String label = jsonLabelIterator.next();
-                    String receivedLabel = UtilProperties.getMessage(resource, label, locale);
-                    if (UtilValidate.isNotEmpty(receivedLabel)) {
-                        resourceLabelList.add(receivedLabel);
-                    }
-                }
-                jsonUiLabel.element(resource, resourceLabelList);
+                uiLabelMap.put(resource, labels);
             }
         }
-
-        writeJSONtoResponse(jsonUiLabel, response);
+        writeJSONtoResponse(JSON.from(uiLabelMap), request.getMethod(), response);
         return "success";
     }
 
-    public static String getJSONuiLabel(HttpServletRequest request, HttpServletResponse response) {
-        String requiredLabels = request.getParameter("requiredLabel");
-
-        JSONObject uiLabelObject = null;
-        if (UtilValidate.isNotEmpty(requiredLabels)) {
-            uiLabelObject = new JSONObject();
-            // Transform JSON String to Object
-            uiLabelObject = (JSONObject) JSONSerializer.toJSON(requiredLabels);
+    public static String getJSONuiLabel(HttpServletRequest request, HttpServletResponse response) throws UnsupportedEncodingException, IOException {
+        // Format - {resource : key}
+        String jsonString = request.getParameter("requiredLabel");
+        Map<String, String> uiLabelObject = null;
+        if (UtilValidate.isNotEmpty(jsonString)) {
+            JSON json = JSON.from(jsonString);
+            uiLabelObject = UtilGenerics.<Map<String, String>>cast(json.toObject(Map.class));
         }
-
-        JSONArray jsonUiLabel = new JSONArray();
+        if (UtilValidate.isEmpty(uiLabelObject)) {
+            Debug.logError("No resource and labels found in JSON string: " + jsonString, module);
+            return "error";
+        } else if (uiLabelObject.size() > 1) {
+            Debug.logError("More than one resource found, please use the method: getJSONuiLabelArray", module);
+            return "error";
+        }
         Locale locale = request.getLocale();
-        if(!uiLabelObject.isEmpty()) {
-            Set<String> resourceSet = UtilGenerics.checkSet(uiLabelObject.keySet());
-            // Iterate over the resource set
-            // here we need a keySet because we don't now which label resource to load
-            // the key set should have the size one, if greater or empty error should returned
-            if (UtilValidate.isEmpty(resourceSet)) {
-                Debug.logError("No resource and labels found", module);
-                return "error";
-            } else if (resourceSet.size() > 1) {
-                Debug.logError("More than one resource found, please use the method: getJSONuiLabelArray", module);
-                return "error";
-            }
-
-            for (String resource : resourceSet) {
-                String label = uiLabelObject.getString(resource);
-                if (UtilValidate.isEmail(label)) {
-                    continue;
-                }
-
-                String receivedLabel = UtilProperties.getMessage(resource, label, locale);
-                jsonUiLabel.add(receivedLabel);
+        Map<String, String> uiLabelMap = new HashMap<String, String>();
+        Set<Map.Entry<String, String>> entrySet = uiLabelObject.entrySet();
+        for (Map.Entry<String, String> entry : entrySet) {
+            String resource = entry.getKey();
+            String resourceKey = entry.getValue();
+            if (resourceKey != null) {
+                String label = UtilProperties.getMessage(resource, resourceKey, locale);
+                uiLabelMap.put(resource, label);
             }
         }
-
-        writeJSONtoResponse(jsonUiLabel, response);
+        writeJSONtoResponse(JSON.from(uiLabelMap), request.getMethod(), response);
         return "success";
     }
 
     public static String getCaptcha(HttpServletRequest request, HttpServletResponse response) {
         try {
+        	Delegator delegator = (Delegator) request.getAttribute("delegator");
             final String captchaSizeConfigName = StringUtils.defaultIfEmpty(request.getParameter("captchaSize"), "default");
-            final String captchaSizeConfig = UtilProperties.getPropertyValue("captcha.properties", "captcha." + captchaSizeConfigName);
+            final String captchaSizeConfig = EntityUtilProperties.getPropertyValue("captcha.properties", "captcha." + captchaSizeConfigName, delegator);
             final String[] captchaSizeConfigs = captchaSizeConfig.split("\\|");
             final String captchaCodeId = StringUtils.defaultIfEmpty(request.getParameter("captchaCodeId"), ""); // this is used to uniquely identify in the user session the attribute where the captcha code for the last captcha for the form is stored
 
@@ -393,7 +403,7 @@ public class CommonEvents {
             final int height = Integer.parseInt(captchaSizeConfigs[1]);
             final int width = Integer.parseInt(captchaSizeConfigs[2]);
             final int charsToPrint = UtilProperties.getPropertyAsInteger("captcha.properties", "captcha.code_length", 6);
-            final char[] availableChars = UtilProperties.getPropertyValue("captcha.properties", "captcha.characters").toCharArray();
+            final char[] availableChars = EntityUtilProperties.getPropertyValue("captcha.properties", "captcha.characters", delegator).toCharArray();
 
             //It is possible to pass the font size, image width and height with the request as well
             Color backgroundColor = Color.gray;
@@ -439,8 +449,7 @@ public class CommonEvents {
                 int charDim = Math.max(maxAdvance, fontHeight);
                 int halfCharDim = (charDim / 2);
 
-                BufferedImage charImage =
-                    new BufferedImage(charDim, charDim, BufferedImage.TYPE_INT_ARGB);
+                BufferedImage charImage = new BufferedImage(charDim, charDim, BufferedImage.TYPE_INT_ARGB);
                 Graphics2D charGraphics = charImage.createGraphics();
                 charGraphics.translate(halfCharDim, halfCharDim);
                 double angle = (Math.random() - 0.5) * rotationRange;
@@ -467,9 +476,9 @@ public class CommonEvents {
             response.setContentType("image/jpeg");
             ImageIO.write(bufferedImage, "jpg", response.getOutputStream());
             HttpSession session = request.getSession();
-            Map captchaCodeMap = (Map)session.getAttribute("_CAPTCHA_CODE_");
+            Map<String, String> captchaCodeMap = UtilGenerics.checkMap(session.getAttribute("_CAPTCHA_CODE_"));
             if (captchaCodeMap == null) {
-                captchaCodeMap = new HashMap();
+                captchaCodeMap = new HashMap<String, String>();
                 session.setAttribute("_CAPTCHA_CODE_", captchaCodeMap);
             }
             captchaCodeMap.put(captchaCodeId, captchaCode);

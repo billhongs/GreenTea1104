@@ -52,9 +52,9 @@ under the License.
             <actions>
                 <set field="titleProperty" value="OrderViewOrder"/>
                 <set field="headerItem" value="findorders"/>
-                <set field="layoutSettings.javaScripts[]" value="/ordermgr/images/js/order.js" global="true"/>
-                <set field="layoutSettings.javaScripts[]" value="/ordermgr/images/js/OrderShippingInfo.js" global="true"/>
-                <set field="layoutSettings.javaScripts[]" value="/ordermgr/images/js/geoAutoCompleter.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/ordermgr-js/order.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/ordermgr-js/OrderShippingInfo.js" global="true"/>
+                <set field="layoutSettings.javaScripts[]" value="/ordermgr-js/geoAutoCompleter.js" global="true"/>
                 <script location="component://order/webapp/ordermgr/WEB-INF/actions/order/OrderView.groovy"/>
                 <script location="component://order/webapp/ordermgr/WEB-INF/actions/order/OrderViewWebSecure.groovy"/>
             </actions>
@@ -93,6 +93,7 @@ under the License.
                     <container style="righthalf">
                         <include-screen name="ordercontactinfo"/>
                         <include-screen name="ordershippinginfo"/>
+                        <include-screen name="OrderSalesReps"/>
                     </container>
                 </container>
             </widgets>
@@ -176,6 +177,15 @@ under the License.
             </widgets>
         </section>
     </screen>
+    <screen name="OrderSalesReps">
+        <section>
+            <widgets>
+                <platform-specific>
+                    <html><html-template location="component://order/webapp/ordermgr/order/OrderSalesReps.ftl"/></html>
+                </platform-specific>
+            </widgets>
+        </section>
+    </screen>
     <screen name="OrderHeaderListView">
         <section>
             <actions>
@@ -231,7 +241,7 @@ under the License.
                 <!-- asmslect parameters, must be prefixed by asm_ for setMultipleSelectJs.ftl -->
                 <set field="asm_multipleSelectForm"  value="lookuporder"/>
                 <set field="asm_multipleSelect"  value="roleTypeId"/>
-                <set field="asm_formSize" value="700"/>
+                <set field="asm_formSize" value="1000"/>
                 <set field="asm_asmListItemPercentOfForm" value="95"/>
                 <set field="asm_sortable" value="false"/>
                 <property-map resource="OrderUiLabels" map-name="uiLabelMap" global="true"/>
@@ -252,6 +262,9 @@ under the License.
     </screen>
     <screen name="OrderNewNote">
         <section>
+            <condition>
+                <if-has-permission permission="ORDERMGR" action="_VIEW"/>
+            </condition>
             <actions>
                 <set field="titleProperty" value="OrderAddNote"/>
                 <set field="headerItem" value="findorders"/>
@@ -260,12 +273,18 @@ under the License.
             <widgets>
                 <decorator-screen name="CommonOrderViewDecorator">
                     <decorator-section name="body">
-                        <platform-specific>
-                            <html><html-template location="component://order/webapp/ordermgr/order/newnote.ftl"/></html>
-                        </platform-specific>
+                        <screenlet title="${uiLabelMap.OrderAddNote}">
+                            <container>
+                                <link target="orderview?orderId=${orderId}" text="${uiLabelMap.OrderBackToOrder}" style="buttontext"/>
+                            </container>
+                            <include-form name="OrderNewNote" location="component://order/widget/ordermgr/OrderForms.xml"/>
+                        </screenlet>
                     </decorator-section>
                 </decorator-screen>
             </widgets>
+            <fail-widgets>
+                <label style="h3">${uiLabelMap.OrderViewPermissionError}</label>
+            </fail-widgets>
         </section>
     </screen>
     <screen name="OrderDeliveryScheduleInfo">
@@ -312,8 +331,15 @@ under the License.
         <section>
             <actions>
                 <set field="titleProperty" value="OrderReceiveOfflinePayments"/>
-               <set field="headerItem" value="findorders"/>
+                <set field="headerItem" value="findorders"/>
                 <script location="component://order/webapp/ordermgr/WEB-INF/actions/order/ReceivePayment.groovy"/>
+                <entity-and entity-name="OrderRole" list="orderRoles">
+                  <field-map field-name="orderId" value="${parameters.orderId}"/>
+                  <field-map field-name="roleTypeId" value="BILL_FROM_VENDOR"/>
+                </entity-and>
+                <entity-and entity-name="PaymentMethod" list="paymentMethods">
+                  <field-map field-name="partyId" from-field="orderRoles[0].partyId"/>
+                </entity-and>
             </actions>
             <widgets>
                 <decorator-screen name="CommonOrderViewDecorator">

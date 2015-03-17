@@ -7,11 +7,15 @@
 		hourText: 'Óra',
 		minuteText: 'Perc',
 		secondText: 'Másodperc',
+		millisecText: 'Milliszekundumos',
+		microsecText: 'Ezredmásodperc',
 		timezoneText: 'Időzóna',
 		currentText: 'Most',
 		closeText: 'Kész',
-		timeFormat: 'hh:mm tt',
-		ampm: false
+		timeFormat: 'HH:mm',
+		amNames: ['de.', 'AM', 'A'],
+		pmNames: ['du.', 'PM', 'P'],
+		isRTL: false
 	};
 	$.timepicker.setDefaults($.timepicker.regional['hu']);
 })(jQuery);

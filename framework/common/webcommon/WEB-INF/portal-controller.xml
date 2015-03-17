@@ -21,15 +21,14 @@ under the License.
 <site-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/site-conf.xsd">
     <description>Portal ControlServlet Configuration File</description>
-    
+
+    <request-map uri="main">
+        <response name="success" type="view" value="showPortalPage"/>
+    </request-map>
     <!-- Portlet show requests -->
     <request-map uri="showPortlet">
         <security https="true" auth="true"/>
         <response name="success" type="view" value="showPortlet"/>
-    </request-map>
-    <request-map uri="refreshPortlet">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="showPortletUiLabelDecorator"/>
     </request-map>
     <request-map uri="showPortletMainDecorator">
         <security https="true" auth="true"/>
@@ -79,12 +78,6 @@ under the License.
     <request-map uri="updatePortalPagePortlet">
         <security https="true" auth="true"/>
         <event type="service" invoke="updatePortalPagePortlet"/>
-        <response name="success" type="view-last" value="main" save-last-view="true"/>
-        <response name="error" type="request" value="main"/>
-    </request-map>
-    <request-map uri="updatePortalPagePortletSeq">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="updatePortalPagePortletSeq"/>
         <response name="success" type="view-last" value="main" save-last-view="true"/>
         <response name="error" type="request" value="main"/>
     </request-map>
@@ -170,7 +163,6 @@ under the License.
     <!-- View Mappings -->
     <view-map name="showPortalPage" type="screen" page="component://common/widget/PortalPageScreens.xml#showPortalPage"/>
     <view-map name="showPortlet" type="screen" page="component://common/widget/PortalPageScreens.xml#showPortlet"/>
-    <view-map name="showPortletUiLabelDecorator" type="screen" page="component://common/widget/PortalPageScreens.xml#showPortletUiLabelDecorator"/>
     <view-map name="showPortletMainDecorator" type="screen" page="component://common/widget/PortalPageScreens.xml#showPortletMainDecorator"/>
     <view-map name="showPortletSimpleDecorator" type="screen" page="component://common/widget/PortalPageScreens.xml#showPortletSimpleDecorator"/>
     <view-map name="ManagePortalPages" type="screen" page="component://common/widget/PortalPageScreens.xml#ManagePortalPages"/>

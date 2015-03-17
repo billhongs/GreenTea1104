@@ -36,11 +36,11 @@ under the License.
                                     <fo:block>${uiLabelMap.ProductRouteSegment}: ${shipmentRouteSegment.shipmentRouteSegmentId}</fo:block>
                                 </fo:table-cell>
                                 <fo:table-cell padding="2pt" background-color="#D4D0C8">
-                                     <#assign carrierParty = shipmentRouteSegment.getRelatedOne("CarrierParty")?if_exists>
+                                     <#assign carrierParty = shipmentRouteSegment.getRelatedOne("CarrierParty", false)!>
                                     <fo:block text-align="center">${uiLabelMap.ProductCarrier}: <#if carrierParty.description?has_content>${carrierParty.description}<#else>${carrierParty.partyId}</#if></fo:block>
                                 </fo:table-cell>
                                 <fo:table-cell padding="2pt" background-color="#D4D0C8">
-                                    <#assign shipmentMethodType = shipmentRouteSegment.getRelatedOne("ShipmentMethodType")?if_exists>
+                                    <#assign shipmentMethodType = shipmentRouteSegment.getRelatedOne("ShipmentMethodType", false)!>
                                     <fo:block text-align="right">${uiLabelMap.ProductShipmentMethod}: <#if shipmentMethodType?has_content>${shipmentMethodType.description}<#else>${uiLabelMap.CommonNA}</#if></fo:block>
                                 </fo:table-cell>
                             </fo:table-row>
@@ -50,15 +50,15 @@ under the License.
                                 <fo:table-cell padding="2pt">
                                     <fo:block>
                                         <#if originPostalAddress?has_content>
-                                          <fo:block>${uiLabelMap.CommonFrom}: ${originPostalAddress.toName?if_exists}</fo:block>
+                                          <fo:block>${uiLabelMap.CommonFrom}: ${originPostalAddress.toName!}</fo:block>
                                           <#if originPostalAddress.attnName?has_content>
-                                            <fo:block>${uiLabelMap.CommonAttn}: ${originPostalAddress.attnName?if_exists}</fo:block>
+                                            <fo:block>${uiLabelMap.CommonAttn}: ${originPostalAddress.attnName!}</fo:block>
                                           </#if>
-                                          <fo:block>${originPostalAddress.address1?if_exists}</fo:block>
-                                          <fo:block>${originPostalAddress.address2?if_exists}</fo:block>
+                                          <fo:block>${originPostalAddress.address1!}</fo:block>
+                                          <fo:block>${originPostalAddress.address2!}</fo:block>
                                           <fo:block>
-                                            ${originPostalAddress.city?if_exists}<#if originPostalAddress.stateProvinceGeoId?has_content>, ${originPostalAddress.stateProvinceGeoId}</#if>
-                                            ${originPostalAddress.postalCode?if_exists} ${originPostalAddress.countryGeoId?if_exists}
+                                            ${originPostalAddress.city!}<#if originPostalAddress.stateProvinceGeoId?has_content>, ${originPostalAddress.stateProvinceGeoId}</#if>
+                                            ${originPostalAddress.postalCode!} ${originPostalAddress.countryGeoId!}
                                           </fo:block>
                                         </#if>
                                     </fo:block>
@@ -66,15 +66,15 @@ under the License.
                                 <fo:table-cell padding="2pt">
                                     <fo:block text-align="center">
                                         <#if destinationPostalAddress?has_content>
-                                          <fo:block>${uiLabelMap.CommonTo}: ${destinationPostalAddress.toName?if_exists}</fo:block>
+                                          <fo:block>${uiLabelMap.CommonTo}: ${destinationPostalAddress.toName!}</fo:block>
                                           <#if destinationPostalAddress.attnName?has_content>
-                                            <fo:block>${uiLabelMap.CommonAttn}: ${destinationPostalAddress.attnName?if_exists}</fo:block>
+                                            <fo:block>${uiLabelMap.CommonAttn}: ${destinationPostalAddress.attnName!}</fo:block>
                                           </#if>
-                                          <fo:block>${destinationPostalAddress.address1?if_exists}</fo:block>
-                                          <fo:block>${destinationPostalAddress.address2?if_exists}</fo:block>
+                                          <fo:block>${destinationPostalAddress.address1!}</fo:block>
+                                          <fo:block>${destinationPostalAddress.address2!}</fo:block>
                                           <fo:block>
-                                            ${destinationPostalAddress.city?if_exists}<#if destinationPostalAddress.stateProvinceGeoId?has_content>, ${destinationPostalAddress.stateProvinceGeoId}</#if>
-                                            ${destinationPostalAddress.postalCode?if_exists} ${destinationPostalAddress.countryGeoId?if_exists}
+                                            ${destinationPostalAddress.city!}<#if destinationPostalAddress.stateProvinceGeoId?has_content>, ${destinationPostalAddress.stateProvinceGeoId}</#if>
+                                            ${destinationPostalAddress.postalCode!} ${destinationPostalAddress.countryGeoId!}
                                           </fo:block>
                                         </#if>
                                     </fo:block>
@@ -95,7 +95,7 @@ under the License.
                                 <fo:table-cell padding="2pt" background-color="#D4D0C8">
                                     <fo:block text-align="center">
                                     <#if shipmentPackage.weight?has_content && shipmentPackage.weightUomId?has_content>
-                                        <#assign weightUom = shipmentPackage.getRelatedOne("WeightUom")>
+                                        <#assign weightUom = shipmentPackage.getRelatedOne("WeightUom", false)>
                                         ${uiLabelMap.ProductWeight}: ${shipmentPackage.weight} ${weightUom.get("description",locale)}
                                     </#if>
                                     </fo:block>
@@ -134,8 +134,8 @@ under the License.
                                 <#assign shipmentItem = shipmentItemsData.get("shipmentItem")>
                                 <#assign shippedQuantity = shipmentItemsData.get("shippedQuantity")>
                                 <#assign packageQuantity = shipmentItemsData.get("packageQuantity")>
-                                <#assign product = shipmentItem.getRelatedOne("Product")>
-                                <#assign itemIssuances = shipmentItem.getRelated("ItemIssuance")>
+                                <#assign product = shipmentItem.getRelatedOne("Product", false)>
+                                <#assign itemIssuances = shipmentItem.getRelated("ItemIssuance", null, null, false)>
                                 <fo:table-row>
                                        <fo:table-cell padding="2pt">
                                         <fo:block>${product.internalName} [${shipmentItem.productId}]</fo:block>

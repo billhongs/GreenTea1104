@@ -29,7 +29,7 @@ fields = [custRequestId : custRequestId];
 if (showAll.equals("false")) {
     fields.custRequestItemSeqId = custRequestItemSeqId;
 }
-notes = delegator.findByAnd("CustRequestItemNoteView", fields, ["-noteDateTime"]);
+notes = from("CustRequestItemNoteView").where(fields).orderBy("-noteDateTime").queryList();
 if (notes) {
     context.notes = notes;
 }

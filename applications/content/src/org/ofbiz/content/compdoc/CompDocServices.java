@@ -21,18 +21,14 @@ package org.ofbiz.content.compdoc;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.sql.Timestamp;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import javolution.util.FastList;
 import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
@@ -41,8 +37,8 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.condition.EntityConditionList;
 import org.ofbiz.entity.condition.EntityOperator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -67,13 +63,12 @@ public class CompDocServices {
     
     /**
      *
-     * @param request
-     * @param response
-     * @return
-     *
      * Creates the topmost Content entity of a Composite Document tree.
      * Also creates an "empty" Composite Document Instance Content entity.
      * Creates ContentRevision/Item records for each, as well.
+     * @param dctx the dispatch context
+     * @param context the context
+     * @return Creates the topmost Content entity of a Composite Document tree
      */
 
     public static Map<String, Object> persistRootCompDoc(DispatchContext dctx, Map<String, ? extends Object> context) {
@@ -87,7 +82,7 @@ public class CompDocServices {
 
         if (UtilValidate.isNotEmpty(contentId)) {
             try {
-                delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", contentId));
+                EntityQuery.use(delegator).from("Content").where("contentId", contentId).queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError(e, "Error running serviceName persistContentAndAssoc", module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(CoreEvents.err_resource, "ContentNoContentFound", UtilMisc.toMap("contentId", contentId), locale));
@@ -149,27 +144,19 @@ public class CompDocServices {
         GenericValue userLogin = (GenericValue) context.get("userLogin");
 
         try {
-            Timestamp nowTimestamp = UtilDateTime.nowTimestamp();
             List<EntityCondition> exprList = FastList.newInstance();
             exprList.add(EntityCondition.makeCondition("contentIdTo", EntityOperator.EQUALS, contentId));
+            exprList.add(EntityCondition.makeCondition("contentAssocTypeId", EntityOperator.EQUALS, "COMPDOC_PART"));
             exprList.add(EntityCondition.makeCondition("rootRevisionContentId", EntityOperator.EQUALS, contentId));
             if (UtilValidate.isNotEmpty(contentRevisionSeqId)) {
                 exprList.add(EntityCondition.makeCondition("contentRevisionSeqId", EntityOperator.LESS_THAN_EQUAL_TO, contentRevisionSeqId));
             }
-            exprList.add(EntityCondition.makeCondition("contentAssocTypeId", EntityOperator.EQUALS, "COMPDOC_PART"));
-            exprList.add(EntityCondition.makeCondition("fromDate", EntityOperator.LESS_THAN_EQUAL_TO, nowTimestamp));
 
-            List<EntityCondition> thruList = FastList.newInstance();
-            thruList.add(EntityCondition.makeCondition("thruDate", EntityOperator.EQUALS, null));
-            thruList.add(EntityCondition.makeCondition("thruDate", EntityOperator.GREATER_THAN, nowTimestamp));
-            exprList.add(EntityCondition.makeCondition(thruList, EntityOperator.OR));
-
-            EntityConditionList<EntityCondition> conditionList = EntityCondition.makeCondition(exprList, EntityOperator.AND);
-
-            String [] fields = {"rootRevisionContentId", "itemContentId", "maxRevisionSeqId", "contentId", "dataResourceId", "contentIdTo", "contentAssocTypeId", "fromDate", "sequenceNum"};
-            Set<String> selectFields = UtilMisc.toSetArray(fields);
-            List<String> orderByFields = UtilMisc.toList("sequenceNum");
-            List<GenericValue> compDocParts = delegator.findList("ContentAssocRevisionItemView", conditionList, selectFields, orderByFields, null, false);
+            List<GenericValue> compDocParts = EntityQuery.use(delegator)
+                    .select("rootRevisionContentId", "itemContentId", "maxRevisionSeqId", "contentId", "dataResourceId", "contentIdTo", "contentAssocTypeId", "fromDate", "sequenceNum")
+                    .from("ContentAssocRevisionItemView")
+                    .where(exprList)
+                    .orderBy("sequenceNum").filterByDate().queryList();
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             Document document = new Document();
@@ -178,14 +165,12 @@ public class CompDocServices {
             //PdfWriter writer = PdfWriter.getInstance(document, baos);
             PdfCopy writer = new PdfCopy(document, baos);
             document.open();
-            Iterator<GenericValue> iter = compDocParts.iterator();
-            int pgCnt =0;
-            while (iter.hasNext()) {
-                GenericValue contentAssocRevisionItemView = iter.next();
+            int pgCnt = 0;
+            for (GenericValue contentAssocRevisionItemView : compDocParts) {
                 //String thisContentId = contentAssocRevisionItemView.getString("contentId");
                 //String thisContentRevisionSeqId = contentAssocRevisionItemView.getString("maxRevisionSeqId");
                 String thisDataResourceId = contentAssocRevisionItemView.getString("dataResourceId");
-                GenericValue dataResource = delegator.findByPrimaryKey("DataResource", UtilMisc.toMap("dataResourceId", thisDataResourceId));
+                GenericValue dataResource = EntityQuery.use(delegator).from("DataResource").where("dataResourceId", thisDataResourceId).queryOne();
                 String inputMimeType = null;
                 if (dataResource != null) {
                     inputMimeType = dataResource.getString("mimeTypeId");
@@ -208,13 +193,13 @@ public class CompDocServices {
                     String acroFormContentId = null;
                     GenericValue surveyResponse = null;
                     if (UtilValidate.isNotEmpty(surveyResponseId)) {
-                        surveyResponse = delegator.findByPrimaryKey("SurveyResponse", UtilMisc.toMap("surveyResponseId", surveyResponseId));
+                        surveyResponse = EntityQuery.use(delegator).from("SurveyResponse").where("surveyResponseId", surveyResponseId).queryOne();
                         if (surveyResponse != null) {
                             surveyId = surveyResponse.getString("surveyId");
                         }
                     }
                     if (UtilValidate.isNotEmpty(surveyId)) {
-                        GenericValue survey = delegator.findByPrimaryKey("Survey", UtilMisc.toMap("surveyId", surveyId));
+                        GenericValue survey = EntityQuery.use(delegator).from("Survey").where("surveyId", surveyId).queryOne();
                         if (survey != null) {
                             acroFormContentId = survey.getString("acroFormContentId");
                             if (UtilValidate.isNotEmpty(acroFormContentId)) {
@@ -318,12 +303,12 @@ public class CompDocServices {
 
             GenericValue dataResource = null;
             if (UtilValidate.isEmpty(contentRevisionSeqId)) {
-                GenericValue content = delegator.findByPrimaryKeyCache("Content", UtilMisc.toMap("contentId", contentId));
+                GenericValue content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).cache().queryOne();
                 dataResourceId = content.getString("dataResourceId");
                 Debug.logInfo("SCVH(0b)- dataResourceId:" + dataResourceId, module);
-                dataResource = delegator.findByPrimaryKey("DataResource", UtilMisc.toMap("dataResourceId", dataResourceId));
+                dataResource = EntityQuery.use(delegator).from("DataResource").where("dataResourceId", dataResourceId).queryOne();
              } else {
-                GenericValue contentRevisionItem = delegator.findByPrimaryKeyCache("ContentRevisionItem", UtilMisc.toMap("contentId", contentId, "itemContentId", contentId, "contentRevisionSeqId", contentRevisionSeqId));
+                GenericValue contentRevisionItem = EntityQuery.use(delegator).from("ContentRevisionItem").where("contentId", contentId, "itemContentId", contentId, "contentRevisionSeqId", contentRevisionSeqId).cache().queryOne();
                 if (contentRevisionItem == null) {
                     throw new ViewHandlerException("ContentRevisionItem record not found for contentId=" + contentId
                                                    + ", contentRevisionSeqId=" + contentRevisionSeqId + ", itemContentId=" + contentId);
@@ -333,7 +318,7 @@ public class CompDocServices {
                         + ", contentRevisionSeqId=" + contentRevisionSeqId + ", itemContentId=" + contentId, module);
                 dataResourceId = contentRevisionItem.getString("newDataResourceId");
                 Debug.logInfo("SCVH(3)- dataResourceId:" + dataResourceId, module);
-                dataResource = delegator.findByPrimaryKey("DataResource", UtilMisc.toMap("dataResourceId", dataResourceId));
+                dataResource = EntityQuery.use(delegator).from("DataResource").where("dataResourceId", dataResourceId).queryOne();
             }
             String inputMimeType = null;
             if (dataResource != null) {
@@ -354,13 +339,13 @@ public class CompDocServices {
                 String acroFormContentId = null;
                 GenericValue surveyResponse = null;
                 if (UtilValidate.isNotEmpty(surveyResponseId)) {
-                    surveyResponse = delegator.findByPrimaryKey("SurveyResponse", UtilMisc.toMap("surveyResponseId", surveyResponseId));
+                    surveyResponse = EntityQuery.use(delegator).from("SurveyResponse").where("surveyResponseId", surveyResponseId).queryOne();
                     if (surveyResponse != null) {
                         surveyId = surveyResponse.getString("surveyId");
                     }
                 }
                 if (UtilValidate.isNotEmpty(surveyId)) {
-                    GenericValue survey = delegator.findByPrimaryKey("Survey", UtilMisc.toMap("surveyId", surveyId));
+                    GenericValue survey = EntityQuery.use(delegator).from("Survey").where("surveyId", surveyId).queryOne();
                     if (survey != null) {
                         acroFormContentId = survey.getString("acroFormContentId");
                         if (UtilValidate.isNotEmpty(acroFormContentId)) {

@@ -306,7 +306,7 @@ under the License.
             </service>
         </actions>
 
-        <field name="partyClassificationGroupId" title="${uiLabelMap.CommonEmptyHeader}" widget-style="smallSubmit">
+        <field name="partyClassificationGroupId" title=" " widget-style="smallSubmit">
             <hyperlink also-hidden="false" target-type="plain" description="${partyClassificationGroupId}" target="javascript:set_value('${partyClassificationGroupId}')"/>
         </field>
         <field name="partyClassificationTypeId"><display/></field>
@@ -430,7 +430,7 @@ under the License.
         <field name="roleTypeId"><hidden value="INTERNAL_ORGANIZATIO"/></field>
         <field name="partyId"><text-find/></field>
         <field name="groupName"><text-find/></field>
-        <field name="noConditionFind"><hidden value="Y"/></field>
+        <field name="noConditionFind"><hidden value="Y"/><!-- if this isn't there then with all fields empty no query will be done --></field>
         <field name="submitButton" title="${uiLabelMap.CommonFind}"><submit button-type="button"/></field>
     </form>
 </forms>

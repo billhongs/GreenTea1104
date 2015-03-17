@@ -60,7 +60,7 @@ under the License.
                     <if-has-permission permission="ORDERMGR" action="_PURCHASE_CREATE"/>
                 </or>
             </condition>
-            <link target="orderentry"/>
+            <link target="orderentry" link-type="anchor"/>
         </menu-item>
 
         <menu-item name="return" title="${uiLabelMap.OrderOrderReturns}">
@@ -157,6 +157,15 @@ under the License.
                 <if-compare operator="equals" value="QUO_CREATED" field="quote.statusId"/>
             </condition>
             <link target="ListQuoteItems">
+                <parameter param-name="quoteId" from-field="quote.quoteId"/>
+            </link>
+        </menu-item>
+
+        <menu-item name="ListQuoteNotes" title="${uiLabelMap.OrderOrderQuoteNotes}">
+            <condition>
+                <if-compare operator="equals" value="QUO_CREATED" field="quote.statusId"/>
+            </condition>
+            <link target="ListQuoteNotes">
                 <parameter param-name="quoteId" from-field="quote.quoteId"/>
             </link>
         </menu-item>

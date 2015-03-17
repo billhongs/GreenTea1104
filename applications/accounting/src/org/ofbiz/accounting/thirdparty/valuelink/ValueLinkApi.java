@@ -61,11 +61,11 @@ import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.HttpClient;
 import org.ofbiz.base.util.HttpClientException;
 import org.ofbiz.base.util.StringUtil;
-import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * ValueLinkApi - Implementation of ValueLink Encryption & Transport
@@ -114,24 +114,23 @@ public class ValueLinkApi {
      * @return ValueLinkApi reference
      */
     public static ValueLinkApi getInstance(Delegator delegator, Properties props, boolean reload) {
-        String merchantId = (String) props.get("payment.valuelink.merchantId");
         if (props == null) {
             throw new IllegalArgumentException("Properties cannot be null");
         }
+        String merchantId = (String) props.get("payment.valuelink.merchantId");
 
         ValueLinkApi api = (ValueLinkApi) objectCache.get(merchantId);
-        if (api == null || reload) {
+        if (api == null) {
+            throw new RuntimeException("Runtime problems with ValueLinkApi; unable to create instance");
+        }
+        if (reload) {
             synchronized(ValueLinkApi.class) {
                 api = (ValueLinkApi) objectCache.get(merchantId);
-                if (api == null || reload) {
+                if (api == null) {
                     api = new ValueLinkApi(delegator, props);
                     objectCache.put(merchantId, api);
                 }
             }
-        }
-
-        if (api == null) {
-            throw new RuntimeException("Runtime problems with ValueLinkApi; unable to create instance");
         }
 
         return api;
@@ -141,7 +140,7 @@ public class ValueLinkApi {
      * Obtain an instance of the ValueLinkApi; this method will always return an existing reference if one is available
      * @param delegator Delegator used to query the encryption keys
      * @param props Properties to use for the Api (usually payment.properties)
-     * @return
+     * @return Obtain an instance of the ValueLinkApi
      */
     public static ValueLinkApi getInstance(Delegator delegator, Properties props) {
         return getInstance(delegator, props, false);
@@ -740,7 +739,7 @@ public class ValueLinkApi {
     public GenericValue getGenericValue() {
         GenericValue value = null;
         try {
-            value = delegator.findByPrimaryKeyCache("ValueLinkKey", UtilMisc.toMap("merchantId", merchantId));
+            value = EntityQuery.use(delegator).from("ValueLinkKey").where("merchantId", merchantId).cache().queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }

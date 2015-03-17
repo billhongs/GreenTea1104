@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,7 +45,7 @@ import org.ofbiz.content.data.DataResourceWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -111,9 +110,7 @@ public class PdfSurveyServices {
             String surveyQuestionCategoryId = (String) createCategoryResultMap.get("surveyQuestionCategoryId");
 
             pdfStamper.setFormFlattening(true);
-            Iterator<String> i = acroFieldMap.keySet().iterator();
-            while (i.hasNext()) {
-                String fieldName = i.next();
+            for (String fieldName : acroFieldMap.keySet()) {
                 AcroFields.Item item = acroFields.getFieldItem(fieldName);
                 int type = acroFields.getFieldType(fieldName);
                 String value = acroFields.getField(fieldName);
@@ -182,9 +179,7 @@ public class PdfSurveyServices {
                     PdfObject tuValue = null;
 
                     Set<PdfName> dictKeys = UtilGenerics.checkSet(dict.getKeys());
-                    Iterator<PdfName> dictKeyIter = dictKeys.iterator();
-                    while (dictKeyIter.hasNext()) {
-                        PdfName dictKeyName = dictKeyIter.next();
+                    for (PdfName dictKeyName : dictKeys) {
                         PdfObject dictObject = dict.get(dictKeyName);
 
                         if ("/Type".equals(dictKeyName.toString())) {
@@ -219,7 +214,7 @@ public class PdfSurveyServices {
             }
             pdfStamper.close();
             if (UtilValidate.isNotEmpty(contentId)) {
-                survey = delegator.findByPrimaryKey("Survey", UtilMisc.toMap("surveyId", surveyId));
+                survey = EntityQuery.use(delegator).from("Survey").where("surveyId", surveyId).queryOne();
                 survey.set("acroFormContentId", contentId);
                 survey.store();
             }
@@ -252,7 +247,7 @@ public class PdfSurveyServices {
             //String contentId = (String)context.get("contentId");
             surveyResponseId = (String)context.get("surveyResponseId");
             if (UtilValidate.isNotEmpty(surveyResponseId)) {
-                GenericValue surveyResponse = delegator.findByPrimaryKey("SurveyResponse", UtilMisc.toMap("surveyResponseId", surveyResponseId));
+                GenericValue surveyResponse = EntityQuery.use(delegator).from("SurveyResponse").where("surveyResponseId", surveyResponseId).queryOne();
                 if (surveyResponse != null) {
                     surveyId = surveyResponse.getString("surveyId");
                 }
@@ -271,19 +266,19 @@ public class PdfSurveyServices {
             AcroFields fs = s.getAcroFields();
             Map<String, Object> hm = UtilGenerics.checkMap(fs.getFields());
             s.setFormFlattening(true);
-            Iterator<String> i = hm.keySet().iterator();
-            while (i.hasNext()) {
-                String fieldName = i.next();
+            for (String fieldName : hm.keySet()) {
                 //AcroFields.Item item = fs.getFieldItem(fieldName);
                 //int type = fs.getFieldType(fieldName);
                 String value = fs.getField(fieldName);
-                List<GenericValue> questions = delegator.findByAnd("SurveyQuestionAndAppl", UtilMisc.toMap("surveyId", surveyId, "externalFieldRef", fieldName));
-                if (questions.size() == 0) {
+                GenericValue surveyQuestionAndAppl = EntityQuery.use(delegator).from("SurveyQuestionAndAppl")
+                        .where("surveyId", surveyId,
+                                "externalFieldRef", fieldName)
+                        .queryFirst();
+                if (surveyQuestionAndAppl == null) {
                     Debug.logInfo("No question found for surveyId:" + surveyId + " and externalFieldRef:" + fieldName, module);
                     continue;
                 }
 
-                GenericValue surveyQuestionAndAppl = questions.get(0);
                 String surveyQuestionId = (String)surveyQuestionAndAppl.get("surveyQuestionId");
                 String surveyQuestionTypeId = (String)surveyQuestionAndAppl.get("surveyQuestionTypeId");
                 GenericValue surveyResponseAnswer = delegator.makeValue("SurveyResponseAnswer", UtilMisc.toMap("surveyResponseId", surveyResponseId, "surveyQuestionId", surveyQuestionId));
@@ -329,9 +324,7 @@ public class PdfSurveyServices {
     //        for (int i=0;i<sa.length;i++)
     //            Debug.logInfo("Appearance="+sa[i]);
 
-            Iterator<String> iter = map.keySet().iterator();
-            while (iter.hasNext()) {
-                String fieldName = iter.next();
+            for (String fieldName : map.keySet()) {
                 String parmValue = fs.getField(fieldName);
                 acroFieldMap.put(fieldName, parmValue);
             }
@@ -372,9 +365,7 @@ public class PdfSurveyServices {
     //      for (int i=0;i<sa.length;i++)
     //          Debug.logInfo("Appearance="+sa[i]);
 
-            Iterator<String> iter = map.keySet().iterator();
-            while (iter.hasNext()) {
-                String fieldName = iter.next();
+            for (String fieldName : map.keySet()) {
                 String fieldValue = fs.getField(fieldName);
                 Object obj = acroFieldMap.get(fieldName);
                 if (obj instanceof Date) {
@@ -433,13 +424,13 @@ public class PdfSurveyServices {
         Document document = new Document();
         try {
             if (UtilValidate.isNotEmpty(surveyResponseId)) {
-                GenericValue surveyResponse = delegator.findByPrimaryKey("SurveyResponse", UtilMisc.toMap("surveyResponseId", surveyResponseId));
+                GenericValue surveyResponse = EntityQuery.use(delegator).from("SurveyResponse").where("surveyResponseId", surveyResponseId).queryOne();
                 if (surveyResponse != null) {
                     surveyId = surveyResponse.getString("surveyId");
                 }
             }
             if (UtilValidate.isNotEmpty(surveyId) && UtilValidate.isEmpty(contentId)) {
-                GenericValue survey = delegator.findByPrimaryKey("Survey", UtilMisc.toMap("surveyId", surveyId));
+                GenericValue survey = EntityQuery.use(delegator).from("Survey").where("surveyId", surveyId).queryOne();
                 if (survey != null) {
                     String acroFormContentId = survey.getString("acroFormContentId");
                     if (UtilValidate.isNotEmpty(acroFormContentId)) {
@@ -451,13 +442,11 @@ public class PdfSurveyServices {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PdfWriter.getInstance(document, baos);
 
-            List<GenericValue> responses = delegator.findByAnd("SurveyResponseAnswer", UtilMisc.toMap("surveyResponseId", surveyResponseId));
-            Iterator<GenericValue> iter = responses.iterator();
-            while (iter.hasNext()) {
+            List<GenericValue> responses = EntityQuery.use(delegator).from("SurveyResponseAnswer").where("surveyResponseId", surveyResponseId).queryList();
+            for (GenericValue surveyResponseAnswer : responses) {
                 String value = null;
-                GenericValue surveyResponseAnswer = iter.next();
                 String surveyQuestionId = (String) surveyResponseAnswer.get("surveyQuestionId");
-                GenericValue surveyQuestion = delegator.findByPrimaryKey("SurveyQuestion", UtilMisc.toMap("surveyQuestionId", surveyQuestionId));
+                GenericValue surveyQuestion = EntityQuery.use(delegator).from("SurveyQuestion").where("surveyQuestionId", surveyQuestionId).queryOne();
                 String questionType = surveyQuestion.getString("surveyQuestionTypeId");
                 // DEJ20060227 this isn't used, if needed in the future should get from SurveyQuestionAppl.externalFieldRef String fieldName = surveyQuestion.getString("description");
                 if ("OPTION".equals(questionType)) {
@@ -502,12 +491,10 @@ public class PdfSurveyServices {
         List<Object> qAndA = FastList.newInstance();
 
         try {
-            List<GenericValue> responses = delegator.findByAnd("SurveyResponseAnswer", UtilMisc.toMap("surveyResponseId", surveyResponseId));
-            Iterator<GenericValue> iter = responses.iterator();
-            while (iter.hasNext()) {
-                GenericValue surveyResponseAnswer = iter.next();
+            List<GenericValue> responses = EntityQuery.use(delegator).from("SurveyResponseAnswer").where("surveyResponseId", surveyResponseId).queryList();
+            for (GenericValue surveyResponseAnswer : responses) {
                 String surveyQuestionId = (String) surveyResponseAnswer.get("surveyQuestionId");
-                GenericValue surveyQuestion = delegator.findByPrimaryKey("SurveyQuestion", UtilMisc.toMap("surveyQuestionId", surveyQuestionId));
+                GenericValue surveyQuestion = EntityQuery.use(delegator).from("SurveyQuestion").where("surveyQuestionId", surveyQuestionId).queryOne();
                 qAndA.add(UtilMisc.toMap("question", surveyQuestion, "response", surveyResponseAnswer));
             }
             results.put("questionsAndAnswers", qAndA);
@@ -532,30 +519,31 @@ public class PdfSurveyServices {
         try {
             String surveyId = null;
             if (UtilValidate.isNotEmpty(surveyResponseId)) {
-                GenericValue surveyResponse = delegator.findByPrimaryKey("SurveyResponse", UtilMisc.toMap("surveyResponseId", surveyResponseId));
+                GenericValue surveyResponse = EntityQuery.use(delegator).from("SurveyResponse").where("surveyResponseId", surveyResponseId).queryOne();
                 if (surveyResponse != null) {
                     surveyId = surveyResponse.getString("surveyId");
                 }
             }
 
             if (UtilValidate.isNotEmpty(surveyId)) {
-                GenericValue survey = delegator.findByPrimaryKey("Survey", UtilMisc.toMap("surveyId", surveyId));
+                GenericValue survey = EntityQuery.use(delegator).from("Survey").where("surveyId", surveyId).queryOne();
                 if (survey != null) {
                     acroFormContentId = survey.getString("acroFormContentId");
                 }
             }
 
-            List<GenericValue> responses = delegator.findByAnd("SurveyResponseAnswer", UtilMisc.toMap("surveyResponseId", surveyResponseId));
-            Iterator<GenericValue> iter = responses.iterator();
-            while (iter.hasNext()) {
+            List<GenericValue> responses = EntityQuery.use(delegator).from("SurveyResponseAnswer").where("surveyResponseId", surveyResponseId).queryList();
+            for (GenericValue surveyResponseAnswer : responses) {
                 String value = null;
-                GenericValue surveyResponseAnswer = iter.next();
                 String surveyQuestionId = (String) surveyResponseAnswer.get("surveyQuestionId");
 
-                GenericValue surveyQuestion = delegator.findByPrimaryKeyCache("SurveyQuestion", UtilMisc.toMap("surveyQuestionId", surveyQuestionId));
+                GenericValue surveyQuestion = EntityQuery.use(delegator).from("SurveyQuestion").where("surveyQuestionId", surveyQuestionId).cache().queryOne();
 
-                List<GenericValue> surveyQuestionApplList = EntityUtil.filterByDate(delegator.findByAndCache("SurveyQuestionAppl", UtilMisc.toMap("surveyId", surveyId, "surveyQuestionId", surveyQuestionId), UtilMisc.toList("-fromDate")), false);
-                GenericValue surveyQuestionAppl = EntityUtil.getFirst(surveyQuestionApplList);
+                GenericValue surveyQuestionAppl = EntityQuery.use(delegator).from("SurveyQuestionAppl")
+                        .where("surveyId", surveyId, 
+                                "surveyQuestionId", surveyQuestionId)
+                        .orderBy("-fromDate")
+                        .filterByDate().cache().queryFirst();
 
                 String questionType = surveyQuestion.getString("surveyQuestionTypeId");
                 String fieldName = surveyQuestionAppl.getString("externalFieldRef");
@@ -635,7 +623,7 @@ public class PdfSurveyServices {
                     String https = (String)context.get("https");
                     String webSiteId = (String)context.get("webSiteId");
                     String rootDir = (String)context.get("rootDir");
-                    GenericValue content = delegator.findByPrimaryKeyCache("Content", UtilMisc.toMap("contentId", contentId));
+                    GenericValue content = EntityQuery.use(delegator).from("Content").where("contentId", contentId).cache().queryOne();
                     String dataResourceId = content.getString("dataResourceId");
                     inputByteBuffer = DataResourceWorker.getContentAsByteBuffer(delegator, dataResourceId, https, webSiteId, locale, rootDir);
                 } catch (GenericEntityException e) {

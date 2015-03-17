@@ -90,8 +90,8 @@ under the License.
     </service>
     <service name="getSuppliersForProduct" engine="java"
             location="org.ofbiz.product.supplier.SupplierProductServices" invoke="getSuppliersForProduct">
-        <description>Finds a list of SupplierProduct entities based on either a product or, if not provided, at least a productId.
-              If partyId and currencyUomId are given, they are used to filter the list down.  Note that productId is REQUIRED, even if you are passing in a product entity.</description>
+        <description>Finds a list of SupplierProduct entity values based on a productId.
+              If other parameters are given, they are used to filter the list down.</description>
         <attribute name="productId" type="String" mode="IN" optional="false"/>
         <attribute name="partyId" type="String" mode="IN" optional="true"/>
         <attribute name="currencyUomId" type="String" mode="IN" optional="true"/>
@@ -119,7 +119,7 @@ under the License.
     
     <service name="getAssociatedProductsList" engine="simple" auth="false"
         location="component://product/script/org/ofbiz/product/category/CategoryServices.xml" invoke="getAssociatedProductsList">
-        <description>Set the product options for selected product category, mostly used by getDependentDropdownValues.js</description>
+        <description>Set the product options for selected product category, mostly used by getDependentDropdownValues</description>
         <attribute name="productCategoryId" mode="IN" type="String" optional="false"/>
         <attribute name="products" mode="OUT" type="java.util.List"/>
     </service>
@@ -152,6 +152,7 @@ under the License.
         <attribute name="introductionDateLimit" type="java.sql.Timestamp" mode="IN" optional="true"/>
         <attribute name="releaseDateLimit" type="java.sql.Timestamp" mode="IN" optional="true"/>
         <attribute name="orderByFields" type="List" mode="IN" optional="true"/>
+        <attribute name="productStoreId" mode="IN" type="String" optional="true"/>
         <attribute name="productCategory" type="org.ofbiz.entity.GenericValue" mode="OUT" optional="true"/>
         <attribute name="productCategoryMembers" type="java.util.Collection" mode="OUT" optional="true"/> <!-- this list will only contain the limited members if limitView=true -->
         <attribute name="viewIndex" type="Integer" mode="OUT" optional="false"/> <!-- this is a 1 based index, ie the first results are in index 1 -->

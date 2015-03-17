@@ -18,10 +18,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project name="Ant - Macros">
- <condition property="antatleast171">
-  <antversion atleast="1.7.1"/>
+ <property name="minimumantversion" value="1.9.0"/>
+
+ <antversion property="antversion" atleast="${minimumantversion}"/>
+ <fail unless="antversion" message="Please upgrade ant to at least ${minimumantversion}. Current ant version is ${ant.version}"/>
+
+ <condition property="javaatleast17">
+  <not>
+   <matches pattern="^1\.[0-6]($|\..*)" string="${ant.java.version}"/>
+  </not>
  </condition>
- <fail unless="antatleast171" message="Please upgrade ant to at least 1.7.1"/>
+ <fail unless="javaatleast17" message="Please upgrade java to at least 1.7. Current Java version is ${ant.java.version}"/>
 
  <dirname property="ofbiz.home.dir" file="${ant.file.Ant - Macros}"/>
  <macrodef name="iterate">
@@ -35,12 +42,6 @@ under the License.
   </sequential>
  </macrodef>
 
- <path id="src-path">
-  <dirset dir=".">
-   <patternset refid="src-dirs"/>
-  </dirset>
- </path>
- <patternset id="src-dirs"/>
  <patternset id="src.inc.set">
   <include name="**/*.java"/>
  </patternset>
@@ -50,20 +51,22 @@ under the License.
   <pathelement location="${ofbiz.home.dir}/framework/base/lib/commons/commons-cli-1.0.jar"/>
   <pathelement location="${ofbiz.home.dir}/framework/base/lib/scripting/antlr-2.7.6.jar"/>
   <pathelement location="${ofbiz.home.dir}/framework/base/lib/scripting/asm-3.2.jar"/>
-  <pathelement location="${ofbiz.home.dir}/framework/base/lib/scripting/groovy-all-1.7.7.jar"/>
+  <pathelement location="${ofbiz.home.dir}/framework/base/lib/scripting/groovy-all-2.2.1.jar"/>
  </path>
  <path id="rhino.class.path">
   <pathelement location="${ofbiz.home.dir}/extension/rhino/lib/js-1.7.R1.jar"/>
- </path>
- <path id="ant.lib.class.path">
-  <pathelement location="${ofbiz.home.dir}/framework/base/lib/ant/ant-nodeps-1.7.1.jar"/>
  </path>
  <path id="junit.class.path">
   <fileset dir="${ofbiz.home.dir}/framework/base/lib/scripting/" includes="*.jar"/>
   <pathelement location="${ofbiz.home.dir}/framework/base/lib/ant/ant-apache-bsf-1.7.1.jar"/>
  </path>
+ <path id="cobertura.class.path">
+  <pathelement location="${ofbiz.home.dir}/framework/base/lib/cobertura-1.9.4.1.jar" />
+  <pathelement location="${ofbiz.home.dir}/framework/base/lib/log4j-1.2.17.jar" />
+  <pathelement location="${ofbiz.home.dir}/framework/base/lib/scripting/asm-3.2.jar" />
+  <pathelement location="${ofbiz.home.dir}/framework/base/lib/scripting/jakarta-oro-2.0.8.jar" />
+ </path>
  <path id="local.class.path"/>
-
  <presetdef name="default-javac">
   <javac debug="on" deprecation="on" destdir="${build.dir}/classes" srcdir="${src.dir}" classpathref="local.class.path">
    <patternset refid="src.inc.set"/>
@@ -71,18 +74,44 @@ under the License.
   </javac>
  </presetdef>
 
- <presetdef name="javac16">
-  <default-javac compiler="javac1.6" target="1.6" source="1.6" encoding="UTF-8" sourcepathref="src-path" includeantruntime="false">
+ <presetdef name="javac17">
+  <default-javac compiler="javac1.7" target="1.7" source="1.7" encoding="UTF-8" includeantruntime="false">
    <compilerarg value="-Xlint:-path"/>
+   <!--
+   Please leave this line here.  It makes it easier to enable/disable it.
+   <compilerarg value="-Xlint:unchecked"/>
+   -->
   </default-javac>
  </presetdef>
 
  <presetdef name="default-javadoc">
-  <javadoc classpathref="local.class.path"
-           destdir="${build.dir}/javadocs"
-           Windowtitle="Open for Business - ${desc}">
-   <link href="http://java.sun.com/javase/6/docs/api/" offline="true" packagelistLoc="${ofbiz.home.dir}/tools/api-java16"/>
-  </javadoc>
+    <javadoc classpathref="local.class.path"
+             destdir="${build.dir}/javadocs"
+             windowtitle="Apache Open for Business - ${desc}"
+             useexternalfile="yes"
+             maxmemory="512M"
+             encoding="UTF-8"
+             packagenames="org.ofbiz.*">
+      <fileset dir="${basedir}" defaultexcludes="yes">
+        <include name="**/*.java"/>
+        <exclude name="**/ControlApplet.java"/>
+        <exclude name="**/ShipmentScaleApplet.java"/>
+        <exclude name="**/test/"/>
+        <exclude name="**/cybersource/"/>
+        <exclude name="**/PayPalServices.java"/>
+        <exclude name="**/ideal/"/>
+        <exclude name="**/orbital/"/>
+        <exclude name="**/securepay/"/>
+        <exclude name="**/verisign/"/>
+        <exclude name="**/JREntityListIteratorDataSource.java"/>
+        <exclude name="**/JRMapCollectionDataSource.java"/>
+        <exclude name="**/openoffice/"/>
+        <exclude name="**/JasperReportsXmlViewHandler.java"/>
+        <exclude name="**/JasperReportsJXlsViewHandler.java"/>
+        <exclude name="**/JasperReportsPoiXlsViewHandler.java"/>
+      </fileset>
+      <link href="http://java.sun.com/javase/7/docs/api/" offline="true" packagelistLoc="${ofbiz.home.dir}/tools/api-java17"/>
+    </javadoc>
  </presetdef>
 
  <macrodef name="main-jar">
@@ -152,82 +181,17 @@ under the License.
    </classpath>
   </groovyc>
  </presetdef>
+  <taskdef resource="net/sf/antcontrib/antlib.xml">
+    <classpath>
+        <pathelement location="${ofbiz.home.dir}/framework/base/lib/ant/ant-contrib-1.0b3.jar"/>
+    </classpath>
+  </taskdef>
 
- <scriptdef name="if" language="javascript" classpathref="rhino.class.path" loaderref="rhino.class.path.loader" src="${ofbiz.home.dir}/tools/If-ant.py">
-  <element name="condition" classname="org.apache.tools.ant.taskdefs.condition.And"/>
-  <element name="commands" classname="org.apache.tools.ant.taskdefs.Sequential"/>
-  <element name="else" classname="org.apache.tools.ant.taskdefs.Sequential"/>
- </scriptdef>
-
- <taskdef name="javacc" classname="org.apache.tools.ant.taskdefs.optional.javacc.JavaCC" classpath="${ofbiz.home.dir}/framework/base/lib/ant/ant-nodeps-1.7.1.jar"/>
- <taskdef name="jjtree" classname="org.apache.tools.ant.taskdefs.optional.javacc.JJTree" classpath="${ofbiz.home.dir}/framework/base/lib/ant/ant-nodeps-1.7.1.jar"/>
- <macrodef name="ofbiz-javacc">
-  <attribute name="dir"/>
-  <attribute name="file"/>
-  <attribute name="prefix" default=""/>
-  <sequential>
-   <if>
-    <condition>
-     <not>
-      <uptodate
-       srcfile="@{prefix}src/@{dir}/@{file}.jj"
-       targetfile="@{prefix}build/gen-src/javacc/@{dir}/@{file}.java"/>
-     </not>
-    </condition>
-    <commands>
-     <delete dir="@{prefix}build/gen-src/javacc/@{dir}"/>
-     <mkdir dir="@{prefix}build/gen-src/javacc/@{dir}"/>
-     <javacc target="@{prefix}src/@{dir}/@{file}.jj"
-      javacchome="${ofbiz.home.dir}/lib/build/javacc"
-      outputdirectory="@{prefix}build/gen-src/javacc/@{dir}"/>
-     <replace token="public class" 
-     	value='@SuppressWarnings("all") public class' 
-     	dir="@{prefix}build/gen-src/javacc/@{dir}"
-     	includes="*.java" />
-     <delete dir="@{prefix}build/classes/@{dir}"/>
-    </commands>
-   </if>
-  </sequential>
- </macrodef>
-
- <macrodef name="ofbiz-jjtree">
-  <attribute name="dir"/>
-  <attribute name="file"/>
-  <attribute name="prefix" default=""/>
-  <sequential>
-   <if>
-    <condition>
-     <not>
-      <uptodate
-       srcfile="@{prefix}src/@{dir}/@{file}.jjt"
-       targetfile="@{prefix}build/gen-src/jjtree/@{dir}/@{file}.jj"/>
-     </not>
-    </condition>
-    <commands>
-     <delete dir="@{prefix}build/gen-src/jjtree/@{dir}"/>
-     <mkdir dir="@{prefix}build/gen-src/jjtree/@{dir}"/>
-     <jjtree target="@{prefix}src/@{dir}/@{file}.jjt"
-      javacchome="${ofbiz.home.dir}/lib/build/javacc"
-      outputdirectory="@{prefix}build/gen-src/jjtree/@{dir}"/>
-    </commands>
-   </if>
-   <if>
-    <condition>
-     <not>
-      <uptodate
-       srcfile="@{prefix}build/gen-src/jjtree/@{dir}/@{file}.jj"
-       targetfile="@{prefix}build/gen-src/javacc/@{dir}/@{file}.java"/>
-     </not>
-    </condition>
-    <commands>
-     <delete dir="@{prefix}build/gen-src/javacc/@{dir}"/>
-     <mkdir dir="@{prefix}build/gen-src/javacc/@{dir}"/>
-     <javacc target="@{prefix}build/gen-src/jjtree/@{dir}/@{file}.jj"
-      javacchome="${ofbiz.home.dir}/lib/build/javacc"
-      outputdirectory="@{prefix}build/gen-src/javacc/@{dir}"/>
-     <delete dir="@{prefix}build/classes/@{dir}"/>
-    </commands>
-   </if>
-  </sequential>
- </macrodef>
+ <presetdef name="externalsubant">
+  <subant inheritall="false">
+   <propertyset>
+    <propertyref name="ofbiz.home.dir"/>
+   </propertyset>
+  </subant>
+ </presetdef>
 </project>

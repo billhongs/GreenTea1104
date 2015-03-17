@@ -83,13 +83,6 @@ under the License.
         <attribute name="fromDate" type="Timestamp" mode="IN" optional="false"/>
         <attribute name="thruDate" type="Timestamp" mode="IN" optional="true"/>
     </service>
-    <service name="removeUserLoginFromSecurityGroup" engine="entity-auto" invoke="delete" default-entity-name="UserLoginSecurityGroup" auth="true">
-        <description>Remove a UserLogin from a SecurityGroup</description>
-        <permission-service service-name="securityPermissionCheck" main-action="DELETE"/>
-        <attribute name="userLoginId" type="String" mode="IN" optional="false"/>
-        <attribute name="groupId" type="String" mode="IN" optional="false"/>
-        <attribute name="fromDate" type="Timestamp" mode="IN" optional="false"/>
-    </service>
 
     <!-- ProtectedView to SecurityGroup services -->
     <service name="addProtectedViewToSecurityGroup" engine="entity-auto" invoke="create" default-entity-name="ProtectedView" auth="true">
@@ -97,7 +90,7 @@ under the License.
         <permission-service service-name="securityPermissionCheck" main-action="CREATE"/>
         <attribute name="viewNameId" type="String" mode="IN" optional="false"/>
         <attribute name="groupId" type="String" mode="IN" optional="false"/>
-        <attribute name="maxHits" type="Integer" mode="IN" optional="false"/>
+        <attribute name="maxHits" type="Long" mode="IN" optional="false"/>
         <attribute name="maxHitsDuration" type="Long" mode="IN" optional="false"/>
         <attribute name="tarpitDuration" type="Long" mode="IN" optional="false"/>
     </service>
@@ -106,7 +99,7 @@ under the License.
         <permission-service service-name="securityPermissionCheck" main-action="UPDATE"/>
         <attribute name="viewNameId" type="String" mode="IN" optional="false"/>
         <attribute name="groupId" type="String" mode="IN" optional="false"/>
-        <attribute name="maxHits" type="Integer" mode="IN" optional="false"/>
+        <attribute name="maxHits" type="Long" mode="IN" optional="false"/>
         <attribute name="maxHitsDuration" type="Long" mode="IN" optional="false"/>
         <attribute name="tarpitDuration" type="Long" mode="IN" optional="false"/>
     </service>

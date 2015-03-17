@@ -27,11 +27,11 @@ under the License.
         <form name="selectAllForm" method="post" action="<@ofbizUrl>makeQuickReturn</@ofbizUrl>">
           <input type="hidden" name="_checkGlobalScope" value="Y"/>
           <input type="hidden" name="_useRowSubmit" value="Y"/>
-          <input type="hidden" name="fromPartyId" value="${partyId?if_exists}"/>
-          <input type="hidden" name="toPartyId" value="${toPartyId?if_exists}"/>
+          <input type="hidden" name="fromPartyId" value="${partyId!}"/>
+          <input type="hidden" name="toPartyId" value="${toPartyId!}"/>
           <input type="hidden" name="orderId" value="${orderId}"/>
           <input type="hidden" name="needsInventoryReceive" value="${parameters.needsInventoryReceive?default("Y")}"/>
-          <input type="hidden" name="destinationFacilityId" value="${destinationFacilityId?if_exists}"/>
+          <input type="hidden" name="destinationFacilityId" value="${destinationFacilityId!}"/>
           <input type="hidden" name="returnHeaderTypeId" value="${returnHeaderTypeId}"/>
           <#if (orderHeader?has_content) && (orderHeader.currencyUom?has_content)>
           <input type="hidden" name="currencyUomId" value="${orderHeader.currencyUom}"/>
@@ -42,18 +42,18 @@ under the License.
           <h3>${uiLabelMap.FormFieldTitle_paymentMethodId}:</h3>
           <table cellspacing="0" class="basic-table">
             <tr><td>
-              <#if creditCardList?exists || eftAccountList?exists>
+              <#if creditCardList?? || eftAccountList??>
                 <select name='paymentMethodId'>
                   <option value=""></option>
                   <#if creditCardList?has_content>
                     <#list creditCardList as creditCardPm>
-                      <#assign creditCard = creditCardPm.getRelatedOne("CreditCard")>
+                      <#assign creditCard = creditCardPm.getRelatedOne("CreditCard", false)>
                       <option value="${creditCard.paymentMethodId}">CC:&nbsp;${Static["org.ofbiz.party.contact.ContactHelper"].formatCreditCard(creditCard)}</option>
                     </#list>
                   </#if>
                   <#if eftAccountList?has_content>
                     <#list eftAccountList as eftAccount>
-                      <option value="${eftAccount.paymentMethodId}">EFT:&nbsp;${eftAccount.nameOnAccount?if_exists}, ${eftAccount.accountNumber?if_exists}</option>
+                      <option value="${eftAccount.paymentMethodId}">EFT:&nbsp;${eftAccount.nameOnAccount!}, ${eftAccount.accountNumber!}</option>
                     </#list>
                   </#if>
                 </select>
@@ -61,7 +61,7 @@ under the License.
                 <input type='text' size='20' name='paymentMethodId' />
               </#if>
               <#if (party.partyId)?has_content>
-                <a href="/partymgr/control/editcreditcard?partyId=${party.partyId}${externalKeyParam}" target="partymgr" class="smallSubmit">${uiLabelMap.AccountingCreateNewCreditCard}</a>
+                <a href="/partymgr/control/editcreditcard?partyId=${party.partyId}${StringUtil.wrapString(externalKeyParam)}" target="partymgr" class="smallSubmit">${uiLabelMap.AccountingCreateNewCreditCard}</a>
               </#if>
             </td></tr>
           </table>
@@ -75,7 +75,7 @@ under the License.
               <td colspan="8">
                 <table cellspacing="0" class="basic-table">
                   <#list shippingContactMechList as shippingContactMech>
-                    <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress")>
+                    <#assign shippingAddress = shippingContactMech.getRelatedOne("PostalAddress", false)>
                     <tr>
                       <td align="right" width="1%" valign="top" nowrap="nowrap">
                         <input type="radio" name="originContactMechId" value="${shippingAddress.contactMechId}"  <#if (shippingContactMechList?size == 1)>checked="checked"</#if> />

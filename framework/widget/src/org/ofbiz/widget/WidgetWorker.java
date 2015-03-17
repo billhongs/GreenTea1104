@@ -20,44 +20,43 @@ package org.ofbiz.widget;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
-import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
-import java.text.DateFormat;
 import java.util.Map;
-import java.util.TimeZone;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.StringUtil;
-import org.ofbiz.base.util.UtilDateTime;
+import org.ofbiz.base.util.UtilCodec;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilHttp;
 import org.ofbiz.base.util.UtilValidate;
-import org.ofbiz.base.util.collections.FlexibleMapAccessor;
-import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.webapp.control.ConfigXMLReader;
 import org.ofbiz.webapp.control.RequestHandler;
+import org.ofbiz.webapp.control.WebAppConfigurationException;
 import org.ofbiz.webapp.taglib.ContentUrlTag;
-import org.ofbiz.widget.form.ModelForm;
-import org.ofbiz.widget.form.ModelFormField;
-import org.w3c.dom.Element;
+import org.ofbiz.widget.model.ModelForm;
+import org.ofbiz.widget.model.ModelFormField;
 
-public class WidgetWorker {
+public final class WidgetWorker {
 
     public static final String module = WidgetWorker.class.getName();
 
-    public WidgetWorker () {}
+    private WidgetWorker () {}
 
     public static void buildHyperlinkUrl(Appendable externalWriter, String target, String targetType, Map<String, String> parameterMap,
             String prefix, boolean fullPath, boolean secure, boolean encode, HttpServletRequest request, HttpServletResponse response, Map<String, Object> context) throws IOException {
-        String localRequestName = UtilHttp.encodeAmpersands(target);
+        // We may get an encoded request like: &#47;projectmgr&#47;control&#47;EditTaskContents&#63;workEffortId&#61;10003
+        // Try to reducing a possibly encoded string down to its simplest form: /projectmgr/control/EditTaskContents?workEffortId=10003
+        // This step make sure the following appending externalLoginKey operation to work correctly
+        String localRequestName = StringEscapeUtils.unescapeHtml(target);
+        localRequestName = UtilHttp.encodeAmpersands(localRequestName);
+
         Appendable localWriter = new StringWriter();
 
         if ("intra-app".equals(targetType)) {
@@ -129,9 +128,9 @@ public class WidgetWorker {
                 }
                 externalWriter.append(parameter.getKey());
                 externalWriter.append('=');
-                StringUtil.SimpleEncoder simpleEncoder = (StringUtil.SimpleEncoder) context.get("simpleEncoder");
-                if (simpleEncoder != null) {
-                    externalWriter.append(simpleEncoder.encode(parameterValue));
+                UtilCodec.SimpleEncoder simpleEncoder = (UtilCodec.SimpleEncoder) context.get("simpleEncoder");
+                if (simpleEncoder != null && parameterValue != null) {
+                    externalWriter.append(simpleEncoder.encode(URLEncoder.encode(parameterValue, Charset.forName("UTF-8").displayName())));
                 } else {
                     externalWriter.append(parameterValue);
                 }
@@ -282,16 +281,13 @@ public class WidgetWorker {
         writer.append("\">");
 
         for (Map.Entry<String, String> parameter: parameterMap.entrySet()) {
-            String key = parameter.getKey();
-
-            writer.append("<input name=\"");
-            writer.append(key);
-            writer.append("\" value=\"");
-
-            String valueFromContext = context.containsKey(key) ?
-                    context.get(key).toString() : parameter.getValue();
-            writer.append(valueFromContext);
-            writer.append("\" type=\"hidden\"/>");
+            if (parameter.getValue() != null) {
+                writer.append("<input name=\"");
+                writer.append(parameter.getKey());
+                writer.append("\" value=\"");
+                writer.append(UtilCodec.getEncoder("html").encode(parameter.getValue()));
+                writer.append("\" type=\"hidden\"/>");
+            }
         }
 
         writer.append("</form>");
@@ -318,89 +314,18 @@ public class WidgetWorker {
             return formName + modelForm.getItemIndexSeparator() + modelFormField.getName();
         }
     }
-
-    public static class Parameter {
-        protected String name;
-        protected FlexibleStringExpander value;
-        protected FlexibleMapAccessor<Object> fromField;
-
-        public Parameter(Element element) {
-            this.name = element.getAttribute("param-name");
-            this.value = UtilValidate.isNotEmpty(element.getAttribute("value")) ? FlexibleStringExpander.getInstance(element.getAttribute("value")) : null;
-            this.fromField = UtilValidate.isNotEmpty(element.getAttribute("from-field")) ? FlexibleMapAccessor.getInstance(element.getAttribute("from-field")) : null;
-        }
-
-        public Parameter(String paramName, String paramValue, boolean isField) {
-            this.name = paramName;
-            if (isField) {
-                this.fromField = FlexibleMapAccessor.getInstance(paramValue);
-            } else {
-                this.value = FlexibleStringExpander.getInstance(paramValue);
-            }
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getValue(Map<String, Object> context) {
-            if (this.value != null) {
-                try {
-                    return URLEncoder.encode(this.value.expandString(context), Charset.forName("UTF-8").displayName());
-                } catch (UnsupportedEncodingException e) {
-                    Debug.logError(e, module);
-                    return this.value.expandString(context);
-                }
-            }
-
-            Object retVal = null;
-            if (this.fromField != null && this.fromField.get(context) != null) {
-                retVal = this.fromField.get(context);
-            } else {
-                retVal = context.get(this.name);
-            }
-
-            if (retVal != null) {
-                TimeZone timeZone = (TimeZone) context.get("timeZone");
-                if (timeZone == null) timeZone = TimeZone.getDefault();
-
-                String returnValue = null;
-                // format string based on the user's time zone (not locale because these are parameters)
-                if (retVal instanceof Double || retVal instanceof Float || retVal instanceof BigDecimal) {
-                    returnValue = retVal.toString();
-                } else if (retVal instanceof java.sql.Date) {
-                    DateFormat df = UtilDateTime.toDateFormat(UtilDateTime.DATE_FORMAT, timeZone, null);
-                    returnValue = df.format((java.util.Date) retVal);
-                } else if (retVal instanceof java.sql.Time) {
-                    DateFormat df = UtilDateTime.toTimeFormat(UtilDateTime.TIME_FORMAT, timeZone, null);
-                    returnValue = df.format((java.util.Date) retVal);
-                } else if (retVal instanceof java.sql.Timestamp) {
-                    DateFormat df = UtilDateTime.toDateTimeFormat(UtilDateTime.DATE_TIME_FORMAT, timeZone, null);
-                    returnValue = df.format((java.util.Date) retVal);
-                } else if (retVal instanceof java.util.Date) {
-                    DateFormat df = UtilDateTime.toDateTimeFormat("EEE MMM dd hh:mm:ss z yyyy", timeZone, null);
-                    returnValue = df.format((java.util.Date) retVal);
-                } else {
-                    try {
-                        returnValue = URLEncoder.encode(retVal.toString(), Charset.forName("UTF-8").displayName());
-                    } catch (UnsupportedEncodingException e) {
-                        Debug.logError(e, module);
-                    }
-                }
-                return returnValue;
-            } else {
-                return null;
-            }
-        }
-    }
-
     public static String determineAutoLinkType(String linkType, String target, String targetType, HttpServletRequest request) {
         if ("auto".equals(linkType)) {
             if ("intra-app".equals(targetType)) {
                 String requestUri = (target.indexOf('?') > -1) ? target.substring(0, target.indexOf('?')) : target;
                 ServletContext servletContext = request.getSession().getServletContext();
                 RequestHandler rh = (RequestHandler) servletContext.getAttribute("_REQUEST_HANDLER_");
-                ConfigXMLReader.RequestMap requestMap = rh.getControllerConfig().getRequestMapMap().get(requestUri);
+                ConfigXMLReader.RequestMap requestMap = null;
+                try {
+                    requestMap = rh.getControllerConfig().getRequestMapMap().get(requestUri);
+                } catch (WebAppConfigurationException e) {
+                    Debug.logError(e, "Exception thrown while parsing controller.xml file: ", module);
+                }
                 if (requestMap != null && requestMap.event != null) {
                     return "hidden-form";
                 } else {

@@ -37,11 +37,14 @@ import org.ofbiz.base.util.UtilHttp;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
+import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.common.login.LoginServices;
 import org.ofbiz.base.crypto.HashCrypt;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.party.contact.ContactHelper;
 import org.ofbiz.product.product.ProductEvents;
 import org.ofbiz.product.store.ProductStoreWorker;
@@ -69,6 +72,7 @@ public class LoginEvents {
     public static String saveEntryParams(HttpServletRequest request, HttpServletResponse response) {
         GenericValue userLogin = (GenericValue) request.getSession().getAttribute("userLogin");
         HttpSession session = request.getSession();
+        Delegator delegator = (Delegator) request.getAttribute("delegator");
 
         // save entry login parameters if we don't have a valid login object
         if (userLogin == null) {
@@ -76,10 +80,10 @@ public class LoginEvents {
             String username = request.getParameter("USERNAME");
             String password = request.getParameter("PASSWORD");
 
-            if ((username != null) && ("true".equalsIgnoreCase(UtilProperties.getPropertyValue("security.properties", "username.lowercase")))) {
+            if ((username != null) && ("true".equalsIgnoreCase(EntityUtilProperties.getPropertyValue("security.properties", "username.lowercase", delegator)))) {
                 username = username.toLowerCase();
             }
-            if ((password != null) && ("true".equalsIgnoreCase(UtilProperties.getPropertyValue("security.properties", "password.lowercase")))) {
+            if ((password != null) && ("true".equalsIgnoreCase(EntityUtilProperties.getPropertyValue("security.properties", "password.lowercase", delegator)))) {
                 password = password.toLowerCase();
             }
 
@@ -125,7 +129,7 @@ public class LoginEvents {
         String userLoginId = request.getParameter("USERNAME");
         String errMsg = null;
 
-        if ((userLoginId != null) && ("true".equals(UtilProperties.getPropertyValue("security.properties", "username.lowercase")))) {
+        if ((userLoginId != null) && ("true".equals(EntityUtilProperties.getPropertyValue("security.properties", "username.lowercase", delegator)))) {
             userLoginId = userLoginId.toLowerCase();
         }
 
@@ -139,7 +143,7 @@ public class LoginEvents {
         GenericValue supposedUserLogin = null;
 
         try {
-            supposedUserLogin = delegator.findOne("UserLogin", false, "userLoginId", userLoginId);
+            supposedUserLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", userLoginId).queryOne();
         } catch (GenericEntityException gee) {
             Debug.logWarning(gee, "", module);
         }
@@ -181,15 +185,11 @@ public class LoginEvents {
 
         String errMsg = null;
 
-        Map<String, String> subjectData = FastMap.newInstance();
-        subjectData.put("productStoreId", productStoreId);
-
-        boolean useEncryption = "true".equals(UtilProperties.getPropertyValue("security.properties", "password.encrypt"));
+        boolean useEncryption = "true".equals(EntityUtilProperties.getPropertyValue("security.properties", "password.encrypt", delegator));
 
         String userLoginId = request.getParameter("USERNAME");
-        subjectData.put("userLoginId", userLoginId);
 
-        if ((userLoginId != null) && ("true".equals(UtilProperties.getPropertyValue("security.properties", "username.lowercase")))) {
+        if ((userLoginId != null) && ("true".equals(EntityUtilProperties.getPropertyValue("security.properties", "username.lowercase", delegator)))) {
             userLoginId = userLoginId.toLowerCase();
         }
 
@@ -204,7 +204,7 @@ public class LoginEvents {
         String passwordToSend = null;
 
         try {
-            supposedUserLogin = delegator.findOne("UserLogin", false, "userLoginId", userLoginId);
+            supposedUserLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", userLoginId).queryOne();
             if (supposedUserLogin == null) {
                 // the Username was not found
                 errMsg = UtilProperties.getMessage(resource, "loginevents.username_not_found_reenter", UtilHttp.getLocale(request));
@@ -213,10 +213,13 @@ public class LoginEvents {
             }
             if (useEncryption) {
                 // password encrypted, can't send, generate new password and email to user
-                passwordToSend = RandomStringUtils.randomAlphanumeric(Integer.parseInt(UtilProperties.getPropertyValue("security", "password.length.min", "5")));
-                supposedUserLogin.set("currentPassword", HashCrypt.getDigestHash(passwordToSend, LoginServices.getHashType()));
+                passwordToSend = RandomStringUtils.randomAlphanumeric(Integer.parseInt(EntityUtilProperties.getPropertyValue("security", "password.length.min", "5", delegator)));
+                if ("true".equals(EntityUtilProperties.getPropertyValue("security.properties", "password.lowercase", delegator))){
+                    passwordToSend=passwordToSend.toLowerCase();
+                }
+                supposedUserLogin.set("currentPassword", HashCrypt.cryptUTF8(LoginServices.getHashType(), null, passwordToSend));
                 supposedUserLogin.set("passwordHint", "Auto-Generated Password");
-                if ("true".equals(UtilProperties.getPropertyValue("security.properties", "password.email_password.require_password_change"))){
+                if ("true".equals(EntityUtilProperties.getPropertyValue("security.properties", "password.email_password.require_password_change", delegator))){
                     supposedUserLogin.set("requirePasswordChange", "Y");
                 }
             } else {
@@ -229,19 +232,12 @@ public class LoginEvents {
             request.setAttribute("_ERROR_MESSAGE_", errMsg);
             return "error";
         }
-        if (supposedUserLogin == null) {
-            // the Username was not found
-            Map<String, String> messageMap = UtilMisc.toMap("userLoginId", userLoginId);
-            errMsg = UtilProperties.getMessage(resource, "loginevents.user_with_the_username_not_found", messageMap, UtilHttp.getLocale(request));
-            request.setAttribute("_ERROR_MESSAGE_", errMsg);
-            return "error";
-        }
 
         StringBuilder emails = new StringBuilder();
         GenericValue party = null;
 
         try {
-            party = supposedUserLogin.getRelatedOne("Party");
+            party = supposedUserLogin.getRelatedOne("Party", false);
         } catch (GenericEntityException e) {
             Debug.logWarning(e, "", module);
             party = null;
@@ -264,18 +260,15 @@ public class LoginEvents {
         // get the ProductStore email settings
         GenericValue productStoreEmail = null;
         try {
-            productStoreEmail = delegator.findOne("ProductStoreEmailSetting", false, "productStoreId", productStoreId, "emailType", "PRDS_PWD_RETRIEVE");
+            productStoreEmail = EntityQuery.use(delegator).from("ProductStoreEmailSetting").where("productStoreId", productStoreId, "emailType", "PRDS_PWD_RETRIEVE").queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Problem getting ProductStoreEmailSetting", module);
         }
 
-        if (productStoreEmail == null) {
-            errMsg = UtilProperties.getMessage(resource, "loginevents.problems_with_configuration_contact_customer_service", UtilHttp.getLocale(request));
-            request.setAttribute("_ERROR_MESSAGE_", errMsg);
-            return "error";
+        String bodyScreenLocation = null;
+        if (productStoreEmail != null) {
+            bodyScreenLocation = productStoreEmail.getString("bodyScreenLocation");
         }
-
-        String bodyScreenLocation = productStoreEmail.getString("bodyScreenLocation");
         if (UtilValidate.isEmpty(bodyScreenLocation)) {
             bodyScreenLocation = defaultScreenLocation;
         }
@@ -291,16 +284,34 @@ public class LoginEvents {
         Map<String, Object> serviceContext = FastMap.newInstance();
         serviceContext.put("bodyScreenUri", bodyScreenLocation);
         serviceContext.put("bodyParameters", bodyParameters);
-        serviceContext.put("subject", productStoreEmail.getString("subject"));
-        serviceContext.put("sendFrom", productStoreEmail.get("fromAddress"));
-        serviceContext.put("sendCc", productStoreEmail.get("ccAddress"));
-        serviceContext.put("sendBcc", productStoreEmail.get("bccAddress"));
-        serviceContext.put("contentType", productStoreEmail.get("contentType"));
+        if (productStoreEmail != null) {
+            serviceContext.put("subject", productStoreEmail.getString("subject"));
+            serviceContext.put("sendFrom", productStoreEmail.get("fromAddress"));
+            serviceContext.put("sendCc", productStoreEmail.get("ccAddress"));
+            serviceContext.put("sendBcc", productStoreEmail.get("bccAddress"));
+            serviceContext.put("contentType", productStoreEmail.get("contentType"));
+        } else {
+            GenericValue emailTemplateSetting = null;
+            try {
+                emailTemplateSetting = EntityQuery.use(delegator).from("EmailTemplateSetting").where("emailTemplateSettingId", "EMAIL_PASSWORD").cache().queryOne();
+            } catch (GenericEntityException e) {
+                Debug.logError(e, module);
+            }
+            if (emailTemplateSetting != null) {
+                String subject = emailTemplateSetting.getString("subject");
+                subject = FlexibleStringExpander.expandString(subject, UtilMisc.toMap("userLoginId", userLoginId));
+                serviceContext.put("subject", subject);                
+                serviceContext.put("sendFrom", emailTemplateSetting.get("fromAddress"));
+            } else {
+                serviceContext.put("subject", UtilProperties.getMessage(resource, "loginservices.password_reminder_subject", UtilMisc.toMap("userLoginId", userLoginId), UtilHttp.getLocale(request)));
+                serviceContext.put("sendFrom", EntityUtilProperties.getPropertyValue("general.properties", "defaultFromEmailAddress", delegator));
+            }            
+        }
         serviceContext.put("sendTo", emails.toString());
         serviceContext.put("partyId", party.getString("partyId"));
 
         try {
-            Map<String, Object> result = dispatcher.runSync("sendMailFromScreen", serviceContext);
+            Map<String, Object> result = dispatcher.runSync("sendMailHiddenInLogFromScreen", serviceContext);
 
             if (ModelService.RESPOND_ERROR.equals(result.get(ModelService.RESPONSE_MESSAGE))) {
                 Map<String, Object> messageMap = UtilMisc.toMap("errorMessage", result.get(ModelService.ERROR_MESSAGE));
@@ -376,7 +387,8 @@ public class LoginEvents {
 
     public static void setUsername(HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession();
-        String domain = UtilProperties.getPropertyValue("url.properties", "cookie.domain");
+        Delegator delegator = (Delegator) request.getAttribute("delegator");
+        String domain = EntityUtilProperties.getPropertyValue("url.properties", "cookie.domain", delegator);
         // first try to get the username from the cookie
         synchronized (session) {
             if (UtilValidate.isEmpty(getUsername(request))) {

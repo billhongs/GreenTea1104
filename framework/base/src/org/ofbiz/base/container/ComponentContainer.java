@@ -29,7 +29,6 @@ import org.ofbiz.base.component.AlreadyLoadedException;
 import org.ofbiz.base.component.ComponentConfig;
 import org.ofbiz.base.component.ComponentException;
 import org.ofbiz.base.component.ComponentLoaderConfig;
-import org.ofbiz.base.start.Classpath;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.FileUtil;
 import org.ofbiz.base.util.UtilValidate;
@@ -46,22 +45,17 @@ public class ComponentContainer implements Container {
 
     public static final String module = ComponentContainer.class.getName();
 
-    //protected static List loadedComponents2 = null;
-    protected Classpath classPath = new Classpath(System.getProperty("java.class.path"));
-    protected Classpath libraryPath = new Classpath(System.getProperty("java.library.path"));
     protected String configFileLocation = null;
+    private String name;
     private boolean loaded = false;
-    private String instrumenterClassName;
-    private String instrumenterFile;
 
-    /**
-     * @see org.ofbiz.base.container.Container#init(java.lang.String[], java.lang.String)
-     */
-    public void init(String[] args, String configFile) throws ContainerException {
+    @Override
+    public void init(String[] args, String name, String configFile) throws ContainerException {
+        this.name = name;
         this.configFileLocation = configFile;
 
         // get the config for this container
-        ContainerConfig.Container cc = ContainerConfig.getContainer("component-container", configFileLocation);
+        ContainerConfig.Container cc = ContainerConfig.getContainer(name, configFileLocation);
 
         // check for an override loader config
         String loaderConfig = null;
@@ -69,25 +63,9 @@ public class ComponentContainer implements Container {
             loaderConfig = cc.getProperty("loader-config").value;
         }
 
-        // check for en override update classpath
-        boolean updateClassPath = true;
-        if (cc.getProperty("update-classpath") != null) {
-            updateClassPath = "true".equalsIgnoreCase(cc.getProperty("update-classpath").value);
-        }
-        if (cc.getProperty("ofbiz.instrumenterClassName") != null) {
-            instrumenterClassName = cc.getProperty("ofbiz.instrumenterClassName").value;
-        } else {
-            instrumenterClassName = null;
-        }
-        if (cc.getProperty("ofbiz.instrumenterFile") != null) {
-            instrumenterFile = cc.getProperty("ofbiz.instrumenterFile").value;
-        } else {
-            instrumenterFile = null;
-        }
-
         // load the components
         try {
-            loadComponents(loaderConfig, updateClassPath, instrumenterClassName, instrumenterFile);
+            loadComponents(loaderConfig);
         } catch (AlreadyLoadedException e) {
             throw new ContainerException(e);
         } catch (ComponentException e) {
@@ -102,14 +80,8 @@ public class ComponentContainer implements Container {
         return true;
     }
 
-    public synchronized void loadComponents(String loaderConfig, boolean updateClasspath) throws AlreadyLoadedException, ComponentException {
-        loadComponents(loaderConfig, updateClasspath, null, null);
-    }
-
-    public synchronized void loadComponents(String loaderConfig, boolean updateClasspath, String instrumenterClassName, String instrumenterFile) throws AlreadyLoadedException, ComponentException {
+    public synchronized void loadComponents(String loaderConfig) throws AlreadyLoadedException, ComponentException {
         // set the loaded list; and fail if already loaded
-        //if (loadedComponents == null) {
-        //    loadedComponents = new LinkedList();
         if (!loaded) {
             loaded = true;
         } else {
@@ -133,16 +105,6 @@ public class ComponentContainer implements Container {
                 this.loadComponentFromConfig(parentPath, def);
             }
         }
-
-        // set the new classloader/classpath on the current thread
-        if (updateClasspath) {
-            classPath.instrument(instrumenterFile, instrumenterClassName);
-            System.setProperty("java.class.path", classPath.toString());
-            System.setProperty("java.library.path", libraryPath.toString());
-            ClassLoader cl = classPath.getClassLoader();
-            Thread.currentThread().setContextClassLoader(cl);
-        }
-
         Debug.logInfo("All components loaded", module);
     }
 
@@ -202,7 +164,7 @@ public class ComponentContainer implements Container {
                     try {
                         File componentPath = FileUtil.getFile(parentPath.getCanonicalPath() + "/" + sub);
                         if (componentPath.isDirectory() && !sub.equals("CVS") && !sub.equals(".svn")) {
-                            // make sure we have a component configuraton file
+                            // make sure we have a component configuration file
                             String componentLocation = componentPath.getCanonicalPath();
                             File configFile = FileUtil.getFile(componentLocation + "/ofbiz-component.xml");
                             if (configFile.exists()) {
@@ -231,63 +193,10 @@ public class ComponentContainer implements Container {
     private void loadComponent(ComponentConfig config) {
         // make sure the component is enabled
         if (!config.enabled()) {
-            Debug.logInfo("Not Loading component : [" + config.getComponentName() + "] (disabled)", module);
+            Debug.logInfo("Not Loaded component : [" + config.getComponentName() + "] (disabled)", module);
             return;
         }
-
-        Debug.logInfo("Loading component : [" + config.getComponentName() + "]", module);
-        List<ComponentConfig.ClasspathInfo> classpathInfos = config.getClasspathInfos();
-        String configRoot = config.getRootLocation();
-        configRoot = configRoot.replace('\\', '/');
-        // set the root to have a trailing slash
-        if (!configRoot.endsWith("/")) {
-            configRoot = configRoot + "/";
-        }
-        if (classpathInfos != null) {
-            String nativeLibExt = System.mapLibraryName("someLib").replace("someLib", "").toLowerCase();
-            for (ComponentConfig.ClasspathInfo cp: classpathInfos) {
-                String location = cp.location.replace('\\', '/');
-                // set the location to not have a leading slash
-                if (location.startsWith("/")) {
-                    location = location.substring(1);
-                }
-                if (!"jar".equals(cp.type) && !"dir".equals(cp.type)) {
-                    Debug.logError("Classpath type '" + cp.type + "' is not supported; '" + location + "' not loaded", module);
-                    continue;
-                }
-                String dirLoc = location;
-                if (dirLoc.endsWith("/*")) {
-                    // strip off the slash splat
-                    dirLoc = location.substring(0, location.length() - 2);
-                }
-                File path = FileUtil.getFile(configRoot + dirLoc);
-                if (path.exists()) {
-                    if (path.isDirectory()) {
-                        if ("dir".equals(cp.type)) {
-                            classPath.addComponent(configRoot + location);
-                        }
-                        // load all .jar, .zip files and native libs in this directory
-                        boolean containsNativeLibs = false;
-                        for (File file: path.listFiles()) {
-                            String fileName = file.getName().toLowerCase();
-                            if (fileName.endsWith(".jar") || fileName.endsWith(".zip")) {
-                                classPath.addComponent(file);
-                            } else if (fileName.endsWith(nativeLibExt)) {
-                                containsNativeLibs = true;
-                            }
-                        }
-                        if (containsNativeLibs) {
-                            libraryPath.addComponent(path);
-                        }
-                    } else {
-                        // add a single file
-                        classPath.addComponent(configRoot + location);
-                    }
-                } else {
-                    Debug.logWarning("Location '" + configRoot + dirLoc + "' does not exist", module);
-                }
-            }
-        }
+        Debug.logInfo("Loaded component : [" + config.getComponentName() + "]", module);
     }
 
     /**
@@ -296,16 +205,8 @@ public class ComponentContainer implements Container {
     public void stop() throws ContainerException {
     }
 
-    /**
-     * Static method for easy loading of components for use when the container system is not.
-     *
-     * @param updateClasspath Tells the component loader to update the classpath, and thread classloader
-     * @throws AlreadyLoadedException
-     * @throws ComponentException
-     */
-    public static synchronized void loadComponents(boolean updateClasspath) throws AlreadyLoadedException, ComponentException {
-        ComponentContainer cc = new ComponentContainer();
-        cc.loadComponents(null, updateClasspath);
-        cc = null;
+    public String getName() {
+        return name;
     }
+
 }

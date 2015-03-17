@@ -40,28 +40,13 @@ if (parameters.returnHeader) {
     returnId = parameters.returnId;
 }
 if (returnId) {
-    returnHeader = delegator.findByPrimaryKey("ReturnHeader", [returnId : returnId]);
+    returnHeader = from("ReturnHeader").where("returnId", returnId).queryOne();
     if (returnHeader) {
         partyId = returnHeader.fromPartyId;
         toPartyId = parameters.toPartyId;
 
-        context.currentStatus = returnHeader.getRelatedOneCache("StatusItem");
+        context.currentStatus = returnHeader.getRelatedOne("StatusItem", true);
     }
-} else {
-    partyId = parameters.partyId;
-    returnHeaders = delegator.findList("ReturnHeader", EntityCondition.makeCondition("fromPartyId", EntityOperator.EQUALS, partyId), null, null, null, false);
-    returnList = [];
-    returnHeaders.each { returnHeader ->
-        returnMap = [:];
-        returnMap.returnId = returnHeader.returnId;
-        statusItem = returnHeader.getRelatedOne("StatusItem");
-        returnMap.statusId = statusItem.description;
-        returnMap.fromPartyId = returnHeader.fromPartyId;
-        returnMap.toPartyId = returnHeader.toPartyId;
-        
-        returnList.add(returnMap);
-    }
-    context.returnList = returnList;
 }
 context.returnHeader = returnHeader;
 context.returnId = returnId;
@@ -69,16 +54,14 @@ context.returnId = returnId;
 //fin account info
 finAccounts = null;
 if (partyId) {
-    finAccounts = delegator.findByAnd("FinAccountAndRole", [partyId: partyId, finAccountTypeId: "STORE_CREDIT_ACCT", roleTypeId: "OWNER", statusId: "FNACT_ACTIVE"]);
-    finAccounts = EntityUtil.filterByDate(finAccounts);
+    finAccounts = from("FinAccountAndRole").where("partyId", partyId, "finAccountTypeId", "STORE_CREDIT_ACCT", "roleTypeId", "OWNER", "statusId", "FNACT_ACTIVE").filterByDate().queryList();
 }
 context.finAccounts = finAccounts;
 
 // billing account info
 billingAccountList = null;
 if (partyId) {
-    billingAccountList = delegator.findByAnd("BillingAccountAndRole", [partyId : partyId]);
-    billingAccountList = EntityUtil.filterByDate(billingAccountList);
+    billingAccountList = from("BillingAccountAndRole").where("partyId", partyId).filterByDate().queryList();
 }
 context.billingAccountList = billingAccountList;
 
@@ -86,8 +69,8 @@ context.billingAccountList = billingAccountList;
 List creditCardList = null;
 List eftAccountList = null;
 if (partyId) {
-    creditCardList = EntityUtil.filterByDate(delegator.findByAnd("PaymentMethodAndCreditCard", [partyId : partyId]));
-    eftAccountList = EntityUtil.filterByDate(delegator.findByAnd("PaymentMethodAndEftAccount", [partyId : partyId]));
+    creditCardList = from("PaymentMethodAndCreditCard").where("partyId", partyId).filterByDate().queryList();
+    eftAccountList = from("PaymentMethodAndEftAccount").where("partyId", partyId).filterByDate().queryList();
 }
 context.creditCardList = creditCardList;
 context.eftAccountList = eftAccountList;
@@ -95,9 +78,8 @@ context.eftAccountList = eftAccountList;
 orderRole = null;
 orderHeader = null;
 if (orderId) {
-    orderRoles = delegator.findByAnd("OrderRole", [orderId : orderId, roleTypeId : "BILL_TO_CUSTOMER"]);
-    orderRole = EntityUtil.getFirst(orderRoles);
-    orderHeader = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
+    orderRole = from("OrderRole").where("orderId", orderId, "roleTypeId", "BILL_TO_CUSTOMER").queryFirst();
+    orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
 }
 context.orderRole = orderRole;
 context.orderHeader = orderHeader;
@@ -113,15 +95,15 @@ context.addresses = addresses;
 if (returnHeader) {
     contactMechTo = ContactMechWorker.getFacilityContactMechByPurpose(delegator, returnHeader.destinationFacilityId, ["PUR_RET_LOCATION", "SHIPPING_LOCATION", "PRIMARY_LOCATION"]);
     if (contactMechTo) {
-        postalAddressTo = delegator.findOne("PostalAddress", [contactMechId : contactMechTo.contactMechId], true);
+        postalAddressTo = from("PostalAddress").where("contactMechId", contactMechTo.contactMechId).cache(true).queryOne();
         context.postalAddressTo = postalAddressTo;
     }
     
-    party = delegator.findOne("Party", [partyId : partyId], true);
+    party = from("Party").where("partyId", partyId).cache(true).queryOne();
     if (party) {
         shippingContactMechList = ContactHelper.getContactMech(party, "SHIPPING_LOCATION", "POSTAL_ADDRESS", false);
         if (shippingContactMechList) {
-            context.postalAddressFrom = delegator.findOne("PostalAddress", [contactMechId : EntityUtil.getFirst(shippingContactMechList).contactMechId], true);
+            context.postalAddressFrom = from("PostalAddress").where("contactMechId", EntityUtil.getFirst(shippingContactMechList).contactMechId).cache(true).queryOne();
         }
     }
 }

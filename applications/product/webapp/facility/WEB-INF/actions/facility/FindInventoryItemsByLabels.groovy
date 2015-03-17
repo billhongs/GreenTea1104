@@ -37,7 +37,7 @@ try {
 
 inventoryItemAndLabelsView = new DynamicViewEntity();
 inventoryItemAndLabelsView.addMemberEntity("II", "InventoryItem");
-inventoryItemAndLabelsView.addAliasAll("II", null);
+inventoryItemAndLabelsView.addAliasAll("II", null, null);
 for (int i = 1; i <= numberOfFields; i++) {
     inventoryItemLabelId = parameters.get("inventoryItemLabelId_" + i);
     if (inventoryItemLabelId) {
@@ -62,10 +62,8 @@ if (andCondition.size() > 1) {
         lowIndex = ((viewIndex * viewSize) + 1);
         highIndex = (viewIndex - 1) * viewSize;
 
-        findOpts = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, true);
-        findOpts.setMaxRows(highIndex);
         beganTransaction = TransactionUtil.begin();
-        inventoryItemsEli = delegator.findListIteratorByCondition(inventoryItemAndLabelsView, EntityCondition.makeCondition(andCondition, EntityOperator.AND), null, null, null, findOpts);
+        inventoryItemsEli = from(inventoryItemAndLabelsView).where(andCondition).cursorScrollInsensitive().distinct().maxRows(highIndex).queryIterator();
 
         inventoryItemsSize = inventoryItemsEli.getResultsSizeAfterPartialList();
         context.inventoryItemsSize = inventoryItemsSize;

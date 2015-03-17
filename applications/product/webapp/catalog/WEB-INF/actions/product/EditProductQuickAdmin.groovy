@@ -22,12 +22,13 @@ import org.ofbiz.entity.*
 import org.ofbiz.entity.condition.*
 import org.ofbiz.entity.util.*
 import org.ofbiz.product.product.*
+import org.ofbiz.entity.util.EntityUtilProperties;
 
 context.nowTimestampString = UtilDateTime.nowTimestamp().toString();
 
-context.assocTypes = delegator.findList("ProductAssocType", null, null, null, null, false);
+context.assocTypes = from("ProductAssocType").queryList();
 
-context.featureTypes = delegator.findList("ProductFeatureType", null, null, null, null, false);
+context.featureTypes = from("ProductFeatureType").queryList();
 
 // add/remove feature types
 addedFeatureTypes = (HashMap) session.getAttribute("addedFeatureTypes");
@@ -46,7 +47,7 @@ if (addFeatureTypeId) {
 addFeatureTypeIdIter = addFeatureTypeIdList.iterator();
 while (addFeatureTypeIdIter) {
     String curFeatureTypeId = addFeatureTypeIdIter.next();
-    GenericValue featureType = delegator.findOne("ProductFeatureType", [productFeatureTypeId : curFeatureTypeId], false);
+    GenericValue featureType = from("ProductFeatureType").where("productFeatureTypeId", curFeatureTypeId).queryOne();
     if ((featureType) && !addedFeatureTypes.containsKey(curFeatureTypeId)) {
         addedFeatureTypes.put(curFeatureTypeId, featureType);
     }
@@ -55,7 +56,7 @@ while (addFeatureTypeIdIter) {
 String[] removeFeatureTypeId = request.getParameterValues("removeFeatureTypeId");
 if (removeFeatureTypeId) {
     for (int i = 0; i < removeFeatureTypeId.length; i++) {
-        GenericValue featureType = delegator.findOne("ProductFeatureType", [productFeatureTypeId : addFeatureTypeId[i]], false);
+        GenericValue featureType = from("ProductFeatureType").where("productFeatureTypeId", addFeatureTypeId[i]).queryOne();
         if ((featureType) && addedFeatureTypes.containsKey(removeFeatureTypeId[i])) {
             addedFeatureTypes.remove(removeFeatureTypeId[i]);
             featuresByType.remove(removeFeatureTypeId[i]);
@@ -65,7 +66,7 @@ if (removeFeatureTypeId) {
 Iterator iter = addedFeatureTypes.values().iterator();
 while (iter) {
     GenericValue featureType = (GenericValue)iter.next();
-    featuresByType.put(featureType.productFeatureTypeId, featureType.getRelated("ProductFeature", ['description']));
+    featuresByType.put(featureType.productFeatureTypeId, featureType.getRelated("ProductFeature", null, ['description'], false));
 }
 
 context.addedFeatureTypeIds = addedFeatureTypes.keySet();
@@ -83,7 +84,7 @@ if (productId) {
     context.productId = productId;
 }
 
-product = delegator.findOne("Product", [productId : productId], false);
+product = from("Product").where("productId", productId).queryOne();
 assocProducts = [];
 featureFloz = [:];
 featureMl = [:];
@@ -107,16 +108,15 @@ if (product) {
     context.product = product;
 
     // get categories
-    allCategories = delegator.findList("ProductCategory",
-            EntityCondition.makeCondition(EntityCondition.makeCondition("showInSelect", EntityOperator.EQUALS, null), EntityOperator.OR, EntityCondition.makeCondition("showInSelect", EntityOperator.NOT_EQUAL, "N")),
-            null, ['description'], null, false);
+    allCategories = from("ProductCategory").where(EntityCondition.makeCondition(EntityCondition.makeCondition("showInSelect", EntityOperator.EQUALS, null), EntityOperator.OR, EntityCondition.makeCondition("showInSelect", EntityOperator.NOT_EQUAL, "N")))
+        .orderBy("description").queryList();
 
-    categoryMembers = product.getRelated("ProductCategoryMember");
+    categoryMembers = product.getRelated("ProductCategoryMember", null, null, false);
     categoryMembers = EntityUtil.filterByDate(categoryMembers);
     context.allCategories = allCategories;
     context.productCategoryMembers = categoryMembers;
 
-    productFeatureAndAppls = product.getRelated("ProductFeatureAndAppl");
+    productFeatureAndAppls = product.getRelated("ProductFeatureAndAppl", null, null, false);
 
     // get standard features for this product
     standardFeatureAppls = EntityUtil.filterByAnd(productFeatureAndAppls, [productFeatureApplTypeId : "STANDARD_FEATURE"]);
@@ -125,7 +125,7 @@ if (product) {
     Iterator standardFeatureApplIter = standardFeatureAppls.iterator();
     while (standardFeatureApplIter) {
         GenericValue standardFeatureAndAppl = (GenericValue) standardFeatureApplIter.next();
-        GenericValue featureType = standardFeatureAndAppl.getRelatedOneCache("ProductFeatureType");
+        GenericValue featureType = standardFeatureAndAppl.getRelatedOne("ProductFeatureType", true);
         productFeatureTypeLookup.put(standardFeatureAndAppl.getString("productFeatureId"), featureType);
         standardFeatureLookup.put(standardFeatureAndAppl.getString("productFeatureId"), standardFeatureAndAppl);
     }
@@ -141,7 +141,7 @@ if (product) {
     Iterator selectableFeatureAndApplIter = selectableFeatureAppls.iterator();
     while (selectableFeatureAndApplIter) {
         GenericValue selectableFeatureAndAppl = (GenericValue) selectableFeatureAndApplIter.next();
-        GenericValue featureType = selectableFeatureAndAppl.getRelatedOneCache("ProductFeatureType");
+        GenericValue featureType = selectableFeatureAndAppl.getRelatedOne("ProductFeatureType", true);
         productFeatureTypeLookup.put(selectableFeatureAndAppl.productFeatureId, featureType);
         selectableFeatureLookup.put(selectableFeatureAndAppl.productFeatureId, selectableFeatureAndAppl);
         selectableFeatureTypes.add(featureType);
@@ -156,7 +156,7 @@ if (product) {
         Iterator distinguishingFeatureIter = distinguishingFeatures.iterator();
         while (distinguishingFeatureIter) {
             distFeature = (GenericValue) distinguishingFeatureIter.next();
-            featureType = distFeature.getRelatedOneCache("ProductFeatureType");
+            featureType = distFeature.getRelatedOne("ProductFeatureType", true);
             if (!productFeatureTypeLookup.containsKey(distFeature.productFeatureId)) {
                 productFeatureTypeLookup.put(distFeature.productFeatureId, featureType);
             }
@@ -227,16 +227,16 @@ if (product) {
     context.thrudate = thrudate;
 
     // get all variants - associations first
-    productAssocs = product.getRelatedByAnd("MainProductAssoc", [productAssocTypeId : 'PRODUCT_VARIANT']);
+    productAssocs = product.getRelated("MainProductAssoc", [productAssocTypeId : 'PRODUCT_VARIANT'], null, false);
     Iterator productAssocIter = productAssocs.iterator();
     // get shipping dimensions and weights for all the variants
     while (productAssocIter) {
         // now get the variant product
         productAssoc = (GenericValue)productAssocIter.next();
-        assocProduct = productAssoc.getRelatedOne("AssocProduct");
+        assocProduct = productAssoc.getRelatedOne("AssocProduct", false);
         if (assocProduct) {
             assocProducts.add(assocProduct);
-            assocProductFeatureAndAppls = assocProduct.getRelated("ProductFeatureAndAppl");
+            assocProductFeatureAndAppls = assocProduct.getRelated("ProductFeatureAndAppl", null, null, false);
             prodFeaturesFiltered = EntityUtil.filterByAnd(assocProductFeatureAndAppls, [productFeatureTypeId : 'AMOUNT', uomId : 'VLIQ_ozUS']);
             if (prodFeaturesFiltered) {
                 featureFloz.put(assocProduct.productId, ((GenericValue)prodFeaturesFiltered.get(0)).getBigDecimal("numberSpecified"));
@@ -303,11 +303,11 @@ context.featureThruDate = featureThruDate;
 context.selFeatureDesc = selFeatureDesc;
 
 // get "all" category id
-String allCategoryId = UtilProperties.getPropertyValue("catalog", "all.product.category");
+String allCategoryId = EntityUtilProperties.getPropertyValue("catalog", "all.product.category", delegator);
 context.allCategoryId = allCategoryId;
 
 // show the publish or unpublish section
-prodCatMembs = delegator.findList("ProductCategoryMember", EntityCondition.makeCondition([productCategoryId : allCategoryId, productId : productId]), null, null, null, false);
+prodCatMembs = from("ProductCategoryMember").where("productCategoryId", allCategoryId, "productId", productId).queryList();
 //don't filter by date, show all categories: prodCatMembs = EntityUtil.filterByDate(prodCatMembs);
 
 String showPublish = "false";

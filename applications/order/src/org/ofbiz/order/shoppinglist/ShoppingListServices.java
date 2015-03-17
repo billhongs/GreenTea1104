@@ -20,7 +20,7 @@ package org.ofbiz.order.shoppinglist;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.util.Iterator;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,12 +36,12 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.condition.EntityExpr;
-import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.transaction.TransactionUtil;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityTypeUtil;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.order.shoppingcart.CartItemModifyException;
 import org.ofbiz.order.shoppingcart.CheckOutHelper;
@@ -57,6 +57,8 @@ import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ServiceUtil;
 import org.ofbiz.service.calendar.RecurrenceInfo;
 import org.ofbiz.service.calendar.RecurrenceInfoException;
+
+import com.ibm.icu.util.Calendar;
 
 /**
  * Shopping List Services
@@ -127,20 +129,15 @@ public class ShoppingListServices {
         try {
             beganTransaction = TransactionUtil.begin();
 
-            List<EntityExpr> exprs = UtilMisc.toList(EntityCondition.makeCondition("shoppingListTypeId", EntityOperator.EQUALS, "SLT_AUTO_REODR"),
-                    EntityCondition.makeCondition("isActive", EntityOperator.EQUALS, "Y"));
-            EntityCondition cond = EntityCondition.makeCondition(exprs, EntityOperator.AND);
-            List<String> order = UtilMisc.toList("-lastOrderedDate");
-
             EntityListIterator eli = null;
-            eli = delegator.find("ShoppingList", cond, null, null, order, null);
+            eli = EntityQuery.use(delegator).from("ShoppingList").where("shoppingListTypeId", "SLT_AUTO_REODR", "isActive", "Y").orderBy("-lastOrderedDate").queryIterator();
 
             if (eli != null) {
                 GenericValue shoppingList;
                 while (((shoppingList = eli.next()) != null)) {
                     Timestamp lastOrder = shoppingList.getTimestamp("lastOrderedDate");
                     GenericValue recurrenceInfo = null;
-                    recurrenceInfo = shoppingList.getRelatedOne("RecurrenceInfo");
+                    recurrenceInfo = shoppingList.getRelatedOne("RecurrenceInfo", false);
 
                     Timestamp startDateTime = recurrenceInfo.getTimestamp("startDateTime");
                     RecurrenceInfo recurrence = null;
@@ -268,7 +265,7 @@ public class ShoppingListServices {
             beganTransaction = TransactionUtil.begin();
 
             GenericValue orderHeader = null;
-            orderHeader = delegator.findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
+            orderHeader = EntityQuery.use(delegator).from("OrderHeader").where("orderId", orderId).queryOne();
 
             if (orderHeader == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource_error,"OrderUnableToLocateOrder", UtilMisc.toMap("orderId",orderId), locale));
@@ -309,30 +306,30 @@ public class ShoppingListServices {
             }
 
             GenericValue shoppingList = null;
-            shoppingList = delegator.findByPrimaryKey("ShoppingList", UtilMisc.toMap("shoppingListId", shoppingListId));
+            shoppingList = EntityQuery.use(delegator).from("ShoppingList").where("shoppingListId", shoppingListId).queryOne();
 
             if (shoppingList == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource_error,"OrderNoShoppingListAvailable",locale));
             }
             shoppingListTypeId = shoppingList.getString("shoppingListTypeId");
 
-            OrderReadHelper orh = new OrderReadHelper(orderHeader);
-            if (orh == null) {
+            OrderReadHelper orh;
+            try {
+                orh = new OrderReadHelper(orderHeader);
+            } catch (IllegalArgumentException e) {
+                Debug.logError(e, module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource_error,"OrderUnableToLoadOrderReadHelper", UtilMisc.toMap("orderId",orderId), locale));
             }
 
             List<GenericValue> orderItems = orh.getOrderItems();
-            Iterator<GenericValue> i = orderItems.iterator();
-            String productId = null;
-            while (i.hasNext()) {
-                GenericValue orderItem = i.next();
-                productId = orderItem.getString("productId");
+            for (GenericValue orderItem : orderItems) {
+                String productId = orderItem.getString("productId");
                 if (UtilValidate.isNotEmpty(productId)) {
                     Map<String, Object> ctx = UtilMisc.<String, Object>toMap("userLogin", userLogin, "shoppingListId", shoppingListId, "productId",
                             orderItem.get("productId"), "quantity", orderItem.get("quantity"));
-                    if ("AGGREGATED_CONF".equals(ProductWorker.getProductTypeId(delegator, productId))) {
+                    if (EntityTypeUtil.hasParentType(delegator, "ProductType", "productTypeId", ProductWorker.getProductTypeId(delegator, productId), "parentTypeId", "AGGREGATED")) {
                         try {
-                            GenericValue instanceProduct = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", productId));
+                            GenericValue instanceProduct = EntityQuery.use(delegator).from("Product").where("productId", productId).queryOne();
                             String configId = instanceProduct.getString("configId");
                             ctx.put("configId", configId);
                             String aggregatedProductId = ProductWorker.getInstanceAggregatedId(delegator, productId);
@@ -411,10 +408,10 @@ public class ShoppingListServices {
     }
     /**
      * Create a new shoppingCart form a shoppingList
-     * @param dispatcher
-     * @param shoppingList
-     * @param locale
-     * @return
+     * @param dispatcher the local dispatcher
+     * @param shoppingList a GenericValue object of the shopping list
+     * @param locale the locale in use
+     * @return returns a new shopping cart form a shopping list
      */
     public static ShoppingCart makeShoppingListCart(LocalDispatcher dispatcher, GenericValue shoppingList, Locale locale) {
         return makeShoppingListCart(null, dispatcher, shoppingList, locale); }
@@ -422,11 +419,11 @@ public class ShoppingListServices {
     /**
      * Add a shoppinglist to an existing shoppingcart
      *
-     * @param shoppingCart
-     * @param dispatcher
-     * @param shoppingList
-     * @param locale
-     * @return
+     * @param listCart the shopping cart list
+     * @param dispatcher the local dispatcher
+     * @param shoppingList a GenericValue object of the shopping list
+     * @param locale the locale in use
+     * @return the modified shopping cart adding the shopping list elements
      */
     public static ShoppingCart makeShoppingListCart(ShoppingCart listCart, LocalDispatcher dispatcher, GenericValue shoppingList, Locale locale) {
         Delegator delegator = dispatcher.getDelegator();
@@ -446,7 +443,7 @@ public class ShoppingListServices {
 
             List<GenericValue> items = null;
             try {
-                items = shoppingList.getRelated("ShoppingListItem", UtilMisc.toList("shoppingListItemSeqId"));
+                items = shoppingList.getRelated("ShoppingListItem", null, UtilMisc.toList("shoppingListItemSeqId"), false);
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -467,10 +464,8 @@ public class ShoppingListServices {
                 }
 
 
-                Iterator<GenericValue> i = items.iterator();
                 ProductConfigWrapper configWrapper = null;
-                while (i.hasNext()) {
-                    GenericValue shoppingListItem = i.next();
+                for (GenericValue shoppingListItem : items) {
                     String productId = shoppingListItem.getString("productId");
                     BigDecimal quantity = shoppingListItem.getBigDecimal("quantity");
                     Timestamp reservStart = shoppingListItem.getTimestamp("reservStart");
@@ -517,13 +512,13 @@ public class ShoppingListServices {
                         listCart.addPayment(shoppingList.getString("paymentMethodId"));
                     }
                     if (UtilValidate.isNotEmpty(shoppingList.get("contactMechId"))) {
-                        listCart.setShippingContactMechId(0, shoppingList.getString("contactMechId"));
+                        listCart.setAllShippingContactMechId(shoppingList.getString("contactMechId"));
                     }
                     if (UtilValidate.isNotEmpty(shoppingList.get("shipmentMethodTypeId"))) {
-                        listCart.setShipmentMethodTypeId(0, shoppingList.getString("shipmentMethodTypeId"));
+                        listCart.setAllShipmentMethodTypeId(shoppingList.getString("shipmentMethodTypeId"));
                     }
                     if (UtilValidate.isNotEmpty(shoppingList.get("carrierPartyId"))) {
-                        listCart.setCarrierPartyId(0, shoppingList.getString("carrierPartyId"));
+                        listCart.setAllCarrierPartyId(shoppingList.getString("carrierPartyId"));
                     }
                     if (UtilValidate.isNotEmpty(shoppingList.getString("productPromoCodeId"))) {
                         listCart.addProductPromoCode(shoppingList.getString("productPromoCodeId"), dispatcher);
@@ -538,7 +533,7 @@ public class ShoppingListServices {
         Delegator delegator = dispatcher.getDelegator();
         GenericValue shoppingList = null;
         try {
-            shoppingList = delegator.findByPrimaryKey("ShoppingList", UtilMisc.toMap("shoppingListId", shoppingListId));
+            shoppingList = EntityQuery.use(delegator).from("ShoppingList").where("shoppingListId", shoppingListId).queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }
@@ -560,15 +555,12 @@ public class ShoppingListServices {
         Delegator delegator = ctx.getDelegator();
         String orderId = (String) context.get("orderId");
         try {
-            List<GenericValue> orderItems = delegator.findByAnd("OrderItem", UtilMisc.toMap("orderId", orderId));
-            Iterator<GenericValue> iter = orderItems.iterator();
-            while (iter.hasNext()) {
-                GenericValue orderItem = iter.next();
+            List<GenericValue> orderItems = EntityQuery.use(delegator).from("OrderItem").where("orderId", orderId).queryList();
+            for (GenericValue orderItem : orderItems) {
                 String shoppingListId = orderItem.getString("shoppingListId");
                 String shoppingListItemSeqId = orderItem.getString("shoppingListItemSeqId");
                 if (UtilValidate.isNotEmpty(shoppingListId)) {
-                    GenericValue shoppingListItem=delegator.findByPrimaryKey("ShoppingListItem", UtilMisc.toMap("shoppingListId",
-                                shoppingListId, "shoppingListItemSeqId", shoppingListItemSeqId));
+                    GenericValue shoppingListItem = EntityQuery.use(delegator).from("ShoppingListItem").where("shoppingListId", shoppingListId, "shoppingListItemSeqId", shoppingListItemSeqId).queryOne();
                     if (shoppingListItem != null) {
                         BigDecimal quantityPurchased = shoppingListItem.getBigDecimal("quantityPurchased");
                         BigDecimal orderQuantity = orderItem.getBigDecimal("quantity");
@@ -585,5 +577,60 @@ public class ShoppingListServices {
             Debug.logInfo("updateShoppingListQuantitiesFromOrder error:"+e.getMessage(), module);
         }
         return result;
+    }
+
+    public static Map<String,Object> autoDeleteAutoSaveShoppingList(DispatchContext dctx, Map<String, ? extends Object> context) {
+        Delegator delegator = dctx.getDelegator();
+        LocalDispatcher dispatcher = dctx.getDispatcher();
+        GenericValue userLogin = (GenericValue) context.get("userLogin");
+        List<GenericValue> shoppingList = null;
+        try {
+            shoppingList = EntityQuery.use(delegator).from("ShoppingList").where("partyId", null, "shoppingListTypeId", "SLT_SPEC_PURP").queryList();
+        } catch (GenericEntityException e) {
+            Debug.logError(e.getMessage(), module);
+        }
+        String maxDaysStr = EntityUtilProperties.getPropertyValue("order.properties", "autosave.max.age", "30", delegator);
+        int maxDays = 0;
+        try {
+            maxDays = Integer.parseInt(maxDaysStr);
+        } catch (NumberFormatException e) {
+            Debug.logError(e, "Unable to get maxDays", module);
+        }
+        for (GenericValue sl : shoppingList) {
+            if (maxDays > 0) {
+                Timestamp lastModified = sl.getTimestamp("lastAdminModified");
+                if (lastModified == null) {
+                    lastModified = sl.getTimestamp("lastUpdatedStamp");
+                }
+                Calendar cal = Calendar.getInstance();
+                cal.setTimeInMillis(lastModified.getTime());
+                cal.add(Calendar.DAY_OF_YEAR, maxDays);
+                Date expireDate = cal.getTime();
+                Date nowDate = new Date();
+                if (expireDate.equals(nowDate) || nowDate.after(expireDate)) {
+                    List<GenericValue> shoppingListItems = null;
+                    try {
+                        shoppingListItems = sl.getRelated("ShoppingListItem", null, null, false);
+                    } catch (GenericEntityException e) {
+                        Debug.logError(e.getMessage(), module);
+                    }
+                    for (GenericValue sli : shoppingListItems) {
+                        try {
+                            dispatcher.runSync("removeShoppingListItem", UtilMisc.toMap("shoppingListId", sl.getString("shoppingListId"),
+                                    "shoppingListItemSeqId", sli.getString("shoppingListItemSeqId"),
+                                    "userLogin", userLogin));
+                        } catch (GenericServiceException e) {
+                            Debug.logError(e.getMessage(), module);
+                        }
+                    }
+                    try {
+                        dispatcher.runSync("removeShoppingList", UtilMisc.toMap("shoppingListId", sl.getString("shoppingListId"), "userLogin", userLogin));
+                    } catch (GenericServiceException e) {
+                        Debug.logError(e.getMessage(), module);
+                    }
+                }
+            }
+        }
+        return ServiceUtil.returnSuccess();
     }
 }

@@ -565,7 +565,7 @@ under the License.
     <request-map uri="createPartyRelationship">
         <security https="true" auth="true"/>
         <event type="service" path="" invoke="createPartyRelationship"/>
-        <response name="success" type="view-last" value="EditPartyRelationships"/>
+        <response name="success" type="view" value="EditPartyRelationships"/>
         <response name="error" type="view" value="EditPartyRelationships"/>
     </request-map>
     <request-map uri="createPartyRelationshipAndRole">
@@ -636,11 +636,6 @@ under the License.
         <response name="success" type="view" value="EditCommunicationEvent" save-current-view="true"/>
     </request-map>
     <request-map uri="ViewCommunicationEvent">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="setCommEventRoleToRead"/>
-        <response name="success" type="view" value="ViewCommunicationEvent"/>
-    </request-map>
-    <request-map uri="viewCommunicationEvent">
         <security https="true" auth="true"/>
         <response name="success" type="view" value="ViewCommunicationEvent"/>
     </request-map>
@@ -906,6 +901,22 @@ under the License.
         <response name="success" type="view" value="FindAddressMatch"/>
     </request-map>
 
+    <!-- Import export -->
+    <request-map uri="ImportExport">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="ImportExport"/>
+    </request-map>
+    <request-map uri="ExportPartyCsv.csv">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="PartyExportCsv"/>
+    </request-map>
+    <request-map uri="uploadParty">
+        <security auth="true" https="true"/>
+        <event invoke="importParty" path="" type="service"/>
+        <response name="success" type="request" value="ImportExport"/>
+        <response name="error" type="view" value="ImportExport"/>
+    </request-map>
+
    <!-- ================ SimpleContent Requests ================= -->
 
     <request-map uri="ViewSimpleContent">
@@ -1137,9 +1148,9 @@ under the License.
         <security https="true" auth="true"/>
         <response name="success" type="view" value="Preferences"/>
     </request-map>
-    <request-map uri="updatePreference">
+    <request-map uri="removePreference">
         <security https="true" auth="true"/>
-        <event type="service" invoke="setUserPreference"/>
+        <event type="service" invoke="removeUserPreference"/>
         <response name="success" type="view" value="Preferences"/>
         <response name="error" type="view" value="Preferences"/>
     </request-map>
@@ -1149,6 +1160,17 @@ under the License.
         <security https="true" auth="true"/>
         <response name="success" type="view" value="PartyGeoLocation"/>
         <response name="error" type="view" value="viewprofile"/>
+    </request-map>
+    <request-map uri="addGeoLocation">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="addGeoLocation"/>
+        <response name="error" type="view" value="PartyGeoLocation"/>
+    </request-map>
+    <request-map uri="editGeoLocation">
+        <security https="true" auth="true"/>
+        <event type="simple" path="component://party/script/org/ofbiz/party/party/PartySimpleEvents.xml" invoke="editGeoLocation"/>
+        <response name="success" type="view" value="PartyGeoLocation"/>
+        <response name="error" type="view" value="PartyGeoLocation"/>
     </request-map>
     
     <!-- ProductStoreRole -->
@@ -1221,7 +1243,7 @@ under the License.
     </request-map>
     <request-map uri="ProfileRemoveUserLoginFromSecurityGroup">
         <security https="true" auth="true"/>
-        <event type="service" path="" invoke="removeUserLoginFromSecurityGroup"/>
+        <event type="service" path="" invoke="updateUserLoginToSecurityGroup"/>
         <response name="success" type="view" value="ProfileEditUserLoginSecurityGroups"/>
         <response name="error" type="view" value="ProfileEditUserLoginSecurityGroups"/>
     </request-map>
@@ -1341,6 +1363,10 @@ under the License.
 
     <view-map name="AddressMatchMap" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#AddressMatchMap"/>
     <view-map name="FindAddressMatch" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#FindAddressMatch"/>
+
+    <view-map name="ImportExport" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#ImportExport"/>
+    <view-map name="PartyExportCsv" type="screencsv" page="component://party/widget/partymgr/PartyScreens.xml#PartyExportCsv" content-type="text/csv" encoding="none"/>
+
     <view-map name="EditPartyContents" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#EditPartyContents"/>
     <view-map name="editCarrierAccount" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#editCarrierAccount"/>
     <view-map name="partyInvitation" type="screen" page="component://party/widget/partymgr/PartyInvitationScreens.xml#FindPartyInvitations"/>
@@ -1356,10 +1382,14 @@ under the License.
 
     <view-map name="UpdateCommOrders" type="screen" page="component://party/widget/partymgr/CommunicationEventScreens.xml#UpdateCommOrders"/>
     <view-map name="UpdateCommProducts" type="screen" page="component://party/widget/partymgr/CommunicationEventScreens.xml#UpdateCommProducts"/>
-    
+ 
     <view-map name="ViewProductStoreRoles" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#ViewProductStoreRoles"/>
-    
+
     <!-- Billing Account-->
     <view-map name="EditBillingAccount" type="screen" page="component://party/widget/partymgr/PaymentMethodScreens.xml#EditBillingAccount"/>
+
+    <!-- GeoLocation-->
+    <view-map name="addGeoLocation" type="screen" page="component://party/widget/partymgr/PartyScreens.xml#EditGeoLocation"/>
+
     <!-- end of view mappings -->
 </site-conf>

@@ -35,6 +35,7 @@ import java.util.Currency;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -47,13 +48,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import javolution.util.FastList;
-import javolution.util.FastMap;
-
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.oro.text.regex.MalformedPatternException;
-import org.owasp.esapi.errors.EncodingException;
-import org.owasp.esapi.errors.IntrusionException;
+import org.apache.oro.text.regex.Pattern;
+import org.apache.oro.text.regex.PatternMatcher;
+import org.apache.oro.text.regex.Perl5Matcher;
 
 import com.ibm.icu.util.Calendar;
 
@@ -85,7 +84,7 @@ public class UtilHttp {
      * @return The resulting Map
      */
     public static Map<String, Object> getCombinedMap(HttpServletRequest request, Set<? extends String> namesToSkip) {
-        FastMap<String, Object> combinedMap = FastMap.newInstance();
+        Map<String, Object> combinedMap = new HashMap<String, Object>();
         combinedMap.putAll(getParameterMap(request));                   // parameters override nothing
         combinedMap.putAll(getServletContextMap(request, namesToSkip)); // bottom level application attributes
         combinedMap.putAll(getSessionMap(request, namesToSkip));        // session overrides application
@@ -154,12 +153,8 @@ public class UtilHttp {
         return canonicalizeParameterMap(paramMap);
     }
 
-    public static Map<String, Object> getQueryStringOnlyParameterMap(HttpServletRequest request) {
-        return getQueryStringOnlyParameterMap(request.getQueryString());
-    }
-
     public static Map<String, Object> getQueryStringOnlyParameterMap(String queryString) {
-        Map<String, Object> paramMap = FastMap.newInstance();
+        Map<String, Object> paramMap = new HashMap<String, Object>();
         if (UtilValidate.isNotEmpty(queryString)) {
             StringTokenizer queryTokens = new StringTokenizer(queryString, "&");
             while (queryTokens.hasMoreTokens()) {
@@ -186,7 +181,7 @@ public class UtilHttp {
 
     public static Map<String, Object> getPathInfoOnlyParameterMap(String pathInfoStr, Set<? extends String> nameSet, Boolean onlyIncludeOrSkip) {
         boolean onlyIncludeOrSkipPrim = onlyIncludeOrSkip == null ? true : onlyIncludeOrSkip.booleanValue();
-        Map<String, Object> paramMap = FastMap.newInstance();
+        Map<String, Object> paramMap = new HashMap<String, Object>();
 
         // now add in all path info parameters /~name1=value1/~name2=value2/
         // note that if a parameter with a given name already exists it will be put into a list with all values
@@ -215,7 +210,7 @@ public class UtilHttp {
                             paramList.add(value);
                         } else {
                             String paramString = (String) curValue;
-                            paramList = FastList.newInstance();
+                            paramList = new LinkedList<String>();
                             paramList.add(paramString);
                             paramList.add(value);
                         }
@@ -231,13 +226,9 @@ public class UtilHttp {
     }
 
     public static Map<String, Object> getUrlOnlyParameterMap(HttpServletRequest request) {
-        return getUrlOnlyParameterMap(request.getQueryString(), request.getPathInfo());
-    }
-
-    public static Map<String, Object> getUrlOnlyParameterMap(String queryString, String pathInfo) {
         // NOTE: these have already been through canonicalizeParameterMap, so not doing it again here
-        Map<String, Object> paramMap = getQueryStringOnlyParameterMap(queryString);
-        paramMap.putAll(getPathInfoOnlyParameterMap(pathInfo, null, null));
+        Map<String, Object> paramMap = getQueryStringOnlyParameterMap(request.getQueryString());
+        paramMap.putAll(getPathInfoOnlyParameterMap(request.getPathInfo(), null, null));
         return paramMap;
     }
 
@@ -246,7 +237,7 @@ public class UtilHttp {
             if (paramEntry.getValue() instanceof String) {
                 paramEntry.setValue(canonicalizeParameter((String) paramEntry.getValue()));
             } else if (paramEntry.getValue() instanceof Collection<?>) {
-                List<String> newList = FastList.newInstance();
+                List<String> newList = new LinkedList<String>();
                 for (String listEntry: UtilGenerics.<String>checkCollection(paramEntry.getValue())) {
                     newList.add(canonicalizeParameter(listEntry));
                 }
@@ -258,10 +249,11 @@ public class UtilHttp {
 
     public static String canonicalizeParameter(String paramValue) {
         try {
-            String cannedStr = StringUtil.defaultWebEncoder.canonicalize(paramValue, StringUtil.esapiCanonicalizeStrict);
+            /** calling canonicalize with strict flag set to false so we only get warnings about double encoding, etc; can be set to true for exceptions and more security */
+            String cannedStr = UtilCodec.canonicalize(paramValue, false);
             if (Debug.verboseOn()) Debug.logVerbose("Canonicalized parameter with " + (cannedStr.equals(paramValue) ? "no " : "") + "change: original [" + paramValue + "] canned [" + cannedStr + "]", module);
             return cannedStr;
-        } catch (IntrusionException e) {
+        } catch (Exception e) {
             Debug.logError(e, "Error in canonicalize parameter value [" + paramValue + "]: " + e.toString(), module);
             return paramValue;
         }
@@ -272,10 +264,11 @@ public class UtilHttp {
      * @return The resulting Map
      */
     public static Map<String, Object> getJSONAttributeMap(HttpServletRequest request) {
-        Map<String, Object> returnMap = FastMap.newInstance();
+        Map<String, Object> returnMap = new HashMap<String, Object>();
         Map<String, Object> attrMap = getAttributeMap(request);
-        for (String key: attrMap.keySet()) {
-            Object val = attrMap.get(key);
+        for (Map.Entry<String, Object> entry : attrMap.entrySet()) {
+            String key = entry.getKey();
+            Object val = entry.getValue();
             if (val instanceof java.sql.Timestamp) {
                 val = val.toString();
             }
@@ -301,7 +294,7 @@ public class UtilHttp {
      * @return The resulting Map
      */
     public static Map<String, Object> getAttributeMap(HttpServletRequest request, Set<? extends String> namesToSkip) {
-        Map<String, Object> attributeMap = FastMap.newInstance();
+        Map<String, Object> attributeMap = new HashMap<String, Object>();
 
         // look at all request attributes
         Enumeration<String> requestAttrNames = UtilGenerics.cast(request.getAttributeNames());
@@ -335,7 +328,7 @@ public class UtilHttp {
      * @return The resulting Map
      */
     public static Map<String, Object> getSessionMap(HttpServletRequest request, Set<? extends String> namesToSkip) {
-        Map<String, Object> sessionMap = FastMap.newInstance();
+        Map<String, Object> sessionMap = new HashMap<String, Object>();
         HttpSession session = request.getSession();
 
         // look at all the session attributes
@@ -370,7 +363,7 @@ public class UtilHttp {
      * @return The resulting Map
      */
     public static Map<String, Object> getServletContextMap(HttpServletRequest request, Set<? extends String> namesToSkip) {
-        Map<String, Object> servletCtxMap = FastMap.newInstance();
+        Map<String, Object> servletCtxMap = new HashMap<String, Object>();
 
         // look at all servlet context attributes
         ServletContext servletContext = (ServletContext) request.getAttribute("servletContext");
@@ -549,11 +542,11 @@ public class UtilHttp {
             return;
         }
 
-        StringBuffer fullRequestUrl = UtilHttp.getFullRequestUrl(request);
+        String fullRequestUrl = getFullRequestUrl(request);
 
-        session.setAttribute("_WEBAPP_NAME_", UtilHttp.getApplicationName(request));
+        session.setAttribute("_WEBAPP_NAME_", getApplicationName(request));
         session.setAttribute("_CLIENT_LOCALE_", request.getLocale());
-        session.setAttribute("_CLIENT_REQUEST_", fullRequestUrl.toString());
+        session.setAttribute("_CLIENT_REQUEST_", fullRequestUrl);
         session.setAttribute("_CLIENT_USER_AGENT_", request.getHeader("User-Agent") != null ? request.getHeader("User-Agent") : "");
         session.setAttribute("_CLIENT_REFERER_", request.getHeader("Referer") != null ? request.getHeader("Referer") : "");
 
@@ -575,8 +568,9 @@ public class UtilHttp {
         }
     }
 
-    public static StringBuffer getServerRootUrl(HttpServletRequest request) {
-        StringBuffer requestUrl = new StringBuffer();
+
+    private static StringBuilder prepareServerRootUrl(HttpServletRequest request) {
+        StringBuilder requestUrl = new StringBuilder();
         requestUrl.append(request.getScheme());
         requestUrl.append("://" + request.getServerName());
         if (request.getServerPort() != 80 && request.getServerPort() != 443)
@@ -584,13 +578,17 @@ public class UtilHttp {
         return requestUrl;
     }
 
-    public static StringBuffer getFullRequestUrl(HttpServletRequest request) {
-        StringBuffer requestUrl = UtilHttp.getServerRootUrl(request);
+    public static String getServerRootUrl(HttpServletRequest request) {
+        return prepareServerRootUrl(request).toString();
+    }
+
+    public static String getFullRequestUrl(HttpServletRequest request) {
+        StringBuilder requestUrl = prepareServerRootUrl(request);
         requestUrl.append(request.getRequestURI());
         if (request.getQueryString() != null) {
             requestUrl.append("?" + request.getQueryString());
         }
-        return requestUrl;
+        return requestUrl.toString();
     }
 
     public static Locale getLocale(HttpServletRequest request, HttpSession session, Object appDefaultLocale) {
@@ -629,7 +627,7 @@ public class UtilHttp {
      */
     public static Locale getLocale(HttpServletRequest request) {
         if (request == null) return Locale.getDefault();
-        return UtilHttp.getLocale(request, request.getSession(), null);
+        return getLocale(request, request.getSession(), null);
     }
 
     /**
@@ -640,11 +638,11 @@ public class UtilHttp {
      */
     public static Locale getLocale(HttpSession session) {
         if (session == null) return Locale.getDefault();
-        return UtilHttp.getLocale(null, session, null);
+        return getLocale(null, session, null);
     }
 
     public static void setLocale(HttpServletRequest request, String localeString) {
-        UtilHttp.setLocale(request.getSession(), UtilMisc.parseLocale(localeString));
+        setLocale(request.getSession(), UtilMisc.parseLocale(localeString));
     }
 
     public static void setLocale(HttpSession session, Locale locale) {
@@ -653,12 +651,12 @@ public class UtilHttp {
 
     public static void setLocaleIfNone(HttpSession session, String localeString) {
         if (UtilValidate.isNotEmpty(localeString) && session.getAttribute("locale") == null) {
-            UtilHttp.setLocale(session, UtilMisc.parseLocale(localeString));
+            setLocale(session, UtilMisc.parseLocale(localeString));
         }
     }
 
     public static void setTimeZone(HttpServletRequest request, String tzId) {
-        UtilHttp.setTimeZone(request.getSession(), UtilDateTime.toTimeZone(tzId));
+        setTimeZone(request.getSession(), UtilDateTime.toTimeZone(tzId));
     }
 
     public static void setTimeZone(HttpSession session, TimeZone timeZone) {
@@ -667,18 +665,21 @@ public class UtilHttp {
 
     public static TimeZone getTimeZone(HttpServletRequest request) {
         HttpSession session = request.getSession();
-        TimeZone timeZone = (TimeZone) session.getAttribute("timeZone");
-        if (timeZone == null) {
-            String tzId = null;
-            Map<String, String> userLogin = UtilGenerics.cast(session.getAttribute("userLogin"));
-            if (userLogin != null) {
-                tzId = userLogin.get("lastTimeZone");
+        TimeZone timeZone = null;
+        Map<String, String> userLogin = UtilGenerics.cast(session.getAttribute("userLogin"));
+        if (userLogin != null) {
+            String tzId = userLogin.get("lastTimeZone");
+            if (tzId != null) {
+                timeZone = TimeZone.getTimeZone(tzId);
             }
-            timeZone = UtilDateTime.toTimeZone(tzId);
-            session.setAttribute("timeZone", timeZone);
         }
+        if (timeZone == null) {
+            timeZone = TimeZone.getDefault();
+        }
+        session.setAttribute("timeZone", timeZone);
         return timeZone;
     }
+
 
     /**
      * Get the currency string from the session.
@@ -758,11 +759,27 @@ public class UtilHttp {
                 String name = entry.getKey();
                 Object value = entry.getValue();
                 String valueStr = null;
-                if (name != null && value != null) {
-                    if (value instanceof String) {
-                        valueStr = (String) value;
+                if (name == null || value == null) {
+                    continue;
+                }
+
+                Collection<?> col;
+                if (value instanceof String) {
+                    col = Arrays.asList(value);
+                } else if (value instanceof Collection) {
+                    col = UtilGenerics.cast(value);
+                } else if (value.getClass().isArray()) {
+                    col = Arrays.asList((Object[]) value);
+                } else {
+                    col = Arrays.asList(value);
+                }
+                for (Object colValue: col) {
+                    if (colValue instanceof String) {
+                        valueStr = (String) colValue;
+                    } else if (colValue == null) {
+                        continue;
                     } else {
-                        valueStr = value.toString();
+                        valueStr = colValue.toString();
                     }
 
                     if (UtilValidate.isNotEmpty(valueStr)) {
@@ -773,22 +790,14 @@ public class UtilHttp {
                                 buf.append("&");
                             }
                         }
-                        try {
-                            buf.append(StringUtil.defaultWebEncoder.encodeForURL(name));
-                        } catch (EncodingException e) {
-                            Debug.logError(e, module);
-                        }
+                        buf.append(UtilCodec.getEncoder("url").encode(name));
                         /* the old way: try {
                             buf.append(URLEncoder.encode(name, "UTF-8"));
                         } catch (UnsupportedEncodingException e) {
                             Debug.logError(e, module);
                         } */
                         buf.append('=');
-                        try {
-                            buf.append(StringUtil.defaultWebEncoder.encodeForURL(valueStr));
-                        } catch (EncodingException e) {
-                            Debug.logError(e, module);
-                        }
+                        buf.append(UtilCodec.getEncoder("url").encode(valueStr));
                         /* the old way: try {
                             buf.append(URLEncoder.encode(valueStr, "UTF-8"));
                         } catch (UnsupportedEncodingException e) {
@@ -1079,10 +1088,10 @@ public class UtilHttp {
                     name = token.substring(0, equalsIndex);
                 }
                 if (!paramNames.contains(name)) {
-                    cleanQuery.append(token);
-                    if (queryTokens.hasMoreTokens()) {
+                    if (cleanQuery.length() > 0) {
                         cleanQuery.append("&");
                     }
+                    cleanQuery.append(token);
                 }
             }
             retStr = cleanQuery.toString();
@@ -1098,7 +1107,7 @@ public class UtilHttp {
      * index of the row.
      */
     public static Collection<Map<String, Object>> parseMultiFormData(Map<String, Object> parameters) {
-        FastMap<Integer, Map<String, Object>> rows = FastMap.newInstance(); // stores the rows keyed by row number
+        Map<Integer, Map<String, Object>> rows = new HashMap<Integer, Map<String, Object>>(); // stores the rows keyed by row number
 
         // first loop through all the keys and create a hashmap for each ${ROW_SUBMIT_PREFIX}${N} = Y
         for (String key: parameters.keySet()) {
@@ -1110,13 +1119,14 @@ public class UtilHttp {
 
             // decode the value of N and create a new map for it
             Integer n = Integer.decode(key.substring(ROW_SUBMIT_PREFIX_LENGTH, key.length()));
-            Map<String, Object> m = FastMap.newInstance();
+            Map<String, Object> m = new HashMap<String, Object>();
             m.put("row", n); // special "row" = N tuple
             rows.put(n, m); // key it to N
         }
 
         // next put all parameters with matching N in the right map
-        for (String key: parameters.keySet()) {
+        for (Map.Entry<String, Object> entry : parameters.entrySet()) {
+            String key = entry.getKey();
             // skip keys without DELIMITER and skip ROW_SUBMIT_PREFIX
             if (key == null) continue;
             int index = key.indexOf(MULTI_ROW_DELIMITER);
@@ -1130,7 +1140,7 @@ public class UtilHttp {
 
             // get the key without the <DELIMITER>N suffix and store it and its value
             String newKey = key.substring(0, index);
-            map.put(newKey, parameters.get(key));
+            map.put(newKey, entry.getValue());
         }
         // return only the values, which is the list of maps
         return rows.values();
@@ -1141,13 +1151,14 @@ public class UtilHttp {
      * multi form parameters (usually named according to the ${param}_o_N notation).
      */
     public static <V> Map<String, V> removeMultiFormParameters(Map<String, V> parameters) {
-        FastMap<String, V> filteredParameters = new FastMap<String, V>();
-        for (String key: parameters.keySet()) {
+        Map<String, V> filteredParameters = new HashMap<String, V>();
+        for (Map.Entry<String, V> entry : parameters.entrySet()) {
+            String key = entry.getKey();
             if (key != null && (key.indexOf(MULTI_ROW_DELIMITER) != -1 || key.indexOf("_useRowSubmit") != -1 || key.indexOf("_rowCount") != -1)) {
                 continue;
             }
 
-            filteredParameters.put(key, parameters.get(key));
+            filteredParameters.put(key, entry.getValue());
         }
         return filteredParameters;
     }
@@ -1183,14 +1194,14 @@ public class UtilHttp {
      *
      * @param request
      * @param prefix
-     * @return Composite object from data or nulll if not supported or a parsing error occured.
+     * @return Composite object from data or null if not supported or a parsing error occurred.
      */
     public static Object makeParamValueFromComposite(HttpServletRequest request, String prefix, Locale locale) {
         String compositeType = request.getParameter(makeCompositeParam(prefix, "compositeType"));
         if (UtilValidate.isEmpty(compositeType)) return null;
 
         // collect the composite fields into a map
-        Map<String, String> data = FastMap.newInstance();
+        Map<String, String> data = new HashMap<String, String>();
         for (Enumeration<String> names = UtilGenerics.cast(request.getParameterNames()); names.hasMoreElements();) {
             String name = names.nextElement();
             if (!name.startsWith(prefix + COMPOSITE_DELIMITER)) continue;
@@ -1265,19 +1276,20 @@ public class UtilHttp {
         } else {
             String initialUserAgent = request.getHeader("User-Agent") != null ? request.getHeader("User-Agent") : "";
             List<String> spiderList = StringUtil.split(UtilProperties.getPropertyValue("url", "link.remove_lsessionid.user_agent_list"), ",");
-            if (UtilValidate.isNotEmpty(spiderList)) {
 
-                CompilerMatcher compilerMatcher = new CompilerMatcher();
+            if (UtilValidate.isNotEmpty(spiderList)) {
                 for (String spiderNameElement : spiderList) {
+                    Pattern pattern = null;
                     try {
-                        if (compilerMatcher.matches(initialUserAgent, "^.*" + spiderNameElement + ".*$", false)) {
-                            request.setAttribute("_REQUEST_FROM_SPIDER_", "Y");
-                            result = true;
-                            break;
-                        }
-                    }
-                    catch (MalformedPatternException e) {
+                        pattern = PatternFactory.createOrGetPerl5CompiledPattern(spiderNameElement, false);
+                    } catch (MalformedPatternException e) {
                         Debug.logError(e, module);
+                    }
+                    PatternMatcher matcher = new Perl5Matcher();
+                    if (matcher.contains(initialUserAgent, pattern)) {
+                        request.setAttribute("_REQUEST_FROM_SPIDER_", "Y");
+                        result = true;
+                        break;
                     }
                 }
             }
@@ -1306,7 +1318,7 @@ public class UtilHttp {
     /** Returns the number or rows submitted by a multi form.
      */
     public static int getMultiFormRowCount(HttpServletRequest request) {
-        return UtilHttp.getMultiFormRowCount(UtilHttp.getParameterMap(request));
+        return getMultiFormRowCount(getParameterMap(request));
     }
     /** Returns the number or rows submitted by a multi form.
      */
@@ -1314,9 +1326,9 @@ public class UtilHttp {
         // The number of multi form rows is computed selecting the maximum index
         int rowCount = 0;
         String maxRowIndex = "";
-        int rowDelimiterLength = UtilHttp.MULTI_ROW_DELIMITER.length();
+        int rowDelimiterLength = MULTI_ROW_DELIMITER.length();
         for (String parameterName: requestMap.keySet()) {
-            int rowDelimiterIndex = (parameterName != null? parameterName.indexOf(UtilHttp.MULTI_ROW_DELIMITER): -1);
+            int rowDelimiterIndex = (parameterName != null? parameterName.indexOf(MULTI_ROW_DELIMITER): -1);
             if (rowDelimiterIndex > 0) {
                 String thisRowIndex = parameterName.substring(rowDelimiterIndex + rowDelimiterLength);
                 if (thisRowIndex.indexOf("_") > -1) {
@@ -1344,10 +1356,10 @@ public class UtilHttp {
         HttpSession session = request.getSession();
         Map<String, Map<String, Object>> paramMapStore = UtilGenerics.checkMap(session.getAttribute("_PARAM_MAP_STORE_"));
         if (paramMapStore == null) {
-            paramMapStore = FastMap.newInstance();
+            paramMapStore = new HashMap<String, Map<String, Object>>();
             session.setAttribute("_PARAM_MAP_STORE_", paramMapStore);
         }
-        Map<String, Object> parameters = UtilHttp.getParameterMap(request);
+        Map<String, Object> parameters = getParameterMap(request);
         String paramMapId = RandomStringUtils.randomAlphanumeric(10);
         paramMapStore.put(paramMapId, parameters);
         return paramMapId;

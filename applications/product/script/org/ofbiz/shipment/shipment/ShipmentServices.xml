@@ -19,7 +19,7 @@ under the License.
 -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
     <!-- Shipment services -->
     <simple-method method-name="createShipment" short-description="Create Shipment">
         <make-value value-field="newEntity" entity-name="Shipment"/>
@@ -212,7 +212,6 @@ under the License.
                 </or>
             </condition>
             <then>
-                <find-by-primary-key entity-name="WorkEffort" map="estimatedArrivalWorkEffortMap" value-field="estimatedArrivalWorkEffort"/>
                 <entity-one entity-name="WorkEffort" value-field="estimatedArrivalWorkEffort" auto-field-map="false">
                     <field-map field-name="workEffortId" from-field="lookedUpValue.estimatedArrivalWorkEffId"/>
                 </entity-one>
@@ -1322,6 +1321,7 @@ under the License.
             <!-- should never be empty - referential integrity enforced -->
 
             <set field="eventDate" from-field="parameters.eventDate"/>
+            <set field="setPackedOnly" from-field="parameters.setPackedOnly"/>
             <call-simple-method method-name="createShipmentForFacilityAndShipGroup"/>
         </iterate>
 
@@ -1338,6 +1338,13 @@ under the License.
     </simple-method>
 
     <simple-method method-name="quickDropShipOrder" short-description="Create and complete a drop shipment for a ship group">
+        <entity-one entity-name="OrderHeader" value-field="orderHeader"/>
+        <if-compare field="orderHeader.statusId" operator="equals" value="ORDER_CREATED">
+            <add-error>
+                <fail-property resource="OrderErrorUiLabels" property="OrderApproveOrderBeforeQuickDropShip"/>
+            </add-error>
+            <check-errors/>
+        </if-compare>
         <set from-field="parameters.orderId" field="shipmentContext.primaryOrderId"/>
         <set from-field="parameters.shipGroupSeqId" field="shipmentContext.primaryShipGroupSeqId"/>
         <set value="PURCH_SHIP_CREATED" field="shipmentContext.statusId"/>
@@ -1549,12 +1556,12 @@ under the License.
                     <set from-field="eventDate" field="packedContext.eventDate"/>
                     <set value="SHIPMENT_PACKED" field="packedContext.statusId"/>
                     <call-service service-name="updateShipment" in-map-name="packedContext"/>
-                    <!-- update the shipment status to shipped -->
-                    <if-not-empty field="setPackedOnly">
+                    <!-- update the shipment status to shipped (if setPackedOnly has NOT been set) -->
+                    <if-empty field="setPackedOnly">
                         <set from-field="shipment.shipmentId" field="packedContext.shipmentId"/>
                         <set value="SHIPMENT_SHIPPED" field="packedContext.statusId"/>
                         <call-service service-name="updateShipment" in-map-name="packedContext"/>
-                    </if-not-empty>
+                    </if-empty>
                   </then>
                   <else> <!-- PURCHASE_ORDER -->
                     <!-- update the shipment status to shipped -->

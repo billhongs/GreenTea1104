@@ -34,9 +34,12 @@ import org.ofbiz.base.test.GenericTestCaseBase;
 import org.ofbiz.base.util.GeneralException;
 import org.ofbiz.base.util.ObjectType;
 import org.ofbiz.base.util.TimeDuration;
+import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilXml;
 import org.w3c.dom.Document;
+
+import com.ibm.icu.util.Calendar;
 
 @SourceMonitored
 public class ObjectTypeTests extends GenericTestCaseBase {
@@ -53,7 +56,7 @@ public class ObjectTypeTests extends GenericTestCaseBase {
     private final Timestamp tstmp = new Timestamp(781L);
     private final Timestamp ntstmp;
     private final java.util.Date utlDt = new java.util.Date(781);
-    private final java.sql.Date sqlDt = new java.sql.Date(-129600000);
+    private final java.sql.Date sqlDt;
     private final java.sql.Time sqlTm = new java.sql.Time(2096000);
     private final List<Object> list;
     private final Map<String, Object> map;
@@ -72,6 +75,10 @@ public class ObjectTypeTests extends GenericTestCaseBase {
         map.put("two", "2");
         map.put("three", "3");
         set = new LinkedHashSet<Object>(list);
+        Calendar cal = UtilDateTime.getCalendarInstance(localeData.goodTimeZone, localeData.goodLocale);
+        cal.set(1969, Calendar.DECEMBER, 31, 0, 0, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        sqlDt = new java.sql.Date(cal.getTimeInMillis());
     }
 
     public static class LocaleData {
@@ -94,7 +101,8 @@ public class ObjectTypeTests extends GenericTestCaseBase {
 
     public static void simpleTypeConvertTest(String label, Object toConvert, String type, Object wanted) throws GeneralException {
         basicTest(label, toConvert);
-        assertEquals(label + ":null", (Object) null, simpleTypeConvert(null, type, null, null, null, true));
+        assertEquals(label + ":null target type", toConvert, simpleTypeConvert(toConvert, null, null, null, null, true));
+        assertEquals(label + ":null source object", (Object) null, simpleTypeConvert(null, type, null, null, null, true));
         assertEquals(label, wanted, simpleTypeConvert(toConvert, type, null, null, null, true));
         if (toConvert instanceof String) {
             String str = (String) toConvert;
@@ -186,6 +194,58 @@ public class ObjectTypeTests extends GenericTestCaseBase {
         assertSame(label + ":to-java.lang.Object", toConvert, simpleTypeConvert(toConvert, "java.lang.Object", null, null, null, true));
     }
 
+    public void testLoadClassWithNonExistentClass() {
+        Exception exception = null;
+        try {
+            ObjectType.loadClass("foobarbaz");
+        } catch (Exception e) {
+            exception = e;
+        }
+        assertTrue("Exception thrown by loadClass(\"foobarbaz\") is not ClassNotFoundException", exception instanceof ClassNotFoundException);
+    }
+
+    public void testLoadClassWithPrimitives() {
+        try {
+            Class<?> theClass;
+            theClass = ObjectType.loadClass("boolean");
+            assertEquals("Wrong class returned by loadClass(\"boolean\")", (Boolean.TYPE).getName(), theClass.getName());
+            theClass = ObjectType.loadClass("short");
+            assertEquals("Wrong class returned by loadClass(\"short\")", (Short.TYPE).getName(), theClass.getName());
+            theClass = ObjectType.loadClass("int");
+            assertEquals("Wrong class returned by loadClass(\"int\")", (Integer.TYPE).getName(), theClass.getName());
+            theClass = ObjectType.loadClass("long");
+            assertEquals("Wrong class returned by loadClass(\"long\")", (Long.TYPE).getName(), theClass.getName());
+            theClass = ObjectType.loadClass("float");
+            assertEquals("Wrong class returned by loadClass(\"float\")", (Float.TYPE).getName(), theClass.getName());
+            theClass = ObjectType.loadClass("double");
+            assertEquals("Wrong class returned by loadClass(\"double\")", (Double.TYPE).getName(), theClass.getName());
+            theClass = ObjectType.loadClass("byte");
+            assertEquals("Wrong class returned by loadClass(\"byte\")", (Byte.TYPE).getName(), theClass.getName());
+            theClass = ObjectType.loadClass("char");
+            assertEquals("Wrong class returned by loadClass(\"char\")", (Character.TYPE).getName(), theClass.getName());
+        } catch (Exception e) {
+            fail("Exception thrown by loadClass: " + e.getMessage());
+        }
+    }
+
+    public void testLoadClassWithAlias() {
+        try {
+            Class<?> theClass;
+            // first try with a class full name
+            theClass = ObjectType.loadClass("java.lang.String");
+            assertEquals("Wrong class returned by loadClass(\"java.lang.String\")", "java.lang.String", theClass.getName());
+            // now try with some aliases
+            theClass = ObjectType.loadClass("String");
+            assertEquals("Wrong class returned by loadClass(\"String\")", "java.lang.String", theClass.getName());
+            theClass = ObjectType.loadClass("Object");
+            assertEquals("Wrong class returned by loadClass(\"Object\")", "java.lang.Object", theClass.getName());
+            theClass = ObjectType.loadClass("Date");
+            assertEquals("Wrong class returned by loadClass(\"Date\")", "java.sql.Date", theClass.getName());
+        } catch (Exception e) {
+            fail("Exception thrown by loadClass: " + e.getMessage());
+        }
+    }
+
     public void testClassNotFound() {
         GeneralException caught = null;
         try {
@@ -208,7 +268,6 @@ public class ObjectTypeTests extends GenericTestCaseBase {
         simpleTypeConvertTest("String->String", "one", "String", "one");
         simpleTypeConvertTest("String->String", "one", "java.lang.String", "one");
         simpleTypeConvertTestSingleMulti("empty-String->anything", "", new String[] {"List", "Map"}, null);
-        simpleTypeConvertTestSingleMulti("empty-String->bad-class", "", new String[] {"no-class"}, null);
         simpleTypeConvertTestError("String->error", "one", new String[] {});
         simpleTypeConvertTestMultiMulti("String->Boolean(true)", new String[] {"true", " true ", " TrUe"}, new String[] {"Boolean", "java.lang.Boolean"}, Boolean.TRUE);
         simpleTypeConvertTestMultiMulti("String->Boolean(false)", new String[] {"false", " false ", " FaLsE"}, new String[] {"Boolean", "java.lang.Boolean"}, Boolean.FALSE);
@@ -290,7 +349,7 @@ public class ObjectTypeTests extends GenericTestCaseBase {
         simpleTypeConvertTestSingleMulti("Long->Integer", lng, new String[] {"Integer", "java.lang.Integer"}, intg);
         simpleTypeConvertTestSingleMulti("Long->List", lng, new String[] {"List", "List<java.lang.Long>", "java.util.List"}, list(lng));
         simpleTypeConvertTestSingleMulti("Long->Set", lng, new String[] {"Set", "Set<java.lang.Long>", "java.util.Set"}, set(lng));
-        simpleTypeConvertTestSingleMulti("Long->util.Date", 781L, new String[] {"Date", "java.util.Date"}, utlDt);
+        simpleTypeConvertTestSingleMulti("Long->java.util.Date", 781L, new String[] {"java.util.Date"}, utlDt);
         simpleTypeConvertTestSingleMulti("Long->Timestamp", lng, new String[] {"Timestamp", "java.sql.Timestamp"}, tstmp);
         simpleTypeConvertTestSingleMulti("Long->TimeDuration", Long.valueOf("3661001"), new String[] {"TimeDuration", "org.ofbiz.base.util.TimeDuration"}, duration);
         simpleTypeConvertTestError("Long->error", lng, new String[] {});

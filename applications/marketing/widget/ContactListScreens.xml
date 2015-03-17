@@ -104,7 +104,8 @@ under the License.
 
                 <!-- parameters for pagination -->
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
+                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
 
                 <set field="donePage" from-field="parameters.DONE_PAGE" default-value="/marketing/control/ListContactList"/>
                 <set field="contactListId" from-field="parameters.contactListId"/>
@@ -183,7 +184,8 @@ under the License.
 
                 <!-- parameters for pagination -->
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
+                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
                 
                 <set field="contactListId" from-field="parameters.contactListId"/>
                 <set field="donePage" from-field="parameters.DONE_PAGE" default-value="FindContactListParties?contactListId=${contactListId}"/>
@@ -290,7 +292,8 @@ under the License.
 
                 <!-- parameters for pagination -->
                 <set field="viewIndex" from-field="parameters.VIEW_INDEX" type="Integer" default-value="0"/>
-                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="20"/>
+                <property-to-field resource="widget" property="widget.form.defaultViewSize" field="viewSizeDefaultValue"/>
+                <set field="viewSize" from-field="parameters.VIEW_SIZE" type="Integer" default-value="${viewSizeDefaultValue}"/>
 
                 <set field="donePage" from-field="parameters.DONE_PAGE" default-value="FindContactListCommEvents?contactListId=${parameters.contactListId}"/>
                 <set field="contactListId" from-field="parameters.contactListId"/>
@@ -471,6 +474,31 @@ under the License.
             </actions>
             <widgets>
                 <include-screen name="${screenName}" share-scope="true"/>                
+            </widgets>
+        </section>
+    </screen>
+    <screen name="WebSiteContactList">
+        <section>
+            <actions>
+                <set field="titleProperty" value="MarketingWebSiteContactList"/>
+                <set field="contactListTabButtonItem" value="WebSiteContactList"/>
+                <entity-one value-field="contactList" entity-name="ContactList"/>
+                <entity-and list="webSiteContactLists" entity-name="WebSiteContactList">
+                    <field-map field-name="contactListId" from-field="contactList.contactListId"/>
+                    <order-by field-name="-fromDate"/>
+                </entity-and>
+            </actions>
+            <widgets>
+                <decorator-screen name="CommonContactListDecorator" location="${parameters.mainDecoratorLocation}">
+                    <decorator-section name="body">
+                        <screenlet title="${uiLabelMap.MarketingWebSiteContactListCreate}">
+                            <include-form location="component://marketing/widget/ContactListForms.xml" name="CreateWebSiteContactList"/>
+                        </screenlet>
+                        <screenlet title="${uiLabelMap.MarketingWebSiteContactListView} of contactListId[${parameters.contactListId}]">
+                            <include-form location="component://marketing/widget/ContactListForms.xml" name="ViewWebSiteContactList"/>
+                        </screenlet>
+                    </decorator-section>
+                </decorator-screen>
             </widgets>
         </section>
     </screen>

@@ -26,6 +26,7 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.model.ModelEntity;
+import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * PartyHelper
@@ -34,6 +35,8 @@ public class PartyHelper {
 
     public static final String module = PartyHelper.class.getName();
 
+    private PartyHelper() {}
+
     public static String getPartyName(GenericValue partyObject) {
         return getPartyName(partyObject, false);
     }
@@ -41,7 +44,7 @@ public class PartyHelper {
     public static String getPartyName(Delegator delegator, String partyId, boolean lastNameFirst) {
         GenericValue partyObject = null;
         try {
-            partyObject = delegator.findByPrimaryKey("PartyNameView", UtilMisc.toMap("partyId", partyId));
+            partyObject = EntityQuery.use(delegator).from("PartyNameView").where("partyId", partyId).queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error finding PartyNameView in getPartyName", module);
         }

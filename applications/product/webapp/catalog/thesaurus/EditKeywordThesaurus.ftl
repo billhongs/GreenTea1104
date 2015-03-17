@@ -45,7 +45,7 @@ under the License.
         <table cellspacing="0" class="basic-table">
             <#assign rowClass = "2">
             <#list keywordThesauruses as keyword>
-              <#assign relationship = keyword.getRelatedOneCache("RelationshipEnumeration")>
+              <#assign relationship = keyword.getRelatedOne("RelationshipEnumeration", true)>
               <#if keyword.enteredKeyword == lastkeyword><#assign sameRow=true><#else><#assign lastkeyword=keyword.enteredKeyword><#assign sameRow=false></#if>
               <#if sameRow == false>
                 <#if (keyword_index > 0)>
@@ -79,7 +79,7 @@ under the License.
                   <input type="hidden" name="alternateKeyword" value="${keyword.alternateKeyword}" />
                   <input type="submit" value="X" />
                 </form>
-                ${keyword.alternateKeyword}&nbsp;(${uiLabelMap.ProductRelationship}:${(relationship.get("description",locale))?default(keyword.relationshipEnumId?if_exists)})
+                ${keyword.alternateKeyword}&nbsp;(${uiLabelMap.ProductRelationship}:${(relationship.get("description",locale))?default(keyword.relationshipEnumId!)})
               </div>
               <#-- toggle the row color -->
               <#if rowClass == "2">

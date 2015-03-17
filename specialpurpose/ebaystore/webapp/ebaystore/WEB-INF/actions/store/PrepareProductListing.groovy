@@ -64,7 +64,7 @@
          content = [:];
          item = addItem.getItem();
          productId = item.getSKU();
-         product = delegator.findByPrimaryKeyCache("Product", [productId : productId]);
+         product = from("Product").where("productId", productId).cache(true).queryOne();
          contentWrapper = new ProductContentWrapper(product, request);
          content.productContentWrapper = contentWrapper;
          content.product = product;
@@ -94,7 +94,7 @@
          }
          context.isProductId = productId;
          // get product default price form product price 
-         productPrices = delegator.findByAnd("ProductPrice",["productId":productId,"productPricePurposeId":"EBAY"]);
+         productPrices = from("ProductPrice").where("productId", productId, "productPricePurposeId", "EBAY").queryList();
          if (productPrices) {
              context.productPrices = productPrices;
          }

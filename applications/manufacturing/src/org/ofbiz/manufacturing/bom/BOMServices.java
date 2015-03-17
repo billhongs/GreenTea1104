@@ -22,7 +22,6 @@ package org.ofbiz.manufacturing.bom;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -38,7 +37,7 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
@@ -58,9 +57,9 @@ public class BOMServices {
      * in which the productId can be found in any of the
      * bills of materials of bomType type.
      * If the bomType input field is not passed then the depth is searched for all the bom types and the lowest depth is returned.
-     * @param dctx
-     * @param context
-     * @return
+     * @param dctx the dispatch context
+     * @param context the context
+     * @return returns the product's low level code (llc) i.e. the maximum depth
      */
     public static Map<String, Object> getMaxDepth(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();
@@ -83,10 +82,10 @@ public class BOMServices {
         List<String> bomTypes = FastList.newInstance();
         if (bomType == null) {
             try {
-                List<GenericValue> bomTypesValues = delegator.findByAnd("ProductAssocType", UtilMisc.toMap("parentTypeId", "PRODUCT_COMPONENT"));
-                Iterator<GenericValue> bomTypesValuesIt = bomTypesValues.iterator();
-                while (bomTypesValuesIt.hasNext()) {
-                    bomTypes.add((bomTypesValuesIt.next()).getString("productAssocTypeId"));
+                List<GenericValue> bomTypesValues = EntityQuery.use(delegator).from("ProductAssocType")
+                        .where("parentTypeId", "PRODUCT_COMPONENT").queryList();
+                for (GenericValue bomTypesValue : bomTypesValues) {
+                    bomTypes.add(bomTypesValue.getString("productAssocTypeId"));
                 }
             } catch (GenericEntityException gee) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingBomErrorRunningMaxDethAlgorithm", UtilMisc.toMap("errorString", gee.getMessage()), locale));
@@ -97,10 +96,8 @@ public class BOMServices {
 
         int depth = 0;
         int maxDepth = 0;
-        Iterator<String> bomTypesIt = bomTypes.iterator();
         try {
-            while (bomTypesIt.hasNext()) {
-                String oneBomType = bomTypesIt.next();
+            for (String oneBomType : bomTypes) {
                 depth = BOMHelper.getMaxDepth(productId, oneBomType, fromDate, delegator);
                 if (depth > maxDepth) {
                     maxDepth = depth;
@@ -118,10 +115,10 @@ public class BOMServices {
      * Given a product id, computes and updates the product's low level code (field billOfMaterialLevel in Product entity).
      * It also updates the llc of all the product's descendants.
      * For the llc only the manufacturing bom ("MANUF_COMPONENT") is considered.
-     * @param dctx
-     * @param context
-     * @return
-     */
+     * @param dctx the distach context
+     * @param context the context 
+     * @return the results of the updates the product's low level code 
+    */
     public static Map<String, Object> updateLowLevelCode(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();
         Delegator delegator = dctx.getDelegator();
@@ -139,21 +136,20 @@ public class BOMServices {
 
         Long llc = null;
         try {
-            GenericValue product = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", productId));
+            GenericValue product = EntityQuery.use(delegator).from("Product").where("productId", productId).queryOne();
             Map<String, Object> depthResult = dispatcher.runSync("getMaxDepth", 
                     UtilMisc.toMap("productId", productId, "bomType", "MANUF_COMPONENT"));
             llc = (Long)depthResult.get("depth");
             // If the product is a variant of a virtual, then the billOfMaterialLevel cannot be
             // lower than the billOfMaterialLevel of the virtual product.
-            List<GenericValue> virtualProducts = delegator.findByAnd("ProductAssoc", 
-                    UtilMisc.toMap("productIdTo", productId, "productAssocTypeId", "PRODUCT_VARIANT"));
-            virtualProducts = EntityUtil.filterByDate(virtualProducts);
+            List<GenericValue> virtualProducts = EntityQuery.use(delegator).from("ProductAssoc")
+                    .where("productIdTo", productId,
+                            "productAssocTypeId", "PRODUCT_VARIANT")
+                    .filterByDate().queryList();
             int virtualMaxDepth = 0;
-            Iterator<GenericValue> virtualProductsIt = virtualProducts.iterator();
-            while (virtualProductsIt.hasNext()) {
+            for (GenericValue oneVirtualProductAssoc : virtualProducts) {
                 int virtualDepth = 0;
-                GenericValue oneVirtualProductAssoc = virtualProductsIt.next();
-                GenericValue virtualProduct = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", oneVirtualProductAssoc.getString("productId")));
+                GenericValue virtualProduct = EntityQuery.use(delegator).from("Product").where("productId", oneVirtualProductAssoc.getString("productId")).queryOne();
                 if (virtualProduct.get("billOfMaterialLevel") != null) {
                     virtualDepth = virtualProduct.getLong("billOfMaterialLevel").intValue();
                 } else {
@@ -187,13 +183,12 @@ public class BOMServices {
                 }
             }
             if (alsoVariants.booleanValue()) {
-                List<GenericValue> variantProducts = delegator.findByAnd("ProductAssoc", 
-                        UtilMisc.toMap("productId", productId, "productAssocTypeId", "PRODUCT_VARIANT"));
-                variantProducts = EntityUtil.filterByDate(variantProducts, true);
-                Iterator<GenericValue> variantProductsIt = variantProducts.iterator();
-                while (variantProductsIt.hasNext()) {
-                    GenericValue oneVariantProductAssoc = variantProductsIt.next();
-                    GenericValue variantProduct = delegator.findByPrimaryKey("Product", UtilMisc.toMap("productId", oneVariantProductAssoc.getString("productId")));
+                List<GenericValue> variantProducts = EntityQuery.use(delegator).from("ProductAssoc")
+                        .where("productId", productId, 
+                                "productAssocTypeId", "PRODUCT_VARIANT")
+                        .filterByDate().queryList();
+                for (GenericValue oneVariantProductAssoc : variantProducts) {
+                    GenericValue variantProduct = EntityQuery.use(delegator).from("Product").where("productId", oneVariantProductAssoc.getString("productId")).queryOne();
                     variantProduct.set("billOfMaterialLevel", llc);
                     variantProduct.store();
                 }
@@ -207,10 +202,10 @@ public class BOMServices {
 
     /** Updates the product's low level code (llc) for all the products in the Product entity.
      * For the llc only the manufacturing bom ("MANUF_COMPONENT") is considered.
-     * @param dctx
-     * @param context
-     * @return
-     */
+     * @param dctx the distach context
+     * @param context the context 
+     * @return the results of the updates the product's low level code 
+    */
     public static Map<String, Object> initLowLevelCode(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();
         Delegator delegator = dctx.getDelegator();
@@ -218,22 +213,17 @@ public class BOMServices {
         Locale locale = (Locale) context.get("locale");
 
         try {
-            List<GenericValue> products = delegator.findList("Product", null, null, 
-                    UtilMisc.toList("isVirtual DESC"), null, false);
-            Iterator<GenericValue> productsIt = products.iterator();
+            List<GenericValue> products = EntityQuery.use(delegator).from("Product").orderBy("isVirtual DESC").queryList();
             Long zero = Long.valueOf(0);
             List<GenericValue> allProducts = FastList.newInstance();
-            while (productsIt.hasNext()) {
-                GenericValue product = productsIt.next();
+            for (GenericValue product : products) {
                 product.set("billOfMaterialLevel", zero);
                 allProducts.add(product);
             }
             delegator.storeAll(allProducts);
             Debug.logInfo("Low Level Code set to 0 for all the products", module);
 
-            productsIt = products.iterator();
-            while (productsIt.hasNext()) {
-                GenericValue product = productsIt.next();
+            for (GenericValue product : products) {
                 try {
                     Map<String, Object> depthResult = dispatcher.runSync("updateLowLevelCode", UtilMisc.<String, Object>toMap("productIdTo", product.getString("productId"), "alsoComponents", Boolean.valueOf(false), "alsoVariants", Boolean.valueOf(false)));
                     Debug.logInfo("Product [" + product.getString("productId") + "] Low Level Code [" + depthResult.get("lowLevelCode") + "]", module);
@@ -252,9 +242,9 @@ public class BOMServices {
      * ancestor if present, null otherwise.
      * Useful to avoid loops when adding new assocs (components)
      * to a bill of materials.
-     * @param dctx
-     * @param context
-     * @return
+     * @param dctx the distach context
+     * @param context the context 
+     * @return returns the ProductAssoc generic value for a duplicate productIdKey ancestor if present 
      */
     public static Map<String, Object> searchDuplicatedAncestor(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();
@@ -285,9 +275,9 @@ public class BOMServices {
      * and {@link BOMNode}) that represents a
      * configured bill of material tree.
      * Useful for tree traversal (breakdown, explosion, implosion).
-     * @param dctx
-     * @param context
-     * @return
+     * @param dctx the distach context
+     * @param context the context 
+     * @return return the bill of material tree
      */
     public static Map<String, Object> getBOMTree(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();
@@ -336,9 +326,9 @@ public class BOMServices {
     /** It reads the product's bill of materials,
      * if necessary configures it, and it returns its (possibly configured) components in
      * a List of {@link BOMNode}).
-     * @param dctx
-     * @param context
-     * @return
+     * @param dctx the distach context
+     * @param context the context 
+     * @return return the list of manufacturing components
      */
     public static Map<String, Object> getManufacturingComponents(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();
@@ -414,10 +404,8 @@ public class BOMServices {
 
         // also return a componentMap (useful in scripts and simple language code)
         List<Map<String, Object>> componentsMap = FastList.newInstance();
-        Iterator<BOMNode> componentsIt = components.iterator();
-        while (componentsIt.hasNext()) {
+        for (BOMNode node : components) {
             Map<String, Object> componentMap = FastMap.newInstance();
-            BOMNode node = componentsIt.next();
             componentMap.put("product", node.getProduct());
             componentMap.put("quantity", node.getQuantity());
             componentsMap.add(componentMap);
@@ -466,9 +454,7 @@ public class BOMServices {
         } catch (GenericEntityException gee) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingBomErrorCreatingBillOfMaterialsTree", UtilMisc.toMap("errorString", gee.getMessage()), locale));
         }
-        Iterator<BOMNode> componentsIt = components.iterator();
-        while (componentsIt.hasNext()) {
-            BOMNode oneComponent = componentsIt.next();
+        for (BOMNode oneComponent : components) {
             if (!oneComponent.isManufactured()) {
                 notAssembledComponents.add(oneComponent);
             }
@@ -489,7 +475,7 @@ public class BOMServices {
         String shipmentId = (String) context.get("shipmentId");
 
         try {
-            List<GenericValue> packages = delegator.findByAnd("ShipmentPackage", UtilMisc.toMap("shipmentId", shipmentId));
+            List<GenericValue> packages = EntityQuery.use(delegator).from("ShipmentPackage").where("shipmentId", shipmentId).queryList();
             if (!UtilValidate.isEmpty(packages)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingBomPackageAlreadyFound", locale));
             }
@@ -499,23 +485,23 @@ public class BOMServices {
         // ShipmentItems are loaded
         List<GenericValue> shipmentItems = null;
         try {
-            shipmentItems = delegator.findByAnd("ShipmentItem", UtilMisc.toMap("shipmentId", shipmentId));
+            shipmentItems = EntityQuery.use(delegator).from("ShipmentItem").where("shipmentId", shipmentId).queryList();
         } catch (GenericEntityException gee) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingBomErrorLoadingShipmentItems", locale));
         }
-        Iterator<GenericValue> shipmentItemsIt = shipmentItems.iterator();
         Map<String, Object> orderReadHelpers = FastMap.newInstance();
         Map<String, Object> partyOrderShipments = FastMap.newInstance();
-        while (shipmentItemsIt.hasNext()) {
-            GenericValue shipmentItem = shipmentItemsIt.next();
+        for (GenericValue shipmentItem : shipmentItems) {
             // Get the OrderShipments
-            List<GenericValue> orderShipments = null;
+            GenericValue orderShipment = null;
             try {
-                orderShipments = delegator.findByAnd("OrderShipment", UtilMisc.toMap("shipmentId", shipmentId, "shipmentItemSeqId", shipmentItem.getString("shipmentItemSeqId")));
+                orderShipment = EntityQuery.use(delegator).from("OrderShipment")
+                        .where("shipmentId", shipmentId, 
+                                "shipmentItemSeqId", shipmentItem.get("shipmentItemSeqId"))
+                        .queryFirst();
             } catch (GenericEntityException e) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingPackageConfiguratorError", locale));
             }
-            GenericValue orderShipment = org.ofbiz.entity.util.EntityUtil.getFirst(orderShipments);
             if (orderShipment != null && !orderReadHelpers.containsKey(orderShipment.getString("orderId"))) {
                 orderReadHelpers.put(orderShipment.getString("orderId"), new OrderReadHelper(delegator, orderShipment.getString("orderId")));
             }
@@ -535,7 +521,7 @@ public class BOMServices {
         }
         // For each party: try to expand the shipment item products
         // (search for components that needs to be packaged).
-        for(Map.Entry<String, Object> partyOrderShipment : partyOrderShipments.entrySet()) {
+        for (Map.Entry<String, Object> partyOrderShipment : partyOrderShipments.entrySet()) {
             List<Map<String, Object>> orderShipmentReadMapList = UtilGenerics.checkList(partyOrderShipment.getValue());
             for (int i = 0; i < orderShipmentReadMapList.size(); i++) {
                 Map<String, Object> orderShipmentReadMap = UtilGenerics.checkMap(orderShipmentReadMapList.get(i));
@@ -571,7 +557,7 @@ public class BOMServices {
         // Group together products and components
         // of the same box type.
         Map<String, GenericValue> boxTypes = FastMap.newInstance();
-        for(Map.Entry<String, Object> partyOrderShipment : partyOrderShipments.entrySet()) {
+        for (Map.Entry<String, Object> partyOrderShipment : partyOrderShipments.entrySet()) {
             Map<String, List<Map<String, Object>>> boxTypeContent = FastMap.newInstance();
             List<Map<String, Object>> orderShipmentReadMapList = UtilGenerics.checkList(partyOrderShipment.getValue());
             for (int i = 0; i < orderShipmentReadMapList.size(); i++) {
@@ -593,7 +579,7 @@ public class BOMServices {
                             if (!boxTypes.containsKey(boxTypeId)) {
                                 GenericValue boxType = null;
                                 try {
-                                    boxType = delegator.findByPrimaryKey("ShipmentBoxType", UtilMisc.toMap("shipmentBoxTypeId", boxTypeId));
+                                    boxType = EntityQuery.use(delegator).from("ShipmentBoxType").where("shipmentBoxTypeId", boxTypeId).queryOne();
                                 } catch (GenericEntityException e) {
                                     return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingPackageConfiguratorError", locale));
                                 }
@@ -613,7 +599,7 @@ public class BOMServices {
                     GenericValue orderItem = orderReadHelper.getOrderItem(orderShipment.getString("orderItemSeqId"));
                     GenericValue product = null;
                     try {
-                        product = orderItem.getRelatedOne("Product");
+                        product = orderItem.getRelatedOne("Product", false);
                     } catch (GenericEntityException e) {
                         return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingPackageConfiguratorError", locale));
                     }
@@ -622,7 +608,7 @@ public class BOMServices {
                         if (!boxTypes.containsKey(boxTypeId)) {
                             GenericValue boxType = null;
                             try {
-                                boxType = delegator.findByPrimaryKey("ShipmentBoxType", UtilMisc.toMap("shipmentBoxTypeId", boxTypeId));
+                                boxType = EntityQuery.use(delegator).from("ShipmentBoxType").where("shipmentBoxTypeId", boxTypeId).queryOne();
                             } catch (GenericEntityException e) {
                                 return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingPackageConfiguratorError", locale));
                             }
@@ -667,7 +653,7 @@ public class BOMServices {
                         // single package
                         GenericValue orderItem = orderReadHelper.getOrderItem(orderShipment.getString("orderItemSeqId"));
                         try {
-                            product = orderItem.getRelatedOne("Product");
+                            product = orderItem.getRelatedOne("Product", false);
                         } catch (GenericEntityException e) {
                             return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingPackageConfiguratorError", locale));
                         }
@@ -742,9 +728,9 @@ public class BOMServices {
     /** It reads the product's bill of materials,
      * if necessary configures it, and it returns its (possibly configured) components in
      * a List of {@link BOMNode}).
-     * @param dctx
-     * @param context
-     * @return
+     * @param dctx the distach context
+     * @param context the context 
+     * @return returns the list of products in packages
      */
     public static Map<String, Object> getProductsInPackages(DispatchContext dctx, Map<String, ? extends Object> context) {
         Map<String, Object> result = FastMap.newInstance();

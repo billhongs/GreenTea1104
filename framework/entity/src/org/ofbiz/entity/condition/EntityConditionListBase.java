@@ -18,7 +18,6 @@
  *******************************************************************************/
 package org.ofbiz.entity.condition;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,7 @@ import java.util.Map;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericModelException;
-import org.ofbiz.entity.config.DatasourceInfo;
+import org.ofbiz.entity.config.model.Datasource;
 import org.ofbiz.entity.model.ModelEntity;
 
 /**
@@ -37,32 +36,12 @@ import org.ofbiz.entity.model.ModelEntity;
 public abstract class EntityConditionListBase<T extends EntityCondition> extends EntityCondition {
     public static final String module = EntityConditionListBase.class.getName();
 
-    protected List<T> conditionList = null;
-    protected EntityJoinOperator operator = null;
+    protected final List<T> conditionList;
+    protected final EntityJoinOperator operator;
 
-    protected EntityConditionListBase() {}
-
-    public EntityConditionListBase(EntityJoinOperator operator, T... conditionList) {
-        this.init(operator, conditionList);
-    }
-
-    public EntityConditionListBase(List<T> conditionList, EntityJoinOperator operator) {
-        this.init(conditionList, operator);
-    }
-
-    public void init(EntityJoinOperator operator, T... conditionList) {
-        this.conditionList = Arrays.asList(conditionList);
-        this.operator = operator;
-    }
-
-    public void init(List<T> conditionList, EntityJoinOperator operator) {
+    protected EntityConditionListBase(List<T> conditionList, EntityJoinOperator operator) {
         this.conditionList = conditionList;
         this.operator = operator;
-    }
-
-    public void reset() {
-        this.conditionList = null;
-        this.operator = null;
     }
 
     public EntityJoinOperator getOperator() {
@@ -92,7 +71,7 @@ public abstract class EntityConditionListBase<T extends EntityCondition> extends
     }
 
     @Override
-    public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, DatasourceInfo datasourceInfo) {
+    public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, Datasource datasourceInfo) {
         // if (Debug.verboseOn()) Debug.logVerbose("makeWhereString for entity " + modelEntity.getEntityName(), module);
         StringBuilder sql = new StringBuilder();
         operator.addSqlValue(sql, modelEntity, entityConditionParams, conditionList, datasourceInfo);
@@ -113,13 +92,6 @@ public abstract class EntityConditionListBase<T extends EntityCondition> extends
     @Override
     public EntityCondition freeze() {
         return operator.freeze(conditionList);
-    }
-
-    @Override
-    public void encryptConditionFields(ModelEntity modelEntity, Delegator delegator) {
-        for (T cond: this.conditionList) {
-            cond.encryptConditionFields(modelEntity, delegator);
-        }
     }
 
     @Override

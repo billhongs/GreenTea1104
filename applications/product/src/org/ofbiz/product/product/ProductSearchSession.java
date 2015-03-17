@@ -53,7 +53,9 @@ import org.ofbiz.entity.model.DynamicViewEntity;
 import org.ofbiz.entity.model.ModelKeyMap;
 import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.product.catalog.CatalogWorker;
 import org.ofbiz.product.category.CategoryWorker;
 import org.ofbiz.product.feature.ParametricSearch;
@@ -152,19 +154,22 @@ public class ProductSearchSession {
         }
 
         /**
-         * @return Returns the viewIndex.
+         * Get the view size
+         * @return returns the viewIndex.
          */
         public Integer getViewIndex() {
             return viewIndex;
         }
         /**
-         * @param viewIndex The viewIndex to set.
+         * Set the view index
+         * @param viewIndex the viewIndex to set.
          */
         public void setViewIndex(Integer viewIndex) {
             this.viewIndex = viewIndex;
         }
         /**
-         * @param viewIndex The viewIndex to set.
+         * Set the view index
+         * @param viewIndexStr the viewIndex to set.
          */
         public void setViewIndex(String viewIndexStr) {
             if (UtilValidate.isEmpty(viewIndexStr)) {
@@ -181,14 +186,16 @@ public class ProductSearchSession {
         }
 
         /**
-         * @return Returns the viewSize.
+         * Get the view size
+         * @return returns the view size.
          */
         public Integer getViewSize() {
             return viewSize;
         }
 
         /**
-         * @param viewSize The viewSize to set.
+         * Set the view size
+         * @param viewSize the view size to set.
          */
         public void setViewSize(Integer viewSize) {
             setPreviousViewSize(getViewSize());
@@ -196,7 +203,8 @@ public class ProductSearchSession {
         }
 
         /**
-         * @param viewSize The viewSize to set.
+         * Set the view size
+         * @param viewSizeStr the view size to set.
          */
         public void setViewSize(String viewSizeStr) {
             if (UtilValidate.isEmpty(viewSizeStr)) {
@@ -213,14 +221,16 @@ public class ProductSearchSession {
         }
 
         /**
-         * @return Returns the paging.
+         * Get the paging
+         * @return Returns the paging
          */
         public String getPaging() {
             return paging;
         }
 
         /**
-         * @param paging The paging to set.
+         * Set the paging
+         * @param paging the paging to set
          */
         public void setPaging(String paging) {
             if (paging == null) {
@@ -230,13 +240,15 @@ public class ProductSearchSession {
         }
 
         /**
-         * @return Returns the previousViewSize.
+         * Get the previous view size
+         * @return returns the previous view size
          */
         public Integer getPreviousViewSize() {
             return previousViewSize;
         }
         /**
-         * @param previousViewSize The previousViewSize to set.
+         * Set the previous view size
+         * @param previousViewSize the previousViewSize to set.
          */
         public void setPreviousViewSize(Integer previousViewSize) {
             if (previousViewSize == null) {
@@ -390,8 +402,7 @@ public class ProductSearchSession {
             if (keywords.size() > 0) {
                 List<GenericValue> productStoreKeywordOvrdList = null;
                 try {
-                    productStoreKeywordOvrdList = delegator.findByAndCache("ProductStoreKeywordOvrd", UtilMisc.toMap("productStoreId", productStoreId), UtilMisc.toList("-fromDate"));
-                    productStoreKeywordOvrdList = EntityUtil.filterByDate(productStoreKeywordOvrdList, true);
+                    productStoreKeywordOvrdList = EntityQuery.use(delegator).from("ProductStoreKeywordOvrd").where("productStoreId", productStoreId).orderBy("-fromDate").cache(true).filterByDate().queryList();
                 } catch (GenericEntityException e) {
                     Debug.logError(e, "Error reading ProductStoreKeywordOvrd list, not doing keyword override", module);
                 }
@@ -849,6 +860,7 @@ public class ProductSearchSession {
         productSearchOptions.setPaging((String) parameters.get("PAGING"));
     }
 
+    @SuppressWarnings("unchecked")
     public static Map<String, Object> getProductSearchResult(HttpServletRequest request, Delegator delegator, String prodCatalogId) {
 
         // ========== Create View Indexes
@@ -859,6 +871,14 @@ public class ProductSearchSession {
         int listSize = 0;
         String paging = "Y";
         int previousViewSize = 20;
+        Map<String, Object> requestParams = UtilHttp.getCombinedMap(request);
+        List<String> keywordTypeIds = FastList.newInstance();
+        if (requestParams.get("keywordTypeId") instanceof String) {
+            keywordTypeIds.add((String) requestParams.get("keywordTypeId"));
+        } else if (requestParams.get("keywordTypeId") instanceof List){
+            keywordTypeIds = (List<String>) requestParams.get("keywordTypeId");
+        }
+        String statusId = (String) requestParams.get("statusId");
 
         HttpSession session = request.getSession();
         ProductSearchOptions productSearchOptions = getProductSearchOptions(session);
@@ -892,10 +912,9 @@ public class ProductSearchSession {
         List<String> productIds = FastList.newInstance();
         String visitId = VisitHandler.getVisitId(session);
         List<ProductSearchConstraint> productSearchConstraintList = ProductSearchOptions.getConstraintList(session);
-        Map<String, Object> requestParams = UtilHttp.getParameterMap(request);
         String noConditionFind = (String) requestParams.get("noConditionFind");
         if (UtilValidate.isEmpty(noConditionFind)) {
-            noConditionFind = UtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind");
+            noConditionFind = EntityUtilProperties.getPropertyValue("widget", "widget.defaultNoConditionFind", delegator);
         }
         // if noConditionFind to Y then find without conditions otherwise search according to constraints.
         if ("Y".equals(noConditionFind) || UtilValidate.isNotEmpty(productSearchConstraintList)) {
@@ -912,11 +931,16 @@ public class ProductSearchSession {
                 addOnTopProdCondList.add(EntityCondition.makeCondition(EntityCondition.makeCondition("thruDate", EntityOperator.EQUALS, null), EntityOperator.OR, EntityCondition.makeCondition("thruDate", EntityOperator.GREATER_THAN, now)));
                 addOnTopProdCondList.add(EntityCondition.makeCondition("fromDate", EntityOperator.LESS_THAN, now));
                 addOnTopProdCondList.add(EntityCondition.makeCondition("productCategoryId", EntityOperator.EQUALS, addOnTopProdCategoryId));
-                EntityFindOptions findOpts = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, true);
-                findOpts.setMaxRows(highIndex);
                 EntityListIterator pli = null;
                 try {
-                    pli = delegator.find("ProductCategoryMember", EntityCondition.makeCondition(addOnTopProdCondList, EntityOperator.AND), null, UtilMisc.toSet("productId", "sequenceNum"), UtilMisc.toList("sequenceNum"), findOpts);
+                    pli = EntityQuery.use(delegator).select(UtilMisc.toSet("productId", "sequenceNum"))
+                            .from("ProductCategoryMember")
+                            .where(addOnTopProdCondList)
+                            .orderBy("sequenceNum")
+                            .cursorScrollInsensitive()
+                            .distinct()
+                            .maxRows(highIndex)
+                            .queryIterator();
                     addOnTopProductCategoryMembers = pli.getPartialList(lowIndex, viewSize);
                     addOnTopListSize = addOnTopProductCategoryMembers.size();
                     for (GenericValue alwaysAddProductCategoryMember: addOnTopProductCategoryMembers) {
@@ -955,7 +979,17 @@ public class ProductSearchSession {
             productSearchContext.setResultSortOrder(resultSortOrder);
             productSearchContext.setResultOffset(resultOffset);
             productSearchContext.setMaxResults(maxResults);
-
+            
+            if (UtilValidate.isNotEmpty(keywordTypeIds)) {
+                productSearchContext.keywordTypeIds = keywordTypeIds;
+            } else {
+                 productSearchContext.keywordTypeIds = UtilMisc.toList("KWT_KEYWORD");
+            }
+            
+            if (UtilValidate.isNotEmpty(statusId)) {
+                productSearchContext.statusId = statusId;
+            }
+            
             List<String> foundProductIds = productSearchContext.doSearch();
             if (maxResultsInt > 0) {
                 productIds.addAll(foundProductIds);
@@ -1191,7 +1225,6 @@ public class ProductSearchSession {
 
         DynamicViewEntity dynamicViewEntity = productSearchContext.dynamicViewEntity;
         List<EntityCondition> entityConditionList = productSearchContext.entityConditionList;
-        List<String> fieldsToSelect = FastList.newInstance();
 
         dynamicViewEntity.addMemberEntity("PFAC", "ProductFeatureAppl");
         dynamicViewEntity.addAlias("PFAC", "pfacProductFeatureId", "productFeatureId", null, null, Boolean.TRUE, null);
@@ -1199,8 +1232,6 @@ public class ProductSearchSession {
         dynamicViewEntity.addAlias("PFAC", "pfacThruDate", "thruDate", null, null, null, null);
         dynamicViewEntity.addAlias("PFAC", "featureCount", "productId", null, null, null, "count-distinct");
         dynamicViewEntity.addViewLink("PROD", "PFAC", Boolean.FALSE, ModelKeyMap.makeKeyMapList("productId"));
-        fieldsToSelect.add("pfacProductFeatureId");
-        fieldsToSelect.add("featureCount");
         entityConditionList.add(EntityCondition.makeCondition(EntityCondition.makeCondition("pfacThruDate", EntityOperator.EQUALS, null), EntityOperator.OR, EntityCondition.makeCondition("pfacThruDate", EntityOperator.GREATER_THAN, UtilDateTime.nowTimestamp())));
         entityConditionList.add(EntityCondition.makeCondition("pfacFromDate", EntityOperator.LESS_THAN, UtilDateTime.nowTimestamp()));
 
@@ -1208,18 +1239,17 @@ public class ProductSearchSession {
         dynamicViewEntity.addAlias("PFC", "pfcProductFeatureTypeId", "productFeatureTypeId", null, null, Boolean.TRUE, null);
         dynamicViewEntity.addAlias("PFC", "pfcDescription", "description", null, null, Boolean.TRUE, null);
         dynamicViewEntity.addViewLink("PFAC", "PFC", Boolean.FALSE, ModelKeyMap.makeKeyMapList("productFeatureId"));
-        fieldsToSelect.add("pfcDescription");
-        fieldsToSelect.add("pfcProductFeatureTypeId");
         entityConditionList.add(EntityCondition.makeCondition("pfcProductFeatureTypeId", EntityOperator.EQUALS, productFeatureTypeId));
-
-        EntityCondition whereCondition = EntityCondition.makeCondition(entityConditionList, EntityOperator.AND);
-
-        EntityFindOptions efo = new EntityFindOptions();
-        efo.setResultSetType(EntityFindOptions.TYPE_SCROLL_INSENSITIVE);
 
         EntityListIterator eli = null;
         try {
-            eli = delegator.findListIteratorByCondition(dynamicViewEntity, whereCondition, null, fieldsToSelect, productSearchContext.orderByList, efo);
+            eli = EntityQuery.use(delegator)
+                    .select(UtilMisc.toSet("pfacProductFeatureId", "featureCount", "pfcDescription", "pfcProductFeatureTypeId"))
+                    .from(dynamicViewEntity)
+                    .where(entityConditionList)
+                    .orderBy(productSearchContext.orderByList)
+                    .cursorScrollInsensitive()
+                    .queryIterator();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error in product search", module);
             return null;
@@ -1290,14 +1320,14 @@ public class ProductSearchSession {
         entityConditionList.add(EntityCondition.makeCondition("ppcPrice", EntityOperator.LESS_THAN_EQUAL_TO, priceHigh));
         entityConditionList.add(EntityCondition.makeCondition("ppcProductPriceTypeId", EntityOperator.EQUALS, "LIST_PRICE"));
 
-        EntityCondition whereCondition = EntityCondition.makeCondition(entityConditionList, EntityOperator.AND);
-
-        EntityFindOptions efo = new EntityFindOptions();
-        efo.setResultSetType(EntityFindOptions.TYPE_SCROLL_INSENSITIVE);
-
         EntityListIterator eli = null;
         try {
-            eli = delegator.findListIteratorByCondition(dynamicViewEntity, whereCondition, null, fieldsToSelect, productSearchContext.orderByList, efo);
+            eli = EntityQuery.use(delegator).select(UtilMisc.toSet(fieldsToSelect))
+                    .from(dynamicViewEntity)
+                    .where(entityConditionList)
+                    .orderBy(productSearchContext.orderByList)
+                    .cursorScrollInsensitive()
+                    .queryIterator();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error in product search", module);
             return 0;
@@ -1356,14 +1386,14 @@ public class ProductSearchSession {
         ProductSearch.getAllSubCategoryIds(productCategoryId, productCategoryIdSet, delegator, productSearchContext.nowTimestamp);
         entityConditionList.add(EntityCondition.makeCondition("pcmcProductCategoryId", EntityOperator.IN, productCategoryIdSet));
 
-        EntityCondition whereCondition = EntityCondition.makeCondition(entityConditionList, EntityOperator.AND);
-
-        EntityFindOptions efo = new EntityFindOptions();
-        efo.setResultSetType(EntityFindOptions.TYPE_SCROLL_INSENSITIVE);
-
         EntityListIterator eli = null;
         try {
-            eli = delegator.findListIteratorByCondition(dynamicViewEntity, whereCondition, null, fieldsToSelect, productSearchContext.orderByList, efo);
+            eli = EntityQuery.use(delegator).select(UtilMisc.toSet(fieldsToSelect))
+                    .from(dynamicViewEntity)
+                    .where(entityConditionList)
+                    .orderBy(productSearchContext.orderByList)
+                    .cursorScrollInsensitive()
+                    .queryIterator();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error in product search", module);
             return 0;

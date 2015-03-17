@@ -23,7 +23,6 @@ import java.net.URL;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,7 +44,9 @@ import org.ofbiz.datafile.RecordIterator;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.security.Security;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ServiceUtil;
@@ -229,7 +230,7 @@ public class ZipSalesServices {
         List<List<GenericValue>> itemAdjustments = FastList.newInstance();
 
         // check for a valid state/province geo
-        String validStates = UtilProperties.getPropertyValue("zipsales.properties", "zipsales.valid.states");
+        String validStates = EntityUtilProperties.getPropertyValue("zipsales.properties", "zipsales.valid.states", delegator);
         if (UtilValidate.isNotEmpty(validStates)) {
             List<String> stateSplit = StringUtil.split(validStates, "|");
             if (!stateSplit.contains(stateProvince)) {
@@ -272,7 +273,7 @@ public class ZipSalesServices {
         }
 
         // lookup the records
-        List<GenericValue> zipLookup = delegator.findByAnd("ZipSalesTaxLookup", UtilMisc.toMap("zipCode", zipCode), UtilMisc.toList("-fromDate"));
+        List<GenericValue> zipLookup = EntityQuery.use(delegator).from("ZipSalesTaxLookup").where("zipCode", zipCode).orderBy("-fromDate").queryList();
         if (UtilValidate.isEmpty(zipLookup)) {
             throw new GeneralException("The zip code entered is not valid.");
         }
@@ -346,7 +347,7 @@ public class ZipSalesServices {
         // look up the rules
         List<GenericValue> ruleLookup = null;
         try {
-            ruleLookup = delegator.findByAnd("ZipSalesRuleLookup", UtilMisc.toMap("stateCode", stateCode), UtilMisc.toList("-fromDate"));
+            ruleLookup = EntityQuery.use(delegator).from("ZipSalesRuleLookup").where("stateCode", stateCode).orderBy("-fromDate").queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }
@@ -362,13 +363,11 @@ public class ZipSalesServices {
         }
 
         if (ruleLookup != null) {
-            Iterator<GenericValue> ruleIterator = ruleLookup.iterator();
-            while (ruleIterator.hasNext()) {
+            for (GenericValue rule : ruleLookup) {
                 if (!taxShipping) {
                     // if we found an rule which passes no need to contine (all rules are ||)
                     break;
                 }
-                GenericValue rule = ruleIterator.next();
                 String idCode = rule.getString("idCode");
                 String taxable = rule.getString("taxable");
                 String condition = rule.getString("shipCond");

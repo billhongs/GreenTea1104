@@ -54,7 +54,7 @@ under the License.
                 <div class="section-header">${uiLabelMap.WebtoolsEntityPackages}</div>
                 <#list packageNames as packageName>
                     <#if forstatic>
-                        <a href="entityref_main.html#${packageName}" target="entityFrame">${packageName}</a><br />
+                        <a href="entityref_main#${packageName}" target="entityFrame">${packageName}</a><br />
                     <#else>
                         <a href="<@ofbizUrl>view/entityref_main#${packageName}</@ofbizUrl>" target="entityFrame">${packageName}</a><br />
                     </#if>
@@ -67,7 +67,7 @@ under the License.
                     <#if forstatic>
                         <a href="<@ofbizUrl>entityref_main#${entity.entityName}</@ofbizUrl>" target="entityFrame">${entity.entityName}</a>
                     <#else>
-                        <a href="<@ofbizUrl>view/entityref_main#${entity.entityName}${entity.url?if_exists}</@ofbizUrl>" target="entityFrame">${entity.entityName}</a>
+                        <a href="<@ofbizUrl>view/entityref_main#${entity.entityName}${entity.url!}</@ofbizUrl>" target="entityFrame">${entity.entityName}</a>
                     </#if>
                     <br />
                 </#list>

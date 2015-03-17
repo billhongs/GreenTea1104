@@ -36,8 +36,8 @@ if (!partyId) {
 context.partyId = partyId;
 
 if (partyId && !partyId.equals("_NA_")) {
-    party = delegator.findByPrimaryKey("Party", [partyId : partyId]);
-    person = party.getRelatedOne("Person");
+    party = from("Party").where("partyId", partyId).queryOne();
+    person = party.getRelatedOne("Person", false);
     context.party = party;
     context.person = person;
 }
@@ -47,14 +47,12 @@ request.removeAttribute("_EVENT_MESSAGE_");
 
 if (parameters.useShipAddr && cart.getShippingContactMechId()) {
     shippingContactMech = cart.getShippingContactMechId();
-    postalAddress = delegator.findByPrimaryKey("PostalAddress", [contactMechId : shippingContactMech]);
+    postalAddress = from("PostalAddress").where("contactMechId", shippingContactMech).queryOne();
     context.useEntityFields = "Y";
     context.postalAddress = postalAddress;
 
     if (postalAddress && partyId) {
-        partyContactMechs = delegator.findByAnd("PartyContactMech", [partyId : partyId, contactMechId : postalAddress.contactMechId], ["-fromDate"]);
-        partyContactMechs = EntityUtil.filterByDate(partyContactMechs);
-        partyContactMech = EntityUtil.getFirst(partyContactMechs);
+        partyContactMech = from("PartyContactMech").where("partyId", partyId, "contactMechId", postalAddress.contactMechId).orderBy("-fromDate").filterByDate().queryFirst();
         context.partyContactMech = partyContactMech;
     }
 } else {
@@ -67,15 +65,15 @@ if (cart) {
         paymentMethods.each { paymentMethod ->
             account = null;
             if ("CREDIT_CARD".equals(paymentMethod?.paymentMethodTypeId)) {
-                account = paymentMethod.getRelatedOne("CreditCard");
+                account = paymentMethod.getRelatedOne("CreditCard", false);
                 context.creditCard = account;
                 context.paymentMethodTypeId = "CREDIT_CARD";
             } else if ("EFT_ACCOUNT".equals(paymentMethod?.paymentMethodTypeId)) {
-                account = paymentMethod.getRelatedOne("EftAccount");
+                account = paymentMethod.getRelatedOne("EftAccount", false);
                 context.eftAccount = account;
                 context.paymentMethodTypeId = "EFT_ACCOUNT";
             } else if ("GIFT_CARD".equals(paymentMethod?.paymentMethodTypeId)) {
-                account = paymentMethod.getRelatedOne("GiftCard");
+                account = paymentMethod.getRelatedOne("GiftCard", false);
                 context.giftCard = account;
                 context.paymentMethodTypeId = "GIFT_CARD";
                 context.addGiftCard = "Y";
@@ -83,7 +81,7 @@ if (cart) {
                 context.paymentMethodTypeId = "EXT_OFFLINE";
             }
             if (account && !parameters.useShipAddr) {
-                address = account.getRelatedOne("PostalAddress");
+                address = account.getRelatedOne("PostalAddress", false);
                 context.postalAddress = address;
             }
         }

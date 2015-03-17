@@ -22,16 +22,16 @@ partyId = parameters.partyId;
 productId = parameters.productId;
 
 if (orderId && productId) {
-    shipmentReceiptAndItems = delegator.findByAnd("ShipmentReceiptAndItem", [orderId : orderId, productId : productId]);
+    shipmentReceiptAndItems = from("ShipmentReceiptAndItem").where("orderId", orderId, "productId", productId).queryList();
     context.inventoryItemsForPo = shipmentReceiptAndItems;
     context.orderId = orderId;
 }
 
 if (partyId && productId) {
-    orderRoles = delegator.findByAnd("OrderRole", [partyId : partyId, roleTypeId : "BILL_FROM_VENDOR"]);
+    orderRoles = from("OrderRole").where("partyId", partyId, "roleTypeId", "BILL_FROM_VENDOR").queryList();
     inventoryItemsForSupplier = [];
     orderRoles.each { orderRole ->
-        shipmentReceiptAndItems = delegator.findByAnd("ShipmentReceiptAndItem", [productId : productId, orderId : orderRole.orderId]);
+        shipmentReceiptAndItems = from("ShipmentReceiptAndItem").where("productId", productId, "orderId", orderRole.orderId).queryList();
         inventoryItemsForSupplier.addAll(shipmentReceiptAndItems);
     }
     context.inventoryItemsForSupplier = inventoryItemsForSupplier;
@@ -39,9 +39,9 @@ if (partyId && productId) {
 }
 
 if (productId) {
-    inventoryItems = delegator.findByAnd("InventoryItem", [productId : productId]);
+    inventoryItems = from("InventoryItem").where("productId", productId).queryList();
     context.inventoryItemsForProduct = inventoryItems;
     context.productId = productId;
-    product = delegator.findByPrimaryKey("Product", [productId : productId]);
+    product = from("Product").where("productId", productId).queryOne();
     context.internalName = product.internalName;
 }

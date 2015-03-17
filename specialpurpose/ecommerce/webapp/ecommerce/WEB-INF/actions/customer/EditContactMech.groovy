@@ -46,7 +46,7 @@ if (paymentMethodId) context.paymentMethodId = paymentMethodId;
 
 cmNewPurposeTypeId = parameters.contactMechPurposeTypeId;
 if (cmNewPurposeTypeId) {
-    contactMechPurposeType = delegator.findByPrimaryKey("ContactMechPurposeType", [contactMechPurposeTypeId : cmNewPurposeTypeId]);
+    contactMechPurposeType = from("ContactMechPurposeType").where("contactMechPurposeTypeId", cmNewPurposeTypeId).queryOne();
     if (contactMechPurposeType) {
         context.contactMechPurposeType = contactMechPurposeType;
     } else {
@@ -79,25 +79,25 @@ if (telecomNumberData) context.telecomNumberData = telecomNumberData;
 
 // load the geo names for selected countries and states/regions
 if (parameters.countryGeoId) {
-    geoValue = delegator.findByPrimaryKeyCache("Geo", [geoId : parameters.countryGeoId]);
+    geoValue = from("Geo").where("geoId", parameters.countryGeoId).cache(true).queryOne();
     if (geoValue) {
         context.selectedCountryName = geoValue.geoName;
     }
 } else if (postalAddressData?.countryGeoId) {
-    geoValue = delegator.findByPrimaryKeyCache("Geo", [geoId : postalAddressData.countryGeoId]);
+    geoValue = from("Geo").where("geoId", postalAddressData.countryGeoId).cache(true).queryOne();
     if (geoValue) {
         context.selectedCountryName = geoValue.geoName;
     }
 }
 
 if (parameters.stateProvinceGeoId) {
-    geoValue = delegator.findByPrimaryKeyCache("Geo", [geoId : parameters.stateProvinceGeoId]);
+    geoValue = from("Geo").where("geoId", parameters.stateProvinceGeoId).cache(true).queryOne();
     if (geoValue) {
-        context.selectedStateName = geoValue.geoName;
+        context.selectedStateName = geoValue.geoId;
     }
 } else if (postalAddressData?.stateProvinceGeoId) {
-    geoValue = delegator.findByPrimaryKeyCache("Geo", [geoId : postalAddressData.stateProvinceGeoId]);
+    geoValue = from("Geo").where("geoId", postalAddressData.stateProvinceGeoId).cache(true).queryOne();
     if (geoValue) {
-        context.selectedStateName = geoValue.geoName;
+        context.selectedStateName = geoValue.geoId;
     }
 }

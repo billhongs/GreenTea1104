@@ -35,6 +35,7 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.order.shoppingcart.ShoppingCart;
 import org.ofbiz.order.shoppingcart.ShoppingCartEvents;
 import org.ofbiz.product.store.ProductStoreWorker;
@@ -102,7 +103,7 @@ public class ExpressCheckoutEvents {
         }
         if (paymentGatewayConfigId != null) {
             try {
-                payPalGatewayConfig = delegator.findOne("PaymentGatewayPayPal", true, "paymentGatewayConfigId", paymentGatewayConfigId);
+                payPalGatewayConfig = EntityQuery.use(delegator).from("PaymentGatewayPayPal").where("paymentGatewayConfigId", paymentGatewayConfigId).cache().queryOne();
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -210,13 +211,13 @@ public class ExpressCheckoutEvents {
         GenericValue payPalPaymentSetting = ProductStoreWorker.getProductStorePaymentSetting(delegator, productStoreId, "EXT_PAYPAL", null, true);
         if (payPalPaymentSetting != null && payPalPaymentSetting.getString("paymentGatewayConfigId") != null) {
             try {
-                GenericValue paymentGatewayConfig = payPalPaymentSetting.getRelatedOne("PaymentGatewayConfig");
+                GenericValue paymentGatewayConfig = payPalPaymentSetting.getRelatedOne("PaymentGatewayConfig", false);
                 String paymentGatewayConfigTypeId = paymentGatewayConfig.getString("paymentGatewayConfigTypeId");
                 if (paymentGatewayConfig != null) {
                     if ("PAYFLOWPRO".equals(paymentGatewayConfigTypeId)) {
                         return CheckoutType.PAYFLOW;
                     } else if ("PAYPAL".equals(paymentGatewayConfigTypeId)) {
-                        GenericValue payPalConfig = paymentGatewayConfig.getRelatedOne("PaymentGatewayPayPal");
+                        GenericValue payPalConfig = paymentGatewayConfig.getRelatedOne("PaymentGatewayPayPal", false);
                         // TODO: Probably better off with an indicator field to indicate Express Checkout use
                         if (UtilValidate.isNotEmpty(payPalConfig.get("apiUserName"))) {
                             return CheckoutType.STANDARD;

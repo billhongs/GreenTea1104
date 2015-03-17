@@ -26,12 +26,12 @@ import org.ofbiz.entity.*
 
 productFeatureGroupId = parameters.get("productFeatureGroupId");
 if (productFeatureGroupId) {
-    productFeatureGroup = delegator.findOne("ProductFeatureGroup", [productFeatureGroupId : productFeatureGroupId], false);
+    productFeatureGroup = from("ProductFeatureGroup").where("productFeatureGroupId", productFeatureGroupId).queryOne();
     productFeatures = [];
-    productFeatureGroupAppls = productFeatureGroup.getRelated("ProductFeatureGroupAppl", ['sequenceNum']);
+    productFeatureGroupAppls = productFeatureGroup.getRelated("ProductFeatureGroupAppl", null, ['sequenceNum'], false);
     for (pFGAi = productFeatureGroupAppls.iterator(); pFGAi;) {
         productFeatureGroupAppl = (GenericEntity)pFGAi.next();
-        productFeature = (GenericEntity)productFeatureGroupAppl.getRelatedOne("ProductFeature");
+        productFeature = (GenericEntity)productFeatureGroupAppl.getRelatedOne("ProductFeature", false);
         productFeature.set("defaultSequenceNum", productFeatureGroupAppl.getLong("sequenceNum"));
         productFeatures.add(productFeature);
     }

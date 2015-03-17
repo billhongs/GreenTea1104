@@ -45,7 +45,7 @@ if (!security.hasEntityPermission("ACCOUNTING", "_PRINT_CHECKS", session)) {
 // in the case of a single payment, the paymentId will be supplied
 paymentId = context.paymentId;
 if (paymentId) {
-    payment = delegator.findByPrimaryKey("Payment", [paymentId : paymentId]);
+    payment = from("Payment").where("paymentId", paymentId).queryOne();
     if (payment) payments.add(payment);
     context.payments = payments;
     return;
@@ -54,14 +54,14 @@ if (paymentId) {
 // in the case of a multi form, parse the multi data and get all of the selected payments
 selected = UtilHttp.parseMultiFormData(parameters);
 selected.each { row ->
-    payment = delegator.findByPrimaryKey("Payment", [paymentId : row.paymentId]);
+    payment = from("Payment").where("paymentId", row.paymentId).queryOne();
     if (payment) {
         payments.add(payment);
     }
 }
-paymentGroupMembers = EntityUtil.filterByDate(delegator.findList("PaymentGroupMember", EntityCondition.makeCondition("paymentGroupId", EntityOperator.EQUALS, parameters.paymentGroupId), null, null, null, false));
+paymentGroupMembers = from("PaymentGroupMember").where("paymentGroupId", parameters.paymentGroupId).filterByDate().queryList();
 //in the case of a multiple payments, paymentId List is supplied.
 paymentGroupMembers.each { paymentGropupMember->
-    payments.add(paymentGropupMember.getRelatedOne("Payment"));
+    payments.add(paymentGropupMember.getRelatedOne("Payment", false));
 }
 context.payments = payments;

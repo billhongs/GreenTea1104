@@ -21,13 +21,11 @@ package org.ofbiz.entity.condition;
 import java.util.List;
 import java.util.Map;
 
-import javolution.context.ObjectFactory;
-
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntity;
 import org.ofbiz.entity.GenericModelException;
-import org.ofbiz.entity.config.DatasourceInfo;
+import org.ofbiz.entity.config.model.Datasource;
 import org.ofbiz.entity.model.ModelEntity;
 
 /**
@@ -42,25 +40,12 @@ import org.ofbiz.entity.model.ModelEntity;
  *
  */
 @SuppressWarnings("serial")
-public class EntityWhereString extends EntityCondition {
+public final class EntityWhereString extends EntityCondition {
 
-    protected static final ObjectFactory<EntityWhereString> entityWhereStringFactory = new ObjectFactory<EntityWhereString>() {
-        @Override
-        protected EntityWhereString create() {
-            return new EntityWhereString();
-        }
-    };
+    protected final String sqlString;
 
-    protected String sqlString;
-
-    protected EntityWhereString() {}
-
-    public void init(String sqlString) {
+    public EntityWhereString(String sqlString) {
         this.sqlString = sqlString;
-    }
-
-    public void reset() {
-        this.sqlString = null;
     }
 
     @Override
@@ -69,7 +54,7 @@ public class EntityWhereString extends EntityCondition {
     }
 
     @Override
-    public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, DatasourceInfo datasourceInfo) {
+    public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, Datasource datasourceInfo) {
         return sqlString;
     }
 
@@ -94,11 +79,6 @@ public class EntityWhereString extends EntityCondition {
     @Override
     public EntityCondition freeze() {
         return this;
-    }
-
-    @Override
-    public void encryptConditionFields(ModelEntity modelEntity, Delegator delegator) {
-        // nothing to do here...
     }
 
     @Override

@@ -26,6 +26,7 @@ import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * WebSiteWorker - Worker class for web site related functionality
@@ -46,13 +47,37 @@ public class WebSiteWorker {
         if (webSiteId == null) {
             return null;
         }
-        Delegator delegator = (Delegator) request.getAttribute("delegator");
 
+        return findWebSite((Delegator) request.getAttribute("delegator"), webSiteId);
+    }
+
+    /**
+     * returns a WebSite-GenericValue (using entityCache)
+     *
+     * @param delegator
+     * @param webSiteId
+     * @return
+     */
+    public static GenericValue findWebSite(Delegator delegator, String webSiteId) {
+        return findWebSite(delegator, webSiteId, true);
+    }
+
+    /**
+     * returns a WebSite-GenericValue
+     *
+     * @param delegator
+     * @param webSiteId
+     * @param useCache
+     * @return
+     */
+    public static GenericValue findWebSite(Delegator delegator, String webSiteId, boolean useCache) {
+        GenericValue result = null;
         try {
-            return delegator.findByPrimaryKeyCache("WebSite", UtilMisc.toMap("webSiteId", webSiteId));
-        } catch (GenericEntityException e) {
-            Debug.logError(e, "Error looking up website with id " + webSiteId, module);
+            result = EntityQuery.use(delegator).from("WebSite").where("webSiteId", webSiteId).cache(useCache).queryOne();
         }
-        return null;
+        catch (GenericEntityException e) {
+            Debug.logError("Error looking up website with id " + webSiteId, module);
+        }
+        return result;
     }
 }

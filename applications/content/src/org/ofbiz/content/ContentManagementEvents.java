@@ -19,10 +19,8 @@
 package org.ofbiz.content;
 
 import java.sql.Timestamp;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -42,10 +40,12 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.security.Security;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ModelService;
+import org.ofbiz.webapp.website.WebSiteWorker;
 
 
 
@@ -61,7 +61,7 @@ public class ContentManagementEvents {
         Security security = (Security)request.getAttribute("security");
         GenericValue userLogin = (GenericValue)session.getAttribute("userLogin");
         ServletContext servletContext = session.getServletContext();
-        String webSiteId = (String) servletContext.getAttribute("webSiteId");
+        String webSiteId = WebSiteWorker.getWebSiteId(request);
         Delegator delegator = (Delegator)request.getAttribute("delegator");
         LocalDispatcher dispatcher = (LocalDispatcher)request.getAttribute("dispatcher");
         Map<String, Object> paramMap = UtilHttp.getParameterMap(request);
@@ -99,16 +99,12 @@ public class ContentManagementEvents {
         }
 */
 
-        Iterator<Map<String, Object>> it = valueList.iterator();
         int counter = 0;
-        while (it.hasNext()) {
-            Map<String, Object> map = it.next();
+        for (Map<String, Object> map : valueList) {
             String contentId = (String)map.get("contentId");
             //Integer idxObj = (Integer)contentIdLookup.get(contentId);
             //int idx = idxObj.intValue();
-            Iterator<String []> itPubPt = permittedPublishPointList.iterator();
-            while (itPubPt.hasNext()) {
-                String [] pubArr = itPubPt.next();
+            for (String [] pubArr : permittedPublishPointList) {
                 String pubContentId = pubArr[0];
                 String pubValue = (String)map.get(pubContentId);
                 String paramName = Integer.toString(counter)  + "_" + pubContentId;
@@ -161,7 +157,7 @@ public class ContentManagementEvents {
         Security security = (Security)request.getAttribute("security");
         GenericValue userLogin = (GenericValue)session.getAttribute("userLogin");
         ServletContext servletContext = session.getServletContext();
-        String webSiteId = (String) servletContext.getAttribute("webSiteId");
+        String webSiteId = WebSiteWorker.getWebSiteId(request);
         Delegator delegator = (Delegator)request.getAttribute("delegator");
         LocalDispatcher dispatcher = (LocalDispatcher)request.getAttribute("dispatcher");
         Map<String, Object> paramMap = UtilHttp.getParameterMap(request);
@@ -199,7 +195,7 @@ public class ContentManagementEvents {
         List<Object []> origPublishedLinkList = null;
         try {
             // TODO: this needs to be given author userLogin
-            delegator.findByPrimaryKeyCache("UserLogin", UtilMisc.toMap("userLoginId", authorId));
+            EntityQuery.use(delegator).from("UserLogin").where("userLoginId", authorId).cache().queryOne();
             origPublishedLinkList = ContentManagementWorker.getPublishedLinks(delegator, targContentId, webSiteId, userLogin, security, permittedAction, permittedOperations, roles);
         } catch (GenericEntityException e) {
             request.setAttribute("_ERROR_MESSAGE_", e.getMessage());
@@ -212,11 +208,8 @@ public class ContentManagementEvents {
 
         // make a map of the values that are passed in using the top subSite as the key.
         // Content can only be linked to one subsite under a top site (ends with "_MASTER")
-        Set<String> keySet = paramMap.keySet();
-        Iterator<String> itKeySet = keySet.iterator();
         Map<String, String> siteIdLookup = FastMap.newInstance();
-        while (itKeySet.hasNext()) {
-            String param = itKeySet.next();
+        for (String param : paramMap.keySet()) {
             int pos = param.indexOf("select_");
                 //if (Debug.infoOn()) Debug.logInfo("in updatePublishLinks, param:" + param + " pos:" + pos , module);
             if (pos >= 0) {
@@ -228,7 +221,6 @@ public class ContentManagementEvents {
         //if (Debug.infoOn()) Debug.logInfo("in updatePublishLinks, siteIdLookup:" + siteIdLookup , module);
 
         // Loop thru all the possible subsites
-        Iterator<Object []> it = origPublishedLinkList.iterator();
         Timestamp nowTimestamp = UtilDateTime.nowTimestamp();
         // int counter = 0;
         String responseMessage = null;
@@ -236,18 +228,15 @@ public class ContentManagementEvents {
         // String permissionMessage = null;
         boolean statusIdUpdated = false;
         Map<String, Object> results = null;
-        while (it.hasNext()) {
-            Object [] arr = it.next();
+        for (Object [] arr : origPublishedLinkList) {
             //if (Debug.infoOn()) Debug.logInfo("in updatePublishLinks, arr:" + Arrays.asList(arr) , module);
             String contentId = (String)arr[0]; // main (2nd level) site id
             String origSubContentId = null;
             List<Object []> origSubList = UtilGenerics.checkList(arr[1]);
             // Timestamp topFromDate = (Timestamp)arr[3];
             Timestamp origFromDate = null;
-            Iterator<Object []> itOrigSubPt = origSubList.iterator();
+            for (Object [] pubArr : origSubList) {
             // see if a link already exists by looking for non-null fromDate
-            while (itOrigSubPt.hasNext()) {
-                Object [] pubArr = itOrigSubPt.next();
                 //if (Debug.infoOn()) Debug.logInfo("in updatePublishLinks, pubArr:" + Arrays.asList(pubArr) , module);
                 Timestamp fromDate = (Timestamp)pubArr[2];
                 origSubContentId = null;
@@ -266,10 +255,13 @@ public class ContentManagementEvents {
                     if (!currentSubContentId.equals(origSubContentId)) {
                         // disable existing link
                         if (UtilValidate.isNotEmpty(origSubContentId) && origFromDate != null) {
-                            List<GenericValue> oldActiveValues = delegator.findByAnd("ContentAssoc", UtilMisc.toMap("contentId", targContentId, "contentIdTo", origSubContentId, "contentAssocTypeId", "PUBLISH_LINK", "thruDate", null));
-                            Iterator<GenericValue> iterOldActive = oldActiveValues.iterator();
-                            while (iterOldActive.hasNext()) {
-                                GenericValue cAssoc = iterOldActive.next();
+                            List<GenericValue> oldActiveValues = EntityQuery.use(delegator).from("ContentAssoc")
+                                    .where("contentId", targContentId, 
+                                            "contentIdTo", origSubContentId, 
+                                            "contentAssocTypeId", "PUBLISH_LINK", 
+                                            "thruDate", null)
+                                    .queryList();
+                            for (GenericValue cAssoc : oldActiveValues) {
                                 cAssoc.set("thruDate", nowTimestamp);
                                 cAssoc.store();
                                 //if (Debug.infoOn()) Debug.logInfo("in updatePublishLinks, deactivating:" + cAssoc , module);
@@ -309,7 +301,7 @@ public class ContentManagementEvents {
                         //if (Debug.infoOn()) Debug.logInfo("in updatePublishLinks, results(3b):" + results , module);
                         if (!statusIdUpdated) {
                             try {
-                                GenericValue targContent = delegator.findByPrimaryKey("Content", UtilMisc.toMap("contentId", targContentId));
+                                GenericValue targContent = EntityQuery.use(delegator).from("Content").where("contentId", targContentId).queryOne();
                                 targContent.set("statusId", "CTNT_PUBLISHED");
                                 targContent.store();
                                 statusIdUpdated = true;
@@ -322,17 +314,13 @@ public class ContentManagementEvents {
                     }
                 } else if (UtilValidate.isNotEmpty(origSubContentId)) {
                     // if no current link is passed in, look to see if there is an existing link(s) that must be disabled
-                    List<GenericValue> oldActiveValues = delegator.findByAnd("ContentAssoc", UtilMisc.toMap("contentId", targContentId, "contentIdTo", origSubContentId, "contentAssocTypeId", "PUBLISH_LINK", "thruDate", null));
-                    Iterator<GenericValue> iterOldActive = oldActiveValues.iterator();
-                    while (iterOldActive.hasNext()) {
-                        GenericValue cAssoc = iterOldActive.next();
-                        cAssoc.set("thruDate", nowTimestamp);
-                        cAssoc.store();
-                    }
-                    oldActiveValues = delegator.findByAnd("ContentAssoc", UtilMisc.toMap("contentId", targContentId, "contentIdTo", contentId, "contentAssocTypeId", "PUBLISH_LINK", "thruDate", null));
-                    iterOldActive = oldActiveValues.iterator();
-                    while (iterOldActive.hasNext()) {
-                        GenericValue cAssoc = iterOldActive.next();
+                    List<GenericValue> oldActiveValues = EntityQuery.use(delegator).from("ContentAssoc")
+                            .where("contentId", targContentId, 
+                                    "contentIdTo", origSubContentId, 
+                                    "contentAssocTypeId", "PUBLISH_LINK", 
+                                    "thruDate", null)
+                            .queryList();
+                    for (GenericValue cAssoc : oldActiveValues) {
                         cAssoc.set("thruDate", nowTimestamp);
                         cAssoc.store();
                     }

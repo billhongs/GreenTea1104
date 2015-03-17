@@ -26,7 +26,9 @@ import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.GenericEntityException;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.base.util.*;
 import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.order.order.OrderReadHelper;
@@ -61,7 +63,7 @@ public class FinAccountProductServices {
         // the order header for store info
         GenericValue orderHeader;
         try {
-            orderHeader = orderItem.getRelatedOne("OrderHeader");
+            orderHeader = orderItem.getRelatedOne("OrderHeader", false);
         } catch (GenericEntityException e) {
             Debug.logError(e, "Unable to get OrderHeader from OrderItem", module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceOrderError, 
@@ -71,8 +73,9 @@ public class FinAccountProductServices {
         String productId = orderItem.getString("productId");
         GenericValue featureAndAppl;
         try {
-            List<GenericValue> featureAndAppls = delegator.findByAnd("ProductFeatureAndAppl", UtilMisc.toMap("productId", productId,
-                    "productFeatureTypeId", "TYPE", "productFeatureApplTypeId", "STANDARD_FEATURE"));
+            List<GenericValue> featureAndAppls = EntityQuery.use(delegator).from("ProductFeatureAndAppl")
+                    .where("productId", productId, "productFeatureTypeId", "TYPE", "productFeatureApplTypeId", "STANDARD_FEATURE")
+                    .queryList();
             featureAndAppls = EntityUtil.filterByDate(featureAndAppls);
             featureAndAppl = EntityUtil.getFirst(featureAndAppls);
         } catch (GenericEntityException e) {
@@ -95,7 +98,7 @@ public class FinAccountProductServices {
         // locate the financial account type
         GenericValue finAccountType;
         try {
-            finAccountType = delegator.findByPrimaryKey("FinAccountType", UtilMisc.toMap("finAccountTypeId", finAccountTypeId));
+            finAccountType = EntityQuery.use(delegator).from("FinAccountType").where("finAccountTypeId", finAccountTypeId).queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(e.getMessage());
@@ -110,7 +113,7 @@ public class FinAccountProductServices {
 
         // make sure we have a currency
         if (currency == null) {
-            currency = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
+            currency = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
         }
 
         // get the product store
@@ -151,7 +154,7 @@ public class FinAccountProductServices {
 
         if (billToParty != null) {
             try {
-                party = billToParty.getRelatedOne("Party");
+                party = billToParty.getRelatedOne("Party", false);
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }

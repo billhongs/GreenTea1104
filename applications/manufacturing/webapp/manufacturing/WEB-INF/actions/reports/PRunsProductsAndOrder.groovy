@@ -25,11 +25,11 @@ import org.ofbiz.manufacturing.jobshopmgt.ProductionRunHelper;
 import org.ofbiz.order.order.OrderReadHelper;
 
 if (productCategoryIdPar) {
-    category = delegator.findByPrimaryKey("ProductCategory", [productCategoryId : productCategoryIdPar]);
+    category = from("ProductCategory").where("productCategoryId", productCategoryIdPar).queryOne();
     context.category = category;
 }
 
-allProductionRuns = delegator.findByAnd("WorkEffortAndGoods", UtilMisc.toMap("workEffortName", planName, "statusId", "WEGS_CREATED", "workEffortGoodStdTypeId", "PRUN_PROD_DELIV"), UtilMisc.toList("productId"));
+allProductionRuns = from("WorkEffortAndGoods").where("workEffortName", planName, "statusId", "WEGS_CREATED", "workEffortGoodStdTypeId", "PRUN_PROD_DELIV").orderBy("productId").queryList();
 productionRuns = [];
 
 if (allProductionRuns) {
@@ -38,17 +38,15 @@ if (allProductionRuns) {
         if (productCategoryIdPar) {
             if (!isProductInCategory(delegator, productionRun.productId, productCategoryIdPar)) {
                 // the production run's product is not a member of the given category, skip it
-                continue;
+                return;
             }
         }
-        productionRunProduct = delegator.findByPrimaryKey("Product", [productId : productionRun.productId]);
+        productionRunProduct = from("Product").where("productId", productionRun.productId).queryOne();
         String rootProductionRunId = ProductionRunHelper.getRootProductionRun(delegator, productionRun.workEffortId);
 
-        productionRunOrders = delegator.findByAnd("WorkOrderItemFulfillment", [workEffortId : rootProductionRunId]);
-        productionRunOrder = EntityUtil.getFirst(productionRunOrders);
+        productionRunOrder = from("WorkOrderItemFulfillment").where("workEffortId", rootProductionRunId).queryFirst();
         OrderReadHelper orh = new OrderReadHelper(delegator, productionRunOrder.orderId);
-        locations = delegator.findByAnd("ProductFacilityLocation", [productId : productionRun.productId, facilityId : productionRun.facilityId]);
-        location = EntityUtil.getFirst(locations);
+        location = from("ProductFacilityLocation").where("productId", productionRun.productId, "facilityId", productionRun.facilityId).queryFirst();
 
         productionRunMap = [productionRun : productionRun,
                                           product : productionRunProduct,

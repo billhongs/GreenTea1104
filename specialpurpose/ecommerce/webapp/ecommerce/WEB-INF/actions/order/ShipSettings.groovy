@@ -32,16 +32,15 @@ context.cart = cart;
 request.removeAttribute("_EVENT_MESSAGE_");
 
 if (partyId && !partyId.equals("_NA_")) {
-    party = delegator.findByPrimaryKey("Party", [partyId : partyId]);
-    person = party.getRelatedOne("Person");
+    party = from("Party").where("partyId", partyId).queryOne();
+    person = party.getRelatedOne("Person", false);
     context.party = party;
     context.person = person;
 }
 
 if (cart?.getShippingContactMechId()) {
     shippingContactMechId = cart.getShippingContactMechId();
-    shippingPartyContactDetail = EntityUtil.getFirst(EntityUtil.filterByDate(delegator.findByAnd("PartyContactDetailByPurpose",
-        [partyId : partyId, contactMechId : shippingContactMechId])));
+    shippingPartyContactDetail = from("PartyContactDetailByPurpose").where("partyId", partyId, "contactMechId", shippingContactMechId).filterByDate().queryFirst();
     parameters.shippingContactMechId = shippingPartyContactDetail.contactMechId;
     context.callSubmitForm = true;
 

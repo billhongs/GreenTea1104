@@ -286,14 +286,14 @@ text-align:left;
 #ecom-mainarea .left {
 background:#fff;
 float:left;
-width:180px;
+width:250px;
 margin:0 0 0 10px;
 }
 
 #ecom-mainarea .right {
 background:#fff;
 float:right;
-width:240px;
+width:250px;
 margin:0 10px 0 0;
 }
 
@@ -1815,3 +1815,14 @@ button.ui-button::-moz-focus-inner { border: 0; padding: 0; } /* reset extra pad
  */
 .ui-progressbar { height:2em; text-align: left; }
 .ui-progressbar .ui-progressbar-value {margin: -1px; height:100%; }
+
+
+.view-calendar button {
+    background: url("/images/cal.gif") no-repeat scroll 0 0 transparent !important;
+    border: medium none !important;
+    display: inline-block;
+    height: 22px;
+    margin-top: 3px;
+    vertical-align: top;
+    width: 22px;
+}

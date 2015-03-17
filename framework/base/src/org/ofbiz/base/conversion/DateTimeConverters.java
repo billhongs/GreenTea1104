@@ -18,6 +18,7 @@
  *******************************************************************************/
 package org.ofbiz.base.conversion;
 
+import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
@@ -25,6 +26,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import org.ofbiz.base.util.ObjectType;
 import org.ofbiz.base.util.TimeDuration;
 import org.ofbiz.base.util.UtilDateTime;
 import org.ofbiz.base.util.UtilValidate;
@@ -33,6 +35,21 @@ import com.ibm.icu.util.Calendar;
 
 /** Date/time Converter classes. */
 public class DateTimeConverters implements ConverterLoader {
+    public static class CalendarToDate extends AbstractConverter<Calendar, Date> {
+        public CalendarToDate() {
+            super(Calendar.class, Date.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
+        }
+
+        public Date convert(Calendar obj) throws ConversionException {
+            return obj.getTime();
+        }
+    }
+
     public static class CalendarToLong extends AbstractConverter<Calendar, Long> {
         public CalendarToLong() {
             super(Calendar.class, Long.class);
@@ -56,6 +73,31 @@ public class DateTimeConverters implements ConverterLoader {
         }
     }
 
+    public static class CalendarToTimestamp extends AbstractConverter<Calendar, Timestamp> {
+        public CalendarToTimestamp() {
+            super(Calendar.class, Timestamp.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
+        }
+
+        public Timestamp convert(Calendar obj) throws ConversionException {
+            return new Timestamp(obj.getTimeInMillis());
+        }
+    }
+
+    public static class DateToCalendar extends GenericLocalizedConverter<Date, Calendar> {
+        public DateToCalendar() {
+            super(Date.class, Calendar.class);
+        }
+
+        public Calendar convert(Date obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
+            return UtilDateTime.toCalendar(obj, timeZone, locale);
+        }
+    }
+
     public static class DateToLong extends AbstractConverter<java.util.Date, Long> {
         public DateToLong() {
             super(java.util.Date.class, Long.class);
@@ -71,8 +113,32 @@ public class DateTimeConverters implements ConverterLoader {
             super(java.util.Date.class, java.sql.Date.class);
         }
 
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
+        }
+
         public java.sql.Date convert(java.util.Date obj) throws ConversionException {
-            return new java.sql.Date(obj.getTime());
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(obj);
+            cal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+            cal.set(Calendar.MILLISECOND, 0);
+            return new java.sql.Date(cal.getTimeInMillis());
+        }
+    }
+
+    public static class DateToSqlTime extends AbstractConverter<java.util.Date, java.sql.Time> {
+        public DateToSqlTime() {
+            super(java.util.Date.class, java.sql.Time.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
+        }
+
+        public java.sql.Time convert(java.util.Date obj) throws ConversionException {
+            return new java.sql.Time(obj.getTime());
         }
     }
 
@@ -100,6 +166,11 @@ public class DateTimeConverters implements ConverterLoader {
     public static class DateToTimestamp extends AbstractConverter<java.util.Date, java.sql.Timestamp> {
         public DateToTimestamp() {
             super(java.util.Date.class, java.sql.Timestamp.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
         }
 
         public java.sql.Timestamp convert(java.util.Date obj) throws ConversionException {
@@ -137,6 +208,12 @@ public class DateTimeConverters implements ConverterLoader {
         }
     }
 
+    public static class DurationToList extends GenericSingletonToList<TimeDuration> {
+        public DurationToList() {
+            super(TimeDuration.class);
+        }
+    }
+
     public static class DurationToLong extends AbstractConverter<TimeDuration, Long> {
         public DurationToLong() {
             super(TimeDuration.class, Long.class);
@@ -144,12 +221,6 @@ public class DateTimeConverters implements ConverterLoader {
 
         public Long convert(TimeDuration obj) throws ConversionException {
              return TimeDuration.toLong(obj);
-        }
-    }
-
-    public static class DurationToList extends GenericSingletonToList<TimeDuration> {
-        public DurationToList() {
-            super(TimeDuration.class);
         }
     }
 
@@ -206,6 +277,11 @@ public class DateTimeConverters implements ConverterLoader {
             super(Number.class, java.util.Date.class);
         }
 
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
+        }
+
         public java.util.Date convert(Number obj) throws ConversionException {
              return new java.util.Date(obj.longValue());
         }
@@ -226,14 +302,28 @@ public class DateTimeConverters implements ConverterLoader {
             super(Number.class, java.sql.Date.class);
         }
 
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
+        }
+
         public java.sql.Date convert(Number obj) throws ConversionException {
-             return new java.sql.Date(obj.longValue());
+            Calendar cal = Calendar.getInstance();
+            cal.setTimeInMillis(obj.longValue());
+            cal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+            cal.set(Calendar.MILLISECOND, 0);
+            return new java.sql.Date(cal.getTimeInMillis());
         }
     }
 
     public static class NumberToSqlTime extends AbstractConverter<Number, java.sql.Time> {
         public NumberToSqlTime() {
             super(Number.class, java.sql.Time.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
         }
 
         public java.sql.Time convert(Number obj) throws ConversionException {
@@ -246,6 +336,11 @@ public class DateTimeConverters implements ConverterLoader {
             super(Number.class, java.sql.Timestamp.class);
         }
 
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
+        }
+
         public java.sql.Timestamp convert(Number obj) throws ConversionException {
              return new java.sql.Timestamp(obj.longValue());
         }
@@ -254,6 +349,11 @@ public class DateTimeConverters implements ConverterLoader {
     public static class SqlDateToDate extends AbstractConverter<java.sql.Date, java.util.Date> {
         public SqlDateToDate() {
             super(java.sql.Date.class, java.util.Date.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
         }
 
         public java.util.Date convert(java.sql.Date obj) throws ConversionException {
@@ -299,19 +399,29 @@ public class DateTimeConverters implements ConverterLoader {
             super(java.sql.Date.class, java.sql.Time.class);
         }
 
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
+        }
+
         public java.sql.Time convert(java.sql.Date obj) throws ConversionException {
             throw new ConversionException("Conversion from Date to Time not supported");
        }
     }
 
-    public static class SqlTimeToSqlDate extends AbstractConverter<java.sql.Time, java.sql.Date> {
-        public SqlTimeToSqlDate() {
-            super(java.sql.Time.class, java.sql.Date.class);
+    public static class SqlDateToTimestamp extends AbstractConverter<java.sql.Date, java.sql.Timestamp> {
+        public SqlDateToTimestamp() {
+            super(java.sql.Date.class, java.sql.Timestamp.class);
         }
 
-        public java.sql.Date convert(java.sql.Time obj) throws ConversionException {
-            throw new ConversionException("Conversion from Time to Date not supported");
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
         }
+
+        public java.sql.Timestamp convert(java.sql.Date obj) throws ConversionException {
+            return new java.sql.Timestamp(obj.getTime());
+       }
     }
 
     public static class SqlTimeToList extends GenericSingletonToList<java.sql.Time> {
@@ -320,19 +430,24 @@ public class DateTimeConverters implements ConverterLoader {
         }
     }
 
-    public static class SqlDateToTimestamp extends AbstractConverter<java.sql.Date, java.sql.Timestamp> {
-        public SqlDateToTimestamp() {
-            super(java.sql.Date.class, java.sql.Timestamp.class);
-        }
-
-        public java.sql.Timestamp convert(java.sql.Date obj) throws ConversionException {
-            return new java.sql.Timestamp(obj.getTime());
-       }
-    }
-
     public static class SqlTimeToSet extends GenericSingletonToSet<java.sql.Time> {
         public SqlTimeToSet() {
             super(java.sql.Time.class);
+        }
+    }
+
+    public static class SqlTimeToSqlDate extends AbstractConverter<java.sql.Time, java.sql.Date> {
+        public SqlTimeToSqlDate() {
+            super(java.sql.Time.class, java.sql.Date.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
+        }
+
+        public java.sql.Date convert(java.sql.Time obj) throws ConversionException {
+            throw new ConversionException("Conversion from Time to Date not supported");
         }
     }
 
@@ -353,16 +468,16 @@ public class DateTimeConverters implements ConverterLoader {
     }
 
     public static class StringToCalendar extends AbstractLocalizedConverter<String, Calendar> {
+        public StringToCalendar() {
+            super(String.class, Calendar.class);
+        }
+
         public Calendar convert(String obj) throws ConversionException {
             return convert(obj, Locale.getDefault(), TimeZone.getDefault(), null);
         }
 
         public Calendar convert(String obj, Locale locale, TimeZone timeZone) throws ConversionException {
             return convert(obj, Locale.getDefault(), TimeZone.getDefault(), null);
-        }
-
-        public StringToCalendar() {
-            super(String.class, Calendar.class);
         }
 
         public Calendar convert(String obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
@@ -397,7 +512,7 @@ public class DateTimeConverters implements ConverterLoader {
             }
             DateFormat df = null;
             if (UtilValidate.isEmpty(formatString)) {
-                df = UtilDateTime.toDateTimeFormat(UtilDateTime.DATE_TIME_FORMAT, timeZone, locale);
+                df = UtilDateTime.toDateTimeFormat(obj.contains("-") ? UtilDateTime.DATE_TIME_FORMAT : null, timeZone, locale);
             } else {
                 df = UtilDateTime.toDateTimeFormat(formatString, timeZone, locale);
             }
@@ -414,8 +529,8 @@ public class DateTimeConverters implements ConverterLoader {
             super(String.class, TimeDuration.class);
         }
 
-        public TimeDuration convert(String obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
-            return convert(obj, locale, timeZone);
+        public TimeDuration convert(String obj) throws ConversionException {
+            return TimeDuration.parseDuration(obj);
         }
 
         public TimeDuration convert(String obj, Locale locale, TimeZone timeZone) throws ConversionException {
@@ -433,14 +548,19 @@ public class DateTimeConverters implements ConverterLoader {
             return convert(obj);
         }
 
-        public TimeDuration convert(String obj) throws ConversionException {
-            return TimeDuration.parseDuration(obj);
+        public TimeDuration convert(String obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
+            return convert(obj, locale, timeZone);
         }
     }
 
     public static class StringToSqlDate extends GenericLocalizedConverter<String, java.sql.Date> {
         public StringToSqlDate() {
             super(String.class, java.sql.Date.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
         }
 
         public java.sql.Date convert(String obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
@@ -455,7 +575,11 @@ public class DateTimeConverters implements ConverterLoader {
                 df = UtilDateTime.toDateFormat(formatString, timeZone, locale);
             }
             try {
-                return new java.sql.Date(df.parse(trimStr).getTime());
+                java.util.Date parsedDate = df.parse(trimStr);
+                Calendar cal = UtilDateTime.toCalendar(parsedDate, timeZone, locale);
+                cal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+                cal.set(Calendar.MILLISECOND, 0);
+                return new java.sql.Date(cal.getTimeInMillis());
             } catch (ParseException e) {
                 throw new ConversionException(e);
             }
@@ -465,6 +589,11 @@ public class DateTimeConverters implements ConverterLoader {
     public static class StringToSqlTime extends GenericLocalizedConverter<String, java.sql.Time> {
         public StringToSqlTime() {
             super(String.class, java.sql.Time.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
         }
 
         public java.sql.Time convert(String obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
@@ -489,6 +618,11 @@ public class DateTimeConverters implements ConverterLoader {
     public static class StringToTimestamp extends GenericLocalizedConverter<String, java.sql.Timestamp> {
         public StringToTimestamp() {
             super(String.class, java.sql.Timestamp.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return ObjectType.instanceOf(sourceClass, this.getSourceClass()) && targetClass == this.getTargetClass();
         }
 
         public java.sql.Timestamp convert(String obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
@@ -522,6 +656,10 @@ public class DateTimeConverters implements ConverterLoader {
             try {
                 return new java.sql.Timestamp(df.parse(str).getTime());
             } catch (ParseException e) {
+                // FIXME: This change needs to be reverted. The Timestamp format is
+                // defined by the JDBC specification. Passing an invalid format is an
+                // application error and the application needs to be fixed.
+                //
                 // before throwing an exception, try a generic format first
                 df = DateFormat.getDateTimeInstance();
                 if (timeZone != null) {
@@ -556,28 +694,13 @@ public class DateTimeConverters implements ConverterLoader {
             super(java.sql.Timestamp.class, java.util.Date.class);
         }
 
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
+        }
+
         public java.util.Date convert(java.sql.Timestamp obj) throws ConversionException {
             return new java.sql.Timestamp(obj.getTime());
-        }
-    }
-
-    public static class TimestampToSqlDate extends AbstractConverter<java.sql.Timestamp, java.sql.Date> {
-        public TimestampToSqlDate() {
-            super(java.sql.Timestamp.class, java.sql.Date.class);
-        }
-
-        public java.sql.Date convert(java.sql.Timestamp obj) throws ConversionException {
-            return new java.sql.Date(obj.getTime());
-        }
-    }
-
-    public static class TimeZoneToString extends AbstractConverter<TimeZone, String> {
-        public TimeZoneToString() {
-            super(TimeZone.class, String.class);
-        }
-
-        public String convert(TimeZone obj) throws ConversionException {
-            return obj.getID();
         }
     }
 
@@ -590,6 +713,67 @@ public class DateTimeConverters implements ConverterLoader {
     public static class TimestampToSet extends GenericSingletonToSet<java.sql.Timestamp> {
         public TimestampToSet() {
             super(java.sql.Timestamp.class);
+        }
+    }
+
+    public static class TimestampToSqlDate extends AbstractConverter<java.sql.Timestamp, java.sql.Date> {
+        public TimestampToSqlDate() {
+            super(java.sql.Timestamp.class, java.sql.Date.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
+        }
+
+        public java.sql.Date convert(java.sql.Timestamp obj) throws ConversionException {
+            return new java.sql.Date(obj.getTime());
+        }
+    }
+
+    public static class TimestampToSqlTime extends AbstractConverter<java.sql.Timestamp, java.sql.Time> {
+        public TimestampToSqlTime() {
+            super(java.sql.Timestamp.class, java.sql.Time.class);
+        }
+
+        @Override
+        public boolean canConvert(Class<?> sourceClass, Class<?> targetClass) {
+            return sourceClass == this.getSourceClass() && targetClass == this.getTargetClass();
+        }
+
+        public java.sql.Time convert(java.sql.Timestamp obj) throws ConversionException {
+            return new java.sql.Time(obj.getTime());
+        }
+    }
+
+    public static class TimestampToString extends GenericLocalizedConverter<java.sql.Timestamp, String> {
+        public TimestampToString() {
+            super(java.sql.Timestamp.class, String.class);
+        }
+
+        @Override
+        public String convert(java.sql.Timestamp obj) throws ConversionException {
+            return obj.toString();
+        }
+
+        public String convert(java.sql.Timestamp obj, Locale locale, TimeZone timeZone, String formatString) throws ConversionException {
+            DateFormat df = null;
+            if (UtilValidate.isEmpty(formatString)) {
+                df = UtilDateTime.toDateTimeFormat(UtilDateTime.DATE_TIME_FORMAT, timeZone, locale);
+            } else {
+                df = UtilDateTime.toDateTimeFormat(formatString, timeZone, locale);
+            }
+            return df.format(obj);
+        }
+    }
+
+    public static class TimeZoneToString extends AbstractConverter<TimeZone, String> {
+        public TimeZoneToString() {
+            super(TimeZone.class, String.class);
+        }
+
+        public String convert(TimeZone obj) throws ConversionException {
+            return obj.getID();
         }
     }
 

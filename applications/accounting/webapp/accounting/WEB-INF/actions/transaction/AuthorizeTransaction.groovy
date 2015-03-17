@@ -26,7 +26,7 @@ orderPaymentPreferenceId = context.orderPaymentPreferenceId;
 if ((!orderId) || (!orderPaymentPreferenceId)) return;
 
 if (orderId) {
-   orderHeader = delegator.findByPrimaryKey("OrderHeader", [orderId : orderId]);
+   orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
    context.orderHeader = orderHeader;
 }
 
@@ -37,12 +37,12 @@ if (orderHeader) {
 }
 
 if (orderPaymentPreferenceId) {
-   orderPaymentPreference = delegator.findByPrimaryKey("OrderPaymentPreference", [orderPaymentPreferenceId : orderPaymentPreferenceId]);
+   orderPaymentPreference = from("OrderPaymentPreference").where("orderPaymentPreferenceId", orderPaymentPreferenceId).queryOne();
    context.orderPaymentPreference = orderPaymentPreference;
 }
 
 if (orderPaymentPreference) {
-   paymentMethodType = orderPaymentPreference.getRelatedOneCache("PaymentMethodType");
+   paymentMethodType = orderPaymentPreference.getRelatedOne("PaymentMethodType", true);
    context.paymentMethodType = paymentMethodType;
    context.overrideAmount = orderPaymentPreference.getBigDecimal("maxAmount");
 }

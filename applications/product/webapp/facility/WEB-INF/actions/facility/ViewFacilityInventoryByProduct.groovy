@@ -63,7 +63,7 @@ if (action) {
     }
 
     prodView.addMemberEntity("PRFA", "ProductFacility");
-    prodView.addAliasAll("PRFA", null);
+    prodView.addAliasAll("PRFA", null, null);
 
     prodView.addMemberEntity("PROD", "Product");
     prodView.addViewLink("PROD", "PRFA", Boolean.FALSE, ModelKeyMap.makeKeyMapList("productId"));
@@ -92,7 +92,6 @@ if (action) {
     }
 
     // set distinct on so we only get one row per product
-    findOpts = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, true);
     searchCondition = EntityCondition.makeCondition(conditionMap, EntityOperator.AND);
     notVirtualCondition = EntityCondition.makeCondition(EntityCondition.makeCondition("isVirtual", EntityOperator.EQUALS, null),
                                                          EntityOperator.OR,
@@ -128,7 +127,7 @@ if (action) {
     List prods = null;
     try {
         beganTransaction = TransactionUtil.begin();
-        prodsEli = delegator.findListIteratorByCondition(prodView, whereCondition, null, null, ['productId'], findOpts);
+        prodsEli = from(prodView).where(whereCondition).orderBy("productId").cursorScrollInsensitive().distinct().queryIterator();
         prods = prodsEli.getCompleteList();
         prodsEli.close();
     } catch (GenericEntityException e) {
@@ -168,12 +167,12 @@ if (action) {
         oneInventory.checkTime = checkTime;
         oneInventory.facilityId = facilityId;
         oneInventory.productId = oneProd.productId;
-        minimumStock = oneProd.minimumStock as String;
+        minimumStock = oneProd.minimumStock;
         oneInventory.minimumStock = minimumStock;
         oneInventory.reorderQuantity = oneProd.reorderQuantity;
         oneInventory.daysToShip = oneProd.daysToShip;
 
-        resultMap = dispatcher.runSync("getProductInventoryAndFacilitySummary", [productId : oneProd.productId, minimumStock : minimumStock, facilityId : oneProd.facilityId, checkTime : checkTime, statusId : statusId]);
+        resultMap =runService('getProductInventoryAndFacilitySummary', [productId : oneProd.productId, minimumStock : minimumStock, facilityId : oneProd.facilityId, checkTime : checkTime, statusId : statusId]);
         if (resultMap) {
             oneInventory.totalAvailableToPromise = resultMap.totalAvailableToPromise;
             oneInventory.totalQuantityOnHand = resultMap.totalQuantityOnHand;
@@ -181,7 +180,7 @@ if (action) {
             oneInventory.offsetQOHQtyAvailable = resultMap.offsetQOHQtyAvailable;
             oneInventory.offsetATPQtyAvailable = resultMap.offsetATPQtyAvailable;
             oneInventory.usageQuantity = resultMap.usageQuantity;
-            oneInventory.defultPrice = resultMap.defultPrice;
+            oneInventory.defaultPrice = resultMap.defaultPrice;
             oneInventory.listPrice = resultMap.listPrice;
             oneInventory.wholeSalePrice = resultMap.wholeSalePrice;
             if (offsetQOHQty && offsetATPQty) {
@@ -198,5 +197,6 @@ if (action) {
         }
     }
 }
+context.overrideListSize = rows.size();
 context.inventoryByProduct = rows;
 context.searchParameterString = searchParameterString;

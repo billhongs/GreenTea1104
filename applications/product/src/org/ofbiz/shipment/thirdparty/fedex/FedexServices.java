@@ -19,15 +19,12 @@
 
 package org.ofbiz.shipment.thirdparty.fedex;
 
-import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
-import javax.xml.parsers.ParserConfigurationException;
 
 import javolution.util.FastList;
 import javolution.util.FastMap;
@@ -48,7 +45,9 @@ import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.party.party.PartyHelper;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
@@ -57,7 +56,6 @@ import org.ofbiz.service.ServiceUtil;
 import org.ofbiz.shipment.shipment.ShipmentServices;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
 
 /**
  * Fedex Shipment Services
@@ -185,7 +183,7 @@ public class FedexServices {
         String emailAddress = null;
         try {
             // Make sure the company exists
-            GenericValue companyParty = delegator.findByPrimaryKeyCache("Party", UtilMisc.toMap("partyId", companyPartyId));
+            GenericValue companyParty = EntityQuery.use(delegator).from("Party").where("partyId", companyPartyId).cache().queryOne();
             if (companyParty == null) {
                 String errorMessage = "Party with partyId " + companyPartyId + " does not exist";
                 Debug.logError(errorMessage, module);
@@ -205,9 +203,10 @@ public class FedexServices {
             }
 
             // Get the contact information for the company
-            List<GenericValue> partyContactDetails = delegator.findByAnd("PartyContactDetailByPurpose", UtilMisc.toMap("partyId", companyPartyId));
-            partyContactDetails = EntityUtil.filterByDate(partyContactDetails);
-            partyContactDetails = EntityUtil.filterByDate(partyContactDetails, UtilDateTime.nowTimestamp(), "purposeFromDate", "purposeThruDate", true);
+            List<GenericValue> partyContactDetails = EntityQuery.use(delegator).from("PartyContactDetailByPurpose")
+                    .where("partyId", companyPartyId)
+                    .filterByDate(UtilDateTime.nowTimestamp(), "fromDate", "thruDate", "purposeFromDate", "purposeThruDate")
+                    .queryList();
 
             // Get the first valid postal address (address1, city, postalCode and countryGeoId are required by Fedex)
             List<EntityCondition> postalAddressConditions = FastList.newInstance();
@@ -240,12 +239,12 @@ public class FedexServices {
                         "FacilityShipmentFedexCompanyPartyHasNotPostalAddress", 
                         UtilMisc.toMap("companyPartyId", companyPartyId), locale));
             }
-            GenericValue countryGeo = delegator.findByPrimaryKeyCache("Geo", UtilMisc.toMap("geoId", postalAddress.getString("countryGeoId")));
+            GenericValue countryGeo = EntityQuery.use(delegator).from("Geo").where("geoId", postalAddress.getString("countryGeoId")).cache().queryOne();
             String countryCode = countryGeo.getString("geoCode");
             String stateOrProvinceCode = null;
             // Only add the StateOrProvinceCode element if the address is in USA or Canada
             if (countryCode.equals("CA") || countryCode.equals("US")) {
-                GenericValue stateProvinceGeo = delegator.findByPrimaryKeyCache("Geo", UtilMisc.toMap("geoId", postalAddress.getString("stateProvinceGeoId")));
+                GenericValue stateProvinceGeo = EntityQuery.use(delegator).from("Geo").where("geoId", postalAddress.getString("stateProvinceGeoId")).cache().queryOne();
                 stateOrProvinceCode = stateProvinceGeo.getString("geoCode");
             }
 
@@ -363,24 +362,12 @@ public class FedexServices {
             try {
                 fDXSubscriptionReplyDocument = UtilXml.readXmlDocument(fDXSubscriptionReplyString, false);
                 Debug.logInfo("Fedex response for FDXSubscriptionRequest:" + fDXSubscriptionReplyString, module);
-            } catch (SAXException se) {
-                String errorMessage = "Error parsing the FDXSubscriptionRequest response: " + se.toString();
-                Debug.logError(se, errorMessage, module);
+            } catch (Exception e) {
+                String errorMessage = "Error parsing the FDXSubscriptionRequest response: " + e.toString();
+                Debug.logError(e, errorMessage, module);
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentFedexSubscriptionTemplateParsingError",
-                        UtilMisc.toMap("errorString", se.toString()), locale));
-            } catch (ParserConfigurationException pce) {
-                String errorMessage = "Error parsing the FDXSubscriptionRequest response: " + pce.toString();
-                Debug.logError(pce, errorMessage, module);
-                return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
-                        "FacilityShipmentFedexSubscriptionTemplateParsingError",
-                        UtilMisc.toMap("errorString", pce.toString()), locale));
-            } catch (IOException ioe) {
-                String errorMessage = "Error parsing the FDXSubscriptionRequest response: " + ioe.toString();
-                Debug.logError(ioe, errorMessage, module);
-                return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
-                        "FacilityShipmentFedexSubscriptionTemplateParsingError",
-                        UtilMisc.toMap("errorString", ioe.toString()), locale));
+                        UtilMisc.toMap("errorString", e.toString()), locale));
             }
 
             Element fedexSubscriptionReplyElement = fDXSubscriptionReplyDocument.getDocumentElement();
@@ -445,7 +432,7 @@ public class FedexServices {
         }
 
         // Get the weight units to be used in the request
-        String weightUomId = UtilProperties.getPropertyValue(shipmentPropertiesFile, "shipment.default.weight.uom");
+        String weightUomId = EntityUtilProperties.getPropertyValue(shipmentPropertiesFile, "shipment.default.weight.uom", delegator);
         if (UtilValidate.isEmpty(weightUomId)) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                     "FacilityShipmentDefaultWeightUomIdNotFound", locale));
@@ -455,7 +442,7 @@ public class FedexServices {
         }
 
         // Get the dimension units to be used in the request
-        String dimensionsUomId = UtilProperties.getPropertyValue(shipmentPropertiesFile, "shipment.default.dimension.uom");
+        String dimensionsUomId = EntityUtilProperties.getPropertyValue(shipmentPropertiesFile, "shipment.default.dimension.uom", delegator);
         if (UtilValidate.isEmpty(dimensionsUomId)) {
             return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                     "FacilityShipmentDefaultDimensionUomIdNotFound", locale));
@@ -485,12 +472,12 @@ public class FedexServices {
             Map<String, Object> shipRequestContext = FastMap.newInstance();
 
             // Get the shipment and the shipmentRouteSegment
-            GenericValue shipment = delegator.findByPrimaryKey("Shipment", UtilMisc.toMap("shipmentId", shipmentId));
+            GenericValue shipment = EntityQuery.use(delegator).from("Shipment").where("shipmentId", shipmentId).queryOne();
             if (UtilValidate.isEmpty(shipment)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "ProductShipmentNotFoundId", locale) + shipmentId);
             }
-            GenericValue shipmentRouteSegment = delegator.findByPrimaryKey("ShipmentRouteSegment", UtilMisc.toMap("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId));
+            GenericValue shipmentRouteSegment = EntityQuery.use(delegator).from("ShipmentRouteSegment").where("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId).queryOne();
             if (UtilValidate.isEmpty(shipmentRouteSegment)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "ProductShipmentRouteSegmentNotFound",
@@ -514,7 +501,7 @@ public class FedexServices {
 
             // Translate shipmentMethodTypeId to Fedex service code and carrier code
             String shipmentMethodTypeId = shipmentRouteSegment.getString("shipmentMethodTypeId");
-            GenericValue carrierShipmentMethod = delegator.findByPrimaryKey("CarrierShipmentMethod", UtilMisc.toMap("shipmentMethodTypeId", shipmentMethodTypeId, "partyId", "FEDEX", "roleTypeId", "CARRIER"));
+            GenericValue carrierShipmentMethod = EntityQuery.use(delegator).from("CarrierShipmentMethod").where("shipmentMethodTypeId", shipmentMethodTypeId, "partyId", "FEDEX", "roleTypeId", "CARRIER").queryOne();
             if (UtilValidate.isEmpty(carrierShipmentMethod)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentFedexRouteSegmentCarrierShipmentMethodNotFound",
@@ -538,11 +525,11 @@ public class FedexServices {
             } else if (UtilValidate.isNotEmpty(shipmentRouteSegment.getString("currencyUomId"))) {
                 currencyCode = shipment.getString("currencyUomId");
             } else {
-                currencyCode = UtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD");
+                currencyCode = EntityUtilProperties.getPropertyValue("general.properties", "currency.uom.id.default", "USD", delegator);
             }
 
             // Get and validate origin postal address
-            GenericValue originPostalAddress = shipmentRouteSegment.getRelatedOne("OriginPostalAddress");
+            GenericValue originPostalAddress = shipmentRouteSegment.getRelatedOne("OriginPostalAddress", false);
             if (UtilValidate.isEmpty(originPostalAddress)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentRouteSegmentOriginPostalAddressNotFound",
@@ -555,7 +542,7 @@ public class FedexServices {
                         "FacilityShipmentRouteSegmentOriginPostalAddressNotComplete",
                         UtilMisc.toMap("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId), locale));
             }
-            GenericValue originCountryGeo = originPostalAddress.getRelatedOne("CountryGeo");
+            GenericValue originCountryGeo = originPostalAddress.getRelatedOne("CountryGeo", false);
             if (UtilValidate.isEmpty(originCountryGeo)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentRouteSegmentOriginCountryGeoNotFound",
@@ -573,12 +560,12 @@ public class FedexServices {
                             UtilMisc.toMap("contactMechId", originPostalAddress.getString("contactMechId"), 
                                     "shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId), locale));
                 }
-                GenericValue stateProvinceGeo = delegator.findByPrimaryKeyCache("Geo", UtilMisc.toMap("geoId", originPostalAddress.getString("stateProvinceGeoId")));
+                GenericValue stateProvinceGeo = EntityQuery.use(delegator).from("Geo").where("geoId", originPostalAddress.getString("stateProvinceGeoId")).cache().queryOne();
                 originAddressStateOrProvinceCode = stateProvinceGeo.getString("geoCode");
             }
 
             // Get and validate origin telecom number
-            GenericValue originTelecomNumber = shipmentRouteSegment.getRelatedOne("OriginTelecomNumber");
+            GenericValue originTelecomNumber = shipmentRouteSegment.getRelatedOne("OriginTelecomNumber", false);
             if (UtilValidate.isEmpty(originTelecomNumber)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentRouteSegmentOriginTelecomNumberNotFound",
@@ -594,13 +581,13 @@ public class FedexServices {
 
             // Get the origin contact name from the owner of the origin facility
             GenericValue partyFrom = null;
-            GenericValue originFacility = shipment.getRelatedOne("OriginFacility");
+            GenericValue originFacility = shipment.getRelatedOne("OriginFacility", false);
             if (UtilValidate.isEmpty(originFacility)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentFedexOriginFacilityRequired",
                         UtilMisc.toMap("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId), locale));
             } else {
-                partyFrom = originFacility.getRelatedOne("OwnerParty");
+                partyFrom = originFacility.getRelatedOne("OwnerParty", false);
                 if (UtilValidate.isEmpty(partyFrom)) {
                     return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                             "FacilityShipmentFedexOwnerPartyRequired",
@@ -618,7 +605,7 @@ public class FedexServices {
             }
 
             // Get and validate destination postal address
-            GenericValue destinationPostalAddress = shipmentRouteSegment.getRelatedOne("DestPostalAddress");
+            GenericValue destinationPostalAddress = shipmentRouteSegment.getRelatedOne("DestPostalAddress", false);
             if (UtilValidate.isEmpty(destinationPostalAddress)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentRouteSegmentDestPostalAddressNotFound",
@@ -631,7 +618,7 @@ public class FedexServices {
                         "FacilityShipmentRouteSegmentDestPostalAddressIncomplete",
                         UtilMisc.toMap("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId), locale));
             }
-            GenericValue destinationCountryGeo = destinationPostalAddress.getRelatedOne("CountryGeo");
+            GenericValue destinationCountryGeo = destinationPostalAddress.getRelatedOne("CountryGeo", false);
             if (UtilValidate.isEmpty(destinationCountryGeo)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentRouteSegmentDestCountryGeoNotFound", 
@@ -648,12 +635,12 @@ public class FedexServices {
                             UtilMisc.toMap("contactMechId", destinationPostalAddress.getString("contactMechId"), 
                                     "shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId), locale));
                 }
-                GenericValue stateProvinceGeo = delegator.findByPrimaryKeyCache("Geo", UtilMisc.toMap("geoId", destinationPostalAddress.getString("stateProvinceGeoId")));
+                GenericValue stateProvinceGeo = EntityQuery.use(delegator).from("Geo").where("geoId", destinationPostalAddress.getString("stateProvinceGeoId")).cache().queryOne();
                 destinationAddressStateOrProvinceCode = stateProvinceGeo.getString("geoCode");
             }
 
             // Get and validate destination telecom number
-            GenericValue destinationTelecomNumber = shipmentRouteSegment.getRelatedOne("DestTelecomNumber");
+            GenericValue destinationTelecomNumber = shipmentRouteSegment.getRelatedOne("DestTelecomNumber", false);
             if (UtilValidate.isEmpty(destinationTelecomNumber)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "FacilityShipmentRouteSegmentDestTelecomNumberNotFound", 
@@ -674,7 +661,7 @@ public class FedexServices {
                         "FacilityShipmentFedexPartyToRequired", 
                         UtilMisc.toMap("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId), locale));
             }
-            GenericValue partyTo = delegator.findByPrimaryKey("Party", UtilMisc.toMap("partyId", destinationPartyId));
+            GenericValue partyTo = EntityQuery.use(delegator).from("Party").where("partyId", destinationPartyId).queryOne();
             String destinationContactKey = "PERSON".equals(partyTo.getString("partyTypeId")) ? "DestinationContactPersonName" : "DestinationContactCompanyName";
             String destinationContactName = PartyHelper.getPartyName(partyTo, false);
             if (UtilValidate.isEmpty(destinationContactName)) {
@@ -708,7 +695,7 @@ public class FedexServices {
                }
             }
 
-            List<GenericValue> shipmentPackageRouteSegs = shipmentRouteSegment.getRelated("ShipmentPackageRouteSeg", UtilMisc.toList("+shipmentPackageSeqId"));
+            List<GenericValue> shipmentPackageRouteSegs = shipmentRouteSegment.getRelated("ShipmentPackageRouteSeg", null, UtilMisc.toList("+shipmentPackageSeqId"), false);
             if (UtilValidate.isEmpty(shipmentPackageRouteSegs)) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, "FacilityShipmentPackageRouteSegsNotFound", 
                         UtilMisc.toMap("shipmentId", shipmentId, "shipmentRouteSegmentId", shipmentRouteSegmentId), locale));
@@ -791,8 +778,8 @@ public class FedexServices {
 
             // Loop through Shipment segments (NOTE: only one supported, loop is here for future refactoring reference)
             for (GenericValue shipmentPackageRouteSeg: shipmentPackageRouteSegs) {
-                GenericValue shipmentPackage = shipmentPackageRouteSeg.getRelatedOne("ShipmentPackage");
-                GenericValue shipmentBoxType = shipmentPackage.getRelatedOne("ShipmentBoxType");
+                GenericValue shipmentPackage = shipmentPackageRouteSeg.getRelatedOne("ShipmentPackage", false);
+                GenericValue shipmentBoxType = shipmentPackage.getRelatedOne("ShipmentBoxType", false);
 
                 // FedEx requires the packaging type
                 String packaging = null;
@@ -810,7 +797,7 @@ public class FedexServices {
                 }
 
                 // Make sure that the packaging type is valid for FedEx
-                GenericValue carrierShipmentBoxType = delegator.findByPrimaryKey("CarrierShipmentBoxType", UtilMisc.toMap("partyId", "FEDEX", "shipmentBoxTypeId", packaging));
+                GenericValue carrierShipmentBoxType = EntityQuery.use(delegator).from("CarrierShipmentBoxType").where("partyId", "FEDEX", "shipmentBoxTypeId", packaging).queryOne();
                 if (UtilValidate.isEmpty(carrierShipmentBoxType)) {
                     return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                             "FacilityShipmentFedexPackingTypeInvalid", 
@@ -834,7 +821,7 @@ public class FedexServices {
                     dimensionsHeight = shipmentBoxType.getBigDecimal("boxHeight");
 
                     String boxDimensionsUomId = null;
-                    GenericValue boxDimensionsUom = shipmentBoxType.getRelatedOne("DimensionUom");
+                    GenericValue boxDimensionsUom = shipmentBoxType.getRelatedOne("DimensionUom", false);
                     if (! UtilValidate.isEmpty(boxDimensionsUom)) {
                         boxDimensionsUomId = boxDimensionsUom.getString("uomId");
                     } else {
@@ -888,7 +875,7 @@ public class FedexServices {
 
                         // Use default weight if available
                         try {
-                            packageWeight = new BigDecimal(UtilProperties.getPropertyValue(shipmentPropertiesFile, "shipment.default.weight.value"));
+                            packageWeight = new BigDecimal(EntityUtilProperties.getPropertyValue(shipmentPropertiesFile, "shipment.default.weight.value", delegator));
                         } catch (NumberFormatException ne) {
                             Debug.logWarning("Default shippable weight not configured (shipment.default.weight.value), assuming 1.0" + weightUomId , module);
                             packageWeight = BigDecimal.ONE;
@@ -995,17 +982,9 @@ public class FedexServices {
         Document fdxShipReplyDocument = null;
         try {
             fdxShipReplyDocument = UtilXml.readXmlDocument(fDXShipReplyString, false);
-        } catch (SAXException se) {
-            String errorMessage = "Error parsing the FDXShipReply: " + se.toString();
-            Debug.logError(se, errorMessage, module);
-            // TODO: Cancel the package
-        } catch (ParserConfigurationException pe) {
-            String errorMessage = "Error parsing the FDXShipReply: " + pe.toString();
-            Debug.logError(pe, errorMessage, module);
-            // TODO Cancel the package
-        } catch (IOException ioe) {
-            String errorMessage = "Error parsing the FDXShipReply: " + ioe.toString();
-            Debug.logError(ioe, errorMessage, module);
+        } catch (Exception e) {
+            String errorMessage = "Error parsing the FDXShipReply: " + e.toString();
+            Debug.logError(e, errorMessage, module);
             // TODO Cancel the package
         }
 
@@ -1086,7 +1065,7 @@ public class FedexServices {
         String returnValue = "";
         if (UtilValidate.isNotEmpty(shipmentGatewayConfigId)) {
             try {
-                GenericValue fedex = delegator.findOne("ShipmentGatewayFedex", UtilMisc.toMap("shipmentGatewayConfigId", shipmentGatewayConfigId), false);
+                GenericValue fedex = EntityQuery.use(delegator).from("ShipmentGatewayFedex").where("shipmentGatewayConfigId", shipmentGatewayConfigId).queryOne();
                 if (UtilValidate.isNotEmpty(fedex)) {
                     Object fedexField = fedex.get(shipmentGatewayConfigParameterName);
                     if (fedexField != null) {
@@ -1097,7 +1076,7 @@ public class FedexServices {
                 Debug.logError(e, module);
             }
         } else {
-            String value = UtilProperties.getPropertyValue(resource, parameterName);
+            String value = EntityUtilProperties.getPropertyValue(resource, parameterName, delegator);
             if (value != null) {
                 returnValue = value.trim();
             }

@@ -25,7 +25,6 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,8 +45,8 @@ import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.transaction.TransactionUtil;
-import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 
 import freemarker.template.Configuration;
@@ -164,7 +163,8 @@ public class SurveyWrapper {
 
     /**
      * Renders the Survey
-     * @return Writer object from the parsed Freemarker Template
+     * @param templateUrl the template URL
+     * @param writer the write
      * @throws SurveyWrapperException
      */
     public void render(URL templateUrl, Writer writer) throws SurveyWrapperException {
@@ -180,9 +180,7 @@ public class SurveyWrapper {
         }
 
         Map<String, Object> sqaaWithColIdListByMultiRespId = FastMap.newInstance();
-        Iterator<GenericValue> surveyQuestionAndApplIter = surveyQuestionAndAppls.iterator();
-        while (surveyQuestionAndApplIter.hasNext()) {
-            GenericValue surveyQuestionAndAppl = surveyQuestionAndApplIter.next();
+        for (GenericValue surveyQuestionAndAppl : surveyQuestionAndAppls) {
             String surveyMultiRespColId = surveyQuestionAndAppl.getString("surveyMultiRespColId");
             if (UtilValidate.isNotEmpty(surveyMultiRespColId)) {
                 String surveyMultiRespId = surveyQuestionAndAppl.getString("surveyMultiRespId");
@@ -242,7 +240,7 @@ public class SurveyWrapper {
     public GenericValue getSurvey() {
         GenericValue survey = null;
         try {
-            survey = delegator.findByPrimaryKeyCache("Survey", UtilMisc.toMap("surveyId", surveyId));
+            survey = EntityQuery.use(delegator).from("Survey").where("surveyId", surveyId).cache().queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Unable to get Survey : " + surveyId, module);
         }
@@ -288,12 +286,10 @@ public class SurveyWrapper {
         List<GenericValue> questions = FastList.newInstance();
 
         try {
-            Map<String, Object> fields = UtilMisc.<String, Object>toMap("surveyId", surveyId);
-            List<String> order = UtilMisc.<String>toList("sequenceNum", "surveyMultiRespColId");
-            questions = delegator.findByAndCache("SurveyQuestionAndAppl", fields, order);
-            if (questions != null) {
-                questions = EntityUtil.filterByDate(questions);
-            }
+            questions = EntityQuery.use(delegator).from("SurveyQuestionAndAppl")
+                    .where("surveyId", surveyId)
+                    .orderBy("sequenceNum", "surveyMultiRespColId")
+                    .filterByDate().cache().queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Unable to get questions for survey : " + surveyId, module);
         }
@@ -314,7 +310,10 @@ public class SurveyWrapper {
         String responseId = null;
         List<GenericValue> responses = null;
         try {
-            responses = delegator.findByAnd("SurveyResponse", UtilMisc.toMap("surveyId", surveyId, "partyId", partyId), UtilMisc.toList("-lastModifiedDate"));
+            responses = EntityQuery.use(delegator).from("SurveyResponse")
+                    .where("surveyId", surveyId, "partyId", partyId)
+                    .orderBy("-lastModifiedDate")
+                    .queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
         }
@@ -337,7 +336,7 @@ public class SurveyWrapper {
     public long getNumberResponses() throws SurveyWrapperException {
         long responses = 0;
         try {
-            responses = delegator.findCountByCondition("SurveyResponse", EntityCondition.makeCondition("surveyId", EntityOperator.EQUALS, surveyId), null, null);
+            responses = EntityQuery.use(delegator).from("SurveyResponse").where("surveyId", surveyId).queryCount();
         } catch (GenericEntityException e) {
             throw new SurveyWrapperException(e);
         }
@@ -347,7 +346,7 @@ public class SurveyWrapper {
     public List<GenericValue> getSurveyResponses(GenericValue question) throws SurveyWrapperException {
         List<GenericValue> responses = null;
         try {
-            responses = delegator.findByAnd("SurveyResponse", UtilMisc.toMap("surveyQuestionId", question.getString("surveyQuestionId")));
+            responses = EntityQuery.use(delegator).from("SurveyResponse").where("surveyQuestionId", question.get("surveyQuestionId")).queryList();
         } catch (GenericEntityException e) {
             throw new SurveyWrapperException(e);
         }
@@ -361,15 +360,13 @@ public class SurveyWrapper {
         if (responseId != null) {
             List<GenericValue> answers = null;
             try {
-                answers = delegator.findByAnd("SurveyResponseAnswer", UtilMisc.toMap("surveyResponseId", responseId));
+                answers = EntityQuery.use(delegator).from("SurveyResponseAnswer").where("surveyResponseId", responseId).queryList();
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
 
             if (UtilValidate.isNotEmpty(answers)) {
-                Iterator<GenericValue> i = answers.iterator();
-                while (i.hasNext()) {
-                    GenericValue answer = i.next();
+                for (GenericValue answer : answers) {
                     answerMap.put(answer.getString("surveyQuestionId"), answer);
                 }
             }
@@ -377,9 +374,7 @@ public class SurveyWrapper {
 
         // get the pass-thru (posted form data)
         if (UtilValidate.isNotEmpty(passThru)) {
-            Iterator<String> i = passThru.keySet().iterator();
-            while (i.hasNext()) {
-                String key = i.next();
+            for (String key : passThru.keySet()) {
                 if (key.toUpperCase().startsWith("ANSWERS_")) {
                     int splitIndex = key.indexOf('_');
                     String questionId = key.substring(splitIndex+1);
@@ -439,9 +434,7 @@ public class SurveyWrapper {
     public Map<String, Object> getResults(List<GenericValue> questions) throws SurveyWrapperException {
         Map<String, Object> questionResults = FastMap.newInstance();
         if (questions != null) {
-            Iterator<GenericValue> i = questions.iterator();
-            while (i.hasNext()) {
-                GenericValue question = i.next();
+            for (GenericValue question : questions) {
                 Map<String, Object> results = getResultInfo(question);
                 if (results != null) {
                     questionResults.put(question.getString("surveyQuestionId"), results);
@@ -483,10 +476,8 @@ public class SurveyWrapper {
                 resultMap.put("_total", questionTotal);
 
                 // create the map of option info ("_total", "_percent")
-                Iterator<String> i = thisResult.keySet().iterator();
-                while (i.hasNext()) {
+                for (String optId : thisResult.keySet()) {
                     Map<String, Object> optMap = FastMap.newInstance();
-                    String optId = i.next();
                     Long optTotal = (Long) thisResult.get(optId);
                     if (optTotal == null) {
                         optTotal = Long.valueOf(0);
@@ -668,7 +659,9 @@ public class SurveyWrapper {
         long result = 0;
 
         try {
-            result = delegator.findCountByCondition("SurveyResponseAndAnswer", makeEliCondition(question), null, null);
+            result = EntityQuery.use(delegator).from("SurveyResponseAndAnswer")
+                    .where(makeEliCondition(question))
+                    .queryCount();
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             throw new SurveyWrapperException("Unable to get responses", e);
@@ -734,19 +727,11 @@ public class SurveyWrapper {
     }
 
     private EntityListIterator getEli(GenericValue question, int maxRows) throws GenericEntityException {
-        EntityFindOptions efo = new EntityFindOptions();
-        efo.setResultSetType(EntityFindOptions.TYPE_SCROLL_INSENSITIVE);
-        efo.setResultSetConcurrency(EntityFindOptions.CONCUR_READ_ONLY);
-        efo.setSpecifyTypeAndConcur(true);
-        efo.setDistinct(false);
-        if (maxRows > 0) {
-            efo.setMaxRows(maxRows);
-        }
-
-        EntityListIterator eli = null;
-        eli = delegator.find("SurveyResponseAndAnswer", makeEliCondition(question), null, null, null, efo);
-
-        return eli;
+        return EntityQuery.use(delegator).from("SurveyResponseAndAnswer")
+                .where(makeEliCondition(question))
+                .cursorScrollInsensitive()
+                .maxRows(maxRows)
+                .queryIterator();
     }
 
     @SuppressWarnings("serial")

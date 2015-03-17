@@ -19,17 +19,18 @@
 
 import org.ofbiz.base.util.*
 import org.ofbiz.order.order.*
+import org.ofbiz.entity.util.EntityUtilProperties;
 
 facilityId = parameters.facilityId;
 if (facilityId) {
-    facility = delegator.findOne("Facility", [facilityId : facilityId], false);
+    facility = from("Facility").where("facilityId", facilityId).queryOne();
     context.facilityId = facilityId;
     context.facility = facility;
 }
 
 orderId = parameters.orderId
 if (orderId) {
-    orderHeader = delegator.findOne("OrderHeader", [orderId : orderId], false);
+    orderHeader = from("OrderHeader").where("orderId", orderId).queryOne();
     if (orderHeader) {
         OrderReadHelper orh = new OrderReadHelper(orderHeader);
         context.orderId = orderId;
@@ -42,32 +43,32 @@ if (orderId) {
 
 shipmentId = parameters.shipmentId;
 if (shipmentId) {
-    shipment = delegator.findOne("Shipment", [shipmentId : shipmentId], false);
+    shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
     if (shipment) {
         // nuke event message - throws off the flow
         request.setAttribute("_EVENT_MESSAGE_", null);
 
         // set the shipment context info
-        context.shipmentType = shipment.getRelatedOneCache("ShipmentType");
-        context.statusItem = shipment.getRelatedOne("StatusItem");
-        context.primaryOrderHeader = shipment.getRelatedOne("PrimaryOrderHeader");
-        context.toPerson = shipment.getRelatedOne("ToPerson");
-        context.toPartyGroup = shipment.getRelatedOne("ToPartyGroup");
-        context.fromPerson = shipment.getRelatedOne("FromPerson");
-        context.fromPartyGroup = shipment.getRelatedOne("FromPartyGroup");
-        context.originFacility = shipment.getRelatedOne("OriginFacility");
-        context.destinationFacility = shipment.getRelatedOne("DestinationFacility");
-        context.originPostalAddress = shipment.getRelatedOne("OriginPostalAddress");
-        context.destinationPostalAddress = shipment.getRelatedOne("DestinationPostalAddress");
-        context.shipmentPackages = shipment.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId']);
-        context.shipmentRoutes = shipment.getRelated("ShipmentRouteSegment", null, ['shipmentRouteSegmentId']);
+        context.shipmentType = shipment.getRelatedOne("ShipmentType", true);
+        context.statusItem = shipment.getRelatedOne("StatusItem", false);
+        context.primaryOrderHeader = shipment.getRelatedOne("PrimaryOrderHeader", false);
+        context.toPerson = shipment.getRelatedOne("ToPerson", false);
+        context.toPartyGroup = shipment.getRelatedOne("ToPartyGroup", false);
+        context.fromPerson = shipment.getRelatedOne("FromPerson", false);
+        context.fromPartyGroup = shipment.getRelatedOne("FromPartyGroup", false);
+        context.originFacility = shipment.getRelatedOne("OriginFacility", false);
+        context.destinationFacility = shipment.getRelatedOne("DestinationFacility", false);
+        context.originPostalAddress = shipment.getRelatedOne("OriginPostalAddress", false);
+        context.destinationPostalAddress = shipment.getRelatedOne("DestinationPostalAddress", false);
+        context.shipmentPackages = shipment.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId'], false);
+        context.shipmentRoutes = shipment.getRelated("ShipmentRouteSegment", null, ['shipmentRouteSegmentId'], false);
         context.shipment = shipment;
         context.shipmentId = shipmentId;
 
-        weightUoms = delegator.findList("Uom", EntityCondition.makeCondition(['uomTypeId' : 'WEIGHT_MEASURE']), null, ['description'], null, false);
-        defaultWeightUom = UtilProperties.getPropertyValue("shipment.properties", "shipment.default.weight.uom");
+        weightUoms = from("Uom").where("uomTypeId", "WEIGHT_MEASURE").orderBy("description").queryList();
+        defaultWeightUom = EntityUtilProperties.getPropertyValue("shipment.properties", "shipment.default.weight.uom", delegator);
         if (defaultWeightUom) {
-            defaultWeight = delegator.findOne("Uom", [uomId : defaultWeightUom], false);
+            defaultWeight = from("Uom").where("uomId", defaultWeightUom).queryOne();
             if (defaultWeight) {
                 weightUoms.add(0, defaultWeight);
             }

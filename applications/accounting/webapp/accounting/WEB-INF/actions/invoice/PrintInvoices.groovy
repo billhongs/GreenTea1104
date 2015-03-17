@@ -25,7 +25,7 @@ import org.ofbiz.entity.condition.EntityCondition;
 invoiceDetailList = [];
 invoiceIds.each { invoiceId ->
     invoicesMap = [:];
-    invoice = delegator.findOne("Invoice", [invoiceId : invoiceId], false);
+    invoice = from("Invoice").where('invoiceId', invoiceId).queryOne();
     invoicesMap.invoice = invoice;
     
     currency = parameters.currency;  // allow the display of the invoice in the original currency, the default is to display the invoice in the default currency
@@ -41,7 +41,7 @@ invoiceIds.each { invoiceId ->
             invoice.invoiceMessage = " converted from original with a rate of: " + conversionRate.setScale(8, rounding);
         }
     
-        invoiceItems = invoice.getRelatedOrderBy("InvoiceItem", ["invoiceItemSeqId"]);
+        invoiceItems = invoice.getRelated("InvoiceItem", null, ["invoiceItemSeqId"], false);
         invoiceItemsConv = [];
         invoiceItems.each { invoiceItem ->
           if (invoiceItem.amount) {
@@ -65,16 +65,16 @@ invoiceIds.each { invoiceId ->
         if (billingAddress) {
             invoicesMap.billingAddress = billingAddress;
         }
-        billingParty = InvoiceWorker.getBillToParty(invoice);
-        invoicesMap.billingParty = billingParty;
+        billToParty = InvoiceWorker.getBillToParty(invoice);
+        invoicesMap.billToParty = billToParty;
         sendingParty = InvoiceWorker.getSendFromParty(invoice);
         invoicesMap.sendingParty = sendingParty;
 
         // This snippet was added for adding Tax ID in invoice header if needed 
-        sendingTaxInfos = sendingParty.getRelated("PartyTaxAuthInfo");
-        billingTaxInfos = billingParty.getRelated("PartyTaxAuthInfo");
+        sendingTaxInfos = sendingParty.getRelated("PartyTaxAuthInfo", null, null, false);
+        billingTaxInfos = billToParty.getRelated("PartyTaxAuthInfo", null, null, false);
         sendingPartyTaxId = null;
-        billingPartyTaxId = null;
+        billToPartyTaxId = null;
 
         if (billingAddress) {
             sendingTaxInfos.eachWithIndex { sendingTaxInfo, i ->
@@ -84,36 +84,36 @@ invoiceIds.each { invoiceId ->
             }
             billingTaxInfos.eachWithIndex { billingTaxInfo, i ->
                 if (billingTaxInfo.taxAuthGeoId.equals(billingAddress.countryGeoId)) {
-                     billingPartyTaxId = billingTaxInfos[i-1].partyTaxId;
+                     billToPartyTaxId = billingTaxInfos[i-1].partyTaxId;
                 }
             }
         }
         if (sendingPartyTaxId) {
             invoicesMap.sendingPartyTaxId = sendingPartyTaxId;
         }
-        if (billingPartyTaxId) {
-            invoicesMap.billingPartyTaxId = billingPartyTaxId;
+        if (billToPartyTaxId) {
+            invoicesMap.billToPartyTaxId = billToPartyTaxId;
         }
     
-        terms = invoice.getRelated("InvoiceTerm");
+        terms = invoice.getRelated("InvoiceTerm", null, null, false);
         invoicesMap.terms = terms;
     
-        paymentAppls = delegator.findList("PaymentApplication", EntityCondition.makeCondition([invoiceId : invoiceId]), null, null, null, false);
+        paymentAppls = from("PaymentApplication").where('invoiceId', invoiceId).queryList();
         invoicesMap.payments = paymentAppls;
     
-        orderItemBillings = delegator.findList("OrderItemBilling", EntityCondition.makeCondition([invoiceId : invoiceId]), null, ['orderId'], null, false);
+        orderItemBillings = from("OrderItemBilling").where('invoiceId', invoiceId).orderBy("orderId").queryList();
         orders = new LinkedHashSet();
         orderItemBillings.each { orderIb ->
             orders.add(orderIb.orderId);
         }
         invoicesMap.orders = orders;
     
-        invoiceStatus = invoice.getRelatedOne("StatusItem");
+        invoiceStatus = invoice.getRelatedOne("StatusItem", false);
         invoicesMap.invoiceStatus = invoiceStatus;
     
         edit = parameters.editInvoice;
         if ("true".equalsIgnoreCase(edit)) {
-            invoiceItemTypes = delegator.findList("InvoiceItemType", null, null, null, null, false);
+            invoiceItemTypes = from("InvoiceItemType").queryList();
             invoicesMap.invoiceItemTypes = invoiceItemTypes;
             invoicesMap.editInvoice = true;
         }

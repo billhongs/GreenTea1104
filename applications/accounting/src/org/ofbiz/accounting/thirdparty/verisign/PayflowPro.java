@@ -40,6 +40,7 @@ import org.ofbiz.base.util.string.FlexibleStringExpander;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.order.shoppingcart.ShoppingCart;
 import org.ofbiz.order.shoppingcart.ShoppingCartItem;
@@ -524,11 +525,11 @@ public class PayflowPro {
             parameterMap.put("SHIPTOSTREET2", StringUtils.left(shippingAddress.getString("address2"), 30));
             parameterMap.put("SHIPTOCITY", StringUtils.left(shippingAddress.getString("city"), 40));
             if (shippingAddress.getString("stateProvinceGeoId") != null && !"_NA_".equals(shippingAddress.getString("stateProvinceGeoId"))) {
-                GenericValue stateProvinceGeo = shippingAddress.getRelatedOne("StateProvinceGeo");
+                GenericValue stateProvinceGeo = shippingAddress.getRelatedOne("StateProvinceGeo", false);
                 parameterMap.put("SHIPTOSTATE", StringUtils.left(stateProvinceGeo.getString("geoCode"), 40));
             }
             parameterMap.put("SHIPTOZIP", StringUtils.left(shippingAddress.getString("postalCode"), 16));
-            GenericValue countryGeo = shippingAddress.getRelatedOne("CountryGeo");
+            GenericValue countryGeo = shippingAddress.getRelatedOne("CountryGeo", false);
             parameterMap.put("SHIPTOCOUNTRY", StringUtils.left(countryGeo.getString("geoCode"), 2));
         }
     }
@@ -613,8 +614,8 @@ public class PayflowPro {
         String configString = "payment.properties";
         GenericValue payPalPaymentMethod = null;
         try {
-            payPalPaymentMethod = paymentPref.getRelatedOne("PaymentMethod");
-            payPalPaymentMethod = payPalPaymentMethod.getRelatedOne("PayPalPaymentMethod");
+            payPalPaymentMethod = paymentPref.getRelatedOne("PaymentMethod", false);
+            payPalPaymentMethod = payPalPaymentMethod.getRelatedOne("PayPalPaymentMethod", false);
         } catch (GenericEntityException e) {
             Debug.logError(e, module);
             return ServiceUtil.returnError(e.getMessage());
@@ -671,11 +672,7 @@ public class PayflowPro {
         Debug.logInfo("Verisign response string: " + resp, module);
         Map<String, String> parameters = FastMap.newInstance();
         List<String> params = StringUtil.split(resp, "&");
-        Iterator<String> i = params.iterator();
-
-        while (i.hasNext()) {
-            String str = (String) i.next();
-
+        for (String str : params) {
             if (str.length() > 0) {
                 List<String> kv = StringUtil.split(str, "=");
                 String k = kv.get(0);
@@ -925,7 +922,7 @@ public class PayflowPro {
         String returnValue = "";
         if (UtilValidate.isNotEmpty(paymentGatewayConfigId)) {
             try {
-                GenericValue payflowPro = delegator.findOne("PaymentGatewayPayflowPro", UtilMisc.toMap("paymentGatewayConfigId", paymentGatewayConfigId), false);
+                GenericValue payflowPro = EntityQuery.use(delegator).from("PaymentGatewayPayflowPro").where("paymentGatewayConfigId", paymentGatewayConfigId).queryOne();
                 if (UtilValidate.isNotEmpty(payflowPro)) {
                     Object payflowProField = payflowPro.get(paymentGatewayConfigParameterName);
                     if (payflowProField != null) {
@@ -936,7 +933,7 @@ public class PayflowPro {
                 Debug.logError(e, module);
             }
         } else {
-            String value = UtilProperties.getPropertyValue(resource, parameterName);
+            String value = EntityUtilProperties.getPropertyValue(resource, parameterName, delegator);
             if (value != null) {
                 returnValue = value.trim();
             }

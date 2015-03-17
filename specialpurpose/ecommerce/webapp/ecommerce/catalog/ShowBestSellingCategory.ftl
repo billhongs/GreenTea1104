@@ -33,12 +33,12 @@ under the License.
                        </#if>
                        <#assign productCategoryId = productCategory.productCategoryId/>
                        <#assign categoryImageUrl = "/images/defaultImage.jpg">
-                       <#assign productCategoryMembers = delegator.findByAnd("ProductCategoryAndMember", Static["org.ofbiz.base.util.UtilMisc"].toMap("productCategoryId", productCategoryId), Static["org.ofbiz.base.util.UtilMisc"].toList("-quantity"))>
+                       <#assign productCategoryMembers = delegator.findByAnd("ProductCategoryAndMember", Static["org.ofbiz.base.util.UtilMisc"].toMap("productCategoryId", productCategoryId), Static["org.ofbiz.base.util.UtilMisc"].toList("-quantity"), false)>
                        <#if productCategory.categoryImageUrl?has_content>
                             <#assign categoryImageUrl = productCategory.categoryImageUrl/>
                        <#elseif productCategoryMembers?has_content>
                             <#assign productCategoryMember = Static["org.ofbiz.entity.util.EntityUtil"].getFirst(productCategoryMembers)/>
-                            <#assign product = delegator.findByPrimaryKey("Product", Static["org.ofbiz.base.util.UtilMisc"].toMap("productId", productCategoryMember.productId))/>
+                            <#assign product = delegator.findOne("Product", Static["org.ofbiz.base.util.UtilMisc"].toMap("productId", productCategoryMember.productId), false)/>
                             <#if product.smallImageUrl?has_content>
                                 <#assign categoryImageUrl = product.smallImageUrl/>
                             </#if>
@@ -46,30 +46,30 @@ under the License.
                         <td>
                             <div class="productsummary">
                                 <div class="smallimage">
-                                    <a href="/ecommerce/products/${productCategoryId}">
+                                    <a href="<@ofbizCatalogAltUrl productCategoryId=productCategoryId/>">
                                         <span class="popup_link"><img alt="Small Image" src="${categoryImageUrl}"></span>
                                     </a>
                                 </div>
                                 <div class="productbuy">
-                                    <a class="linktext"  style="font-size:12px" href="/ecommerce/products/${productCategoryId}">${productCategory.categoryName!productCategoryId}</a>
+                                    <a class="linktext"  style="font-size:12px" href="<@ofbizCatalogAltUrl productCategoryId=productCategoryId/>">${productCategory.categoryName!productCategoryId}</a>
                                 </div>
                                 <div class="productinfo">
                                     <ul>
-                                    <#if productCategoryMembers?exists>
+                                    <#if productCategoryMembers??>
                                         <#assign i = 0/>
                                         <#list productCategoryMembers as productCategoryMember>
                                             <#if (i > 2)>
                                                 <#if productCategoryMembers[i]?has_content>
-                                                    <a class="linktext" href="/ecommerce/products/${productCategoryId}">
+                                                    <a class="linktext" href="<@ofbizCatalogAltUrl productCategoryId=productCategoryId/>">
                                                         <span>More...</span>
                                                     </a>
                                                 </#if>
                                                 <#break>
                                             </#if>
                                             <#if productCategoryMember?has_content>
-                                                <#assign product = delegator.findByPrimaryKey("Product", Static["org.ofbiz.base.util.UtilMisc"].toMap("productId", productCategoryMember.productId))>
+                                                <#assign product = delegator.findOne("Product", Static["org.ofbiz.base.util.UtilMisc"].toMap("productId", productCategoryMember.productId), false)>
                                                 <li class="browsecategorytext">
-                                                    <a class="linktext" href="/ecommerce/products/PROMOTIONS/${product.productId}">
+                                                    <a class="linktext" href="<@ofbizCatalogAltUrl productCategoryId="PROMOTIONS" productId="${product.productId}"/>">
                                                         ${product.productName!product.productId}
                                                     </a>
                                                 </li>

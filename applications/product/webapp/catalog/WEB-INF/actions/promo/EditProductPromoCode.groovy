@@ -21,7 +21,7 @@ productPromoCodeId = request.getParameter("productPromoCodeId");
 if (!productPromoCodeId) {
     productPromoCodeId = request.getAttribute("productPromoCodeId");
 }
-productPromoCode = delegator.findOne("ProductPromoCode", [productPromoCodeId : productPromoCodeId], false);
+productPromoCode = from("ProductPromoCode").where("productPromoCodeId", productPromoCodeId).queryOne();
 
 productPromoId = null;
 if (productPromoCode) {
@@ -32,14 +32,14 @@ if (productPromoCode) {
 
 productPromo = null;
 if (productPromoId) {
-    productPromo = delegator.findOne("ProductPromo", [productPromoId : productPromoId], false);
+    productPromo = from("ProductPromo").where("productPromoId", productPromoId).queryOne();
 }
 
 productPromoCodeEmails = null;
 productPromoCodeParties = null;
 if (productPromoCode) {
-    productPromoCodeEmails = productPromoCode.getRelated("ProductPromoCodeEmail");
-    productPromoCodeParties = productPromoCode.getRelated("ProductPromoCodeParty");
+    productPromoCodeEmails = productPromoCode.getRelated("ProductPromoCodeEmail", null, null, false);
+    productPromoCodeParties = productPromoCode.getRelated("ProductPromoCodeParty", null, null, false);
 }
 
 context.productPromoId = productPromoId;

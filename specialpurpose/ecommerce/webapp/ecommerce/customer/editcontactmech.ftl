@@ -20,9 +20,9 @@ under the License.
   <h3>${uiLabelMap.PartyContactInfoNotBelongToYou}.</h3>
   <a href="<@ofbizUrl>${donePage}</@ofbizUrl>" class="button">${uiLabelMap.CommonBack}</a>
 <#else>
-  <#if !contactMech?exists>
+  <#if !contactMech??>
     <#-- When creating a new contact mech, first select the type, then actually create -->
-    <#if !requestParameters.preContactMechTypeId?exists && !preContactMechTypeId?exists>
+    <#if !requestParameters.preContactMechTypeId?? && !preContactMechTypeId??>
     <h2>${uiLabelMap.PartyCreateNewContactInfo}</h2>
     <form method="post" action='<@ofbizUrl>editcontactmechnosave</@ofbizUrl>' name="createcontactmechform">
       <div>
@@ -44,23 +44,23 @@ under the License.
     </#if>
   </#if>
 
-  <#if contactMechTypeId?exists>
-    <#if !contactMech?exists>
+  <#if contactMechTypeId??>
+    <#if !contactMech??>
       <h2>${uiLabelMap.PartyCreateNewContactInfo}</h2>
       <a href='<@ofbizUrl>${donePage}</@ofbizUrl>' class="button">${uiLabelMap.CommonGoBack}</a>
       <a href="javascript:document.editcontactmechform.submit()" class="button">${uiLabelMap.CommonSave}</a>
       <table width="90%" border="0" cellpadding="2" cellspacing="0">
-        <form method="post" action='<@ofbizUrl>${requestName}</@ofbizUrl>' name="editcontactmechform">
+        <form method="post" action='<@ofbizUrl>${reqName}</@ofbizUrl>' name="editcontactmechform" id="editcontactmechform">
         <div>
           <input type='hidden' name='contactMechTypeId' value='${contactMechTypeId}' />
-          <#if contactMechPurposeType?exists>
-            <div class="tabletext">(${uiLabelMap.PartyNewContactHavePurpose} "${contactMechPurposeType.get("description",locale)?if_exists}")</div>
+          <#if contactMechPurposeType??>
+            <div>(${uiLabelMap.PartyNewContactHavePurpose} "${contactMechPurposeType.get("description",locale)!}")</div>
           </#if>
           <#if cmNewPurposeTypeId?has_content><input type='hidden' name='contactMechPurposeTypeId' value='${cmNewPurposeTypeId}' /></#if>
           <#if preContactMechTypeId?has_content><input type='hidden' name='preContactMechTypeId' value='${preContactMechTypeId}' /></#if>
           <#if paymentMethodId?has_content><input type='hidden' name='paymentMethodId' value='${paymentMethodId}' /></#if>
     <#else>
-      <h2>${uiLabelMap.PartyEditContactInfo}</h2>
+      <h2>${uiLabelMap.PartyEditContactInfo}</h2>      
       <a href="<@ofbizUrl>${donePage}</@ofbizUrl>" class="button">${uiLabelMap.CommonGoBack}</a>
       <a href="javascript:document.editcontactmechform.submit()" class="button">${uiLabelMap.CommonSave}</a>
       <table width="90%" border="0" cellpadding="2" cellspacing="0">
@@ -69,17 +69,17 @@ under the License.
           <td>&nbsp;</td>
           <td>
             <table border="0" cellspacing="1">
-              <#list partyContactMechPurposes?if_exists as partyContactMechPurpose>
-                <#assign contactMechPurposeType = partyContactMechPurpose.getRelatedOneCache("ContactMechPurposeType") />
+              <#list partyContactMechPurposes! as partyContactMechPurpose>
+                <#assign contactMechPurposeType = partyContactMechPurpose.getRelatedOne("ContactMechPurposeType", true) />
                 <tr>
                   <td>
-                    <#if contactMechPurposeType?exists>
+                    <#if contactMechPurposeType??>
                       ${contactMechPurposeType.get("description",locale)}
                     <#else>
                       ${uiLabelMap.PartyPurposeTypeNotFound}: "${partyContactMechPurpose.contactMechPurposeTypeId}"
                     </#if>
                      (${uiLabelMap.CommonSince}:${partyContactMechPurpose.fromDate.toString()})
-                    <#if partyContactMechPurpose.thruDate?exists>(${uiLabelMap.CommonExpires}:${partyContactMechPurpose.thruDate.toString()})</#if>
+                    <#if partyContactMechPurpose.thruDate??>(${uiLabelMap.CommonExpires}:${partyContactMechPurpose.thruDate.toString()})</#if>
                   </td>
                   <td>
                       <form name="deletePartyContactMechPurpose_${partyContactMechPurpose.contactMechPurposeTypeId}" method="post" action="<@ofbizUrl>deletePartyContactMechPurpose</@ofbizUrl>">
@@ -116,7 +116,7 @@ under the License.
             </table>
           </td>
         </tr>
-        <form method="post" action='<@ofbizUrl>${requestName}</@ofbizUrl>' name="editcontactmechform">
+        <form method="post" action='<@ofbizUrl>${reqName}</@ofbizUrl>' name="editcontactmechform" id="editcontactmechform">
           <div>
           <input type="hidden" name="contactMechId" value='${contactMechId}' />
           <input type="hidden" name="contactMechTypeId" value='${contactMechTypeId}' />
@@ -127,95 +127,100 @@ under the License.
         <td align="right" valign="top">${uiLabelMap.PartyToName}</td>
         <td>&nbsp;</td>
         <td>
-          <input type="text" class='inputBox' size="30" maxlength="60" name="toName" value="${postalAddressData.toName?if_exists}" />
+          <input type="text" class='inputBox' size="30" maxlength="60" name="toName" value="${postalAddressData.toName!}" />
         </td>
       </tr>
       <tr>
         <td align="right" valign="top">${uiLabelMap.PartyAttentionName}</td>
         <td>&nbsp;</td>
         <td>
-          <input type="text" class='inputBox' size="30" maxlength="60" name="attnName" value="${postalAddressData.attnName?if_exists}" />
+          <input type="text" class='inputBox' size="30" maxlength="60" name="attnName" value="${postalAddressData.attnName!}" />
         </td>
       </tr>
       <tr>
         <td align="right" valign="top">${uiLabelMap.PartyAddressLine1}</td>
         <td>&nbsp;</td>
         <td>
-          <input type="text" class='inputBox' size="30" maxlength="30" name="address1" value="${postalAddressData.address1?if_exists}" />
+          <input type="text" class='inputBox' size="30" maxlength="30" name="address1" value="${postalAddressData.address1!}" />
         *</td>
       </tr>
       <tr>
         <td align="right" valign="top">${uiLabelMap.PartyAddressLine2}</td>
         <td>&nbsp;</td>
         <td>
-            <input type="text" class='inputBox' size="30" maxlength="30" name="address2" value="${postalAddressData.address2?if_exists}" />
+            <input type="text" class='inputBox' size="30" maxlength="30" name="address2" value="${postalAddressData.address2!}" />
         </td>
       </tr>
       <tr>
         <td align="right" valign="top">${uiLabelMap.PartyCity}</td>
         <td>&nbsp;</td>
         <td>
-            <input type="text" class='inputBox' size="30" maxlength="30" name="city" value="${postalAddressData.city?if_exists}" />
+            <input type="text" class='inputBox' size="30" maxlength="30" name="city" value="${postalAddressData.city!}" />
         *</td>
       </tr>
       <tr>
-        <td align="right" valign="top">${uiLabelMap.PartyState}</td>
+        <td align="right" valign="top"> ${uiLabelMap.PartyState}
         <td>&nbsp;</td>
-        <td>
-          <select name="stateProvinceGeoId" class='selectBox'>
-            <#if postalAddressData.stateProvinceGeoId?exists><option value='${postalAddressData.stateProvinceGeoId}'>${selectedStateName?default(postalAddressData.stateProvinceGeoId)}</option></#if>
-            <option value="">${uiLabelMap.PartyNoState}</option>
-            ${screens.render("component://common/widget/CommonScreens.xml#states")}
+        <td>       
+          <select name="stateProvinceGeoId" id="editcontactmechform_stateProvinceGeoId">
           </select>
-        *</td>
-      </tr>
+        </td>
+      </tr>      
       <tr>
         <td align="right" valign="top">${uiLabelMap.PartyZipCode}</td>
         <td >&nbsp;</td>
         <td>
-          <input type="text" class='inputBox' size="12" maxlength="10" name="postalCode" value="${postalAddressData.postalCode?if_exists}" />
+          <input type="text" class='inputBox' size="12" maxlength="10" name="postalCode" value="${postalAddressData.postalCode!}" />
         *</td>
       </tr>
-      <tr>
-        <td align="right" valign="top">${uiLabelMap.PartyCountry}</td>
+      <tr>   
+        <td align="right" valign="top">${uiLabelMap.CommonCountry}</td>
         <td>&nbsp;</td>
         <td>
-          <select name="countryGeoId" class='selectBox'>
-            <#if postalAddressData.countryGeoId?exists><option value='${postalAddressData.countryGeoId}'>${selectedCountryName?default(postalAddressData.countryGeoId)}</option></#if>
-            ${screens.render("component://common/widget/CommonScreens.xml#countries")}
+          <select name="countryGeoId" id="editcontactmechform_countryGeoId">
+          ${screens.render("component://common/widget/CommonScreens.xml#countries")}        
+          <#if (postalAddress??) && (postalAddress.countryGeoId??)>
+            <#assign defaultCountryGeoId = postalAddress.countryGeoId>
+          <#else>
+            <#assign defaultCountryGeoId = Static["org.ofbiz.base.util.UtilProperties"].getPropertyValue("general.properties", "country.geo.id.default")>
+          </#if>
+          <option selected="selected" value="${defaultCountryGeoId}">
+          <#assign countryGeo = delegator.findOne("Geo",Static["org.ofbiz.base.util.UtilMisc"].toMap("geoId",defaultCountryGeoId), false)>
+            ${countryGeo.get("geoName",locale)}
+          </option>
           </select>
-        *</td>
+        </td>
       </tr>
     <#elseif contactMechTypeId = "TELECOM_NUMBER">
       <tr>
         <td align="right" valign="top">${uiLabelMap.PartyPhoneNumber}</td>
         <td>&nbsp;</td>
         <td>
-          <input type="text" class='inputBox' size="4" maxlength="10" name="countryCode" value="${telecomNumberData.countryCode?if_exists}" />
-          -&nbsp;<input type="text" class='inputBox' size="4" maxlength="10" name="areaCode" value="${telecomNumberData.areaCode?if_exists}" />
-          -&nbsp;<input type="text" class='inputBox' size="15" maxlength="15" name="contactNumber" value="${telecomNumberData.contactNumber?if_exists}" />
-          &nbsp;${uiLabelMap.PartyExtension}&nbsp;<input type="text" class='inputBox' size="6" maxlength="10" name="extension" value="${partyContactMechData.extension?if_exists}" />
+          <input type="text" class='inputBox' size="4" maxlength="10" name="countryCode" value="${telecomNumberData.countryCode!}" />
+          -&nbsp;<input type="text" class='inputBox' size="4" maxlength="10" name="areaCode" value="${telecomNumberData.areaCode!}" />
+          -&nbsp;<input type="text" class='inputBox' size="15" maxlength="15" name="contactNumber" value="${telecomNumberData.contactNumber!}" />
+          &nbsp;${uiLabelMap.PartyExtension}&nbsp;<input type="text" class='inputBox' size="6" maxlength="10" name="extension" value="${partyContactMechData.extension!}" />
         </td>
       </tr>
       <tr>
         <td align="right" valign="top"></td>
         <td>&nbsp;</td>
-        <td>[${uiLabelMap.PartyCountryCode}] [${uiLabelMap.PartyAreaCode}] [${uiLabelMap.PartyContactNumber}] [${uiLabelMap.PartyExtension}]</td>
+        <td>[${uiLabelMap.CommonCountryCode}] [${uiLabelMap.PartyAreaCode}] [${uiLabelMap.PartyContactNumber}] [${uiLabelMap.PartyExtension}]</td>
       </tr>
     <#elseif contactMechTypeId = "EMAIL_ADDRESS">
       <tr>
         <td align="right" valign="top">${uiLabelMap.PartyEmailAddress}</td>
         <td>&nbsp;</td>
         <td>
-          <input type="text" class='inputBox' size="60" maxlength="255" name="emailAddress" value="<#if tryEntity>${contactMech.infoString?if_exists}<#else>${requestParameters.emailAddress?if_exists}</#if>" />
+          <input type="text" class='inputBox' size="60" maxlength="255" name="emailAddress" value="<#if tryEntity>${contactMech.infoString!}<#else>${requestParameters.emailAddress!}</#if>" />
         *</td>
       </tr>
     <#else>
       <tr>
-        <td align="right" valign="top">${contactMechType.get("description",locale)?if_exists}</td>
+        <td align="right" valign="top">${contactMechType.get("description",locale)!}</td>
         <td>&nbsp;</td>
         <td>
-            <input type="text" class='inputBox' size="60" maxlength="255" name="infoString" value="${contactMechData.infoString?if_exists}" />
+            <input type="text" class='inputBox' size="60" maxlength="255" name="infoString" value="${contactMechData.infoString!}" />
         *</td>
       </tr>
     </#if>
@@ -238,7 +243,7 @@ under the License.
 
   <a href="<@ofbizUrl>${donePage}</@ofbizUrl>" class="button">${uiLabelMap.CommonGoBack}</a>
   <a href="javascript:document.editcontactmechform.submit()" class="button">${uiLabelMap.CommonSave}</a>
-  <#else>
+  <#else>    
     <a href="<@ofbizUrl>${donePage}</@ofbizUrl>" class="button">${uiLabelMap.CommonGoBack}</a>
   </#if>
 </#if>

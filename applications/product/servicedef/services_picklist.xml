@@ -79,6 +79,11 @@ under the License.
             location="component://product/script/org/ofbiz/shipment/picklist/PicklistServices.xml" invoke="getPicklistDisplayInfo">
         <description>Create Picklist From Orders</description>
         <attribute name="facilityId" type="String" mode="IN" optional="false"/>
+        <attribute name="viewIndex" mode="INOUT" type="Integer" optional="true"/>
+        <attribute name="viewSize" mode="INOUT" type="Integer" optional="true"/>
+        <attribute name="highIndex" mode="OUT" type="Integer" optional="true"/>
+        <attribute name="lowIndex" mode="OUT" type="Integer" optional="true"/>
+        <attribute name="picklistCount" mode="OUT" type="Long" optional="true"/>
         <attribute name="picklistInfoList" type="List" mode="OUT" optional="true"/>
     </service>
 
@@ -163,11 +168,26 @@ under the License.
         <description>Delete PicklistItem</description>
         <auto-attributes include="pk" mode="IN" optional="false"/>
     </service>
+    <service name="editPicklistItem" default-entity-name="PicklistItem" engine="simple"
+            location="component://product/script/org/ofbiz/shipment/picklist/PicklistServices.xml" invoke="editPicklistItem" auth="true">
+        <description>Edit PicklistItem</description>
+        <auto-attributes include="pk" mode="IN" optional="false"/>
+        <attribute name="lotId" mode="IN" type="String" optional="false" />
+        <attribute name="quantity" mode="IN" type="BigDecimal" optional="false" />
+        <attribute name="productId" mode="IN" type="String" optional="false" />
+        <attribute name="facilityId" mode="IN" type="String" optional="false" />
+        <attribute name="oldLotId" mode="IN" type="String" optional="true" />
+    </service>
     <service name="setPicklistItemToComplete" default-entity-name="PicklistItem" engine="simple"
             location="component://product/script/org/ofbiz/shipment/picklist/PicklistServices.xml" invoke="setPicklistItemToComplete" auth="true">
         <description>Update PicklistItem's Status to COMPLETE</description>
         <auto-attributes include="pk" mode="IN" optional="false"/>
         <auto-attributes include="nonpk" mode="IN" optional="false"/>
+    </service>
+    <service name="cancelPicklistAndItems" engine="simple"
+            location="component://product/script/org/ofbiz/shipment/picklist/PicklistServices.xml" invoke="cancelPicklistAndItems" auth="true">
+        <description>If Picklist is Cancelled then cancel all the PicklistItems.</description>
+        <attribute name="picklistId" type="String" mode="IN"/>
     </service>
 
     <!-- PicklistRole -->

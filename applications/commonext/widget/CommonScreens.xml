@@ -34,18 +34,23 @@ under the License.
                 <script location="component://commonext/webapp/ofbizsetup/organization/changeOrgPartyId.groovy"/><!-- to see ofbizsetup needs to be displayed -->
                 <!-- system info notes -->
                 <service service-name="getLastSystemInfoNote" result-map="resultNote"/>
-                <set field="linkStart" value="/myportal/control/showPortletMainDecorator?portalPortletId="/>
+                <set field="lastSystemInfoNote1" from-field="resultNote.lastSystemInfoNote1"/>
+                <set field="lastSystemInfoNote2" from-field="resultNote.lastSystemInfoNote2"/>
+                <set field="lastSystemInfoNote3" from-field="resultNote.lastSystemInfoNote3"/>
                 <set field="layoutSettings.middleTopHeader" value="---------- ${uiLabelMap.CommonLastSytemNotes} ----------"/>
-                <set field="layoutSettings.middleTopMessage1" value="${groovy:resultNote.lastSystemInfoNote1!=null?resultNote.lastSystemInfoNote1.noteDateTime.toString().substring(0,16) + &quot; &quot; + resultNote.lastSystemInfoNote1.noteInfo:&quot;&quot;}"/>
-                <set field="layoutSettings.middleTopLink1" value="${linkStart}${resultNote.lastSystemInfoNote1.moreInfoPortletId}&amp;amp;id=${resultNote.lastSystemInfoNote1.moreInfoItemId}"/>
-                <set field="layoutSettings.middleTopMessage2" value="${groovy:resultNote.lastSystemInfoNote2!=null?resultNote.lastSystemInfoNote2.noteDateTime.toString().substring(0,16) + &quot; &quot; + resultNote.lastSystemInfoNote2.noteInfo:&quot;&quot;}"/>
-                <set field="layoutSettings.middleTopLink2" value="${linkStart}${resultNote.lastSystemInfoNote2.moreInfoPortletId}&amp;amp;id=${resultNote.lastSystemInfoNote2.moreInfoItemId}"/>
-                <set field="layoutSettings.middleTopMessage3" value="${groovy:resultNote.lastSystemInfoNote3!=null?resultNote.lastSystemInfoNote3.noteDateTime.toString().substring(0,16) + &quot; &quot; + resultNote.lastSystemInfoNote3.noteInfo:&quot;&quot;}"/>
-                <set field="layoutSettings.middleTopLink3" value="${linkStart}${resultNote.lastSystemInfoNote3.moreInfoPortletId}&amp;amp;id=${resultNote.lastSystemInfoNote3.moreInfoItemId}"/>
+                <set field="layoutSettings.middleTopMessage1" value="${groovy:lastSystemInfoNote1!=null?lastSystemInfoNote1.noteDateTime.toString().substring(0,16) + &quot; &quot; + lastSystemInfoNote1.noteInfo:&quot;&quot;}"/>
+                <set field="layoutSettings.middleTopMessage2" value="${groovy:lastSystemInfoNote2!=null?lastSystemInfoNote2.noteDateTime.toString().substring(0,16) + &quot; &quot; + lastSystemInfoNote2.noteInfo:&quot;&quot;}"/>
+                <set field="layoutSettings.middleTopMessage3" value="${groovy:lastSystemInfoNote3!=null?lastSystemInfoNote3.noteDateTime.toString().substring(0,16) + &quot; &quot; + lastSystemInfoNote3.noteInfo:&quot;&quot;}"/>
+                <set field="layoutSettings.middleTopLink1" value="${lastSystemInfoNote1.moreInfoUrl}${groovy: if (lastSystemInfoNote1&amp;&amp;lastSystemInfoNote1.moreInfoItemName&amp;&amp;lastSystemInfoNote1.moreInfoItemId)&quot;?&quot; + lastSystemInfoNote1.moreInfoItemName + &quot;=&quot; + lastSystemInfoNote1.moreInfoItemId + &quot;&amp;id=&quot; + lastSystemInfoNote1.moreInfoItemId;}"/>
+                <set field="layoutSettings.middleTopLink2" value="${lastSystemInfoNote2.moreInfoUrl}${groovy: if (lastSystemInfoNote2&amp;&amp;lastSystemInfoNote2.moreInfoItemName&amp;&amp;lastSystemInfoNote2.moreInfoItemId)&quot;?&quot; + lastSystemInfoNote2.moreInfoItemName + &quot;=&quot; + lastSystemInfoNote2.moreInfoItemId + &quot;&amp;id=&quot; + lastSystemInfoNote2.moreInfoItemId;}"/>
+                <set field="layoutSettings.middleTopLink3" value="${lastSystemInfoNote3.moreInfoUrl}${groovy: if (lastSystemInfoNote3&amp;&amp;lastSystemInfoNote3.moreInfoItemName&amp;&amp;lastSystemInfoNote3.moreInfoItemId)&quot;?&quot; + lastSystemInfoNote3.moreInfoItemName + &quot;=&quot; + lastSystemInfoNote3.moreInfoItemId + &quot;&amp;id=&quot; + lastSystemInfoNote3.moreInfoItemId;}"/>
                 <!-- Help link actions -->
-                <set field="helpTopic" value="${groovy: webSiteId + '_' + requestAttributes._CURRENT_VIEW_}"/>
+                <set field="helpTopic" value="${groovy: webappName.toUpperCase() + '_' + requestAttributes._CURRENT_VIEW_}"/>
                 <entity-and list="pageAvail" entity-name="ContentAssoc">
                     <field-map field-name="mapKey" from-field="helpTopic"/>
+                </entity-and>
+                <entity-and list="layoutSettings.WEB_ANALYTICS" entity-name="WebAnalyticsConfig">
+                    <field-map field-name="webAnalyticsTypeId" value="BACKEND_ANALYTICS"/>
                 </entity-and>
             </actions>
             <widgets>
@@ -57,6 +62,17 @@ under the License.
                         <entity-one entity-name="PartyAcctgPrefAndGroup" value-field="orgParty">
                             <field-map field-name="partyId" from-field="defaultOrganizationPartyId"/>
                         </entity-one>
+                        <entity-one value-field="orgPartyLogoMap" entity-name="PartyGroup">
+                            <field-map field-name="partyId" from-field="defaultOrganizationPartyId"/>
+                        </entity-one>
+                        <entity-and list="orgPartyContentMap" entity-name="PartyContent">
+                            <field-map field-name="partyId" from-field="defaultOrganizationPartyId"/>
+                            <field-map field-name="partyContentTypeId" value="LGOIMGURL"/>
+                            <order-by field-name="-fromDate"/>
+                        </entity-and>
+                        <set field="orgContentId" from-field="orgPartyContentMap[0].contentId"/>
+                        <set field="orgPartyContent" value="${groovy: orgContentId!=null?&quot;/content/control/stream?contentId=&quot; + orgContentId : &quot;&quot;}"/>
+                        <set field="layoutSettings.organizationLogoLinkUrl" from-field="orgPartyContent" default-value="${orgPartyLogoMap.logoImageUrl}" global="true"/>
                         <set field="defaultOrganizationPartyCurrencyUomId" from-field="orgParty.baseCurrencyUomId" default-value="${defaultCurrencyUomId}" global="true"/>
                         <set field="defaultOrganizationPartyGroupName" from-field="orgParty.groupName" global="true"/>
                         <set field="dropdown.hiddenFieldList" from-field="hiddenFields" global="true"/>

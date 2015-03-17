@@ -29,6 +29,7 @@ under the License.
         <menu-item name="ContactListParty" title="${uiLabelMap.PartyParties}">
             <link target="FindContactListParties">
                 <parameter param-name="contactListId"/>
+                <parameter param-name="hideExpired" value="Y"/>
             </link>
         </menu-item>
         <menu-item name="ContactListCommEvent" title="${uiLabelMap.PartyCommEvents}">
@@ -38,6 +39,11 @@ under the License.
         </menu-item>
         <menu-item name="ContactListImportParty" title="${uiLabelMap.MarketingContactListPartiesImport}">
             <link target="FindImportContactListParties">
+                <parameter param-name="contactListId"/>
+            </link>
+        </menu-item>
+        <menu-item name="WebSiteContactList" title="${uiLabelMap.MarketingWebSiteContactList}">
+            <link target="webSiteContactList">
                 <parameter param-name="contactListId"/>
             </link>
         </menu-item>

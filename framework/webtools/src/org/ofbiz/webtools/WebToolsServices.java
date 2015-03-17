@@ -31,6 +31,7 @@ import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.sql.Timestamp;
 import java.text.NumberFormat;
 import java.util.Collection;
 import java.util.Iterator;
@@ -58,10 +59,13 @@ import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilURL;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.base.util.UtilProperties.UtilResourceBundle;
+import org.ofbiz.base.util.template.FreeMarkerWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.condition.EntityCondition;
+import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.model.ModelEntity;
 import org.ofbiz.entity.model.ModelField;
 import org.ofbiz.entity.model.ModelFieldType;
@@ -75,6 +79,7 @@ import org.ofbiz.entity.transaction.TransactionUtil;
 import org.ofbiz.entity.util.EntityDataAssert;
 import org.ofbiz.entity.util.EntityDataLoader;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntitySaxReader;
 import org.ofbiz.entityext.EntityGroupUtil;
 import org.ofbiz.security.Security;
@@ -86,7 +91,6 @@ import org.ofbiz.webtools.artifactinfo.ServiceArtifactInfo;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import freemarker.ext.beans.BeansWrapper;
 import freemarker.ext.dom.NodeModel;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -168,8 +172,7 @@ public class WebToolsServices {
                     }
                 }
                 fmcontext.put("doc", nodeModel);
-                BeansWrapper wrapper = BeansWrapper.getDefaultInstance();
-                TemplateHashModel staticModels = wrapper.getStaticModels();
+                TemplateHashModel staticModels = FreeMarkerWorker.getDefaultOfbizWrapper().getStaticModels();
                 fmcontext.put("Static", staticModels);
 
                 template.process(fmcontext, outWriter);
@@ -415,7 +418,7 @@ public class WebToolsServices {
         }
 
         if (errorMessages.size() > 0) {
-            messages.add("=-=-=-=-=-=-= The following errors occured in the data " + (checkDataOnly ? "check" : "load") + ":");
+            messages.add("=-=-=-=-=-=-= The following errors occurred in the data " + (checkDataOnly ? "check" : "load") + ":");
             messages.addAll(errorMessages);
         }
 
@@ -468,6 +471,7 @@ public class WebToolsServices {
         Delegator delegator = dctx.getDelegator();
         Locale locale = (Locale) context.get("locale");
         String outpath = (String)context.get("outpath"); // mandatory
+        Timestamp fromDate = (Timestamp)context.get("fromDate");
         Integer txTimeout = (Integer)context.get("txTimeout");
         if (txTimeout == null) {
             txTimeout = Integer.valueOf(7200);
@@ -505,7 +509,11 @@ public class WebToolsServices {
                         boolean beganTx = TransactionUtil.begin();
                         // some databases don't support cursors, or other problems may happen, so if there is an error here log it and move on to get as much as possible
                         try {
-                            values = delegator.find(curEntityName, null, null, null, me.getPkFieldNames(), null);
+                            List<EntityCondition> conds = FastList.newInstance();
+                            if (UtilValidate.isNotEmpty(fromDate)) {
+                                conds.add(EntityCondition.makeCondition("createdStamp", EntityOperator.GREATER_THAN_EQUAL_TO, fromDate));
+                            }
+                            values = EntityQuery.use(delegator).from(curEntityName).where(conds).orderBy(me.getPkFieldNames()).queryIterator();
                         } catch (Exception entityEx) {
                             results.add("["+fileNumber +"] [xxx] Error when writing " + curEntityName + ": " + entityEx);
                             continue;
@@ -704,7 +712,8 @@ public class WebToolsServices {
                             javaNameMap.put("type", (field.getType()) != null ? field.getType() : null);
                             javaNameMap.put("javaType", (field.getType() != null && type != null) ? type.getJavaType() : "Undefined");
                             javaNameMap.put("sqlType", (type != null && type.getSqlType() != null) ? type.getSqlType() : "Undefined");
-                            javaNameMap.put("encrypted", field.getEncrypt());
+                            javaNameMap.put("encrypted", field.getEncryptMethod().isEncrypted());
+                            javaNameMap.put("encryptMethod", field.getEncryptMethod());
                             javaNameList.add(javaNameMap);
                         }
 
@@ -714,9 +723,9 @@ public class WebToolsServices {
                             Map<String, Object> relationMap = FastMap.newInstance();
                             ModelRelation relation = entity.getRelation(r);
                             List<Map<String, Object>> keysList = FastList.newInstance();
-                            for (int km = 0; km < relation.getKeyMapsSize(); km++) {
+                            int row = 1;
+                            for (ModelKeyMap keyMap : relation.getKeyMaps()) {
                                 Map<String, Object> keysMap = FastMap.newInstance();
-                                ModelKeyMap keyMap = relation.getKeyMap(km);
                                 String fieldName = null;
                                 String relFieldName = null;
                                 if (keyMap.getFieldName().equals(keyMap.getRelFieldName())) {
@@ -726,7 +735,7 @@ public class WebToolsServices {
                                     fieldName = keyMap.getFieldName();
                                     relFieldName = keyMap.getRelFieldName();
                                 }
-                                keysMap.put("row", km + 1);
+                                keysMap.put("row", row++);
                                 keysMap.put("fieldName", fieldName);
                                 keysMap.put("relFieldName", relFieldName);
                                 keysList.add(keysMap);
@@ -747,7 +756,7 @@ public class WebToolsServices {
                             List<String> fieldNameList = FastList.newInstance();
 
                             ModelIndex index = entity.getIndex(r);
-                            for (Iterator<ModelIndex.Field> fieldIterator = index.getFieldsIterator(); fieldIterator.hasNext();) {
+                            for (Iterator<ModelIndex.Field> fieldIterator = index.getFields().iterator(); fieldIterator.hasNext();) {
                                 fieldNameList.add(fieldIterator.next().getFieldName());
                             }
 
@@ -872,9 +881,9 @@ public class WebToolsServices {
 
     /** Performs an entity maintenance security check. Returns hasPermission=true
      * if the user has the ENTITY_MAINT permission.
-     * @param dctx
-     * @param context
-     * @return
+     * @param dctx the dispatch context
+     * @param context the context
+     * @return return the result of the service execution
      */
     public static Map<String, Object> entityMaintPermCheck(DispatchContext dctx, Map<String, ? extends Object> context) {
         GenericValue userLogin = (GenericValue) context.get("userLogin");

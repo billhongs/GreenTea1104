@@ -19,7 +19,7 @@
   -->
 
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
 
     <!-- base content CRUD services -->
     <simple-method method-name="createContent" short-description="Create a Content Record">
@@ -68,6 +68,27 @@
         <find-by-primary-key entity-name="Content" map="lookupKeyValue" value-field="content"/>
 
         <remove-value value-field="content"/>
+    </simple-method>
+    <simple-method method-name="removeContentAndRelated" short-description="Remove a Content Record, related resource(s) and assocs.">
+        <entity-one entity-name="Content" value-field="content"/> 
+        <remove-related value-field="content" relation-name="ContentRole"/>
+        <remove-related value-field="content" relation-name="ContentKeyword"/>
+        <remove-related value-field="content" relation-name="FromContentAssoc"/>
+        <remove-related value-field="content" relation-name="ToContentAssoc"/>
+        <remove-value value-field="content"/>
+        <get-related-one value-field="content" relation-name="DataResource" to-value-field="dataResource"/>
+        <if-not-empty field="dataResource">
+            <get-related-one value-field="dataResource" relation-name="ImageDataResource" to-value-field="imageDataResource"/>
+            <if-not-empty field="imageDataResource">
+                <remove-value value-field="imageDataResource"/>
+            </if-not-empty>
+            <get-related-one value-field="dataResource" relation-name="ElectronicText" to-value-field="electronicText"/>
+            <if-not-empty field="electronicText">
+                <remove-value value-field="electronicText"/>
+            </if-not-empty>
+            <remove-related value-field="dataResource" relation-name="DataResourceRole"/>
+            <remove-value value-field="dataResource"/>
+        </if-not-empty>
     </simple-method>
 
     <!-- content assoc services -->
@@ -142,6 +163,7 @@
         <call-service service-name="getContent" in-map-name="getC">
             <result-to-field result-name="view" field="content"/>
         </call-service>
+        <clone-value value-field="content" new-value-field="content"/>
         <if-not-empty field="content.dataResourceId">
             <set-service-fields service-name="getElectronicText" map="content" to-map="getEt"/>
             <call-service service-name="getElectronicText" in-map-name="getEt">
@@ -470,27 +492,6 @@
         <remove-value value-field="lookedUpValue"/>
     </simple-method>
 
-    <!-- Methods for ContentPurposeOperation -->
-    <simple-method method-name="createContentPurposeOperation" short-description="Create Content PurposeOperation">
-        <make-value entity-name="ContentPurposeOperation" value-field="newEntity"/>
-        <set-nonpk-fields map="parameters" value-field="newEntity"/>
-        <set-pk-fields map="parameters" value-field="newEntity"/>
-        <create-value value-field="newEntity"/>
-    </simple-method>
-    <simple-method method-name="updateContentPurposeOperation" short-description="Update Content PurposeOperation">
-        <make-value entity-name="ContentPurposeOperation" value-field="lookupKeyValue"/>
-        <set-pk-fields map="parameters" value-field="lookupKeyValue"/>
-        <find-by-primary-key entity-name="ContentPurposeOperation" map="lookupKeyValue" value-field="lookedUpValue"/>
-        <set-nonpk-fields map="parameters" value-field="lookedUpValue"/>
-        <store-value value-field="lookedUpValue"/>
-    </simple-method>
-    <simple-method method-name="removeContentPurposeOperation" short-description="Remove Content PurposeOperation">
-        <make-value entity-name="ContentPurposeOperation" value-field="lookupKeyValue"/>
-        <set-pk-fields map="parameters" value-field="lookupKeyValue"/>
-        <find-by-primary-key entity-name="ContentPurposeOperation" map="lookupKeyValue" value-field="lookedUpValue"/>
-        <remove-value value-field="lookedUpValue"/>
-    </simple-method>
-
     <!-- Methods for ContentAttribute -->
     <simple-method method-name="createContentAttribute" short-description="Create Content Attribute">
         <make-value entity-name="ContentAttribute" value-field="newEntity"/>
@@ -509,28 +510,6 @@
         <make-value entity-name="ContentAttribute" value-field="lookupKeyValue"/>
         <set-pk-fields map="parameters" value-field="lookupKeyValue"/>
         <find-by-primary-key entity-name="ContentAttribute" map="lookupKeyValue" value-field="lookedUpValue"/>
-        <remove-value value-field="lookedUpValue"/>
-    </simple-method>
-
-    <!-- Methods for ContentMetaData -->
-    <simple-method method-name="createContentMetaData" short-description="Create Content MetaData">
-        <make-value entity-name="ContentMetaData" value-field="newEntity"/>
-        <set-nonpk-fields map="parameters" value-field="newEntity"/>
-        <set-pk-fields map="parameters" value-field="newEntity"/>
-        <create-value value-field="newEntity"/>
-    </simple-method>
-    <simple-method method-name="updateContentMetaData" short-description="Update Content MetaData">
-        <make-value entity-name="ContentMetaData" value-field="lookupKeyValue"/>
-        <set-pk-fields map="parameters" value-field="lookupKeyValue"/>
-        <find-by-primary-key entity-name="ContentMetaData" map="lookupKeyValue" value-field="lookedUpValue"/>
-        <set-nonpk-fields map="parameters" value-field="lookedUpValue"/>
-        <store-value value-field="lookedUpValue"/>
-    </simple-method>
-    <simple-method method-name="removeContentMetaData" short-description="Remove Content MetaData">
-        <check-errors/>
-        <make-value entity-name="ContentMetaData" value-field="lookupKeyValue"/>
-        <set-pk-fields map="parameters" value-field="lookupKeyValue"/>
-        <find-by-primary-key entity-name="ContentMetaData" map="lookupKeyValue" value-field="lookedUpValue"/>
         <remove-value value-field="lookedUpValue"/>
     </simple-method>
 
@@ -800,12 +779,18 @@
             <results-to-map map-name="persistOut"/>
         </call-service>
 
-        <iterate-map key="key" value="val" map="persistOut">
-            <field-to-result field="val" result-name="${key}"/>
-        </iterate-map>
+        <field-to-result field="persistOut.contentId" result-name="contentId"/>
+        <field-to-result field="persistOut.dataResourceId" result-name="dataResourceId"/>
+        <field-to-result field="persistOut.drDataResourceId" result-name="drDataResourceId"/>
+        <field-to-result field="persistOut.caContentIdTo" result-name="caContentIdTo"/>
+        <field-to-result field="persistOut.caContentId" result-name="caContentId"/>
+        <field-to-result field="persistOut.caContentAssocTypeId" result-name="caContentAssocTypeId"/>
+        <field-to-result field="persistOut.caFromDate" result-name="caFromDate"/>
+        <field-to-result field="persistOut.caSequenceNum" result-name="caSequenceNum"/>
+        <field-to-result field="persistOut.roleTypeList" result-name="roleTypeList"/>
+        <field-to-result field="persistOut.fromDate" result-name="fromDate"/>
 
         <set field="mapIn.contentId"  from-field="persistOut.contentId"/>
-        <!-- <set field="mapIn.fromDate"  from-field="nowTimestamp"/> -->
         <set field="mapIn.communicationEventId"  from-field="parameters.communicationEventId"/>
         <set field="mapIn.sequenceNum"  from-field="parameters.sequenceNum"/>
         <call-service service-name="createCommEventContentAssoc" in-map-name="mapIn">
@@ -838,9 +823,15 @@
         <call-service service-name="updateCommEventContentAssoc" in-map-name="mapIn">
         </call-service>
 
-        <iterate-map key="key" value="val" map="persistOut">
-            <field-to-result field="val" result-name="${key}"/>
-        </iterate-map>
+        <field-to-result field="persistOut.contentId" result-name="contentId"/>
+        <field-to-result field="persistOut.dataResourceId" result-name="dataResourceId"/>
+        <field-to-result field="persistOut.drDataResourceId" result-name="drDataResourceId"/>
+        <field-to-result field="persistOut.caContentIdTo" result-name="caContentIdTo"/>
+        <field-to-result field="persistOut.caContentId" result-name="caContentId"/>
+        <field-to-result field="persistOut.caContentAssocTypeId" result-name="caContentAssocTypeId"/>
+        <field-to-result field="persistOut.caFromDate" result-name="caFromDate"/>
+        <field-to-result field="persistOut.caSequenceNum" result-name="caSequenceNum"/>
+        <field-to-result field="persistOut.roleTypeList" result-name="roleTypeList"/>
 
     </simple-method>
 
@@ -859,7 +850,7 @@
 
     <!-- This service would primarily be used to update the thruDate field.
         -->
-    <simple-method method-name="updateCommEventContentAssoc" short-description="Create CommEventContentAssoc">
+    <simple-method method-name="updateCommEventContentAssoc" short-description="Update CommEventContentAssoc">
         <make-value entity-name="CommEventContentAssoc" value-field="pkCommEventContentAssoc"/>
         <set-pk-fields value-field="pkCommEventContentAssoc" map="parameters"/>
         <find-by-primary-key value-field="commEventContentAssoc" map="pkCommEventContentAssoc" entity-name="CommEventContentAssoc"/>
@@ -1229,4 +1220,328 @@
         <field-to-result field="subContentList" result-name="subContentList"/>
         <field-to-result field="contentViewList" result-name="subSubContentList"/>
     </simple-method>
+
+    <!-- Content Keyword Services -->
+    <simple-method method-name="createContentKeyword" short-description="create a ContentKeyword">
+        <make-value entity-name="ContentKeyword" value-field="newEntity"/>
+        <set-pk-fields map="parameters" value-field="newEntity"/>
+        <set-nonpk-fields map="parameters" value-field="newEntity"/>
+        <create-value value-field="newEntity"/>
+    </simple-method>
+    
+    <simple-method method-name="updateContentKeyword" short-description="update a ContentKeyword">
+        <entity-one entity-name="ContentKeyword" value-field="lookedUpValue"/>
+        <set-nonpk-fields map="parameters" value-field="lookedUpValue"/>
+        <store-value value-field="lookedUpValue"/>
+    </simple-method>
+    
+    <simple-method method-name="deleteContentKeyword" short-description="delete a ContentKeyword">
+        <entity-one entity-name="ContentKeyword" value-field="lookedUpValue"/>
+        <remove-value value-field="lookedUpValue"/>
+    </simple-method>
+    
+    <simple-method method-name="forceIndexContentKeywords" short-description="induce all the keywords of a content">
+        <entity-one entity-name="Content" value-field="content"/>
+        <call-class-method class-name="org.ofbiz.content.content.ContentKeywordIndex" method-name="forceIndexKeywords">
+            <field field="content" type="org.ofbiz.entity.GenericValue"/>
+        </call-class-method>
+    </simple-method>
+    
+    <simple-method method-name="deleteContentKeywords" short-description="delete all the keywords of a content">
+        <entity-one entity-name="Content" value-field="content"/>
+        <remove-related value-field="content" relation-name="ContentKeyword"/>
+    </simple-method>
+
+    <simple-method method-name="indexContentKeywords" short-description="Index the Keywords for a Content" login-required="false">
+        <!-- this service is meant to be called from an entity ECA for entities that include a contentId -->
+        <!-- if it is the Content entity itself triggering this action, then a [contentInstance] parameter
+            will be passed and we can save a few cycles looking that up -->
+        <set from-field="parameters.contentInstance" field="contentInstance"/>
+        <if-empty field="contentInstance">
+            <set from-field="parameters.contentId" field="findContentMap.contentId"/>
+            <find-by-primary-key entity-name="Content" map="findContentMap" value-field="contentInstance"/>
+        </if-empty>
+
+        <!-- induce keywords-->
+        <call-class-method class-name="org.ofbiz.content.content.ContentKeywordIndex" method-name="indexKeywords">
+            <field field="contentInstance" type="org.ofbiz.entity.GenericValue"/>
+        </call-class-method>
+    </simple-method>
+
+    <simple-method method-name="createContentAlternativeUrl" short-description="Create Content Alternative URLs.">
+        <set field="defaultLocaleString" from-field="parameters.locale" default-value="en"/>
+        <set field="contents" type="List"/>
+        <if>
+            <condition>
+                <or>
+                    <if-empty field="parameters.contentId"/>
+                    <if-compare operator="equals" value="null" field="parameters.contentId"></if-compare>
+                </or>
+            </condition>
+            <then>
+                <entity-condition list="contents" entity-name="Content">
+                    <condition-list combine="and">
+                        <condition-expr field-name="contentName" operator="not-equals" from-field="nullField"/>
+                            <condition-list combine="or">
+                                <condition-expr field-name="contentTypeId" operator="equals" value="DOCUMENT"/>
+                                <condition-expr field-name="contentTypeId" operator="equals" value="WEB_SITE_PUB_PT"/>
+                            </condition-list>
+                    </condition-list>
+                    <select-field field-name="contentId"/>
+                    <select-field field-name="contentName"/>
+                    <select-field field-name="localeString"/>
+                </entity-condition>
+            </then>
+            <else>
+                <entity-condition list="contents" entity-name="Content">
+                    <condition-list combine="and">
+                        <condition-expr field-name="contentName" operator="not-equals" from-field="nullField"/>
+                        <condition-expr field-name="contentId" operator="equals" from-field="parameters.contentId"/>
+                        <condition-list combine="or">
+                            <condition-expr field-name="contentTypeId" operator="equals" value="DOCUMENT"/>
+                            <condition-expr field-name="contentTypeId" operator="equals" value="WEB_SITE_PUB_PT"/>
+                        </condition-list>
+                    </condition-list>
+                    <select-field field-name="contentId"/>
+                    <select-field field-name="contentName"/>
+                    <select-field field-name="localeString"/>
+                </entity-condition>
+            </else>
+        </if>
+        <iterate entry="content" list="contents">
+            <set field="localeString" from-field="content.localeString" default-value="${defaultLocaleString}"/>
+            <entity-condition list="contentAssocDataResources" entity-name="ContentAssocDataResourceViewTo">
+                <condition-list combine="and">
+                    <condition-expr field-name="caContentAssocTypeId" operator="equals" value="ALTERNATIVE_URL"/>
+                    <condition-expr field-name="contentIdStart" operator="equals" from-field="content.contentId"/>
+                    <condition-expr field-name="localeString" operator="equals" from-field="localeString"/>
+                </condition-list>
+                <select-field field-name="contentIdStart"/>
+                <select-field field-name="dataResourceId"/>
+                <select-field field-name="localeString"/>
+                <select-field field-name="drObjectInfo"/>
+                <select-field field-name="caFromDate"/>
+                <select-field field-name="caThruDate"/>
+            </entity-condition>
+            <filter-list-by-date list="contentAssocDataResources" from-field-name="caFromDate" thru-field-name="caThruDate"/>
+            <if-empty field="contentAssocDataResources">
+                <if-not-empty field="content.contentName">
+                    <call-class-method method-name="invalidCharacter" class-name="org.ofbiz.common.UrlServletHelper" ret-field="uri">
+                        <field field="content.contentName"/>
+                    </call-class-method>
+                    <if-not-empty field="uri">
+                        <sequenced-id sequence-name="DataResource" field="dataResourceCtx.dataResourceId"/>
+                        <set field="dataResourceCtx.dataResourceTypeId" value="URL_RESOURCE"/>
+                        <set field="dataResourceCtx.localeString" from-field="localeString"/>
+                        <set field="dataResourceCtx.objectInfo" value="/${uri}-${content.contentId}-content"/>
+                        <set field="dataResourceCtx.statusId" value="CTNT_IN_PROGRESS"/>
+                        <call-service service-name="createDataResource" in-map-name="dataResourceCtx" break-on-error="false" include-user-login="true">
+                            <result-to-field result-name="dataResourceId" field="dataResourceId"/>
+                        </call-service>
+                        <if-not-empty field="dataResourceId">
+                            <set field="contentCtx.dataResourceId" from-field="dataResourceId"/>
+                            <set field="contentCtx.statusId" value="CTNT_IN_PROGRESS"/>
+                            <set field="contentCtx.localeString" from-field="localeString"/>
+                            <call-service service-name="createContent" in-map-name="contentCtx" break-on-error="false" include-user-login="true">
+                                <result-to-field result-name="contentId" field="contentIdTo"/>
+                            </call-service>
+                            <if-not-empty field="contentIdTo">
+                                <set field="createContentAssocCtx.contentId" from-field="content.contentId"/>
+                                <set field="createContentAssocCtx.contentIdTo" from-field="contentIdTo"/>
+                                <set field="createContentAssocCtx.contentAssocTypeId" value="ALTERNATIVE_URL"/>
+                                <call-service service-name="createContentAssoc" in-map-name="createContentAssocCtx" include-user-login="true" break-on-error="false"/>
+                            </if-not-empty>
+                        </if-not-empty>
+                        <set field="contentCreated" value="Y"/>
+                        <field-to-result field="contentCreated" result-name="contentCreated"/>
+                    </if-not-empty>
+                </if-not-empty>
+            <else>
+                <if-empty field="contentAssocDataResources[0].drObjectInfo">
+                    <if-not-empty field="content.contentName">
+                        <call-class-method method-name="invalidCharacter" class-name="org.ofbiz.common.UrlServletHelper" ret-field="uri">
+                            <field field="content.contentName"/>
+                        </call-class-method>
+                        <if-not-empty field="uri">
+                            <set field="dataResourceCtx.dataResourceId" from-field="contentAssocDataResources[0].dataResourceId"/>
+                            <set field="dataResourceCtx.objectInfo" value="/${uri}-${content.contentId}-content"/>
+                            <call-service service-name="updateDataResource" in-map-name="dataResourceCtx" break-on-error="false" include-user-login="true"/>
+                            <set field="contentCreated" value="Y"/>
+                            <field-to-result field="contentCreated" result-name="contentCreated"/>
+                        </if-not-empty>
+                    </if-not-empty>
+                <else>
+                    <set field="contentCreated" value="N"/>
+                    <field-to-result field="contentCreated" result-name="contentCreated"/>
+                </else>
+                </if-empty>
+            </else>
+            </if-empty>
+        </iterate>
+    </simple-method>
+
+    <simple-method method-name="createMissingContentAltUrls" short-description="create missing content alternative urls.">
+        <now-timestamp field="now"/>
+        <set field="contentsNotUpdated" value="0" type="Integer"/>
+        <set field="contentsUpdated" value="0" type="Integer"/>
+        <if-not-empty field="parameters.prodCatalogId">
+            <entity-and list="prodCatalogCategoryList" entity-name="ProdCatalogCategory" filter-by-date="false">
+                <field-map field-name="prodCatalogId" from-field="parameters.prodCatalogId"/>
+            </entity-and>
+            
+            <!-- Get all categories -->
+            <call-class-method method-name="newInstance" class-name="javolution.util.FastList" ret-field="parameters.productCategories"/>
+            <iterate entry="prodCatalogCategory" list="prodCatalogCategoryList">
+                <set field="rootProductCategoryId" from-field="prodCatalogCategory.productCategoryId"/>
+                <entity-and list="productCategoryRollupList" entity-name="ProductCategoryRollup" filter-by-date="true">
+                    <field-map field-name="parentProductCategoryId" from-field="rootProductCategoryId"/>
+                </entity-and>
+                <set field="parameters.parentProductCategoryId" from-field="rootProductCategoryId"/>
+                <call-simple-method method-name="createMissingCategoryContentAltUrlInline"/>
+            </iterate>
+            
+            <iterate entry="productCategoryList" list="parameters.productCategories">
+                <!-- Create Content Alternative URLs for Product Category Content -->
+                <entity-condition list="productCategoryContentAndInfoList" entity-name="ProductCategoryContentAndInfo" filter-by-date="true" use-cache="true">
+                    <condition-list combine="and">
+                        <condition-expr field-name="productCategoryId" from-field="productCategoryList.productCategoryId"/>
+                        <condition-expr field-name="prodCatContentTypeId" operator="not-equals" value="ALTERNATIVE_URL"/>
+                    </condition-list>
+                    <order-by field-name="-fromDate"/>
+                </entity-condition>
+                <iterate entry="productCategoryContentAndInfo" list="productCategoryContentAndInfoList">
+                    <set field="createMissingCategoryContentAltUrlsMap.contentId" from-field="productCategoryContentAndInfo.contentId"/>
+                    <call-service service-name="createContentAlternativeUrl" in-map-name="createMissingCategoryContentAltUrlsMap">
+                        <result-to-field result-name="contentCreated" field="contentCreated"/>
+                    </call-service>
+                    <if-compare operator="equals" value="Y" field="contentCreated">
+                        <calculate field="contentsUpdated" type="Integer">
+                            <calcop operator="add" field="contentsUpdated">
+                                <number value="1"/>
+                            </calcop>
+                        </calculate>
+                    </if-compare>
+                    <if-compare operator="equals" value="N" field="contentCreated">
+                        <calculate field="contentsNotUpdated" type="Integer">
+                            <calcop operator="add" field="contentsNotUpdated">
+                                <number value="1"/>
+                            </calcop>
+                        </calculate>
+                    </if-compare>
+                </iterate>
+                
+                <!-- Create Content Alternative URLs for Product Content -->
+                <entity-condition list="productCategoryMemberList" entity-name="ProductCategoryMember" filter-by-date="true" use-cache="true">
+                    <condition-list combine="and">
+                        <condition-expr field-name="productCategoryId" from-field="productCategoryList.productCategoryId"/>
+                    </condition-list>
+                    <order-by field-name="-fromDate"/>
+                </entity-condition>
+                <iterate entry="productCategoryMember" list="productCategoryMemberList">
+                    <set field="product.productId" from-field="productCategoryMember.productId"/>
+                    <entity-condition list="productContentAndInfoList" entity-name="ProductContentAndInfo" filter-by-date="true" use-cache="true">
+                        <condition-list combine="and">
+                            <condition-expr field-name="productId" from-field="product.productId"/>
+                            <condition-expr field-name="productContentTypeId" operator="not-equals" value="ALTERNATIVE_URL"/>
+                        </condition-list>
+                        <order-by field-name="-fromDate"/>
+                    </entity-condition>
+                    <iterate entry="productContentAndInfo" list="productContentAndInfoList">
+                        <set field="createMissingProductContentAltUrlsMap.contentId" from-field="productContentAndInfo.contentId"/>
+                        <call-service service-name="createContentAlternativeUrl" in-map-name="createMissingProductContentAltUrlsMap">
+                            <result-to-field result-name="contentCreated" field="contentCreated"/>
+                        </call-service>
+                        <if-compare operator="equals" value="Y" field="contentCreated">
+                            <calculate field="contentsUpdated" type="Integer">
+                                <calcop operator="add" field="contentsUpdated">
+                                    <number value="1"/>
+                                </calcop>
+                            </calculate>
+                        </if-compare>
+                        <if-compare operator="equals" value="N" field="contentCreated">
+                            <calculate field="contentsNotUpdated" type="Integer">
+                                <calcop operator="add" field="contentsNotUpdated">
+                                    <number value="1"/>
+                                </calcop>
+                            </calculate>
+                        </if-compare>
+                    </iterate>
+                </iterate>
+            </iterate>
+        </if-not-empty>
+        
+        <!-- Create Content Alternative URLs for Website Content -->
+        <entity-and list="webSiteContents" entity-name="WebSiteContent" filter-by-date="true">
+            <field-map field-name="webSiteId" from-field="parameters.webSiteId"/>
+        </entity-and>
+        <iterate entry="webSiteContent" list="webSiteContents">
+            <entity-and list="subContents" entity-name="ContentAssoc" filter-by-date="true">
+                <field-map field-name="contentId" from-field="webSiteContent.contentId"/>
+            </entity-and>
+            <iterate entry="subContent" list="subContents">
+                <set field="createMissingContentAltUrlsMap.contentId" from-field="subContent.contentIdTo"/>
+                <call-service service-name="createContentAlternativeUrl" in-map-name="createMissingContentAltUrlsMap">
+                    <result-to-field result-name="contentCreated" field="contentCreated"/>
+                </call-service>
+                <if-compare operator="equals" value="Y" field="contentCreated">
+                    <calculate field="contentsUpdated" type="Integer">
+                        <calcop operator="add" field="contentsUpdated">
+                            <number value="1"/>
+                        </calcop>
+                    </calculate>
+                </if-compare>
+                <if-compare operator="equals" value="N" field="contentCreated">
+                    <calculate field="contentsNotUpdated" type="Integer">
+                        <calcop operator="add" field="contentsNotUpdated">
+                            <number value="1"/>
+                        </calcop>
+                    </calculate>
+                </if-compare>
+                <entity-and list="contentAssocs" entity-name="ContentAssoc" filter-by-date="true">
+                    <field-map field-name="contentId" from-field="subContent.contentIdTo"/>
+                </entity-and>
+                <iterate entry="contentAssoc" list="contentAssocs">
+                    <set field="createMissingContentAltUrlsMap.contentId" from-field="contentAssoc.contentIdTo"/>
+                    <call-service service-name="createContentAlternativeUrl" in-map-name="createMissingContentAltUrlsMap">
+                        <result-to-field result-name="contentCreated" field="contentCreated"/>
+                    </call-service>
+                    <if-compare operator="equals" value="Y" field="contentCreated">
+                        <calculate field="contentsUpdated" type="Integer">
+                            <calcop operator="add" field="contentsUpdated">
+                                <number value="1"/>
+                            </calcop>
+                        </calculate>
+                    </if-compare>
+                    <if-compare operator="equals" value="N" field="contentCreated">
+                        <calculate field="contentsNotUpdated" type="Integer">
+                            <calcop operator="add" field="contentsNotUpdated">
+                                <number value="1"/>
+                            </calcop>
+                        </calculate>
+                    </if-compare>
+                </iterate>
+            </iterate>
+        </iterate>
+        <field-to-result field="contentsNotUpdated" result-name="contentsNotUpdated"/>
+        <field-to-result field="contentsUpdated" result-name="contentsUpdated"/>
+    </simple-method>
+
+    <simple-method method-name="createMissingCategoryContentAltUrlInline" short-description="create missing category alternative inline">
+        <entity-and list="productCategoryRollups" entity-name="ProductCategoryRollup" filter-by-date="true">
+            <field-map field-name="parentProductCategoryId" from-field="parameters.parentProductCategoryId"/>
+        </entity-and>
+        <iterate entry="productCategoryRollup" list="productCategoryRollups">
+            <!-- append product category to list -->
+            <entity-one value-field="productCategory" entity-name="ProductCategory">
+                <field-map field-name="productCategoryId" from-field="productCategoryRollup.productCategoryId"/>
+            </entity-one>
+            <field-to-list list="parameters.productCategories" field="productCategory"/>
+            
+            <!-- find rollup product categories -->
+            <set field="parameters.parentProductCategoryId" from-field="productCategoryRollup.productCategoryId"/>
+            <call-simple-method method-name="createMissingCategoryContentAltUrlInline"/>
+            <check-errors/>
+        </iterate>
+    </simple-method>
 </simple-methods>
+

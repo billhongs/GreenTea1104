@@ -37,6 +37,7 @@ import org.ofbiz.webapp.website.WebSiteWorker;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.entity.util.EntityUtil;
 import org.ofbiz.product.category.CategoryWorker;
 import org.ofbiz.product.store.ProductStoreWorker;
@@ -48,10 +49,21 @@ public class CatalogWorker {
 
     public static final String module = CatalogWorker.class.getName();
 
+    private CatalogWorker () {}
+
+    
+    /**
+     * @deprecated - Use WebSiteWorker.getWebSiteId(ServletRequest) instead
+     */
+    @Deprecated
     public static String getWebSiteId(ServletRequest request) {
         return WebSiteWorker.getWebSiteId(request);
     }
 
+    /**
+     * @deprecated - Use WebSiteWorker.getWebSite(ServletRequest) instead
+     */
+    @Deprecated
     public static GenericValue getWebSite(ServletRequest request) {
         return WebSiteWorker.getWebSite(request);
     }
@@ -61,7 +73,7 @@ public class CatalogWorker {
         List<GenericValue> catalogs = null;
         Delegator delegator = (Delegator) request.getAttribute("delegator");
         try {
-            catalogs = delegator.findList("ProdCatalog", null, null, UtilMisc.toList("catalogName"), null, false);
+            catalogs = EntityQuery.use(delegator).from("ProdCatalog").orderBy("catalogName").queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error looking up all catalogs", module);
         }
@@ -81,7 +93,7 @@ public class CatalogWorker {
 
     public static List<GenericValue> getStoreCatalogs(Delegator delegator, String productStoreId) {
         try {
-            return EntityUtil.filterByDate(delegator.findByAndCache("ProductStoreCatalog", UtilMisc.toMap("productStoreId", productStoreId), UtilMisc.toList("sequenceNum", "prodCatalogId")), true);
+            return EntityQuery.use(delegator).from("ProductStoreCatalog").where("productStoreId", productStoreId).orderBy("sequenceNum", "prodCatalogId").cache(true).filterByDate().queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error looking up store catalogs for store with id " + productStoreId, module);
         }
@@ -105,7 +117,7 @@ public class CatalogWorker {
         }
 
         try {
-            return EntityUtil.filterByDate(delegator.findByAndCache("ProdCatalogRole", UtilMisc.toMap("partyId", partyId, "roleTypeId", "CUSTOMER"), UtilMisc.toList("sequenceNum", "prodCatalogId")), true);
+            return EntityQuery.use(delegator).from("ProdCatalogRole").where("partyId", partyId, "roleTypeId", "CUSTOMER").orderBy("sequenceNum", "prodCatalogId").cache(true).filterByDate().queryList();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error looking up ProdCatalog Roles for party with id " + partyId, module);
         }
@@ -119,9 +131,12 @@ public class CatalogWorker {
 
     public static List<GenericValue> getProdCatalogCategories(Delegator delegator, String prodCatalogId, String prodCatalogCategoryTypeId) {
         try {
-            List<GenericValue> prodCatalogCategories = EntityUtil.filterByDate(delegator.findByAndCache("ProdCatalogCategory",
-                        UtilMisc.toMap("prodCatalogId", prodCatalogId),
-                        UtilMisc.toList("sequenceNum", "productCategoryId")), true);
+            List<GenericValue> prodCatalogCategories = EntityQuery.use(delegator).from("ProdCatalogCategory")
+                    .where("prodCatalogId", prodCatalogId)
+                    .orderBy("sequenceNum", "productCategoryId")
+                    .cache(true)
+                    .filterByDate()
+                    .queryList();
 
             if (UtilValidate.isNotEmpty(prodCatalogCategoryTypeId) && prodCatalogCategories != null) {
                 prodCatalogCategories = EntityUtil.filterByAnd(prodCatalogCategories,
@@ -202,7 +217,7 @@ public class CatalogWorker {
         Delegator delegator = (Delegator) request.getAttribute("delegator");
 
         try {
-            GenericValue prodCatalog = delegator.findByPrimaryKeyCache("ProdCatalog", UtilMisc.toMap("prodCatalogId", prodCatalogId));
+            GenericValue prodCatalog = EntityQuery.use(delegator).from("ProdCatalog").where("prodCatalogId", prodCatalogId).cache().queryOne();
 
             if (prodCatalog != null) {
                 return prodCatalog.getString("catalogName");
@@ -241,7 +256,7 @@ public class CatalogWorker {
         Delegator delegator = (Delegator) request.getAttribute("delegator");
 
         try {
-            return delegator.findByPrimaryKeyCache("ProdCatalog", UtilMisc.toMap("prodCatalogId", prodCatalogId));
+            return EntityQuery.use(delegator).from("ProdCatalog").where("prodCatalogId", prodCatalogId).cache().queryOne();
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error looking up name for prodCatalog with id " + prodCatalogId, module);
             return null;
@@ -336,7 +351,7 @@ public class CatalogWorker {
         Delegator delegator = (Delegator) request.getAttribute("delegator");
 
         try {
-            GenericValue prodCatalog = delegator.findByPrimaryKeyCache("ProdCatalog", UtilMisc.toMap("prodCatalogId", prodCatalogId));
+            GenericValue prodCatalog = EntityQuery.use(delegator).from("ProdCatalog").where("prodCatalogId", prodCatalogId).cache().queryOne();
 
             if (prodCatalog != null) {
                 return "Y".equals(prodCatalog.getString("useQuickAdd"));

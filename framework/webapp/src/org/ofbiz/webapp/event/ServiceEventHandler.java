@@ -22,6 +22,8 @@ import static org.ofbiz.base.util.UtilGenerics.checkList;
 
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,9 +35,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import javolution.util.FastList;
-import javolution.util.FastMap;
-
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
@@ -43,9 +42,10 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilHttp;
-import org.ofbiz.base.util.UtilProperties;
 import org.ofbiz.base.util.UtilValidate;
+import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityUtilProperties;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
@@ -53,6 +53,7 @@ import org.ofbiz.service.ModelParam;
 import org.ofbiz.service.ModelService;
 import org.ofbiz.service.ServiceAuthException;
 import org.ofbiz.service.ServiceValidationException;
+import org.ofbiz.webapp.control.ConfigXMLReader;
 import org.ofbiz.webapp.control.ConfigXMLReader.Event;
 import org.ofbiz.webapp.control.ConfigXMLReader.RequestMap;
 
@@ -73,7 +74,7 @@ public class ServiceEventHandler implements EventHandler {
     }
 
     /**
-     * @see org.ofbiz.webapp.event.EventHandler#invoke(java.lang.String, java.lang.String, javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+     * @see org.ofbiz.webapp.event.EventHandler#invoke(ConfigXMLReader.Event, ConfigXMLReader.RequestMap, javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
      */
     public String invoke(Event event, RequestMap requestMap, HttpServletRequest request, HttpServletResponse response) throws EventHandlerException {
         // make sure we have a valid reference to the Service Engine
@@ -122,35 +123,38 @@ public class ServiceEventHandler implements EventHandler {
             throw new EventHandlerException("Problems getting the service model");
         }
 
-        if (Debug.verboseOn()) Debug.logVerbose("[Processing]: SERVICE Event", module);
-        if (Debug.verboseOn()) Debug.logVerbose("[Using delegator]: " + dispatcher.getDelegator().getDelegatorName(), module);
+        if (Debug.verboseOn()) {
+            Debug.logVerbose("[Processing]: SERVICE Event", module);
+            Debug.logVerbose("[Using delegator]: " + dispatcher.getDelegator().getDelegatorName(), module);
+        }
 
-        // get the http upload configuration
-        String maxSizeStr = UtilProperties.getPropertyValue("general.properties", "http.upload.max.size", "-1");
-        long maxUploadSize = -1;
-        try {
-            maxUploadSize = Long.parseLong(maxSizeStr);
-        } catch (NumberFormatException e) {
-            Debug.logError(e, "Unable to obtain the max upload size from general.properties; using default -1", module);
-            maxUploadSize = -1;
-        }
-        // get the http size threshold configuration - files bigger than this will be
-        // temporarly stored on disk during upload
-        String sizeThresholdStr = UtilProperties.getPropertyValue("general.properties", "http.upload.max.sizethreshold", "10240");
-        int sizeThreshold = 10240; // 10K
-        try {
-            sizeThreshold = Integer.parseInt(sizeThresholdStr);
-        } catch (NumberFormatException e) {
-            Debug.logError(e, "Unable to obtain the threshold size from general.properties; using default 10K", module);
-            sizeThreshold = -1;
-        }
-        // directory used to temporarily store files that are larger than the configured size threshold
-        String tmpUploadRepository = UtilProperties.getPropertyValue("general.properties", "http.upload.tmprepository", "runtime/tmp");
-        String encoding = request.getCharacterEncoding();
-        // check for multipart content types which may have uploaded items
         boolean isMultiPart = ServletFileUpload.isMultipartContent(request);
-        Map<String, Object> multiPartMap = FastMap.newInstance();
+        Map<String, Object> multiPartMap = new HashMap<String, Object>();
         if (isMultiPart) {
+            // get the http upload configuration
+            String maxSizeStr = EntityUtilProperties.getPropertyValue("general.properties", "http.upload.max.size", "-1", dctx.getDelegator());
+            long maxUploadSize = -1;
+            try {
+                maxUploadSize = Long.parseLong(maxSizeStr);
+            } catch (NumberFormatException e) {
+                Debug.logError(e, "Unable to obtain the max upload size from general.properties; using default -1", module);
+                maxUploadSize = -1;
+            }
+            // get the http size threshold configuration - files bigger than this will be
+            // temporarly stored on disk during upload
+            String sizeThresholdStr = EntityUtilProperties.getPropertyValue("general.properties", "http.upload.max.sizethreshold", "10240", dctx.getDelegator());
+            int sizeThreshold = 10240; // 10K
+            try {
+                sizeThreshold = Integer.parseInt(sizeThresholdStr);
+            } catch (NumberFormatException e) {
+                Debug.logError(e, "Unable to obtain the threshold size from general.properties; using default 10K", module);
+                sizeThreshold = -1;
+            }
+            // directory used to temporarily store files that are larger than the configured size threshold
+            String tmpUploadRepository = EntityUtilProperties.getPropertyValue("general.properties", "http.upload.tmprepository", "runtime/tmp", dctx.getDelegator());
+            String encoding = request.getCharacterEncoding();
+            // check for multipart content types which may have uploaded items
+
             ServletFileUpload upload = new ServletFileUpload(new DiskFileItemFactory(sizeThreshold, new File(tmpUploadRepository)));
 
             // create the progress listener and add it to the session
@@ -183,7 +187,7 @@ public class ServiceEventHandler implements EventHandler {
                             if (mapValue instanceof List<?>) {
                                 checkList(mapValue, Object.class).add(item.getString());
                             } else if (mapValue instanceof String) {
-                                List<String> newList = FastList.newInstance();
+                                List<String> newList = new LinkedList<String>();
                                 newList.add((String) mapValue);
                                 newList.add(item.getString());
                                 multiPartMap.put(fieldName, newList);
@@ -226,11 +230,11 @@ public class ServiceEventHandler implements EventHandler {
         // store the multi-part map as an attribute so we can access the parameters
         request.setAttribute("multiPartMap", multiPartMap);
 
-        Map<String, Object> rawParametersMap = UtilHttp.getParameterMap(request, null, null);
+        Map<String, Object> rawParametersMap = UtilHttp.getCombinedMap(request);
         Set<String> urlOnlyParameterNames = UtilHttp.getUrlOnlyParameterMap(request).keySet();
 
         // we have a service and the model; build the context
-        Map<String, Object> serviceContext = FastMap.newInstance();
+        Map<String, Object> serviceContext = new HashMap<String, Object>();
         for (ModelParam modelParam: model.getInModelParamList()) {
             String name = modelParam.name;
 
@@ -255,7 +259,7 @@ public class ServiceEventHandler implements EventHandler {
 
                 // next check attributes; do this before parameters so that attribute which can be changed by code can override parameters which can't
                 if (UtilValidate.isEmpty(value)) {
-                    Object tempVal = request.getAttribute(name);
+                    Object tempVal = request.getAttribute(UtilValidate.isEmpty(modelParam.requestAttributeName) ? name : modelParam.requestAttributeName);
                     if (tempVal != null) {
                         value = tempVal;
                     }
@@ -263,7 +267,7 @@ public class ServiceEventHandler implements EventHandler {
 
                 // check the request parameters
                 if (UtilValidate.isEmpty(value)) {
-                    ServiceEventHandler.checkSecureParameter(requestMap, urlOnlyParameterNames, name, session, serviceName);
+                    ServiceEventHandler.checkSecureParameter(requestMap, urlOnlyParameterNames, name, session, serviceName, dctx.getDelegator());
 
                     // if the service modelParam has allow-html="any" then get this direct from the request instead of in the parameters Map so there will be no canonicalization possibly messing things up
                     if ("any".equals(modelParam.allowHtml)) {
@@ -281,7 +285,7 @@ public class ServiceEventHandler implements EventHandler {
 
                 // then session
                 if (UtilValidate.isEmpty(value)) {
-                    Object tempVal = request.getSession().getAttribute(name);
+                    Object tempVal = request.getSession().getAttribute(UtilValidate.isEmpty(modelParam.sessionAttributeName) ? name : modelParam.sessionAttributeName);
                     if (tempVal != null) {
                         value = tempVal;
                     }
@@ -304,7 +308,7 @@ public class ServiceEventHandler implements EventHandler {
 
         // get only the parameters for this service - converted to proper type
         // TODO: pass in a list for error messages, like could not convert type or not a proper X, return immediately with messages if there are any
-        List<Object> errorMessages = FastList.newInstance();
+        List<Object> errorMessages = new LinkedList<Object>();
         serviceContext = model.makeValid(serviceContext, ModelService.IN_PARAM, true, errorMessages, timeZone, locale);
         if (errorMessages.size() > 0) {
             // uh-oh, had some problems...
@@ -390,7 +394,7 @@ public class ServiceEventHandler implements EventHandler {
         return responseString;
     }
 
-    public static void checkSecureParameter(RequestMap requestMap, Set<String> urlOnlyParameterNames, String name, HttpSession session, String serviceName) throws EventHandlerException {
+    public static void checkSecureParameter(RequestMap requestMap, Set<String> urlOnlyParameterNames, String name, HttpSession session, String serviceName, Delegator delegator) throws EventHandlerException {
         // special case for security: if this is a request-map defined as secure in controller.xml then only accept body parameters coming in, ie don't allow the insecure URL parameters
         // NOTE: the RequestHandler will check the HttpSerletRequest security to make sure it is secure if the request-map -> security -> https=true, but we can't just look at the request.isSecure() method here because it is allowed to send secure requests for request-map with https=false
         if (requestMap != null && requestMap.securityHttps) {
@@ -406,7 +410,7 @@ public class ServiceEventHandler implements EventHandler {
                 Debug.logError("=============== " + errMsg + "; In session [" + session.getId() + "]; Note that this can be changed using the service.http.parameters.require.encrypted property in the url.properties file", module);
 
                 // the default here is true, so anything but N/n is true
-                boolean requireEncryptedServiceWebParameters = !UtilProperties.propertyValueEqualsIgnoreCase("url.properties", "service.http.parameters.require.encrypted", "N");
+                boolean requireEncryptedServiceWebParameters = !EntityUtilProperties.propertyValueEqualsIgnoreCase("url.properties", "service.http.parameters.require.encrypted", "N", delegator);
 
                 // NOTE: this forces service call event parameters to be in the body and not in the URL! can be issues with existing links, like Delete links or whatever, and those need to be changed to forms!
                 if (requireEncryptedServiceWebParameters) {

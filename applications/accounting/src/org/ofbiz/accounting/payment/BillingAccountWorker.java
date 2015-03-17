@@ -40,10 +40,9 @@ import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
-import org.ofbiz.entity.condition.EntityConditionList;
-import org.ofbiz.entity.condition.EntityExpr;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ServiceUtil;
@@ -76,28 +75,25 @@ public class BillingAccountWorker {
         }
         List<String> relatedPartyIdList = UtilGenerics.checkList(agentResult.get("relatedPartyIdList"));
 
-        EntityCondition barFindCond = EntityCondition.makeCondition(UtilMisc.toList(
-                EntityCondition.makeCondition("partyId", EntityOperator.IN, relatedPartyIdList),
-                EntityCondition.makeCondition("roleTypeId", EntityOperator.EQUALS, "BILL_TO_CUSTOMER")), EntityOperator.AND);
-        List<GenericValue> billingAccountRoleList = delegator.findList("BillingAccountRole", barFindCond, null, null, null, false);
-        billingAccountRoleList = EntityUtil.filterByDate(billingAccountRoleList);
+        List<GenericValue> billingAccountRoleList = EntityQuery.use(delegator).from("BillingAccountRole")
+                .where(EntityCondition.makeCondition("partyId", EntityOperator.IN, relatedPartyIdList),
+                        EntityCondition.makeCondition("roleTypeId", EntityOperator.EQUALS, "BILL_TO_CUSTOMER")
+                ).filterByDate().queryList();
 
         if (billingAccountRoleList.size() > 0) {
             BigDecimal totalAvailable = BigDecimal.ZERO;
-            Iterator<GenericValue> billingAcctIter = billingAccountRoleList.iterator();
-            while (billingAcctIter.hasNext()) {
-                GenericValue billingAccountRole = billingAcctIter.next();
-                GenericValue billingAccountVO = billingAccountRole.getRelatedOne("BillingAccount");
+            for (GenericValue billingAccountRole : billingAccountRoleList) {
+                GenericValue billingAccountVO = billingAccountRole.getRelatedOne("BillingAccount", false);
 
                 // skip accounts that have thruDate < nowTimestamp
                 java.sql.Timestamp thruDate = billingAccountVO.getTimestamp("thruDate");
                 if ((thruDate != null) && UtilDateTime.nowTimestamp().after(thruDate)) continue;
 
                 if (currencyUomId.equals(billingAccountVO.getString("accountCurrencyUomId"))) {
-                    BigDecimal accountBalance = BillingAccountWorker.getBillingAccountBalance(billingAccountVO);
+                    BigDecimal accountBalance = OrderReadHelper.getBillingAccountBalance(billingAccountVO);
 
                     Map<String, Object> billingAccount = new HashMap<String, Object>(billingAccountVO);
-                    BigDecimal accountLimit = getAccountLimit(billingAccountVO);
+                    BigDecimal accountLimit = OrderReadHelper.getAccountLimit(billingAccountVO);
 
                     billingAccount.put("accountBalance", accountBalance);
                     BigDecimal accountAvailable = accountLimit.subtract(accountBalance);
@@ -111,124 +107,28 @@ public class BillingAccountWorker {
     }
 
     /**
-     * Returns the accountLimit of the BillingAccount or BigDecimal ZERO if it is null
-     * @param billingAccount
-     * @throws GenericEntityException
-     */
-    public static BigDecimal getAccountLimit(GenericValue billingAccount) throws GenericEntityException {
-        if (billingAccount.getBigDecimal("accountLimit") != null) {
-            return billingAccount.getBigDecimal("accountLimit");
-        } else {
-            Debug.logWarning("Billing Account [" + billingAccount.getString("billingAccountId") + "] does not have an account limit defined, assuming zero.", module);
-            return ZERO;
-        }
-    }
-
-    /**
-     * Calculates the "available" balance of a billing account, which is the
-     * net balance minus amount of pending (not cancelled, rejected, or received) order payments.
-     * When looking at using a billing account for a new order, you should use this method.
-     * @param billingAccountId
-     * @param delegator
-     * @return
-     * @throws GenericEntityException
-     */
-    public static BigDecimal getBillingAccountBalance(Delegator delegator, String billingAccountId) throws GenericEntityException {
-        GenericValue billingAccount = delegator.findByPrimaryKey("BillingAccount", UtilMisc.toMap("billingAccountId", billingAccountId));
-        return getBillingAccountBalance(billingAccount);
-    }
-
-    public static BigDecimal getBillingAccountBalance(GenericValue billingAccount) throws GenericEntityException {
-
-        Delegator delegator = billingAccount.getDelegator();
-        String billingAccountId = billingAccount.getString("billingAccountId");
-
-        BigDecimal balance = ZERO;
-        BigDecimal accountLimit = getAccountLimit(billingAccount);
-        balance = balance.add(accountLimit);
-        // pending (not cancelled, rejected, or received) order payments
-        EntityConditionList<EntityExpr> whereConditions = EntityCondition.makeCondition(UtilMisc.toList(
-                EntityCondition.makeCondition("billingAccountId", EntityOperator.EQUALS, billingAccountId),
-                EntityCondition.makeCondition("paymentMethodTypeId", EntityOperator.EQUALS, "EXT_BILLACT"),
-                EntityCondition.makeCondition("statusId", EntityOperator.NOT_IN, UtilMisc.toList("ORDER_CANCELLED", "ORDER_REJECTED")),
-                EntityCondition.makeCondition("preferenceStatusId", EntityOperator.NOT_IN, UtilMisc.toList("PAYMENT_SETTLED", "PAYMENT_RECEIVED", "PAYMENT_DECLINED", "PAYMENT_CANCELLED")) // PAYMENT_NOT_AUTH
-           ), EntityOperator.AND);
-
-        List<GenericValue> orderPaymentPreferenceSums = delegator.findList("OrderPurchasePaymentSummary", whereConditions, UtilMisc.toSet("maxAmount"), null, null, false);
-        for (Iterator<GenericValue> oppsi = orderPaymentPreferenceSums.iterator(); oppsi.hasNext();) {
-            GenericValue orderPaymentPreferenceSum = oppsi.next();
-            BigDecimal maxAmount = orderPaymentPreferenceSum.getBigDecimal("maxAmount");
-            balance = maxAmount != null ? balance.subtract(maxAmount) : balance;
-        }
-
-        List<GenericValue> paymentAppls = delegator.findByAnd("PaymentApplication", UtilMisc.toMap("billingAccountId", billingAccountId));
-        // TODO: cancelled payments?
-        for (Iterator<GenericValue> pAi = paymentAppls.iterator(); pAi.hasNext();) {
-            GenericValue paymentAppl = pAi.next();
-            if (paymentAppl.getString("invoiceId") == null) {
-                BigDecimal amountApplied = paymentAppl.getBigDecimal("amountApplied");
-                balance = balance.add(amountApplied);
-            }
-        }
-
-        balance = balance.setScale(decimals, rounding);
-        return balance;
-        /*
-        Delegator delegator = billingAccount.getDelegator();
-        String billingAccountId = billingAccount.getString("billingAccountId");
-
-        // first get the net balance of invoices - payments
-        BigDecimal balance = getBillingAccountNetBalance(delegator, billingAccountId);
-
-        // now the amounts of all the pending orders (not cancelled, rejected or completed)
-        List orderHeaders = getBillingAccountOpenOrders(delegator, billingAccountId);
-
-        if (orderHeaders != null) {
-            Iterator ohi = orderHeaders.iterator();
-            while (ohi.hasNext()) {
-                GenericValue orderHeader = (GenericValue) ohi.next();
-                OrderReadHelper orh = new OrderReadHelper(orderHeader);
-                balance = balance.add(orh.getOrderGrandTotal());
-            }
-        }
-
-        // set the balance to BillingAccount.accountLimit if it is greater.  This is necessary because nowhere do we track the amount of BillingAccount
-        // to be charged to an order, such as FinAccountAuth entity does for FinAccount.  As a result, we must assume that the system is doing things correctly
-        // and use the accountLimit
-        BigDecimal accountLimit = billingAccount.getBigDecimal("accountLimit");
-        if (balance.compareTo(accountLimit) > 0) {
-            balance = accountLimit;
-        } else {
-            balance = balance.setScale(decimals, rounding);
-        }
-        return balance;
-         */
-    }
-
-    /**
      * Returns list of orders which are currently open against a billing account
      */
     public static List<GenericValue> getBillingAccountOpenOrders(Delegator delegator, String billingAccountId) throws GenericEntityException {
-        EntityConditionList<EntityExpr> ecl = EntityCondition.makeCondition(UtilMisc.toList(
-                EntityCondition.makeCondition("billingAccountId", EntityOperator.EQUALS, billingAccountId),
-                EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_REJECTED"),
-                EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_CANCELLED"),
-                EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_COMPLETED")),
-                EntityOperator.AND);
-        return delegator.findList("OrderHeader", ecl, null, null, null, false);
+        return EntityQuery.use(delegator).from("OrderHeader")
+                .where(EntityCondition.makeCondition("billingAccountId", EntityOperator.EQUALS, billingAccountId),
+                        EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_REJECTED"),
+                        EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_CANCELLED"),
+                        EntityCondition.makeCondition("statusId", EntityOperator.NOT_EQUAL, "ORDER_COMPLETED")
+                ).queryList();
     }
 
     /**
      * Returns the amount which could be charged to a billing account, which is defined as the accountLimit minus account balance and minus the balance of outstanding orders
      * When trying to figure out how much of a billing account can be used to pay for an outstanding order, use this method
-     * @param billingAccount
-     * @return
+     * @param billingAccount GenericValue object of the billing account
+     * @return returns the amount which could be charged to a billing account
      * @throws GenericEntityException
      */
     public static BigDecimal getBillingAccountAvailableBalance(GenericValue billingAccount) throws GenericEntityException {
         if ((billingAccount != null) && (billingAccount.get("accountLimit") != null)) {
             BigDecimal accountLimit = billingAccount.getBigDecimal("accountLimit");
-            BigDecimal availableBalance = accountLimit.subtract(getBillingAccountBalance(billingAccount)).setScale(decimals, rounding);
+            BigDecimal availableBalance = accountLimit.subtract(OrderReadHelper.getBillingAccountBalance(billingAccount)).setScale(decimals, rounding);
             return availableBalance;
         } else {
             Debug.logWarning("Available balance requested for null billing account, returning zero", module);
@@ -237,27 +137,27 @@ public class BillingAccountWorker {
     }
 
     public static BigDecimal getBillingAccountAvailableBalance(Delegator delegator, String billingAccountId) throws GenericEntityException {
-        GenericValue billingAccount = delegator.findByPrimaryKey("BillingAccount", UtilMisc.toMap("billingAccountId", billingAccountId));
+        GenericValue billingAccount = EntityQuery.use(delegator).from("BillingAccount").where("billingAccountId", billingAccountId).queryOne();
         return getBillingAccountAvailableBalance(billingAccount);
     }
 
     /**
      * Calculates the net balance of a billing account, which is sum of all amounts applied to invoices minus sum of all amounts applied from payments.
      * When charging or capturing an invoice to a billing account, use this method
-     * @param delegator
-     * @param billingAccountId
-     * @return
+     * @param delegator the delegator
+     * @param billingAccountId the billing account id
+     * @return the amount of the billing account which could be captured
      * @throws GenericEntityException
      */
     public static BigDecimal getBillingAccountNetBalance(Delegator delegator, String billingAccountId) throws GenericEntityException {
         BigDecimal balance = ZERO;
 
         // search through all PaymentApplications and add the amount that was applied to invoice and subtract the amount applied from payments
-        List<GenericValue> paymentAppls = delegator.findByAnd("PaymentApplication", UtilMisc.toMap("billingAccountId", billingAccountId));
+        List<GenericValue> paymentAppls = EntityQuery.use(delegator).from("PaymentApplication").where("billingAccountId", billingAccountId).queryList();
         for (Iterator<GenericValue> pAi = paymentAppls.iterator(); pAi.hasNext();) {
             GenericValue paymentAppl = pAi.next();
             BigDecimal amountApplied = paymentAppl.getBigDecimal("amountApplied");
-            GenericValue invoice = paymentAppl.getRelatedOne("Invoice");
+            GenericValue invoice = paymentAppl.getRelatedOne("Invoice", false);
             if (invoice != null) {
                 // make sure the invoice has not been canceled and it is not a "Customer return invoice"
                 if (!"CUST_RTN_INVOICE".equals(invoice.getString("invoiceTypeId")) && !"INVOICE_CANCELLED".equals(invoice.getString("statusId"))) {
@@ -274,9 +174,9 @@ public class BillingAccountWorker {
 
     /**
      * Returns the amount of the billing account which could be captured, which is BillingAccount.accountLimit - net balance
-     * @param billingAccount
-     * @return
-     * @throws GenericEntityException
+     * @param billingAccount GenericValue object of the billing account
+     * @return the amount of the billing account which could be captured
+     * @throws GenericEntityException 
      */
     public static BigDecimal availableToCapture(GenericValue billingAccount) throws GenericEntityException {
         BigDecimal netBalance = getBillingAccountNetBalance(billingAccount.getDelegator(), billingAccount.getString("billingAccountId"));
@@ -292,7 +192,7 @@ public class BillingAccountWorker {
         Map<String, Object> result = ServiceUtil.returnSuccess();
 
         try {
-            GenericValue billingAccount = delegator.findByPrimaryKey("BillingAccount", UtilMisc.toMap("billingAccountId", billingAccountId));
+            GenericValue billingAccount = EntityQuery.use(delegator).from("BillingAccount").where("billingAccountId", billingAccountId).queryOne();
             if (billingAccount == null) {
                 return ServiceUtil.returnError(UtilProperties.getMessage(resourceError, 
                         "AccountingBillingAccountNotFound",
@@ -300,7 +200,7 @@ public class BillingAccountWorker {
             }
 
             result.put("billingAccount", billingAccount);
-            result.put("accountBalance",  getBillingAccountBalance(delegator, billingAccountId));
+            result.put("accountBalance", OrderReadHelper.getBillingAccountBalance(billingAccount));
             result.put("netAccountBalance", getBillingAccountNetBalance(delegator, billingAccountId));
             result.put("availableBalance", getBillingAccountAvailableBalance(billingAccount));
             result.put("availableToCapture", availableToCapture(billingAccount));

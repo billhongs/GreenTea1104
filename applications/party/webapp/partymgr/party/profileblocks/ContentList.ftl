@@ -21,22 +21,22 @@ under the License.
       <#if partyContent?has_content>
         <table class="basic-table" cellspacing="0">
           <#list partyContent as pContent>
-            <#assign content = pContent.getRelatedOne("Content")>
-            <#assign contentType = content.getRelatedOneCache("ContentType")>
-            <#assign mimeType = content.getRelatedOneCache("MimeType")?if_exists>
-            <#assign status = content.getRelatedOneCache("StatusItem")?if_exists>
-            <#assign pcType = pContent.getRelatedOne("PartyContentType")>
+            <#assign content = pContent.getRelatedOne("Content", false)>
+            <#assign contentType = content.getRelatedOne("ContentType", true)>
+            <#assign mimeType = content.getRelatedOne("MimeType", true)!>
+            <#assign status = content.getRelatedOne("StatusItem", true)!>
+            <#assign pcType = pContent.getRelatedOne("PartyContentType", false)>
             <tr>
               <td class="button-col"><a href="<@ofbizUrl>EditPartyContents?contentId=${pContent.contentId}&amp;partyId=${pContent.partyId}&amp;partyContentTypeId=${pContent.partyContentTypeId}&amp;fromDate=${pContent.fromDate}</@ofbizUrl>">${content.contentId}</a></td>
-              <td>${(pcType.get("description", locale))?if_exists}</td>
-              <td>${content.contentName?if_exists}</td>
-              <td>${(contentType.get("description",locale))?if_exists}</td>
-              <td>${(mimeType.description)?if_exists}</td>
-              <td>${(status.get("description",locale))?if_exists}</td>
-              <td>${pContent.fromDate?if_exists}</td>
+              <td>${(pcType.get("description", locale))!}</td>
+              <td>${content.contentName!}</td>
+              <td>${(contentType.get("description",locale))!}</td>
+              <td>${(mimeType.description)!}</td>
+              <td>${(status.get("description",locale))!}</td>
+              <td>${pContent.fromDate!}</td>
               <td class="button-col">
                 <#if (content.contentName?has_content)>
-                    <a href="<@ofbizUrl>img/${content.contentName}?imgId=${content.dataResourceId}</@ofbizUrl>">${uiLabelMap.CommonView}</a>
+                    <a href="<@ofbizUrl>img/${content.contentName}?imgId=${(content.dataResourceId)!}</@ofbizUrl>">${uiLabelMap.CommonView}</a>
                 </#if>
                 <form name="removePartyContent_${pContent_index}" method="post" action="<@ofbizUrl>removePartyContent/viewprofile</@ofbizUrl>">
                   <input type="hidden" name="contentId" value="${pContent.contentId}" />

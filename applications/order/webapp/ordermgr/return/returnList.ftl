@@ -30,21 +30,21 @@ under the License.
     <td>${uiLabelMap.CommonStatus}</td>
   </tr>
   <#list returnList as returnHeader>
-  <#assign statusItem = returnHeader.getRelatedOne("StatusItem")>
-  <#if returnHeader.destinationFacilityId?exists>
-    <#assign facility = returnHeader.getRelatedOne("Facility")>
+  <#assign statusItem = returnHeader.getRelatedOne("StatusItem", false)>
+  <#if returnHeader.destinationFacilityId??>
+    <#assign facility = returnHeader.getRelatedOne("Facility", false)>
   </#if>
   <tr>
     <td><a href="<@ofbizUrl>returnMain?returnId=${returnHeader.returnId}</@ofbizUrl>" class="buttontext">${returnHeader.returnId}</a></td>
     <td><div>${returnHeader.entryDate.toString()}</div></td>
     <td>
-      <#if returnHeader.fromPartyId?exists>
-        <a href="${customerDetailLink}${returnHeader.fromPartyId}${externalKeyParam}" class='buttontext'>${returnHeader.fromPartyId}</a>
+      <#if returnHeader.fromPartyId??>
+        <a href="${customerDetailLink}${returnHeader.fromPartyId}${StringUtil.wrapString(externalKeyParam)}" class='buttontext'>${returnHeader.fromPartyId}</a>
       <#else>
         <span class="label">${uiLabelMap.CommonNA}</span>
       </#if>
     </td>
-    <td><#if facility?exists>${facility.facilityName?default(facility.facilityId)}<#else>${uiLabelMap.CommonNone}</#if></td>
+    <td><#if facility??>${facility.facilityName?default(facility.facilityId)}<#else>${uiLabelMap.CommonNone}</#if></td>
     <td>${statusItem.get("description",locale)}</td>
   </tr>
   </#list>

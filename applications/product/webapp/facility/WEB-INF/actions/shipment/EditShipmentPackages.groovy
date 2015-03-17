@@ -26,27 +26,27 @@ if (!shipmentId) {
 
 shipment = null;
 if (shipmentId) {
-    shipment = delegator.findOne("Shipment", [shipmentId : shipmentId], false);
+    shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
 }
 
 if (shipment) {
-    shipmentPackages = shipment.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId']);
+    shipmentPackages = shipment.getRelated("ShipmentPackage", null, ['shipmentPackageSeqId'], false);
     shipmentPackageDatas = [] as LinkedList;
     if (shipmentPackages) {
         shipmentPackages.each { shipmentPackage ->
             shipmentPackageData = [:];
             shipmentPackageData.shipmentPackage = shipmentPackage;
-            shipmentPackageData.shipmentPackageContents = shipmentPackage.getRelated("ShipmentPackageContent");
-            shipmentPackageData.shipmentPackageRouteSegs = shipmentPackage.getRelated("ShipmentPackageRouteSeg");
-            shipmentPackageData.weightUom = shipmentPackage.getRelatedOne("WeightUom");
+            shipmentPackageData.shipmentPackageContents = shipmentPackage.getRelated("ShipmentPackageContent", null, null, false);
+            shipmentPackageData.shipmentPackageRouteSegs = shipmentPackage.getRelated("ShipmentPackageRouteSeg", null, null, false);
+            shipmentPackageData.weightUom = shipmentPackage.getRelatedOne("WeightUom", false);
             shipmentPackageDatas.add(shipmentPackageData);
         }
     }
 
-    shipmentItems = shipment.getRelated("ShipmentItem", null, ['shipmentItemSeqId']);
-    shipmentRouteSegments = shipment.getRelated("ShipmentRouteSegment", null, ['shipmentRouteSegmentId']);
-    weightUoms = delegator.findList("Uom", EntityCondition.makeCondition([uomTypeId : 'WEIGHT_MEASURE']), null, ['description'], null, false);
-    boxTypes = delegator.findList("ShipmentBoxType", null, null, null, null, false);
+    shipmentItems = shipment.getRelated("ShipmentItem", null, ['shipmentItemSeqId'], false);
+    shipmentRouteSegments = shipment.getRelated("ShipmentRouteSegment", null, ['shipmentRouteSegmentId'], false);
+    weightUoms = from("Uom").where("uomTypeId", "WEIGHT_MEASURE").orderBy("description").queryList();
+    boxTypes = from("ShipmentBoxType").queryList();
 
     context.shipment = shipment;
     context.shipmentPackageDatas = shipmentPackageDatas;

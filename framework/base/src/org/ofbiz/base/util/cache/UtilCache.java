@@ -19,11 +19,14 @@
 package org.ofbiz.base.util.cache;
 
 import java.io.IOException;
+import java.io.NotSerializableException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.MissingResourceException;
@@ -36,8 +39,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javolution.util.FastList;
-import javolution.util.FastMap;
 import jdbm.helper.FastIterator;
 import jdbm.htree.HTree;
 
@@ -49,8 +50,8 @@ import org.ofbiz.base.util.UtilObject;
 import org.ofbiz.base.util.UtilValidate;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import com.googlecode.concurrentlinkedhashmap.EvictionListener;
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap.Builder;
+import com.googlecode.concurrentlinkedhashmap.EvictionListener;
 
 /**
  * Generalized caching utility. Provides a number of caching features:
@@ -65,7 +66,7 @@ import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap.Builder;
  */
 @SuppressWarnings("serial")
 public class UtilCache<K, V> implements Serializable, EvictionListener<Object, CacheLine<V>> {
-	
+
     public static final String module = UtilCache.class.getName();
 
     /** A static Map to keep track of all of the UtilCache instances. */
@@ -106,11 +107,11 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     /** Specifies whether or not to use soft references for this cache, defaults to false */
     protected boolean useSoftReference = false;
 
-    /** Specifies whether or not to use file base stored for this cache, defautls to false */
+    /** Specifies whether or not to use file base stored for this cache, defaults to false */
     protected boolean useFileSystemStore = false;
     private String fileStore = "runtime/data/utilcache";
 
-    /** The set of listeners to receive notifcations when items are modidfied(either delibrately or because they were expired). */
+    /** The set of listeners to receive notifications when items are modified (either deliberately or because they were expired). */
     protected Set<CacheListener<K, V>> listeners = new CopyOnWriteArraySet<CacheListener<K, V>>();
 
     protected transient HTree<Object, V> fileTable = null;
@@ -189,17 +190,17 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
 
     public static String getPropertyParam(ResourceBundle res, String[] propNames, String parameter) {
         try {
-            for (String propName: propNames) {
-                try {
-                    return res.getString(propName + '.' + parameter);
-                } catch (MissingResourceException e) {}
+            for (String propName : propNames) {
+                String key = propName.concat(".").concat(parameter);
+                if (res.containsKey(key)) {
+                    try {
+                        return res.getString(key);
+                    } catch (MissingResourceException e) {
+                    }
+                }
             }
-            // don't need this, just return null
-            //if (value == null) {
-            //    throw new MissingResourceException("Can't find resource for bundle", res.getClass().getName(), Arrays.asList(propNames) + "." + parameter);
-            //}
         } catch (Exception e) {
-            Debug.logWarning(e, "Error getting " + parameter + " value from cache.properties file for propNames: " + propNames, module);
+            Debug.logWarning(e, "Error getting " + parameter + " value from ResourceBundle for propNames: " + propNames, module);
         }
         return null;
     }
@@ -209,7 +210,11 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     public void setPropertiesParams(String[] propNames) {
-        ResourceBundle res = ResourceBundle.getBundle("cache");
+        setPropertiesParams("cache", propNames);
+    }
+
+    public void setPropertiesParams(String settingsResourceName, String[] propNames) {
+        ResourceBundle res = ResourceBundle.getBundle(settingsResourceName);
 
         if (res != null) {
             String value = getPropertyParam(res, propNames, "maxSize");
@@ -276,7 +281,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     /** Puts or loads the passed element into the cache
-     * @param key The key for the element, used to reference it in the hastables and LRU linked list
+     * @param key The key for the element, used to reference it in the hashtables and LRU linked list
      * @param value The value of the element
      */
     public V put(K key, V value) {
@@ -285,6 +290,11 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
 
     public V putIfAbsent(K key, V value) {
         return putIfAbsentInternal(key, value, expireTimeNanos);
+    }
+
+    public V putIfAbsentAndGet(K key, V value) {
+        V cachedValue = putIfAbsent(key, value);
+        return (cachedValue != null? cachedValue: value);
     }
 
     CacheLine<V> createSoftRefCacheLine(final Object key, V value, long loadTimeNanos, long expireTimeNanos) {
@@ -356,7 +366,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     /** Puts or loads the passed element into the cache
-     * @param key The key for the element, used to reference it in the hastables and LRU linked list
+     * @param key The key for the element, used to reference it in the hashtables and LRU linked list
      * @param value The value of the element
      * @param expireTimeMillis how long to keep this key in the cache
      */
@@ -428,7 +438,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     /** Gets an element from the cache according to the specified key.
-     * @param key The key for the element, used to reference it in the hastables and LRU linked list
+     * @param key The key for the element, used to reference it in the hashtables and LRU linked list
      * @return The value of the element specified by the key
      */
     public V get(Object key) {
@@ -465,7 +475,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
 
     public Collection<V> values() {
         if (fileTable != null) {
-            List<V> values = FastList.newInstance();
+            List<V> values = new LinkedList<V>();
             try {
                 synchronized (this) {
                     FastIterator<V> iter = fileTable.values();
@@ -480,7 +490,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
             }
             return values;
         } else {
-            List<V> valuesList = FastList.newInstance();
+            List<V> valuesList = new LinkedList<V>();
             for (CacheLine<V> line: memoryTable.values()) {
                 valuesList.add(line.getValue());
             }
@@ -490,9 +500,25 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
 
     private long findSizeInBytes(Object o) {
         try {
-            return UtilObject.getByteCount(o);
+            if (o == null) {
+                if (Debug.infoOn()) Debug.logInfo("Found null object in cache: " + getName(), module);
+                return 0;
+            }
+            if (o instanceof Serializable) {
+                return UtilObject.getByteCount(o);
+            } else {
+                if (Debug.infoOn()) Debug.logInfo("Unable to compute memory size for non serializable object; returning 0 byte size for object of " + o.getClass(), module);
+                return 0;
+            }
+        } catch (NotSerializableException e) {
+            // this happens when we try to get the byte count for an object which itself is
+            // serializable, but fails to be serialized, such as a map holding unserializable objects
+            if (Debug.warningOn()) {
+                Debug.logWarning("NotSerializableException while computing memory size; returning 0 byte size for object of " + e.getMessage(), module);
+            }
+            return 0;
         } catch (Exception e) {
-            e.printStackTrace();
+            Debug.logWarning(e, "Unable to compute memory size for object of " + o.getClass(), module);
             return 0;
         }
     }
@@ -522,7 +548,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     /** Removes an element from the cache according to the specified key
-     * @param key The key for the element, used to reference it in the hastables and LRU linked list
+     * @param key The key for the element, used to reference it in the hashtables and LRU linked list
      * @return The value of the removed element specified by the key
      */
     public V remove(Object key) {
@@ -804,7 +830,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     /** Returns a boolean specifying whether or not an element with the specified key is in the cache.
-     * @param key The key for the element, used to reference it in the hastables and LRU linked list
+     * @param key The key for the element, used to reference it in the hashtables and LRU linked list
      * @return True is the cache contains an element corresponding to the specified key, otherwise false
      */
     public boolean containsKey(Object key) {
@@ -870,7 +896,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     private Map<String, Object> createLineInfo(int keyNum, K key, CacheLine<V> line) {
-        Map<String, Object> lineInfo = FastMap.newInstance();
+        Map<String, Object> lineInfo = new HashMap<String, Object>();
         lineInfo.put("elementKey", key);
 
         if (line.getLoadTimeNanos() > 0) {
@@ -882,7 +908,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     private Map<String, Object> createLineInfo(int keyNum, K key, V value) {
-        Map<String, Object> lineInfo = FastMap.newInstance();
+        Map<String, Object> lineInfo = new HashMap<String, Object>();
         lineInfo.put("elementKey", key);
         lineInfo.put("lineSize", findSizeInBytes(value));
         lineInfo.put("keyNum", keyNum);
@@ -890,7 +916,7 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
     }
 
     public Collection<? extends Map<String, Object>> getLineInfos() {
-        List<Map<String, Object>> lineInfos = FastList.newInstance();
+        List<Map<String, Object>> lineInfos = new LinkedList<Map<String, Object>>();
         int keyIndex = 0;
         for (K key: getCacheLineKeys()) {
             Object nulledKey = fromKey(key);
@@ -1030,8 +1056,8 @@ public class UtilCache<K, V> implements Serializable, EvictionListener<Object, C
         return (UtilCache<K, V>) UtilCache.utilCacheTable.get(cacheName);
     }
 
-	@Override
-	public void onEviction(Object key, CacheLine<V> value) {
-		ExecutionPool.removePulse(value);
-	}
+    @Override
+    public void onEviction(Object key, CacheLine<V> value) {
+        ExecutionPool.removePulse(value);
+    }
 }

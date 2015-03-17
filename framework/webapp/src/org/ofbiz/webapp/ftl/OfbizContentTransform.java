@@ -25,10 +25,9 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 
 import org.ofbiz.base.util.Debug;
-import org.ofbiz.base.util.StringUtil;
+import org.ofbiz.base.util.UtilCodec;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.webapp.taglib.ContentUrlTag;
-import org.owasp.esapi.errors.EncodingException;
 
 import freemarker.core.Environment;
 import freemarker.ext.beans.BeanModel;
@@ -43,6 +42,7 @@ public class OfbizContentTransform implements TemplateTransformModel {
 
     public final static String module = OfbizContentTransform.class.getName();
 
+    @SuppressWarnings("unchecked")
     private static String getArg(Map args, String key) {
         String  result = "";
         Object obj = args.get(key);
@@ -61,7 +61,8 @@ public class OfbizContentTransform implements TemplateTransformModel {
         }
         return result;
     }
-    
+
+    @SuppressWarnings("unchecked")
     public Writer getWriter(final Writer out, Map args) {
         final StringBuilder buf = new StringBuilder();
         final String imgSize = OfbizContentTransform.getArg(args, "variant");
@@ -85,11 +86,13 @@ public class OfbizContentTransform implements TemplateTransformModel {
 
                     String requestUrl = buf.toString();
 
-                    try {
-                        requestUrl = StringUtil.defaultWebEncoder.decodeFromURL(requestUrl);
-                    } catch (EncodingException e) {
-                        Debug.logError(e, module);
+                    // If the URL starts with http(s) then there is nothing for us to do here
+                    if (requestUrl.startsWith("http")) {
+                        out.write(requestUrl);
+                        return;
                     }
+
+                    requestUrl = UtilCodec.getDecoder("url").decode(requestUrl);
 
                     // make the link
                     StringBuilder newURL = new StringBuilder();

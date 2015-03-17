@@ -45,6 +45,7 @@ import org.ofbiz.entity.condition.EntityOperator;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.guiapp.xui.XuiSession;
 import org.ofbiz.pos.PosTransaction;
 import org.ofbiz.pos.adaptor.SyncCallbackAdaptor;
@@ -72,13 +73,13 @@ public class ManagerEvents {
 
     public static synchronized void modifyPrice(PosScreen pos) {
         PosTransaction trans = PosTransaction.getCurrentTx(pos.getSession());
-        String sku = null;
+        String cartIndex = null;
         try {
-            sku = MenuEvents.getSelectedItem(pos);
+            cartIndex = MenuEvents.getSelectedIdx(pos);
         } catch (ArrayIndexOutOfBoundsException e) {
         }
 
-        if (sku == null) {
+        if (cartIndex == null) {
             pos.getOutput().print(UtilProperties.getMessage(PosTransaction.resource,"PosInvalidSelection",Locale.getDefault()));
             pos.getJournal().refresh(pos);
             pos.getInput().clear();
@@ -97,7 +98,7 @@ public class ManagerEvents {
 
             if (parsed) {
                 price = price.movePointLeft(2);
-                trans.modifyPrice(sku, price);
+                trans.modifyPrice(cartIndex, price);
 
                 // re-calc tax
                 trans.calcTax();
@@ -238,7 +239,7 @@ public class ManagerEvents {
                     // transmit final data to server
                     GenericValue terminal = null;
                     try {
-                        terminal = state.getRelatedOne("PosTerminal");
+                        terminal = state.getRelatedOne("PosTerminal", false);
                     } catch (GenericEntityException e) {
                         Debug.logError(e, module);
                         pos.showDialog("dialog/error/exception", e.getMessage());
@@ -295,7 +296,7 @@ public class ManagerEvents {
             String orderId = input.value();
             GenericValue orderHeader = null;
             try {
-                orderHeader = session.getDelegator().findByPrimaryKey("OrderHeader", UtilMisc.toMap("orderId", orderId));
+                orderHeader = session.getDelegator().findOne("OrderHeader", UtilMisc.toMap("orderId", orderId), false);
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }
@@ -485,12 +486,10 @@ public class ManagerEvents {
             beganTransaction = TransactionUtil.begin();
 
             Delegator delegator = pos.getSession().getDelegator();
-            List<EntityExpr> exprs = UtilMisc.toList(EntityCondition.makeCondition("originFacilityId", EntityOperator.EQUALS, trans.getFacilityId()),
-                    EntityCondition.makeCondition("terminalId", EntityOperator.EQUALS, trans.getTerminalId()));
             EntityListIterator eli = null;
 
             try {
-                eli = delegator.find("OrderHeaderAndPaymentPref", EntityCondition.makeCondition(exprs, EntityOperator.AND), null, null, null, null);
+                eli = EntityQuery.use(delegator).from("OrderHeaderAndPaymentPref").where("originFacilityId", trans.getFacilityId(), "terminalId", trans.getTerminalId()).queryIterator();
             } catch (GenericEntityException e) {
                 Debug.logError(e, module);
             }

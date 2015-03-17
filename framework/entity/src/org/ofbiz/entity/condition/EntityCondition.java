@@ -18,19 +18,16 @@
  *******************************************************************************/
 package org.ofbiz.entity.condition;
 
-import static org.ofbiz.base.util.UtilGenerics.cast;
-
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
-import javolution.lang.Reusable;
-import javolution.util.FastList;
 
 import org.ofbiz.base.lang.IsEmpty;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntity;
 import org.ofbiz.entity.GenericModelException;
-import org.ofbiz.entity.config.DatasourceInfo;
+import org.ofbiz.entity.config.model.Datasource;
 import org.ofbiz.entity.model.ModelEntity;
 
 /**
@@ -45,108 +42,78 @@ import org.ofbiz.entity.model.ModelEntity;
  *
  */
 @SuppressWarnings("serial")
-public abstract class EntityCondition extends EntityConditionBase implements IsEmpty, Reusable {
+public abstract class EntityCondition extends EntityConditionBase implements IsEmpty {
 
     public static <L,R,LL,RR> EntityExpr makeCondition(L lhs, EntityComparisonOperator<LL,RR> operator, R rhs) {
-        EntityExpr expr = EntityExpr.entityExprFactory.object();
-        expr.init(lhs, operator, rhs);
-        return expr;
+        return new EntityExpr(lhs, operator, rhs);
     }
 
     public static <R> EntityExpr makeCondition(String fieldName, R value) {
-        EntityExpr expr = EntityExpr.entityExprFactory.object();
-        expr.init(fieldName, EntityOperator.EQUALS, value);
-        return expr;
+        return new EntityExpr(fieldName, EntityOperator.EQUALS, value);
     }
 
     public static EntityExpr makeCondition(EntityCondition lhs, EntityJoinOperator operator, EntityCondition rhs) {
-        EntityExpr expr = EntityExpr.entityExprFactory.object();
-        expr.init(lhs, operator, rhs);
-        return expr;
+        return new EntityExpr(lhs, operator, rhs);
     }
 
     public static <T extends EntityCondition> EntityConditionList<T> makeCondition(EntityJoinOperator operator, T... conditionList) {
-        EntityConditionList<T> ecl = cast(EntityConditionList.entityConditionListFactory.object());
-        ecl.init(operator, conditionList);
-        return ecl;
+        return new EntityConditionList<T>(Arrays.<T>asList(conditionList), operator);
     }
 
     public static <T extends EntityCondition> EntityConditionList<T> makeCondition(T... conditionList) {
-        EntityConditionList<T> ecl = cast(EntityConditionList.entityConditionListFactory.object());
-        ecl.init(EntityOperator.AND, conditionList);
-        return ecl;
+        return new EntityConditionList<T>(Arrays.<T>asList(conditionList), EntityOperator.AND);
     }
 
     public static <T extends EntityCondition> EntityConditionList<T> makeCondition(List<T> conditionList, EntityJoinOperator operator) {
-        EntityConditionList<T> ecl = cast(EntityConditionList.entityConditionListFactory.object());
-        ecl.init(conditionList, operator);
-        return ecl;
+        return new EntityConditionList<T>(conditionList, operator);
     }
 
     public static <T extends EntityCondition> EntityConditionList<T> makeCondition(List<T> conditionList) {
-        EntityConditionList<T> ecl = cast(EntityConditionList.entityConditionListFactory.object());
-        ecl.init(conditionList, EntityOperator.AND);
-        return ecl;
+        return new EntityConditionList<T>(conditionList, EntityOperator.AND);
     }
 
     public static <L,R> EntityFieldMap makeCondition(Map<String, ? extends Object> fieldMap, EntityComparisonOperator<L,R> compOp, EntityJoinOperator joinOp) {
-        EntityFieldMap efm = EntityFieldMap.entityFieldMapFactory.object();
-        efm.init(fieldMap, compOp, joinOp);
-        return efm;
+        return new EntityFieldMap(fieldMap, compOp, joinOp);
     }
 
     public static EntityFieldMap makeCondition(Map<String, ? extends Object> fieldMap, EntityJoinOperator joinOp) {
-        EntityFieldMap efm = EntityFieldMap.entityFieldMapFactory.object();
-        efm.init(fieldMap, EntityOperator.EQUALS, joinOp);
-        return efm;
+        return new EntityFieldMap(fieldMap, EntityOperator.EQUALS, joinOp);
     }
 
     public static EntityFieldMap makeCondition(Map<String, ? extends Object> fieldMap) {
-        EntityFieldMap efm = EntityFieldMap.entityFieldMapFactory.object();
-        efm.init(fieldMap, EntityOperator.EQUALS, EntityOperator.AND);
-        return efm;
+        return new EntityFieldMap(fieldMap, EntityOperator.EQUALS, EntityOperator.AND);
     }
 
     public static <L,R> EntityFieldMap makeCondition(EntityComparisonOperator<L,R> compOp, EntityJoinOperator joinOp, Object... keysValues) {
-        EntityFieldMap efm = EntityFieldMap.entityFieldMapFactory.object();
-        efm.init(compOp, joinOp, keysValues);
-        return efm;
+        return new EntityFieldMap(compOp, joinOp, keysValues);
     }
 
     public static EntityFieldMap makeCondition(EntityJoinOperator joinOp, Object... keysValues) {
-        EntityFieldMap efm = EntityFieldMap.entityFieldMapFactory.object();
-        efm.init(EntityOperator.EQUALS, joinOp, keysValues);
-        return efm;
+        return new EntityFieldMap(EntityOperator.EQUALS, joinOp, keysValues);
     }
 
     public static EntityFieldMap makeConditionMap(Object... keysValues) {
-        EntityFieldMap efm = EntityFieldMap.entityFieldMapFactory.object();
-        efm.init(EntityOperator.EQUALS, EntityOperator.AND, keysValues);
-        return efm;
+        return new EntityFieldMap(EntityOperator.EQUALS, EntityOperator.AND, keysValues);
     }
 
     public static EntityDateFilterCondition makeConditionDate(String fromDateName, String thruDateName) {
-        EntityDateFilterCondition edfc = EntityDateFilterCondition.entityDateFilterConditionFactory.object();
-        edfc.init(fromDateName, thruDateName);
-        return edfc;
+        return new EntityDateFilterCondition(fromDateName, thruDateName);
     }
 
     public static EntityWhereString makeConditionWhere(String sqlString) {
-        EntityWhereString ews = EntityWhereString.entityWhereStringFactory.object();
-        ews.init(sqlString);
-        return ews;
+        return new EntityWhereString(sqlString);
     }
 
     @Override
     public String toString() {
-        return makeWhereString(null, FastList.<EntityConditionParam>newInstance(), null);
+        return makeWhereString(null, new ArrayList<EntityConditionParam>(), null);
     }
 
     public void accept(EntityConditionVisitor visitor) {
         throw new IllegalArgumentException(getClass().getName() + ".accept not implemented");
     }
 
-    abstract public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, DatasourceInfo datasourceInfo);
+    abstract public String makeWhereString(ModelEntity modelEntity, List<EntityConditionParam> entityConditionParams, Datasource datasourceInfo);
 
     abstract public void checkCondition(ModelEntity modelEntity) throws GenericModelException;
 
@@ -165,8 +132,6 @@ public abstract class EntityCondition extends EntityConditionBase implements IsE
     abstract public boolean mapMatches(Delegator delegator, Map<String, ? extends Object> map);
 
     abstract public EntityCondition freeze();
-
-    abstract public void encryptConditionFields(ModelEntity modelEntity, Delegator delegator);
 
     public void visit(EntityConditionVisitor visitor) {
         throw new IllegalArgumentException(getClass().getName() + ".visit not implemented");

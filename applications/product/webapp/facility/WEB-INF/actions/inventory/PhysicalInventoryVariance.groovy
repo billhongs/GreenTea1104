@@ -21,16 +21,16 @@ import org.ofbiz.entity.condition.EntityCondition;
 
 // get physicalInventoryAndVarianceDatas if this is a NON_SERIAL_INV_ITEM
 if (inventoryItem && "NON_SERIAL_INV_ITEM".equals(inventoryItem.inventoryItemTypeId)) {
-    physicalInventoryAndVariances = delegator.findList("PhysicalInventoryAndVariance", EntityCondition.makeCondition([inventoryItemId : inventoryItemId]), null, ['-physicalInventoryDate', '-physicalInventoryId'], null, false);
+    physicalInventoryAndVariances = from("PhysicalInventoryAndVariance").where("inventoryItemId", inventoryItemId).orderBy("-physicalInventoryDate", "-physicalInventoryId").queryList();
     physicalInventoryAndVarianceDatas = new ArrayList(physicalInventoryAndVariances.size());
     physicalInventoryAndVariances.each { physicalInventoryAndVariance ->
         physicalInventoryAndVarianceData = [:];
         physicalInventoryAndVarianceDatas.add(physicalInventoryAndVarianceData);
 
         physicalInventoryAndVarianceData.physicalInventoryAndVariance = physicalInventoryAndVariance;
-        physicalInventoryAndVarianceData.varianceReason = physicalInventoryAndVariance.getRelatedOneCache("VarianceReason");
-        physicalInventoryAndVarianceData.person = physicalInventoryAndVariance.getRelatedOne("Person");
-        physicalInventoryAndVarianceData.partyGroup = physicalInventoryAndVariance.getRelatedOne("PartyGroup");
+        physicalInventoryAndVarianceData.varianceReason = physicalInventoryAndVariance.getRelatedOne("VarianceReason", true);
+        physicalInventoryAndVarianceData.person = physicalInventoryAndVariance.getRelatedOne("Person", false);
+        physicalInventoryAndVarianceData.partyGroup = physicalInventoryAndVariance.getRelatedOne("PartyGroup", false);
     }
     context.physicalInventoryAndVarianceDatas = physicalInventoryAndVarianceDatas;
 }

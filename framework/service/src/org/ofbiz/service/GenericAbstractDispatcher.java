@@ -22,14 +22,12 @@ import java.util.Date;
 import java.util.Map;
 
 import javax.transaction.Transaction;
-import javax.transaction.xa.XAException;
 
 import org.ofbiz.service.calendar.RecurrenceRule;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.transaction.GenericTransactionException;
 import org.ofbiz.entity.transaction.TransactionUtil;
 import org.ofbiz.security.Security;
-import org.ofbiz.security.authz.Authorization;
 import org.ofbiz.service.jms.JmsListenerFactory;
 import org.ofbiz.service.job.JobManager;
 import org.ofbiz.service.job.JobManagerException;
@@ -117,36 +115,16 @@ public abstract class GenericAbstractDispatcher implements LocalDispatcher {
         schedule(jobName, poolName, serviceName, ServiceUtil.makeContext(context), startTime, frequency, interval, count, endTime, maxRetry);
     }
 
-    /**
-     * @see org.ofbiz.service.LocalDispatcher#setRollbackService(java.lang.String, java.util.Map, boolean)
-     */
     public void addRollbackService(String serviceName, Map<String, ? extends Object> context, boolean persist) throws GenericServiceException {
-        ServiceXaWrapper xa = new ServiceXaWrapper(this.getDispatchContext());
-        xa.setRollbackService(serviceName, context, true, persist);
-        try {
-            xa.enlist();
-        } catch (XAException e) {
-            Debug.logError(e, module);
-            throw new GenericServiceException(e.getMessage(), e);
-        }
+        ServiceSynchronization.registerRollbackService(this.getDispatchContext(), serviceName, null, context, true, persist);
     }
 
     public void addRollbackService(String serviceName, boolean persist, Object... context) throws GenericServiceException {
         addRollbackService(serviceName, ServiceUtil.makeContext(context), persist);
     }
 
-    /**
-     * @see org.ofbiz.service.LocalDispatcher#setCommitService(java.lang.String, java.util.Map, boolean)
-     */
     public void addCommitService(String serviceName, Map<String, ? extends Object> context, boolean persist) throws GenericServiceException {
-        ServiceXaWrapper xa = new ServiceXaWrapper(this.getDispatchContext());
-        xa.setCommitService(serviceName, context, true, persist);
-        try {
-            xa.enlist();
-        } catch (XAException e) {
-            Debug.logError(e, module);
-            throw new GenericServiceException(e.getMessage(), e);
-        }
+        ServiceSynchronization.registerCommitService(this.getDispatchContext(), serviceName, null, context, true, persist);
     }
 
     public void addCommitService(String serviceName, boolean persist, Object... context) throws GenericServiceException {
@@ -220,16 +198,8 @@ public abstract class GenericAbstractDispatcher implements LocalDispatcher {
     }
 
     /**
-     * @see org.ofbiz.service.LocalDispatcher#getAuthorization()
-     */
-    public Authorization getAuthorization() {
-        return dispatcher.getAuthorization();
-    }
-
-    /**
      * @see org.ofbiz.service.LocalDispatcher#getSecurity()
      */
-    @Deprecated
     public Security getSecurity() {
         return dispatcher.getSecurity();
     }
@@ -252,6 +222,7 @@ public abstract class GenericAbstractDispatcher implements LocalDispatcher {
      * @see org.ofbiz.service.LocalDispatcher#deregister()
      */
     public void deregister() {
+        ServiceContainer.removeFromCache(getName());
         dispatcher.deregister(this);
     }
 

@@ -28,7 +28,7 @@ import org.ofbiz.order.shoppingcart.shipping.*;
 shoppingCart = session.getAttribute("shoppingCart");
 currencyUomId = shoppingCart.getCurrency();
 partyId = shoppingCart.getPartyId();
-party = delegator.findByPrimaryKeyCache("Party", [partyId : partyId]);
+party = from("Party").where("partyId", partyId).cache(true).queryOne();
 productStore = ProductStoreWorker.getProductStore(request);
 
 shippingEstWpr = null;
@@ -36,21 +36,18 @@ if (shoppingCart) {
     shippingEstWpr = new ShippingEstimateWrapper(dispatcher, shoppingCart, 0);
     context.shippingEstWpr = shippingEstWpr;
     context.carrierShipmentMethodList = shippingEstWpr.getShippingMethods();
+    // Reassign items requiring drop-shipping to new or existing drop-ship groups
+    shoppingCart.createDropShipGroups(dispatcher);    
 }
 
-// Reassign items requiring drop-shipping to new or existing drop-ship groups
-if (shoppingCart) {
-    shoppingCart.createDropShipGroups(dispatcher);
-}
-
-profiledefs = delegator.findByPrimaryKey("PartyProfileDefault", [partyId : userLogin.partyId, productStoreId : productStoreId]);
+profiledefs = from("PartyProfileDefault").where("partyId", userLogin.partyId, "productStoreId", productStoreId).queryOne();
 context.profiledefs = profiledefs;
 
 context.shoppingCart = shoppingCart;
 context.userLogin = userLogin;
 context.productStoreId = productStore.get("productStoreId");
 context.productStore = productStore;
-shipToParty = delegator.findByPrimaryKeyCache("Party", [partyId : shoppingCart.getShipToCustomerPartyId()]);
+shipToParty = from("Party").where("partyId", shoppingCart.getShipToCustomerPartyId()).cache(true).queryOne();
 context.shippingContactMechList = ContactHelper.getContactMech(shipToParty, "SHIPPING_LOCATION", "POSTAL_ADDRESS", false);
 context.emailList = ContactHelper.getContactMechByType(party, "EMAIL_ADDRESS", false);
 
@@ -62,7 +59,7 @@ if (shoppingCart.getShipmentMethodTypeId() && shoppingCart.getCarrierPartyId()) 
 
 // other profile defaults
 if (!shoppingCart.getShippingAddress() && profiledefs?.defaultShipAddr) {
-    shoppingCart.setShippingContactMechId(profiledefs.defaultShipAddr);
+    shoppingCart.setAllShippingContactMechId(profiledefs.defaultShipAddr);
 }
 if (shoppingCart.selectedPayments() == 0 && profiledefs?.defaultPayMeth) {
     shoppingCart.addPayment(profiledefs.defaultPayMeth);

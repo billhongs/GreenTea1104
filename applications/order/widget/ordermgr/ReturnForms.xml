@@ -94,7 +94,7 @@ under the License.
         </field>
         <field name="paymentMethodId" use-when="creditCardList!=null&amp;&amp;creditCardList.size()&gt;0">
             <drop-down allow-empty="true">
-                <list-options list-name="creditCardList" list-entry-name="creditCardPm" key-name="creditCardPm.paymentMethodId" description="${bsh:org.ofbiz.party.contact.ContactHelper.formatCreditCard(creditCardPm.getRelatedOne(&quot;CreditCard&quot;))}"/>
+                <list-options list-name="creditCardList" list-entry-name="creditCardPm" key-name="creditCardPm.paymentMethodId" description="${bsh:org.ofbiz.party.contact.ContactHelper.formatCreditCard(creditCardPm.getRelatedOne(&quot;CreditCard&quot;, false))}"/>
             </drop-down>
         </field>
         <field name="newCreditCard" widget-style="buttontext" use-when="returnHeader!=null&amp;&amp;returnHeader.getString(&quot;fromPartyId&quot;)!=null">
@@ -198,7 +198,7 @@ under the License.
         <field name="returnId"><display description="${returnId}"/></field>
         <field name="oldValueText"><display/></field>
         <field name="newValueText"><display/></field>
-        <field name="changedDate"><display/></field>
+        <field name="changedDate" title="${uiLabelMap.CommonDate}"><display/></field>
         <field name="changedByInfo" title="${uiLabelMap.FormFieldTitle_modifiedByUserLoginId}"><display/></field>
     </form>
     <form name="ReturnReasonHistory" type="list" list-name="orderReturnItemHistories"

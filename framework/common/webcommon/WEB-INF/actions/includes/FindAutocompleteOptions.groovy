@@ -26,6 +26,7 @@ import org.ofbiz.entity.condition.EntityExpr;
 import org.ofbiz.entity.condition.EntityFieldValue;
 import org.ofbiz.entity.condition.EntityFunction;
 import org.ofbiz.entity.condition.EntityOperator;
+import org.ofbiz.entity.util.EntityUtilProperties;
 
 def mainAndConds = [];
 def orExprs = [];
@@ -75,7 +76,7 @@ if (searchFields && fieldValue) {
 }
 
 /* the following is part of an attempt to handle additional parameters that are passed in from other form fields at run-time,
- * but that is not supported by the scrip.aculo.us Ajax.Autocompleter, but this is still useful to pass parameters from the
+ * but that is not supported by the Jquery Autocompleter, but this is still useful to pass parameters from the
  * lookup screen definition:
  */
 def conditionFields = context.conditionFields;
@@ -101,14 +102,18 @@ if (orExprs && entityName && displayFieldsSet) {
     if (context.andCondition && context.andCondition instanceof EntityCondition) {
         mainAndConds.add(context.andCondition);
     }
-    
-    def entityConditionList = EntityCondition.makeCondition(mainAndConds, EntityOperator.AND);    
-    
-    Integer autocompleterViewSize = Integer.valueOf(context.autocompleterViewSize ?: 10);
+
+    def entityConditionList = EntityCondition.makeCondition(mainAndConds, EntityOperator.AND);
+
+    String viewSizeStr = context.autocompleterViewSize;
+    if (viewSizeStr == null) {
+        viewSizeStr = EntityUtilProperties.getPropertyValue("widget", "widget.autocompleter.defaultViewSize", delegator);
+    }
+    Integer autocompleterViewSize = Integer.valueOf(viewSizeStr ?: 10);
     EntityFindOptions findOptions = new EntityFindOptions();
     findOptions.setMaxRows(autocompleterViewSize);
     findOptions.setDistinct(searchDistinct);
-    
+
     autocompleteOptions = delegator.findList(entityName, entityConditionList, displayFieldsSet, StringUtil.toList(displayFields), findOptions, false);
     if (autocompleteOptions) {
         context.autocompleteOptions = autocompleteOptions;

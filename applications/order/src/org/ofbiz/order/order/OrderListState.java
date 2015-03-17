@@ -32,15 +32,14 @@ import javolution.util.FastMap;
 
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilDateTime;
-import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.condition.EntityCondition;
 import org.ofbiz.entity.condition.EntityOperator;
-import org.ofbiz.entity.util.EntityFindOptions;
 import org.ofbiz.entity.util.EntityListIterator;
+import org.ofbiz.entity.util.EntityQuery;
 
 /**
  * Session object for keeping track of the list of orders.
@@ -167,8 +166,7 @@ public class OrderListState implements Serializable {
     }
 
     private void changeOrderListStates(HttpServletRequest request) {
-        for (Iterator<String> iter = parameterToOrderStatusId.keySet().iterator(); iter.hasNext();) {
-            String param = iter.next();
+        for (String param : parameterToOrderStatusId.keySet()) {
             String value = request.getParameter(param);
             if ("Y".equals(value)) {
                 orderStatusState.put(param, "Y");
@@ -176,8 +174,7 @@ public class OrderListState implements Serializable {
                 orderStatusState.put(param, "N");
             }
         }
-        for (Iterator<String> iter = parameterToOrderTypeId.keySet().iterator(); iter.hasNext();) {
-            String param = iter.next();
+        for (String param : parameterToOrderTypeId.keySet()) {
             String value = request.getParameter(param);
             if ("Y".equals(value)) {
                 orderTypeState.put(param, "Y");
@@ -185,8 +182,7 @@ public class OrderListState implements Serializable {
                 orderTypeState.put(param, "N");
             }
         }
-        for (Iterator<String> iter = parameterToFilterId.keySet().iterator(); iter.hasNext();) {
-            String param = iter.next();
+        for (String param : parameterToFilterId.keySet()) {
             String value = request.getParameter(param);
             if ("Y".equals(value)) {
                 orderFilterState.put(param, "Y");
@@ -244,14 +240,12 @@ public class OrderListState implements Serializable {
         }
 
         List<EntityCondition> statusConditions = FastList.newInstance();
-        for (Iterator<String> iter = orderStatusState.keySet().iterator(); iter.hasNext();) {
-            String status = iter.next();
+        for (String status : orderStatusState.keySet()) {
             if (!hasStatus(status)) continue;
             statusConditions.add(EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, parameterToOrderStatusId.get(status)));
         }
         List<EntityCondition> typeConditions = FastList.newInstance();
-        for (Iterator<String> iter = orderTypeState.keySet().iterator(); iter.hasNext();) {
-            String type = iter.next();
+        for (String type : orderTypeState.keySet()) {
             if (!hasType(type)) continue;
             typeConditions.add(EntityCondition.makeCondition("orderTypeId", EntityOperator.EQUALS, parameterToOrderTypeId.get(type)));
         }
@@ -265,10 +259,12 @@ public class OrderListState implements Serializable {
             allConditions.add(typeConditionsList);
         }
 
-        EntityCondition queryConditionsList = EntityCondition.makeCondition(allConditions, EntityOperator.AND);
-        EntityFindOptions options = new EntityFindOptions(true, EntityFindOptions.TYPE_SCROLL_INSENSITIVE, EntityFindOptions.CONCUR_READ_ONLY, true);
-        options.setMaxRows(viewSize * (viewIndex + 1));
-        EntityListIterator iterator = delegator.find("OrderHeader", queryConditionsList, null, null, UtilMisc.toList("orderDate DESC"), options);
+        EntityListIterator iterator = EntityQuery.use(delegator).from("OrderHeader")
+                .where(allConditions)
+                .orderBy("orderDate DESC")
+                .maxRows(viewSize * (viewIndex + 1))
+                .cursorScrollInsensitive()
+                .queryIterator();
 
         // get subset corresponding to pagination state
         List<GenericValue> orders = iterator.getPartialList(viewSize * viewIndex, viewSize);

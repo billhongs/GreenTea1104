@@ -39,11 +39,11 @@ under the License.
     </form>
 
     <form name="EditCombo" target="uploadContentAndImage" title="" type="upload"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="imageData" >
             <file />
         </field>
-        <field name="dataResourceId" >
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}" >
             <drop-down allow-empty="false" no-current-selected-key="TEMPLATE_TEXT_ONLY">
                 <option key="TEMPLATE_TEXT_ONLY" description="${uiLabelMap.EcommerceTextOnly}"/>
                 <option key="TEMPLATE_IMAGE_CENTERED" description="${uiLabelMap.EcommerceImageCenteredAbove}"/>
@@ -99,7 +99,7 @@ under the License.
         <field name="newTopicDescription" title="Description"  position="3">
             <text size="24"/>
         </field>
-        <field name="createTopic" title="${uiLabelMap.CommonEmptyHeader}"  position="4">
+        <field name="createTopic" title=" "  position="4">
             <hyperlink also-hidden="false" target="createTopic${pageName}" description="Create Topic">
                 <parameter param-name="mode" value="restore"/>
             </hyperlink>
@@ -146,11 +146,11 @@ under the License.
         </field>
     </form>
     <form name="ViewComboResponse" target="" title="" type="single" extends="EditCombo"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
        <field name="summaryData" >
                 <ignored/>
         </field>
-        <field name="dataResourceId" >
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}" >
             <display />
         </field>
         <field name="ftlContentId" position="1">
@@ -173,17 +173,17 @@ under the License.
     </form>
 
     <form name="findContent" default-entity-name="ContentAssocDataResourceViewFrom" target="FindContent" title="" type="single"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="caContentIdTo" title="${uiLabelMap.ContentPublishToContent}"><text-find/></field>
         <field name="caMapKey"><text-find/></field>
         <field name="caContentAssocTypeId" title="${uiLabelMap.FormFieldTitle_contentAssocTypeId}" ><text-find/></field>
         <field name="caFromDate" title="${uiLabelMap.CommonFromDate}" ><date-find/></field>
         <field name="contentId"><text-find/></field>
-        <field name="dataResourceId"><text-find/></field>
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}"><text-find/></field>
         <field name="contentName"><text-find/></field>
         <field name="submitButton" title="${uiLabelMap.CommonFind}" widget-style="smallSubmit"><submit button-type="button"/></field>
 <!--
-        <field name="createLink" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext">
+        <field name="createLink" title=" " widget-style="buttontext">
             <hyperlink also-hidden="false" description="Create New"  target="AddContent"/>
         </field>
 -->
@@ -191,9 +191,9 @@ under the License.
     </form>
 
     <form name="listFindContent" type="list" target=""
-        default-title-style="tableheadtext" default-widget-style="inputBox" default-tooltip-style="tabletext"
+        default-title-style="tableheadtext" default-widget-style="inputBox"
         paginate-target="/FindContent">
-        <field name="editContent" title="${uiLabelMap.CommonEmptyHeader}">
+        <field name="editContent" title=" ">
             <hyperlink also-hidden="false" description="${uiLabelMap.CommonEdit}" target="EditContent">
                 <parameter param-name="contentId"/>
                 <parameter param-name="drDataResourceId"/>
@@ -216,16 +216,16 @@ under the License.
         <field name="caFromDate" title="From Date" ><display/></field>
 -->
         <field name="contentId"><display/></field>
-        <field name="dataResourceId"><display/></field>
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}"><display/></field>
         <field name="contentName"><display/></field>
     </form>
 
     <form name="EditContent" target="uploadContentAndImage" title="" type="upload"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="imageData" >
             <file />
         </field>
-        <field name="dataResourceId" >
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}" >
             <drop-down allow-empty="false" no-current-selected-key="TEMPLATE_TEXT_ONLY">
                 <option key="TEMPLATE_TEXT_ONLY" description="${uiLabelMap.EcommerceTextOnly}"/>
                 <option key="TEMPLATE_IMAGE_CENTERED" description="${uiLabelMap.EcommerceImageCenteredAbove}"/>
@@ -281,7 +281,7 @@ under the License.
         <field name="newTopicDescription" title="Description"  position="3">
             <text size="24"/>
         </field>
-        <field name="createTopic" title="${uiLabelMap.CommonEmptyHeader}"  position="4">
+        <field name="createTopic" title=" "  position="4">
             <hyperlink also-hidden="false" target="createTopic${pageName}" description="Create Topic">
                 <parameter param-name="mode" value="restore"/>
             </hyperlink>
@@ -329,7 +329,7 @@ under the License.
     </form>
 
     <form name="EditContentInfo" target="updateContent" title="" type="single" default-map-name="currentValue"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <auto-fields-entity entity-name="Content"/>
         <field name="contentId"><display/></field>
         <field name="contentTypeId">
@@ -337,7 +337,7 @@ under the License.
                 <entity-options description="${description}" entity-name="ContentType" key-field-name="contentTypeId"/>
             </drop-down>
         </field>
-        <field name="dataResourceId">
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}">
             <drop-down allow-empty="false" no-current-selected-key="TEMPLATE_TEXT_ONLY">
                 <option key="TEMPLATE_TEXT_ONLY" description="${uiLabelMap.EcommerceTextOnly}"/>
                 <option key="TEMPLATE_IMAGE_CENTERED" description="${uiLabelMap.EcommerceImageCenteredAbove}"/>
@@ -347,7 +347,7 @@ under the License.
             </drop-down>
         </field>
         <field name="ownerContentId"><lookup target-form-name="LookupContent"/></field>
-        <field name="mimeTypeId">
+        <field name="mimeTypeId" encode-output="false">
             <drop-down allow-empty="true">
                 <entity-options description="${mimeTypeId} - ${description}" entity-name="MimeType" key-field-name="mimeTypeId">
                     <entity-order-by field-name="mimeTypeId"/>
@@ -372,10 +372,10 @@ under the License.
         <field name="lastModifiedByUserLogin" position="1"><display/></field>
         <field name="lastModifiedDate" position="2"><display/></field>
         <field name="submitButton" title="${uiLabelMap.CommonUpdate}" widget-style="smallSubmit"><submit button-type="button"/></field>
-        <field name="createLink" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext" position="1">
+        <field name="createLink" title=" " widget-style="buttontext" position="1">
             <hyperlink also-hidden="false" description="${uiLabelMap.CommonCreateNew}"  target="AddContent"/>
         </field>
-        <field name="findContent" title="${uiLabelMap.CommonEmptyHeader}" widget-style="buttontext" position="2">
+        <field name="findContent" title=" " widget-style="buttontext" position="2">
             <hyperlink also-hidden="false" description="${uiLabelMap.CommonFind}"  target="FindContent"/>
         </field>
        <field name="nodeTrailCsv" map-name="dummy">
@@ -384,9 +384,9 @@ under the License.
     </form>
 
     <form name="DataResourceMaster" target="createDataResource" title="" type="single" default-map-name="currentValue"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <auto-fields-entity entity-name="DataResource" default-field-type="edit"/>
-        <field name="dataResourceId"></field>
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}"></field>
         <field name="dataResourceTypeId">
             <drop-down allow-empty="true">
                 <entity-options description="${description}" entity-name="DataResourceType" key-field-name="dataResourceTypeId"/>
@@ -410,7 +410,7 @@ under the License.
                 <list-options list-name="dataCategoryList"  key-name="dataCategoryId"  description="${categoryName}"/>
             </drop-down>
         </field>
-        <field name="mimeTypeId">
+        <field name="mimeTypeId" encode-output="false">
             <drop-down allow-empty="true">
                 <entity-options description="${mimeTypeId} - ${description}" entity-name="MimeType" key-field-name="mimeTypeId">
                     <entity-order-by field-name="mimeTypeId"/>
@@ -428,8 +428,8 @@ under the License.
         <field name="lastModifiedByUserLogin"><display/></field>
     </form>
     <form name="EditDataResourceText" target="updateDataResourceText" title="" type="single" extends="DataResourceMaster"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
-        <field name="dataResourceId"><display/></field>
+        default-title-style="tableheadtext" default-widget-style="inputBox">
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}"><display/></field>
         <field name="dataResourceTypeId"><hidden value="ELECTRONIC_TEXT"/></field>
         <field name="dataResourceTypeIdDisplay" title="${uiLabelMap.CommonType}" field-name="dataResourceTypeId" >
             <display description="ELECTRONIC_TEXT" also-hidden="false"/>
@@ -438,8 +438,8 @@ under the License.
         <field name="submitButton" title="${uiLabelMap.CommonCreate}" widget-style="smallSubmit"><submit button-type="button"/></field>
     </form>
     <form name="ImageUpload" target="uploadImage" title="" type="upload"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
-        <field name="dataResourceId" >
+        default-title-style="tableheadtext" default-widget-style="inputBox">
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}" >
             <display description="${currentValue.dataResourceId}"/>
         </field>
         <field name="objectInfo" title="${uiLabelMap.EcommerceImageFileName}">
@@ -453,11 +453,11 @@ under the License.
         </field>
     </form>
     <form name="AddContent" target="uploadArticleAndImage" title="" type="upload"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="imageData" >
             <file />
         </field>
-        <field name="dataResourceId" >
+        <field name="dataResourceId" title="${uiLabelMap.ContentDataResourceId}" >
             <drop-down allow-empty="false" no-current-selected-key="TEMPLATE_TEXT_ONLY">
                 <option key="TEMPLATE_TEXT_ONLY" description="${uiLabelMap.EcommerceTextOnly}"/>
                 <option key="TEMPLATE_IMAGE_CENTERED" description="${uiLabelMap.EcommerceImageCenteredAbove}"/>
@@ -512,7 +512,7 @@ under the License.
         </field>
     </form>
     <form name="AddResponse" target="uploadResponse" title="" type="single" extends="AddContent"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="contentIdTo" title="${uiLabelMap.EcommerceInResponseTo}">
             <display description="${contentIdTo}"/>
         </field>
@@ -558,7 +558,7 @@ under the License.
     </form>
 
     <form name="EditResponse" target="uploadResponse" title="" type="upload" extends="AddContent"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="contentIdTo" title="${uiLabelMap.EcommerceInResponseTo}">
             <display description="${contentIdTo}"/>
         </field>
@@ -590,7 +590,7 @@ under the License.
     </form>
 
     <form name="EditAddContentMaster" target="" title="" type="single"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="dataResourceId" map-name="currentValue">
             <hidden/>
         </field>
@@ -644,7 +644,7 @@ under the License.
                 <hidden value="${dataResourceTypeId}"/>
         </field>
 <!--
-        <field name="submitContentEdit" title="${uiLabelMap.CommonEmptyHeader}">
+        <field name="submitContentEdit" title=" ">
             <hyperlink also-hidden="false" description="Submit" target="javascript:document.EditAddContent.action='${persistAction}'; document.EditAddContent.submit()" target-type="plain"/>
         </field>
 -->
@@ -662,7 +662,7 @@ under the License.
 -->
 
     <form name="EditAddImageMaster" target="" title="" type="upload"
-        default-title-style="tableheadtext" default-tooltip-style="tabletext" default-widget-style="inputBox">
+        default-title-style="tableheadtext" default-widget-style="inputBox">
         <field name="dataResourceId" map-name="currentValue">
             <hidden/>
         </field>

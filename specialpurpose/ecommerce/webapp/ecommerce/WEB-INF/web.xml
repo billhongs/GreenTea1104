@@ -35,11 +35,6 @@ under the License.
         <description>A unique name used to identify/recognize the local dispatcher for the Service Engine</description>
     </context-param>
     <context-param>
-        <param-name>serviceReaderUrls</param-name>
-        <param-value>/WEB-INF/services.xml</param-value>
-        <description>Configuration File(s) For The Service Dispatcher</description>
-    </context-param>
-    <context-param>
         <param-name>entityDelegatorName</param-name>
         <param-value>default</param-value>
         <description>The Name of the Entity Delegator to use, defined in entityengine.xml</description>
@@ -59,6 +54,22 @@ under the License.
     </context-param>
 
     <filter>
+        <filter-name>CatalogUrlFilter</filter-name>
+        <display-name>CatalogUrlFilter</display-name>
+        <filter-class>org.ofbiz.product.category.CatalogUrlFilter</filter-class>
+        <init-param><param-name>defaultLocaleString</param-name><param-value>en_US</param-value></init-param>
+    </filter>
+    <filter>
+        <filter-name>ContentUrlFilter</filter-name>
+        <display-name>ContentUrlFilter</display-name>
+        <filter-class>org.ofbiz.content.content.ContentUrlFilter</filter-class>
+        <init-param>
+            <param-name>defaultLocaleString</param-name>
+            <param-value>en_US</param-value>
+        </init-param>
+        <init-param><param-name>viewRequest</param-name><param-value>ViewBlogArticle</param-value></init-param>
+    </filter>
+    <filter>
         <filter-name>ContextFilter</filter-name>
         <display-name>ContextFilter</display-name>
         <filter-class>org.ofbiz.webapp.control.ContextFilter</filter-class>
@@ -68,23 +79,21 @@ under the License.
         </init-param>
         <init-param>
             <param-name>allowedPaths</param-name>
-            <param-value>/error:/control:/products:/select:/index.html:/index.jsp:/default.html:/default.jsp:/images</param-value>
+            <param-value>/error:/control:/products:/select:/index.html:/index.jsp:/robots.txt:/default.html:/default.jsp:/images</param-value>
         </init-param>
-        <!-- replaced by a 404 handling -->
-        <!--init-param>
-            <param-name>errorCode</param-name>
-            <param-value>403</param-value>
-        </init-param>
-        <init-param>
-            <param-name>redirectPath</param-name>
-            <param-value>/control/main</param-value>
-        </init-param-->
     </filter>
     <filter-mapping>
-        <filter-name>ContextFilter</filter-name>
-            <url-pattern>/*</url-pattern>
+        <filter-name>CatalogUrlFilter</filter-name>
+        <url-pattern>/*</url-pattern>
     </filter-mapping>
-
+    <filter-mapping>
+        <filter-name>ContentUrlFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>ContextFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
 
     <listener><listener-class>org.ofbiz.webapp.control.ControlEventListener</listener-class></listener>
     <!-- NOTE: not all app servers support mounting implementations of the HttpSessionActivationListener interface -->
@@ -143,10 +152,9 @@ under the License.
         <welcome-file>index.html</welcome-file>
         <welcome-file>index.htm</welcome-file>
     </welcome-file-list>
-    
+
     <error-page>
         <error-code>404</error-code>
         <location>/error/404.jsp</location>
     </error-page>
-    
 </web-app>

@@ -23,6 +23,13 @@ under the License.
     <description>General Application CommonExt Configuration File</description>
     
     <!-- Request Mappings -->
+    
+    <request-map uri="deleteSystemInfoNote">
+        <security https="true" auth="true"/>
+        <event type="service" invoke="deleteSystemInfoNote"/>
+        <response name="success" type="view-last"/>
+    </request-map>
+    
     <request-map uri="deleteAllSystemNotes">
         <security https="true" auth="true"/>
         <event type="service" invoke="deleteAllSystemNotes"/>
@@ -33,6 +40,13 @@ under the License.
         <security https="true" auth="true"/>
         <event type="service" invoke="createSystemInfoNote"/>
         <response name="success" type="view-last"/>
+    </request-map>
+    
+    <request-map uri="stream">
+        <event type="java" path="org.ofbiz.content.data.DataEvents" invoke="serveObjectData"/>
+        <response name="success" type="none"/>
+        <response name="error" type="view" value="error"/>
+        <response name="io-error" type="none"/>
     </request-map>
     
 </site-conf>

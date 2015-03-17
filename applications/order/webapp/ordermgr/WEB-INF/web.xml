@@ -25,11 +25,6 @@ under the License.
     <description>Order Manager Module of the Open For Business Project</description>
 
     <context-param>
-        <param-name>webSiteId</param-name>
-        <param-value>OrderEntry</param-value>
-        <description>A unique ID used to look up the WebSite entity</description>
-    </context-param>
-    <context-param>
         <param-name>entityDelegatorName</param-name>
         <param-value>default</param-value>
         <description>The Name of the Entity Delegator to use, defined in entityengine.xml</description>
@@ -45,12 +40,6 @@ under the License.
         <description>The location of the main-decorator screen to use for this webapp; referred to as a context variable in screen def XML files.</description>
     </context-param>
 
-    <context-param>
-        <param-name>serviceReaderUrls</param-name>
-        <param-value>/WEB-INF/services.xml</param-value>
-        <description>Configuration File(s) For The Service Dispatcher</description>
-    </context-param>
-
     <filter>
         <filter-name>ContextFilter</filter-name>
         <display-name>ContextFilter</display-name>
@@ -61,7 +50,8 @@ under the License.
         </init-param>
         <init-param>
             <param-name>allowedPaths</param-name>
-            <param-value>/error:/control:/products:/select:/index.html:/index.jsp:/default.html:/default.jsp:/images:/includes/maincss.css</param-value>
+            <!-- Beware, if you use the Birt component, allowedPaths are not defined here anymore but in Birt web.xml-->
+            <param-value>/error:/control:/products:/select:/index.html:/index.jsp:/default.html:/default.jsp:/js:/includes/maincss.css</param-value>
         </init-param>
         <init-param>
             <param-name>errorCode</param-name>

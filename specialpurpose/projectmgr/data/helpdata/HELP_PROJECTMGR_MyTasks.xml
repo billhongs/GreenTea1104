@@ -22,7 +22,7 @@ under the License.
     xmlns:xi="http://www.w3.org/2001/XInclude"
     xsi:schemaLocation="http://docbook.org/ns/docbook ../../../content/dtd/docbook.xsd"
     xmlns="http://docbook.org/ns/docbook">
-        <title>Project Mgr: My tasks</title>
+        <title>xProject Mgr: My tasks</title>
         <para>
             This overview outlines all tasks the user has been assigned to.
         </para>

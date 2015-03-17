@@ -36,20 +36,20 @@ if (action) {
     conditions.add(EntityCondition.makeCondition("statusId", EntityOperator.EQUALS, null));
     conditionList = EntityCondition.makeCondition(conditions, EntityOperator.OR);
     try {
-        // create resultMap to stop issue with the first puts in the while loop
-        resultMap = [:];
         beganTransaction = TransactionUtil.begin();
-        invItemListItr = delegator.find("InventoryItem", conditionList, null, null, ['productId'], null);
+        invItemListItr = from("InventoryItem").where(conditionList).orderBy("productId").queryIterator();
         while ((inventoryItem = invItemListItr.next()) != null) {
             productId = inventoryItem.productId;
-            product = delegator.findOne("Product", [productId : productId], false);
-            productFacility = delegator.findOne("ProductFacility", [productId : productId, facilityId : facilityId], false);
+            product = from("Product").where("productId", productId).queryOne();
+            productFacility = from("ProductFacility").where("productId", productId, "facilityId", facilityId).queryOne();
             if (productFacility) {
                 quantityOnHandTotal = inventoryItem.getDouble("quantityOnHandTotal");
                 availableToPromiseTotal = inventoryItem.getDouble("availableToPromiseTotal");
                 costPrice = inventoryItem.getDouble("unitCost");
                 retailPrice = 0.0;
-                productPrices = product.getRelated("ProductPrice");
+                totalCostPrice = 0.0;
+                totalRetailPrice = 0.0;
+                productPrices = product.getRelated("ProductPrice", null, null, false);
                 if (productPrices) {
                     productPrices.each { productPrice ->
                         if (("DEFAULT_PRICE").equals(productPrice.productPriceTypeId)) {
@@ -59,12 +59,10 @@ if (action) {
                 }
                 if (costPrice && quantityOnHandTotal) {
                     totalCostPrice = costPrice * quantityOnHandTotal;
-                    resultMap.totalCostPrice = totalCostPrice;
                     totalCostPriceGrandTotal += totalCostPrice;
                 }
                 if (retailPrice && quantityOnHandTotal) {
                     totalRetailPrice = retailPrice * quantityOnHandTotal;
-                    resultMap.totalRetailPrice = totalRetailPrice;
                     totalRetailPriceGrandTotal += totalRetailPrice;
                 }
                 if (quantityOnHandTotal) {
@@ -81,7 +79,7 @@ if (action) {
                 }
 
                 resultMap = [productId : product.productId, quantityOnHand : quantityOnHandTotal, availableToPromise : availableToPromiseTotal,
-                             costPrice : costPrice, retailPrice : retailPrice];
+                             costPrice : costPrice, retailPrice : retailPrice, totalCostPrice : totalCostPrice, totalRetailPrice : totalRetailPrice];
                 inventoryItemTotals.add(resultMap);
             }
         }

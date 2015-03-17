@@ -18,10 +18,10 @@
  */
 
 import org.ofbiz.entity.condition.*
-import org.ofbiz.widget.html.HtmlFormWrapper
+import org.ofbiz.widget.renderer.html.HtmlFormWrapper
 
 shipmentId = parameters.shipmentId;
-shipment = delegator.findOne("Shipment", [shipmentId : shipmentId], false);
+shipment = from("Shipment").where("shipmentId", shipmentId).queryOne();
 
 // orderHeader is needed here to determine type of order and hence types of shipment status
 if (!shipment) {
@@ -29,7 +29,7 @@ if (!shipment) {
 } else {
     primaryOrderId = shipment.primaryOrderId;
 }
-orderHeader = delegator.findOne("OrderHeader", [orderId : primaryOrderId], false);
+orderHeader = from("OrderHeader").where(orderId : primaryOrderId).queryOne();
 
 // the kind of StatusItem to use is based on the type of order
 statusItemTypeId = "SHIPMENT_STATUS";
@@ -42,11 +42,11 @@ context.shipmentId = shipmentId;
 context.shipment = shipment;
 
 if (shipment) {
-    currentStatus = shipment.getRelatedOne("StatusItem");
-    originPostalAddress = shipment.getRelatedOne("OriginPostalAddress");
-    destinationPostalAddress = shipment.getRelatedOne("DestinationPostalAddress");
-    originTelecomNumber = shipment.getRelatedOne("OriginTelecomNumber");
-    destinationTelecomNumber = shipment.getRelatedOne("DestinationTelecomNumber");
+    currentStatus = shipment.getRelatedOne("StatusItem", false);
+    originPostalAddress = shipment.getRelatedOne("OriginPostalAddress", false);
+    destinationPostalAddress = shipment.getRelatedOne("DestinationPostalAddress", false);
+    originTelecomNumber = shipment.getRelatedOne("OriginTelecomNumber", false);
+    destinationTelecomNumber = shipment.getRelatedOne("DestinationTelecomNumber", false);
 
     if (orderHeader) {
         context.productStoreId = orderHeader.productStoreId;

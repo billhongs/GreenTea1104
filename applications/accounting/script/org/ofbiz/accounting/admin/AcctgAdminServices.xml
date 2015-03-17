@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <simple-methods xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods.xsd">
+        xsi:noNamespaceSchemaLocation="http://ofbiz.apache.org/dtds/simple-methods-v2.xsd">
     <!-- ========= Miscellaenous services for accounting ========= -->
     <simple-method method-name="createPartyAcctgPreference"
         short-description="Create accounting preference settings for a party">
@@ -122,7 +122,12 @@ under the License.
 
         <!-- expire all of them -->
         <iterate list="uomConversions" entry="uomConversion">
-            <set from-field="nowTimestamp" field="uomConversion.thruDate"/>
+            <if-empty field="parameters.fromDate">
+                <set from-field="nowTimestamp" field="uomConversion.thruDate"/>
+            <else>
+                <set from-field="parameters.fromDate" field="uomConversion.thruDate"/>
+            </else>
+            </if-empty>
         </iterate>
         <store-list list="uomConversions"/>
 

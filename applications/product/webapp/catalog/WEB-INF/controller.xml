@@ -63,13 +63,6 @@ under the License.
         <response name="success" type="view" value="FastLoadCache"/>
     </request-map>
 
-    <request-map uri="changeDelegator">
-        <security https="true" auth="true"/>
-        <event type="java" path="org.ofbiz.webapp.event.CoreEvents" invoke="changeDelegator"/>
-        <response name="success" type="view" value="main"/>
-        <response name="error" type="view" value="error"/>
-    </request-map>
-
     <request-map uri="advancedsearch">
         <security https="true" auth="true"/>
         <response name="success" type="view" value="advancedsearch"/>
@@ -139,6 +132,10 @@ under the License.
         <security https="true" auth="true"/>
         <response name="success" type="view" value="EditCategory"/>
     </request-map>
+    <request-map uri="EditCategoryAjax">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="EditCategorySection"/>
+    </request-map>
 
     <request-map uri="createProductCategory">
         <security https="true" auth="true"/>
@@ -173,7 +170,7 @@ under the License.
     <request-map uri="updateProductCategoryToCategory">
         <security https="true" auth="true"/>
         <event type="service-multi" path="" invoke="updateProductCategoryToCategory"/>
-        <response name="success" type="view" value="EditCategoryRollup"/>
+        <response name="success" type="request-redirect" value="EditCategoryRollup"/>
         <response name="error" type="view" value="EditCategoryRollup"/>
     </request-map>
     <request-map uri="removeProductCategoryFromCategory">
@@ -578,7 +575,31 @@ under the License.
         <response name="success" type="view" value="EditCategoryContent"/>
         <response name="error" type="view" value="EditCategoryContentContent"/>
     </request-map>
-
+    <request-map uri="createRelatedUrlContentForCategory">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="createRelatedUrlContentForCategory"/>
+        <response name="success" type="view" value="EditCategoryContent"/>
+        <response name="error" type="view" value="EditCategoryContentContent"/>
+    </request-map>
+    <request-map uri="updateRelatedUrlContentForCategory">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="updateRelatedUrlContentForCategory"/>
+        <response name="success" type="view" value="EditCategoryContent"/>
+        <response name="error" type="view" value="EditCategoryContentContent"/>
+    </request-map>
+    <request-map uri="updateDownloadContentForCategory">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="updateDownloadContentForCategory"/>
+        <response name="success" type="view" value="EditCategoryContent"/>
+        <response name="error" type="view" value="EditCategoryContentContent"/>
+    </request-map>
+    <request-map uri="createDownloadContentForCategory">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="createDownloadContentForCategory"/>
+        <response name="success" type="view" value="EditCategoryContent"/>
+        <response name="error" type="view" value="EditCategoryContentContent"/>
+    </request-map>
+    
     <!-- ================ Product Content Requests ================= -->
     <request-map uri="EditProductContent">
         <security https="true" auth="true"/>
@@ -769,6 +790,12 @@ under the License.
     <request-map uri="createProductKeyword">
         <security https="true" auth="true"/>
         <event type="service" path="" invoke="createProductKeyword"/>
+        <response name="success" type="view" value="EditProductKeyword"/>
+        <response name="error" type="view" value="EditProductKeyword"/>
+    </request-map>
+    <request-map uri="updateProductKeyword">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="updateProductKeyword"/>
         <response name="success" type="view" value="EditProductKeyword"/>
         <response name="error" type="view" value="EditProductKeyword"/>
     </request-map>
@@ -1076,8 +1103,7 @@ under the License.
     <request-map uri="UpdateFeatureCategory">
         <security https="true" auth="true"/>
         <event type="service" path="" invoke="updateProductFeatureCategory"/>
-        <response name="success" type="view" value="EditFeatureCategories"/>
-        <response name="error" type="view" value="EditFeatureCategories"/>
+        <response name="success" type="request-redirect-noparam" value="EditFeatureCategories"/>
     </request-map>
 
     <request-map uri="EditFeatureCategoryFeatures">
@@ -1334,14 +1360,19 @@ under the License.
     </request-map>
 
     <!-- ================ ProdCatalog Requests ================= -->
-    <request-map uri="FindProdCatalog">
+    <request-map uri="FindCatalog">
         <security https="true" auth="true"/>
-        <response name="success" type="view" value="FindProdCatalog"/>
+        <response name="success" type="view" value="FindCatalog"/>
     </request-map>
 
     <request-map uri="EditProdCatalog">
         <security https="true" auth="true"/>
         <response name="success" type="view" value="EditProdCatalog"/>
+    </request-map>
+    <request-map uri="CreateSeoProdCatalog">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="createMissingCategoryAndProductAltUrls"/>
+        <response name="success" type="request-redirect" value="EditProdCatalog"/>
     </request-map>
     <request-map uri="createProdCatalog">
         <security https="true" auth="true"/>
@@ -1354,6 +1385,10 @@ under the License.
         <event type="service" path="" invoke="updateProdCatalog"/>
         <response name="success" type="view" value="EditProdCatalog"/>
         <response name="error" type="view" value="EditProdCatalog"/>
+    </request-map>
+    <request-map uri="EditProdCatalogAjax">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="EditProdCatalogSection"/>
     </request-map>
 
     <!-- ================ ProdCatalog Categories Requests ================= -->
@@ -1402,6 +1437,40 @@ under the License.
         <event type="service" path="" invoke="deleteProductStoreCatalog"/>
         <response name="success" type="view" value="EditProdCatalogStores"/>
         <response name="error" type="view" value="EditProdCatalogStores"/>
+    </request-map>
+
+    <request-map uri="ListParentProductStoreGroup"><security https="true" auth="true"/><response name="success" type="view" value="ListParentProductStoreGroup"/></request-map>
+    <request-map uri="EditProductStoreGroup"><security https="true" auth="true"/><response name="success" type="view" value="EditProductStoreGroup"/></request-map>
+    <request-map uri="EditProductStoreGroupAndAssoc"><security https="true" auth="true"/><response name="success" type="view" value="EditProductStoreGroupAndAssoc"/></request-map>
+    <request-map uri="createProductStoreGroup">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="createProductStoreGroup"/>
+        <response name="success" type="view" value="ListParentProductStoreGroup"/>
+        <response name="error" type="view" value="EditProductStoreGroup"/>
+    </request-map>
+    <request-map uri="updateProductStoreGroup">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="updateProductStoreGroup"/>
+        <response name="success" type="view" value="ListParentProductStoreGroup"/>
+        <response name="error" type="view" value="EditProductStoreGroup"/>
+    </request-map>
+    <request-map uri="getProductStoreGroupRollupHierarchy">
+        <security auth="false" https="true"/>
+        <event type="java" path="org.ofbiz.product.store.ProductStoreEvents" invoke="getChildProductStoreGroupTree"/>
+        <response name="success" type="request" value="json"/>
+        <response name="error" type="request" value="json"/>
+    </request-map>
+    <request-map uri="AddProductStoreToGroup">
+        <security auth="true" https="true"/>
+        <event type="service" invoke="createProductStoreGroupMember"/>
+        <response name="success" type="request" value="json"/>
+        <response name="error" type="request" value="json"/>
+    </request-map>
+    <request-map uri="updateProductStoreGroupRollup">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="updateProductStoreGroupRollup"/>
+        <response name="success" type="view" value="ListParentProductStoreGroup"/>
+        <response name="error" type="view" value="EditProductStoreGroup"/>
     </request-map>
 
     <!-- ================ ProdCatalog Parties Requests ================= -->
@@ -2020,7 +2089,7 @@ under the License.
     </request-map>
     <request-map uri="prepareCreateShipMeth">
         <security https="true" auth="true"/>
-        <event type="groovy" path="component://product/webapp/catalog/store/" invoke="prepareCreateShipMeth.groovy"/>
+        <event type="groovy" path="component://product/webapp/catalog/store/prepareCreateShipMeth.groovy"/>
         <response name="success" type="view" value="EditProductStoreShipSetup"/>
         <response name="error" type="view" value="EditProductStoreShipSetup"/>
     </request-map>
@@ -2299,7 +2368,7 @@ under the License.
     </request-map>
     <request-map uri="ListProductStoreFacilityFormOnly">
         <security https="true" auth="true"/>
-        <response name="success" type="view" value="ListProductStoreFacilityFormOnly"/>
+        <response name="success" type="view" value="ListProductStoreFacility"/>
     </request-map>
     <request-map uri="editProductStoreFacility"><security https="true" auth="true"/>
         <response name="success" type="view" value="EditProductStoreFacility"/>
@@ -2319,8 +2388,8 @@ under the License.
     <request-map uri="deleteProductStoreFacility">
         <security https="true" auth="true"/>
         <event type="service" invoke="deleteProductStoreFacility"/>
-        <response name="success" type="view" value="ListProductStoreFacilityFormOnly"/>
-        <response name="error" type="view" value="ListProductStoreFacilityFormOnly"/>
+        <response name="success" type="view" value="ListProductStoreFacility"/>
+        <response name="error" type="view" value="ListProductStoreFacility"/>
     </request-map>
 
     <!-- ================ Keyword Thesaurus Requests ================= -->
@@ -2342,15 +2411,21 @@ under the License.
     </request-map>
 
     <!-- ================ Product Review Requests ================= -->
-    <request-map uri="pendingReviews">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="pendingReviews"/>
-    </request-map>
     <request-map uri="updateProductReview">
         <security https="true" auth="true"/>
-        <event type="service-multi" path="" invoke="updateProductReview"/>
-        <response name="success" type="view" value="pendingReviews"/>
-        <response name="error" type="view" value="pendingReviews"/>
+        <event type="service" path="" invoke="updateProductReview"/>
+        <response name="success" type="request-redirect-noparam" value="FindReviews"/>
+        <response name="error" type="view" value="FindReviews"/>
+    </request-map>
+    <request-map uri="FindReviews">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="FindReviews"/>
+    </request-map>
+    <request-map uri="updateProductReviewStatus">
+        <security https="true" auth="true"/>
+        <event type="service" path="" invoke="setProductReviewStatus"/>
+        <response name="success" type="view" value="FindReviews"/>
+        <response name="error" type="view" value="FindReviews"/>
     </request-map>
 
     <!-- ================ Supplier Product Requests ================= -->
@@ -2594,68 +2669,6 @@ under the License.
         <response name="error" type="view" value="EditProductCommunicationEvents"/>
     </request-map>
     
-    <!-- Web Analytics Request Mappings -->
-    <request-map uri="WebAnalytics">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="FindWebAnalyticsConfigs"/>
-        <response name="error" type="view" value="FindWebAnalyticsConfigs"/>
-    </request-map>
-    <request-map uri="WebAnalyticsConfigs">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="FindWebAnalyticsConfigs"/>
-        <response name="error" type="view" value="FindWebAnalyticsConfigs"/>
-    </request-map>
-    <request-map uri="FindWebAnalyticsConfigs">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="FindWebAnalyticsConfigs"/>
-        <response name="error" type="view" value="FindWebAnalyticsConfigs"/>
-    </request-map>
-    <request-map uri="EditWebAnalyticsConfig">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="EditWebAnalyticsConfig"/>
-        <response name="error" type="view" value="EditWebAnalyticsConfig"/>
-    </request-map>
-    <request-map uri="createWebAnalyticsConfig">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="createWebAnalyticsConfig"/>
-        <response name="success" type="view" value="EditWebAnalyticsConfig"/>
-        <response name="error" type="view" value="EditWebAnalyticsConfig"/>
-    </request-map>
-    <request-map uri="updateWebAnalyticsConfig">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="updateWebAnalyticsConfig"/>
-        <response name="success" type="view" value="EditWebAnalyticsConfig"/>
-        <response name="error" type="view" value="EditWebAnalyticsConfig"/>
-    </request-map>
-    
-    <request-map uri="WebAnalyticsTypes">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="FindWebAnalyticsTypes"/>
-        <response name="error" type="view" value="FindWebAnalyticsTypes"/>
-    </request-map>
-    <request-map uri="FindWebAnalyticsTypes">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="FindWebAnalyticsTypes"/>
-        <response name="error" type="view" value="FindWebAnalyticsTypes"/>
-    </request-map>
-    <request-map uri="EditWebAnalyticsType">
-        <security https="true" auth="true"/>
-        <response name="success" type="view" value="EditWebAnalyticsType"/>
-        <response name="error" type="view" value="EditWebAnalyticsType"/>
-    </request-map>
-    <request-map uri="createWebAnalyticsType">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="createWebAnalyticsType"/>
-        <response name="success" type="view" value="EditWebAnalyticsType"/>
-        <response name="error" type="view" value="EditWebAnalyticsType"/>
-    </request-map>
-    <request-map uri="updateWebAnalyticsType">
-        <security https="true" auth="true"/>
-        <event type="service" invoke="updateWebAnalyticsType"/>
-        <response name="success" type="view" value="EditWebAnalyticsType"/>
-        <response name="error" type="view" value="EditWebAnalyticsType"/>
-    </request-map>
-    
     <!-- ================ Image Management Requests ================= -->
     <request-map uri="Imagemanagement"><security https="true" auth="true"/>
         <response name="success" type="view" value="Imagemanagement"/>
@@ -2844,7 +2857,7 @@ under the License.
     </request-map>
     <request-map uri="checkAction">
         <security https="true" auth="true"/>
-        <event type="groovy" path="component://product/webapp/catalog/WEB-INF/actions/imagemanagement/" invoke="checkAction.groovy"/>
+        <event type="groovy" path="component://product/webapp/catalog/WEB-INF/actions/imagemanagement/checkAction.groovy"/>
         <response name="frame" type="request" value="ImageFrames"/>
         <response name="watermark" type="request" value="ImageWatermarking"/>
         <response name="crop" type="request" value="ImageCropping"/>
@@ -2853,7 +2866,7 @@ under the License.
     </request-map>
     <request-map uri="checkRejected">
         <security https="true" auth="true"/>
-        <event type="groovy" path="component://product/webapp/catalog/WEB-INF/actions/imagemanagement/" invoke="checkRejected.groovy"/>
+        <event type="groovy" path="component://product/webapp/catalog/WEB-INF/actions/imagemanagement/checkRejected.groovy"/>
         <response name="approved" type="view" value="ImageApprove"/>
         <response name="rejected" type="view" value="ListPeopleRejected"/>
     </request-map>
@@ -2888,17 +2901,6 @@ under the License.
         <response name="success" type="view" value="viewPreviewImage"/>
         <response name="error" type="view" value="viewPreviewImage"/>
     </request-map>
-    <request-map uri="multipleUploadImage">
-        <security https="true" auth="true"/>
-        <event type="java" path="org.ofbiz.product.imagemanagement.ImageManagementServices" invoke="multipleUploadImage"/>
-        <response name="success" type="view" value="ImageUpload"/>
-        <response name="error" type="view" value="ImageUpload"/>
-    </request-map>
-    <request-map uri="progressUploadImage">
-        <security https="true" auth="true"/>
-        <event type="java" path="org.ofbiz.virtualvillage.imagemanagement.ImageManagementServices" invoke="progressUploadImage"/>
-        <response name="success" type="view" value="main"/>
-    </request-map>
     <request-map uri="chooseFrameImage">
         <security https="true" auth="true"/>
         <event type="java" path="org.ofbiz.product.imagemanagement.FrameImage" invoke="chooseFrameImage"/>
@@ -2927,9 +2929,9 @@ under the License.
         <security https="true" auth="true"/>
         <response name="success" type="view" value="ImageResize"/>
     </request-map>
-    <request-map uri="resizeAllImageOfProduct">
+    <request-map uri="resizeImages">
         <security https="true" auth="true"/>
-        <event type="service" path="" invoke="resizeAllImageOfProduct"/>
+        <event type="service" path="" invoke="resizeImages"/>
         <response name="success" type="view" value="ImageResize"/>
         <response name="error" type="view" value="ImageResize"/>
     </request-map>
@@ -2962,6 +2964,7 @@ under the License.
     <request-map uri="LookupProductStore"><security auth="true" https="true"/><response name="success" type="view" value="LookupProductStore"/></request-map>
     <request-map uri="LookupFacilityLocation"><security auth="true" https="true"/><response name="success" type="view" value="LookupFacilityLocation"/></request-map>
     <request-map uri="LookupWorkEffort"><security https="true" auth="true"/><response name="success" type="view" value="LookupWorkEffort"/></request-map>
+    <request-map uri="LookupCostComponentCalc"><security https="true" auth="true"/><response name="success" type="view" value="LookupCostComponentCalc"/></request-map>
     <request-map uri="LookupDataResource"><security auth="true" https="true"/><response name="success" type="view" value="LookupDataResource"/></request-map>
     <request-map uri="LookupPerson"><security auth="true" https="true"/><response name="success" type="view" value="LookupPerson"/></request-map>
     <request-map uri="LookupPreferredContactMech"><security https="true" auth="true"/><response name="success" type="view" value="LookupPreferredContactMech"/></request-map>
@@ -2987,8 +2990,6 @@ under the License.
         <response name="error" type="view" value="EditVendorProduct"/>
     </request-map>
 
-    <!-- end of request mappings -->
-    
     <!-- ================ Product Promo Content Requests ================= -->
     <request-map uri="EditProductPromoContent">
         <security https="true" auth="true"/>
@@ -3011,19 +3012,77 @@ under the License.
     <request-map uri="getChild">
         <security auth="false" https="true"/>
         <event type="java" path="org.ofbiz.product.category.CategoryServices" invoke="getChildCategoryTree"/>
-        <response name="success" type="none"/>
+        <response name="success" type="request" value="json"/>
+        <response name="error" type="request" value="json"/>
     </request-map>
+    <request-map uri="listMiniproduct">
+        <security auth="false" https="true"/>
+        <response name="success" type="view" value="listMiniproduct"/>
+    </request-map>
+
+    <!-- ================ Product GroupOrder Requests ================= -->
+    <request-map uri="ViewProductGroupOrder">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="ViewProductGroupOrder"/>
+    </request-map>
+
+    <request-map uri="EditProductGroupOrder">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="EditProductGroupOrder"/>
+    </request-map>
+
+    <request-map uri="createProductGroupOrder">
+        <security https="true" auth="true"/>
+        <event type="service" invoke="createProductGroupOrder"/>
+        <response name="success" type="view" value="ViewProductGroupOrder"/>
+        <response name="error" type="view" value="ViewProductGroupOrder"/>
+    </request-map>
+
+    <request-map uri="updateProductGroupOrder">
+        <security https="true" auth="true"/>
+        <event type="service" invoke="updateProductGroupOrder"/>
+        <response name="success" type="view" value="ViewProductGroupOrder"/>
+        <response name="error" type="view" value="EditProductGroupOrder"/>
+    </request-map>
+
+    <request-map uri="deleteProductGroupOrder">
+        <security https="true" auth="true"/>
+        <event type="service" invoke="deleteProductGroupOrder"/>
+        <response name="success" type="view" value="ViewProductGroupOrder"/>
+        <response name="error" type="view" value="ViewProductGroupOrder"/>
+    </request-map>
+    
+    <!-- ================ Product Tag Requests ================= -->
+    <request-map uri="EditProductTag">
+        <security https="true" auth="true"/>
+        <response name="success" type="view" value="EditProductTag"/>
+    </request-map>
+
+    <request-map uri="updateProductTag">
+        <security https="true" auth="true"/>
+        <event type="service-multi" path="" invoke="updateProductKeyword"/>
+        <response name="success" type="request-redirect" value="EditProductTag"/>
+        <response name="error" type="view" value="EditProductTag"/>
+    </request-map>
+    <!-- end of request mappings -->
 
     <!-- View Mappings -->
     <view-map name="main" type="screen" page="component://product/widget/catalog/CommonScreens.xml#main"/>
 
     <view-map name="ChooseTopCategory" type="screen" page="component://product/widget/catalog/CommonScreens.xml#ChooseTopCategory"/>
     <view-map name="FastLoadCache" type="screen" page="component://product/widget/catalog/CommonScreens.xml#FastLoadCache"/>
+    <view-map name="listMiniproduct" type="screen" page="component://product/widget/catalog/CommonScreens.xml#listMiniproduct"/>
 
     <view-map name="advancedsearch" type="screen" page="component://product/widget/catalog/FindScreens.xml#advancedsearch"/>
     <view-map name="keywordsearch" type="screen" page="component://product/widget/catalog/FindScreens.xml#keywordsearch"/>
     <view-map name="exportproducts" type="screen" page="component://product/widget/catalog/FindScreens.xml#exportproducts"/>
     <view-map name="FindProductById" type="screen" page="component://product/widget/catalog/FindScreens.xml#FindProductById"/>
+
+    <view-map name="FindCatalog" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#FindCatalog"/>
+    <view-map name="EditProdCatalog" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalog"/>
+    <view-map name="EditProdCatalogCategories" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalogCategories"/>
+    <view-map name="EditProdCatalogStores" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalogStores"/>
+    <view-map name="EditProdCatalogParties" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalogParties"/>
 
     <view-map name="FindCategory" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#FindCategory"/>
     <view-map name="EditCategory" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#EditCategory"/>
@@ -3036,6 +3095,7 @@ under the License.
     <view-map name="EditCategoryFeatureCats" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#EditCategoryFeatureCats"/>
     <view-map name="EditCategoryParties" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#EditCategoryParties"/>
     <view-map name="EditProductCategoryLinks" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#EditProductCategoryLinks"/>
+    <view-map name="EditCategorySection" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#EditCategorySection"/>
 
     <view-map name="createProductInCategoryStart" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#createProductInCategoryStart"/>
     <view-map name="CreateProductInCategoryCheckExisting" type="screen" page="component://product/widget/catalog/CategoryScreens.xml#CreateProductInCategoryCheckExisting"/>
@@ -3049,6 +3109,7 @@ under the License.
     <view-map name="newFixedAssetProduct" type="screen" page="component://product/widget/catalog/ProductScreens.xml#newFixedAssetProduct"/>
     <view-map name="ProductPriceHistory" type="screen" page="component://product/widget/catalog/ProductScreens.xml#ProductPriceHistory"/>
     <view-map name="ProductBarCode.pdf" type="screenfop" page="component://product/widget/catalog/ProductScreens.xml#ProductBarCode.fo" content-type="application/pdf" encoding="none"/>
+    
 
     <view-map name="EditProductContent" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditProductContent"/>
     <view-map name="EditProductGeos" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditProductGeos"/>
@@ -3103,11 +3164,11 @@ under the License.
     <view-map name="ListFeaturePrice" type="screen" page="component://product/widget/catalog/FeatureScreens.xml#ListFeaturePrice"/>
     <view-map name="CreateFeature" type="screen" page="component://product/widget/catalog/FeatureScreens.xml#CreateFeature"/>
 
-    <view-map name="FindProdCatalog" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#FindProdCatalog"/>
     <view-map name="EditProdCatalog" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalog"/>
     <view-map name="EditProdCatalogCategories" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalogCategories"/>
     <view-map name="EditProdCatalogStores" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalogStores"/>
     <view-map name="EditProdCatalogParties" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalogParties"/>
+    <view-map name="EditProdCatalogSection" type="screen" page="component://product/widget/catalog/CatalogScreens.xml#EditProdCatalogSection"/>
 
     <view-map name="FindProductPromo" type="screen" page="component://product/widget/catalog/PromoScreens.xml#FindProductPromo"/>
     <view-map name="EditProductPromo" type="screen" page="component://product/widget/catalog/PromoScreens.xml#EditProductPromo"/>
@@ -3138,12 +3199,14 @@ under the License.
     <view-map name="EditProductStoreVendorShipments" type="screen" page="component://product/widget/catalog/StoreScreens.xml#EditProductStoreVendorShipments"/>
     <view-map name="ProductStoreFacilities" page="component://product/widget/catalog/CommonScreens.xml#ProductStoreFacilities" type="screen"/>
     <view-map name="ListProductStoreFacility" page="component://product/widget/catalog/StoreScreens.xml#ListProductStoreFacility" type="screen"/>
-    <view-map name="ListProductStoreFacilityFormOnly" page="component://product/widget/catalog/StoreScreens.xml#ListProductStoreFacilityFormOnly" type="screen"/>
     <view-map name="EditProductStoreFacility" page="component://product/widget/catalog/StoreScreens.xml#EditProductStoreFacility" type="screen"/>
     <view-map name="EditVendorProduct" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditVendorProduct"/>
     <view-map name="EditKeywordThesaurus" type="screen" page="component://product/widget/catalog/ThesaurusScreens.xml#EditKeywordThesaurus"/>
+    <view-map name="ListParentProductStoreGroup" type="screen" page="component://product/widget/catalog/StoreScreens.xml#ListParentProductStoreGroup"/>
+    <view-map name="EditProductStoreGroup" type="screen" page="component://product/widget/catalog/StoreScreens.xml#EditProductStoreGroup"/>
+    <view-map name="EditProductStoreGroupAndAssoc" type="screen" page="component://product/widget/catalog/StoreScreens.xml#EditProductStoreGroupAndAssoc"/>
 
-    <view-map name="pendingReviews" type="screen" page="component://product/widget/catalog/ReviewScreens.xml#pendingReviews"/>
+    <view-map name="FindReviews" type="screen" page="component://product/widget/catalog/ReviewScreens.xml#FindReviews"/>
 
     <view-map name="ViewProductOrder" type="screen" page="component://product/widget/catalog/ProductScreens.xml#ViewProductOrder"/>
     <view-map name="EditProductCommunicationEvents" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditProductCommunicationEvents"/>
@@ -3158,16 +3221,14 @@ under the License.
     <view-map name="EditProductConfigItemContentContent" type="screen" page="component://product/widget/catalog/ConfigScreens.xml#EditProductConfigItemContentContent"/>
 
     <view-map name="EditProductWorkEfforts" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditProductWorkEfforts"/>
+    <view-map name="ViewProductGroupOrder" type="screen" page="component://product/widget/catalog/ProductScreens.xml#ViewProductGroupOrder"/>
+    <view-map name="EditProductGroupOrder" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditProductGroupOrder"/>
 
     <view-map name="ListQuantityBreaks" type="screen" page="component://product/widget/catalog/ShippingScreens.xml#ListQuantityBreaks"/>
     <view-map name="ListShipmentMethodTypes" type="screen" page="component://product/widget/catalog/ShippingScreens.xml#ListShipmentMethodTypes"/>
     <view-map name="ListCarrierShipmentMethods" type="screen" page="component://product/widget/catalog/ShippingScreens.xml#ListCarrierShipmentMethods"/>
 
-    <!-- Web Analytics View -->
-    <view-map name="FindWebAnalyticsConfigs" type="screen" page="component://product/widget/catalog/WebAnalyticsScreens.xml#FindWebAnalyticsConfigs"/>
-    <view-map name="EditWebAnalyticsConfig" type="screen" page="component://product/widget/catalog/WebAnalyticsScreens.xml#EditWebAnalyticsConfig"/>
-    <view-map name="FindWebAnalyticsTypes" type="screen" page="component://product/widget/catalog/WebAnalyticsScreens.xml#FindWebAnalyticsTypes"/>
-    <view-map name="EditWebAnalyticsType" type="screen" page="component://product/widget/catalog/WebAnalyticsScreens.xml#EditWebAnalyticsType"/>
+    <view-map name="EditProductTag" type="screen" page="component://product/widget/catalog/ProductScreens.xml#EditProductTag"/>
 
     <!-- Lookup request mappings -->
     <view-map name="LookupContent" page="component://content/widget/content/ContentScreens.xml#LookupContent" type="screen"/>
@@ -3185,11 +3246,12 @@ under the License.
     <view-map name="LookupProductStore" type="screen" page="component://product/widget/catalog/LookupScreens.xml#LookupProductStore"/>
     <view-map name="LookupFacilityLocation" page="component://product/widget/facility/LookupScreens.xml#LookupFacilityLocation" type="screen"/>
     <view-map name="LookupWorkEffort" type="screen" page="component://workeffort/widget/LookupScreens.xml#LookupWorkEffort"/>
+    <view-map name="LookupCostComponentCalc" type="screen" page="component://product/widget/catalog/LookupScreens.xml#LookupCostComponentCalc"/>
     <view-map name="LookupDataResource" page="component://content/widget/content/DataResourceScreens.xml#LookupDataResource" type="screen"/>
     <view-map name="LookupPerson" page="component://party/widget/partymgr/LookupScreens.xml#LookupPerson" type="screen"/>
     <view-map name="LookupPreferredContactMech" type="screen" page="component://marketing/widget/ContactListScreens.xml#LookupPreferredContactMech"/>
-    <view-map name="LookupContactList" type="screen" page="component://party/widget/partymgr/PartyContactListScreens.xml#ListLookupContactList"/>
-    
+    <view-map name="LookupContactList" type="screen" page="component://marketing/widget/ContactListScreens.xml#LookupContactList"/>
+
     <!-- Image Management request mappings -->
     <view-map name="Imagemanagement" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#Imagemanagement"/>
     <view-map name="ImageGallery" page="component://product/widget/catalog/ImageManagementScreens.xml#ImageGallery" type="screen"/>
@@ -3214,8 +3276,6 @@ under the License.
     <view-map name="ListImageRecentlyApproved" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#ListImageRecentlyApproved"/>
     <view-map name="ListPeopleApproved" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#ListPeopleApproved"/>
     <view-map name="ListPeopleRejected" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#ListPeopleRejected"/>
-    <view-map name="AutomaticResize" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#AutomaticResize"/>
-    <view-map name="ListAutomaticResize" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#ListAutomaticResize"/>
     <view-map name="LookupImageFrame" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#LookupImageFrame"/>
     <view-map name="ImageResize" type="screen" page="component://product/widget/catalog/ImageManagementScreens.xml#ImageResize"/>
     <!-- end of view mappings -->

@@ -35,6 +35,8 @@ import org.ofbiz.entity.DelegatorFactory;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
 import org.ofbiz.entity.model.ModelEntity;
+import org.ofbiz.entity.util.EntityQuery;
+import org.ofbiz.entity.util.EntityUtilProperties;
 
 /**
  * Handles saving and maintaining visit information
@@ -44,6 +46,17 @@ public class VisitHandler {
     public static final String module = VisitHandler.class.getName();
 
     public static final String visitorCookieName = "OFBiz.Visitor";
+
+    protected static final InetAddress address;
+    static {
+        InetAddress tmpAddress = null;
+        try {
+            tmpAddress = InetAddress.getLocalHost();
+        } catch (java.net.UnknownHostException e) {
+            Debug.logError("Unable to get server's internet address: " + e.toString(), module);
+        }
+        address = tmpAddress;
+    }
 
     public static void setUserLogin(HttpSession session, GenericValue userLogin, boolean userCreated) {
         if (userLogin == null) return;
@@ -153,7 +166,7 @@ public class VisitHandler {
                                 
                                 // sometimes these values get stale, so check it before we use it
                                 try {
-                                    GenericValue checkVisitor = delegator.findOne("Visitor", false, "visitorId", visitorId);
+                                    GenericValue checkVisitor = EntityQuery.use(delegator).from("Visitor").where("visitorId", visitorId).queryOne();
                                     if (checkVisitor == null) {
                                         GenericValue newVisitor = delegator.create("Visitor", "visitorId", visitorId);
                                         session.setAttribute("visitor", newVisitor);
@@ -165,17 +178,11 @@ public class VisitHandler {
                             }
 
                             // get localhost ip address and hostname to store
-                            try {
-                                InetAddress address = InetAddress.getLocalHost();
-                                if (address != null) {
-                                    visit.set("serverIpAddress", address.getHostAddress());
-                                    visit.set("serverHostName", address.getHostName());
-                                } else {
-                                    Debug.logError("Unable to get localhost internet address, was null", module);
-                                }
-                            } catch (java.net.UnknownHostException e) {
-                                Debug.logError("Unable to get localhost internet address: " + e.toString(), module);
+                            if (address != null) {
+                                visit.set("serverIpAddress", address.getHostAddress());
+                                visit.set("serverHostName", address.getHostName());
                             }
+
                             try {
                                 visit = delegator.createSetNextSeqId(visit);
                                 session.setAttribute("visit", visit);
@@ -198,7 +205,8 @@ public class VisitHandler {
 
     public static GenericValue getVisitor(HttpServletRequest request, HttpServletResponse response) {
         // this defaults to true: ie if anything but "false" it will be true
-        if (!UtilProperties.propertyValueEqualsIgnoreCase("serverstats", "stats.persist.visitor", "false")) {
+    	Delegator delegator = (Delegator) request.getAttribute("delegator");
+        if (!EntityUtilProperties.propertyValueEqualsIgnoreCase("serverstats", "stats.persist.visitor", "false", delegator)) {
             HttpSession session = request.getSession();
 
             GenericValue visitor = (GenericValue) session.getAttribute("visitor");
@@ -206,7 +214,6 @@ public class VisitHandler {
                 synchronized (session) {
                     visitor = (GenericValue) session.getAttribute("visitor");
                     if (visitor == null) {
-                        Delegator delegator = (Delegator) request.getAttribute("delegator");
 
                         String delegatorName = (String) session.getAttribute("delegatorName");
                         if (delegator == null && UtilValidate.isNotEmpty(delegatorName)) {
@@ -242,7 +249,7 @@ public class VisitHandler {
                                 }
                             } else {
                                 try {
-                                    visitor = delegator.findOne("Visitor", false, "visitorId", cookieVisitorId);
+                                    visitor = EntityQuery.use(delegator).from("Visitor").where("visitorId", cookieVisitorId).queryOne();
                                     if (visitor == null) {
                                         // looks like we have an ID that doesn't exist in our database, so we'll create a new one
                                         visitor = delegator.makeValue("Visitor");

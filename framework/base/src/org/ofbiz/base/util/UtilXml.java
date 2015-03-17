@@ -29,6 +29,7 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.URL;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -44,8 +45,6 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-
-import javolution.util.FastList;
 
 import org.apache.xerces.parsers.DOMParser;
 import org.apache.xerces.xni.Augmentations;
@@ -73,6 +72,11 @@ import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.converters.Converter;
+import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.UnmarshallingContext;
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 
 /**
  * Utilities methods to simplify dealing with JAXP & DOM XML parsing
@@ -81,7 +85,13 @@ import com.thoughtworks.xstream.XStream;
 public class UtilXml {
 
     public static final String module = UtilXml.class.getName();
-    protected static final XStream xstream = new XStream();
+    private static final XStream xstream = createXStream();
+
+    private static XStream createXStream() {
+        XStream xstream = new XStream();
+        xstream.registerConverter(new UnsupportedClassConverter());
+        return xstream;
+    }
 
     // ----- DOM Level 3 Load and Save Methods -- //
 
@@ -172,6 +182,8 @@ public class UtilXml {
      * @throws TransformerConfigurationException
      */
     public static Transformer createOutputTransformer(String encoding, boolean omitXmlDeclaration, boolean indent, int indentAmount) throws TransformerConfigurationException {
+        // Developers: This stylesheet strips all formatting space characters from the XML,
+        // then indents the XML using the specified indentation.
         StringBuilder sb = new StringBuilder();
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         sb.append("<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" xmlns:xalan=\"http://xml.apache.org/xslt\" version=\"1.0\">\n");
@@ -653,7 +665,7 @@ public class UtilXml {
     public static List<? extends Element> childElementList(Element element) {
         if (element == null) return null;
 
-        List<Element> elements = FastList.newInstance();
+        List<Element> elements = new LinkedList<Element>();
         Node node = element.getFirstChild();
 
         if (node != null) {
@@ -673,7 +685,7 @@ public class UtilXml {
     public static List<? extends Element> childElementList(Element element, String childElementName) {
         if (element == null) return null;
 
-        List<Element> elements = FastList.newInstance();
+        List<Element> elements = new LinkedList<Element>();
         Node node = element.getFirstChild();
 
         if (node != null) {
@@ -695,7 +707,7 @@ public class UtilXml {
     public static List<? extends Element> childElementList(Element element, Set<String> childElementNames) {
         if (element == null) return null;
 
-        List<Element> elements = FastList.newInstance();
+        List<Element> elements = new LinkedList<Element>();
         if (childElementNames == null) return elements;
         Node node = element.getFirstChild();
 
@@ -720,7 +732,7 @@ public class UtilXml {
     /** Return a List of Element objects that are children of the given DocumentFragment */
     public static List<? extends Element> childElementList(DocumentFragment fragment) {
         if (fragment == null) return null;
-        List<Element> elements = FastList.newInstance();
+        List<Element> elements = new LinkedList<Element>();
         Node node = fragment.getFirstChild();
         if (node != null) {
             do {
@@ -738,7 +750,7 @@ public class UtilXml {
     public static List<? extends Node> childNodeList(Node node) {
         if (node == null) return null;
 
-        List<Node> nodes = FastList.newInstance();
+        List<Node> nodes = new LinkedList<Node>();
 
         do {
             if (node.getNodeType() == Node.ELEMENT_NODE || node.getNodeType() == Node.COMMENT_NODE) {
@@ -950,6 +962,29 @@ public class UtilXml {
         }
     }
 
+    public static String nodeNameToJavaName(String nodeName, boolean capitalizeFirst) {
+        boolean capitalize = capitalizeFirst;
+        StringBuilder sb = new StringBuilder();
+        for (int index = 0; index < nodeName.length(); index++) {
+            char character = nodeName.charAt(index);
+            if ((sb.length() == 0 && !Character.isJavaIdentifierStart(character)) || (sb.length() != 0 && !Character.isJavaIdentifierPart(character))) {
+                capitalize = true;
+                continue;
+            }
+            if (sb.length() == 0 && !capitalizeFirst) {
+                sb.append(Character.toLowerCase(character));
+            } else {
+                if (capitalize) {
+                    sb.append(Character.toUpperCase(character));
+                    capitalize = false;
+                } else {
+                    sb.append(character);
+                }
+            }
+        }
+        return sb.toString();
+    }
+
     /**
      * Local entity resolver to handle J2EE DTDs. With this a http connection
      * to sun is not needed during deployment.
@@ -1091,4 +1126,26 @@ public class UtilXml {
             }
         }
     }
+
+    private static class UnsupportedClassConverter implements Converter {
+
+        @Override
+        public boolean canConvert(@SuppressWarnings("rawtypes") Class arg0) {
+            if (java.lang.ProcessBuilder.class.equals(arg0)) {
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void marshal(Object arg0, HierarchicalStreamWriter arg1, MarshallingContext arg2) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Object unmarshal(HierarchicalStreamReader arg0, UnmarshallingContext arg1) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
 }

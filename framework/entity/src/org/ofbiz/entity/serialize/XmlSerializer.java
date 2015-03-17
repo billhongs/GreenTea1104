@@ -46,12 +46,12 @@ import java.util.WeakHashMap;
 import javax.xml.bind.DatatypeConverter;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.ofbiz.base.util.Debug;
+import org.ofbiz.base.util.StringUtil;
 import org.ofbiz.base.util.UtilGenerics;
 import org.ofbiz.base.util.UtilMisc;
-import org.ofbiz.base.util.UtilXml;
-import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilObject;
-import org.ofbiz.base.util.StringUtil;
+import org.ofbiz.base.util.UtilXml;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericPK;
 import org.ofbiz.entity.GenericValue;
@@ -82,9 +82,9 @@ public class XmlSerializer {
      * If the XML string contains a serialized <code>GenericValue</code> or <code>GenericPK</code>
      * then it is possible to unintentionally corrupt the database.</p>
      * 
-     * @param content
-     * @param delegator
-     * @return
+     * @param content the content
+     * @param delegator the delegator
+     * @return return a deserialized object from XML string
      * @throws SerializeException
      * @throws SAXException
      * @throws ParserConfigurationException
@@ -110,9 +110,9 @@ public class XmlSerializer {
      * contains a serialized <code>GenericValue</code> or <code>GenericPK</code>
      * then it is possible to unintentionally corrupt the database.</p>
      * 
-     * @param document
-     * @param delegator
-     * @return
+     * @param document the document
+     * @param delegator the delegator
+     * @return returns a deserialized object from a DOM document
      * @throws SerializeException
      */
     public static Object deserialize(Document document, Delegator delegator) throws SerializeException {
@@ -310,15 +310,15 @@ public class XmlSerializer {
             } else if ("std-Double".equals(tagName)) {
                 String valStr = element.getAttribute("value");
                 return Double.valueOf(valStr);
+            } else if ("std-BigDecimal".equals(tagName)) {
+                String valStr = element.getAttribute("value");
+                return new BigDecimal(valStr);
             } else if ("std-Boolean".equals(tagName)) {
                 String valStr = element.getAttribute("value");
                 return Boolean.valueOf(valStr);
             } else if ("std-Locale".equals(tagName)) {
                 String valStr = element.getAttribute("value");
                 return UtilMisc.parseLocale(valStr);
-            } else if ("std-BigDecimal".equals(tagName)) {
-                String valStr = element.getAttribute("value");
-                return new BigDecimal(valStr);
             } else if ("std-Date".equals(tagName)) {
                 String valStr = element.getAttribute("value");
                 DateFormat formatter = getDateFormat();

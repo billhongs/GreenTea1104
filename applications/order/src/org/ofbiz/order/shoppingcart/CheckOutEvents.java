@@ -43,17 +43,17 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
-import org.ofbiz.entity.util.EntityUtil;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.marketing.tracking.TrackingCodeEvents;
 import org.ofbiz.order.order.OrderReadHelper;
 import org.ofbiz.party.party.PartyWorker;
-import org.ofbiz.product.catalog.CatalogWorker;
 import org.ofbiz.product.store.ProductStoreWorker;
 import org.ofbiz.service.GenericServiceException;
 import org.ofbiz.service.LocalDispatcher;
 import org.ofbiz.service.ModelService;
 import org.ofbiz.service.ServiceUtil;
 import org.ofbiz.webapp.stats.VisitHandler;
+import org.ofbiz.webapp.website.WebSiteWorker;
 
 /**
  * Events used for processing checkout and orders.
@@ -178,7 +178,7 @@ public class CheckOutEvents {
                 BigDecimal billingAccountAmt = null;
                 billingAccountAmt = determineBillingAccountAmount(billingAccountId, request.getParameter("billingAccountAmount"), dispatcher);
                 if ((billingAccountId != null) && !"_NA_".equals(billingAccountId) && (billingAccountAmt == null)) {
-                    request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resource_error,"OrderInvalidAmountSetForBillingAccount", UtilMisc.toMap("billingAccountId",billingAccountId), (cart != null ? cart.getLocale() : Locale.getDefault())));
+                    request.setAttribute("_ERROR_MESSAGE_", UtilProperties.getMessage(resource_error,"OrderInvalidAmountSetForBillingAccount", UtilMisc.toMap("billingAccountId",billingAccountId), cart.getLocale()));
                     return "error";
                 }
                 selectedPaymentMethods.put("EXT_BILLACT", UtilMisc.<String, Object>toMap("amount", billingAccountAmt, "securityCode", null));
@@ -234,8 +234,8 @@ public class CheckOutEvents {
 
         // if no shipping applies, set the no shipment method and skip to payment
         if (!cart.shippingApplies()) {
-            cart.setShipmentMethodTypeId("NO_SHIPPING");
-            cart.setCarrierPartyId("_NA_");
+            cart.setAllShipmentMethodTypeId("NO_SHIPPING");
+            cart.setAllCarrierPartyId("_NA_");
             page = "payment";
         }
 
@@ -273,7 +273,7 @@ public class CheckOutEvents {
         ShoppingCart cart = (ShoppingCart) request.getSession().getAttribute("shoppingCart");
         String shipToCustomerPartyId = request.getParameter("shipToCustomerPartyId");
         cart.setShipToCustomerPartyId(shipToCustomerPartyId);
-        cart.setShippingContactMechId(null);
+        cart.setAllShippingContactMechId(null);
         return "success";
     }
 
@@ -446,7 +446,7 @@ public class CheckOutEvents {
         String distributorId = (String) session.getAttribute("_DISTRIBUTOR_ID_");
         String affiliateId = (String) session.getAttribute("_AFFILIATE_ID_");
         String visitId = VisitHandler.getVisitId(session);
-        String webSiteId = CatalogWorker.getWebSiteId(request);
+        String webSiteId = WebSiteWorker.getWebSiteId(request);
 
         callResult = checkOutHelper.createOrder(userLogin, distributorId, affiliateId, trackingCodeOrders, areOrderItemsExploded, visitId, webSiteId);
         if (callResult != null) {
@@ -508,12 +508,12 @@ public class CheckOutEvents {
         ShoppingCart cart = ShoppingCartEvents.getCartObject(request);
         GenericValue productStore = null;
         try {
-            productStore = delegator.findByPrimaryKeyCache("ProductStore", UtilMisc.toMap("productStoreId", cart.getProductStoreId()));
+            productStore = EntityQuery.use(delegator).from("ProductStore").where("productStoreId", cart.getProductStoreId()).cache().queryOne();
+            Debug.logInfo("checkShipmentNeeded: reqShipAddrForDigItems=" + productStore.getString("reqShipAddrForDigItems"), module);
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error getting ProductStore: " + e.toString(), module);
         }
 
-        Debug.logInfo("checkShipmentNeeded: reqShipAddrForDigItems=" + productStore.getString("reqShipAddrForDigItems"), module);
         if (productStore != null && "N".equals(productStore.getString("reqShipAddrForDigItems"))) {
             Debug.logInfo("checkShipmentNeeded: cart.containOnlyDigitalGoods()=" + cart.containOnlyDigitalGoods(), module);
             // don't require shipping for all digital items
@@ -650,12 +650,10 @@ public class CheckOutEvents {
         GenericValue productStore = ProductStoreWorker.getProductStore(cart.getProductStoreId(), delegator);
         String paymentMethodTypeId = request.getParameter("paymentMethodTypeId");
         if ("EXT_PAYPAL".equals(paymentMethodTypeId) || cart.getPaymentMethodTypeIds().contains("EXT_PAYPAL")) {
-            List<GenericValue> payPalProdStorePaySettings = null;
             try {
-                payPalProdStorePaySettings = delegator.findByAnd("ProductStorePaymentSetting", "productStoreId", productStore.getString("productStoreId"), "paymentMethodTypeId", "EXT_PAYPAL");
-                GenericValue payPalProdStorePaySetting = EntityUtil.getFirst(payPalProdStorePaySettings);
+                GenericValue payPalProdStorePaySetting = EntityQuery.use(delegator).from("ProductStorePaymentSetting").where("productStoreId", productStore.getString("productStoreId"), "paymentMethodTypeId", "EXT_PAYPAL").queryFirst();
                 if (payPalProdStorePaySetting != null) {
-                    GenericValue gatewayConfig = payPalProdStorePaySetting.getRelatedOne("PaymentGatewayConfig");
+                    GenericValue gatewayConfig = payPalProdStorePaySetting.getRelatedOne("PaymentGatewayConfig", false);
                     if (gatewayConfig != null && "PAYFLOWPRO".equals(gatewayConfig.getString("paymentGatewayConfigTypeId"))) {
                         return "paypal";
                     }
@@ -741,24 +739,24 @@ public class CheckOutEvents {
         }
 
         // set the customer info
-        if (mode != null && mode.equals("default")) {
+        if (mode.equals("default")) {
             cart.setDefaultCheckoutOptions(dispatcher);
         }
 
         // remove the empty ship groups
-        if (mode != null && mode.equals("removeEmptyShipGroups")) {
+        if (mode.equals("removeEmptyShipGroups")) {
             cart.cleanUpShipGroups();
         }
 
         // set the customer info
-        if (mode != null && mode.equals("cust")) {
+        if (mode.equals("cust")) {
             String partyId = (String) request.getAttribute("partyId");
             if (partyId != null) {
                 cart.setOrderPartyId(partyId);
                 // no userLogin means we are an anonymous shopper; fake the UL for service calls
                 if (userLogin == null) {
                     try {
-                        userLogin = delegator.findByPrimaryKey("UserLogin", UtilMisc.toMap("userLoginId", "anonymous"));
+                        userLogin = EntityQuery.use(delegator).from("UserLogin").where("userLoginId", "anonymous").queryOne();
                     } catch (GenericEntityException e) {
                         Debug.logError(e, module);
                     }
@@ -776,30 +774,36 @@ public class CheckOutEvents {
             }
         }
 
-        if (mode != null && mode.equals("addpty")) {
+        if (mode.equals("addpty")) {
             cart.setAttribute("addpty", "Y");
         }
 
-        if (mode != null && mode.equals("term")) {
+        if (mode.equals("term")) {
            cart.setOrderTermSet(true);
         }
 
         CheckOutHelper checkOutHelper = new CheckOutHelper(dispatcher, delegator, cart);
 
         // ====================================================================================
-        if (mode != null && (mode.equals("ship") || mode.equals("options"))) {
+        if (mode.equals("ship") || mode.equals("options")) {
             Map<String, Object> callResult = ServiceUtil.returnSuccess();
             List<String> errorMessages = new ArrayList<String>();
             Map<String, Object> errorMaps = new HashMap<String, Object>();
             for (int shipGroupIndex = 0; shipGroupIndex < cart.getShipGroupSize(); shipGroupIndex++) {
                 // set the shipping method
-                if (mode != null && mode.equals("ship")) {
+                if (mode.equals("ship")) {
                     shippingContactMechId = request.getParameter(shipGroupIndex + "_shipping_contact_mech_id");
+                    String facilityId = request.getParameter(shipGroupIndex + "_shipGroupFacilityId");
                     if (shippingContactMechId == null) {
-                        shippingContactMechId = (String) request.getAttribute("contactMechId"); // FIXME
+                        shippingContactMechId = (String) request.getAttribute("contactMechId");
+                    } else if(cart.getOrderType().equals("PURCHASE_ORDER")){
+                        String[] shipInfo = shippingContactMechId.split("_@_");
+                        if(shipInfo.length > 1){
+                            shippingContactMechId = shipInfo[0];
+                            facilityId = shipInfo[1];   
+                        }
                     }
                     String supplierPartyId = request.getParameter(shipGroupIndex + "_supplierPartyId");
-                    String facilityId = request.getParameter(shipGroupIndex + "_shipGroupFacilityId");
                     if (UtilValidate.isNotEmpty(facilityId)) {
                         cart.setShipGroupFacilityId(shipGroupIndex, facilityId);
                     }
@@ -807,7 +811,7 @@ public class CheckOutEvents {
                     ServiceUtil.addErrors(errorMessages, errorMaps, callResult);
                 }
                 // set the options
-                if (mode != null && mode.equals("options")) {
+                if (mode.equals("options")) {
                     shippingMethod = request.getParameter(shipGroupIndex + "_shipping_method");
                     if (UtilValidate.isEmpty(shippingMethod)) {
                         shippingMethod = request.getParameter("shipping_method");
@@ -872,7 +876,7 @@ public class CheckOutEvents {
         // boolean isSingleUsePayment = singleUsePayment != null && "Y".equalsIgnoreCase(singleUsePayment) ? true : false;
         // boolean doAppendPayment = appendPayment != null && "Y".equalsIgnoreCase(appendPayment) ? true : false;
 
-        if (mode != null && mode.equals("payment")) {
+        if (mode.equals("payment")) {
             Map<String, Object> callResult = ServiceUtil.returnSuccess();
             List<String> errorMessages = new ArrayList<String>();
             Map<String, Object> errorMaps = new HashMap<String, Object>();
@@ -890,10 +894,6 @@ public class CheckOutEvents {
                     return "error";
                 }
                 selectedPaymentMethods.put("EXT_BILLACT", UtilMisc.<String, Object>toMap("amount", billingAccountAmt, "securityCode", null));
-            }
-
-            if (UtilValidate.isEmpty(selectedPaymentMethods)) {
-                return "error";
             }
 
             // If the user has just created a new payment method, add it to the map with a null amount, so that
@@ -1153,12 +1153,10 @@ public class CheckOutEvents {
         for (ShoppingCartItem sci : cartLines) {
             int index = cart.getItemIndex(sci);
             try {
-                Map<String, Object> orderItemMap = FastMap.newInstance();
-                orderItemMap.put("orderId", originalOrderId);
-                orderItemMap.put("isPromo", sci.getIsPromo() ? "Y" : "N");
-                orderItemMap.put("productId", sci.getProductId());
-                orderItemMap.put("orderItemTypeId", sci.getItemType());
-                GenericValue orderItem = EntityUtil.getFirst(delegator.findByAnd("OrderItem", orderItemMap));
+                GenericValue orderItem = EntityQuery.use(delegator).from("OrderItem")
+                                             .where("orderId", originalOrderId, "isPromo", sci.getIsPromo() ? "Y" : "N",
+                                                     "productId", sci.getProductId(), "orderItemTypeId", sci.getItemType())
+                                             .queryFirst();
                 if (UtilValidate.isNotEmpty(orderItem)) {
                     sci.setAssociatedOrderId(orderItem.getString("orderId"));
                     sci.setAssociatedOrderItemSeqId(orderItem.getString("orderItemSeqId"));

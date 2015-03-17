@@ -18,178 +18,14 @@ under the License.
 -->
 
 <div>
-  <#assign shoppingCart = sessionAttributes.shoppingCart?if_exists />
+  <#assign shoppingCart = sessionAttributes.shoppingCart! />
   <h2>${uiLabelMap.OrderCheckout}</h2>
     <#if shoppingCart?has_content && shoppingCart.size() &gt; 0>
       <div id="checkoutPanel">
 
 <#-- ========================================================================================================================== -->
         <div id="cartPanel" class="screenlet">
-          <h3>${uiLabelMap.EcommerceStep} 1: ${uiLabelMap.PageTitleShoppingCart}</h3>
-          <div id="cartSummaryPanel" style="display: none;">
-            <a href="javascript:void(0);" id="openCartPanel" class="button">${uiLabelMap.EcommerceClickHereToEdit}</a>
-            <table id="cartSummaryPanel_cartItems" summary="This table displays the list of item added into Shopping Cart.">
-              <thead>
-                <tr>
-                  <th id="orderItem">${uiLabelMap.OrderItem}</th>
-                  <th id="description">${uiLabelMap.CommonDescription}</th>
-                  <th id="unitPrice">${uiLabelMap.EcommerceUnitPrice}</th>
-                  <th id="quantity">${uiLabelMap.OrderQuantity}</th>
-                  <th id="adjustment">${uiLabelMap.EcommerceAdjustments}</th>
-                  <th id="itemTotal">${uiLabelMap.EcommerceItemTotal}</th>
-                </tr>
-              </thead>
-              <tfoot>
-                <tr id="completedCartSubtotalRow">
-                  <th id="subTotal" scope="row" colspan="5">${uiLabelMap.CommonSubtotal}</th>
-                  <td headers="subTotal" id="completedCartSubTotal"><@ofbizCurrency amount=shoppingCart.getSubTotal() isoCode=shoppingCart.getCurrency() /></td>
-                </tr>
-                <#assign orderAdjustmentsTotal = 0 />
-                <#list shoppingCart.getAdjustments() as cartAdjustment>
-                  <#assign orderAdjustmentsTotal = orderAdjustmentsTotal + Static["org.ofbiz.order.order.OrderReadHelper"].calcOrderAdjustment(cartAdjustment, shoppingCart.getSubTotal()) />
-                </#list>
-                <tr id="completedCartDiscountRow">
-                  <th id="productDiscount" scope="row" colspan="5">${uiLabelMap.ProductDiscount}</th>
-                  <td headers="productDiscount" id="completedCartDiscount"><input type="hidden" value="${orderAdjustmentsTotal}" id="initializedCompletedCartDiscount" /><@ofbizCurrency amount=orderAdjustmentsTotal isoCode=shoppingCart.getCurrency() /></td>
-                </tr>
-                <tr>
-                  <th id="shippingAndHandling" scope="row" colspan="5">${uiLabelMap.OrderShippingAndHandling}</th>
-                  <td headers="shippingAndHandling" id="completedCartTotalShipping"><@ofbizCurrency amount=shoppingCart.getTotalShipping() isoCode=shoppingCart.getCurrency() /></td>
-                </tr>
-                <tr>
-                  <th id="salesTax" scope="row" colspan="5">${uiLabelMap.OrderSalesTax}</th>
-                  <td headers="salesTax" id="completedCartTotalSalesTax"><@ofbizCurrency amount=shoppingCart.getTotalSalesTax() isoCode=shoppingCart.getCurrency() /></td>
-                </tr>
-                <tr>
-                  <th id="grandTotal" scope="row" colspan="5">${uiLabelMap.OrderGrandTotal}</th>
-                  <td headers="grandTotal" id="completedCartDisplayGrandTotal"><@ofbizCurrency amount=shoppingCart.getDisplayGrandTotal() isoCode=shoppingCart.getCurrency() /></td>
-                </tr>
-              </tfoot>
-              <tbody>
-                <#list shoppingCart.items() as cartLine>
-                  <#if cartLine.getProductId()?exists>
-                    <#if cartLine.getParentProductId()?exists>
-                      <#assign parentProductId = cartLine.getParentProductId() />
-                    <#else>
-                      <#assign parentProductId = cartLine.getProductId() />
-                    </#if>
-                    <#assign smallImageUrl = Static["org.ofbiz.product.product.ProductContentWrapper"].getProductContentAsText(cartLine.getProduct(), "SMALL_IMAGE_URL", locale, dispatcher)?if_exists />
-                    <#if !smallImageUrl?string?has_content><#assign smallImageUrl = "" /></#if>
-                  </#if>
-                  <tr id="cartItemDisplayRow_${cartLine_index}">
-                    <td headers="orderItem"><img src="<@ofbizContentUrl>${requestAttributes.contentPathPrefix?if_exists}${smallImageUrl}</@ofbizContentUrl>" alt = "Product Image" /></td>
-                    <td headers="description">${cartLine.getName()?if_exists}</td>
-                    <td headers="unitPrice" id="completedCartItemPrice_${cartLine_index}">${cartLine.getDisplayPrice()}</td>
-                    <td headers="quantity"><span id="completedCartItemQty_${cartLine_index}">${cartLine.getQuantity()?string.number}</span></td>
-                    <td headers="adjustment"><span id="completedCartItemAdjustment_${cartLine_index}"><@ofbizCurrency amount=cartLine.getOtherAdjustments() isoCode=shoppingCart.getCurrency() /></span></td>
-                    <td headers="itemTotal" align="right"><span id="completedCartItemSubTotal_${cartLine_index}"><@ofbizCurrency amount=cartLine.getDisplayItemSubTotal() isoCode=shoppingCart.getCurrency() /></span></td>
-                  </tr>
-                </#list>
-              </tbody>
-            </table>
-          </div>
-
-<#-- ============================================================= -->
-          <div id="editCartPanel">
-            <form id="cartForm" method="post" action="<@ofbizUrl></@ofbizUrl>">
-                <fieldset>
-                  <input type="hidden" name="removeSelected" value="false" />
-                  <div id="cartFormServerError" class="errorMessage"></div>
-                  <table id="editCartPanel_cartItems">
-                    <thead>
-                      <tr>
-                        <th id="editOrderItem">${uiLabelMap.OrderItem}</th>
-                        <th id="editDescription">${uiLabelMap.CommonDescription}</th>
-                        <th id="editUnitPrice">${uiLabelMap.EcommerceUnitPrice}</th>
-                        <th id="editQuantity">${uiLabelMap.OrderQuantity}</th>
-                        <th id="editAdjustment">${uiLabelMap.EcommerceAdjustments}</th>
-                        <th id="editItemTotal">${uiLabelMap.EcommerceItemTotal}</th>
-                        <th id="removeItem">${uiLabelMap.FormFieldTitle_removeButton}</th>
-                      </tr>
-                    </thead>
-                    <tfoot>
-                      <tr>
-                        <th scope="row" colspan="6">${uiLabelMap.CommonSubtotal}</th>
-                        <td id="cartSubTotal"><@ofbizCurrency amount=shoppingCart.getSubTotal() isoCode=shoppingCart.getCurrency() /></td>
-                      </tr>
-                      <tr>
-                        <th scope="row" colspan="6">${uiLabelMap.ProductDiscount}</th>
-                        <td id="cartDiscountValue">
-                            <#assign orderAdjustmentsTotal = 0  />
-                            <#list shoppingCart.getAdjustments() as cartAdjustment>
-                              <#assign orderAdjustmentsTotal = orderAdjustmentsTotal + Static["org.ofbiz.order.order.OrderReadHelper"].calcOrderAdjustment(cartAdjustment, shoppingCart.getSubTotal()) />
-                            </#list>
-                            <@ofbizCurrency amount=orderAdjustmentsTotal isoCode=shoppingCart.getCurrency() />
-                        </td>
-                      </tr>
-                      <tr>
-                        <th scope="row" colspan="6">${uiLabelMap.OrderShippingAndHandling}</th>
-                        <td id="cartTotalShipping"><@ofbizCurrency amount=shoppingCart.getTotalShipping() isoCode=shoppingCart.getCurrency() /></td>
-                      </tr>
-                      <tr>
-                        <th scope="row" colspan="6">${uiLabelMap.OrderSalesTax}</th>
-                        <td id="cartTotalSalesTax"><@ofbizCurrency amount=shoppingCart.getTotalSalesTax() isoCode=shoppingCart.getCurrency() /></td>
-                      </tr>
-                      <tr>
-                        <th scope="row" colspan="6">${uiLabelMap.OrderGrandTotal}</th>
-                        <td id="cartDisplayGrandTotal"><@ofbizCurrency amount=shoppingCart.getDisplayGrandTotal() isoCode=shoppingCart.getCurrency() /></td>
-                      </tr>
-                    </tfoot>
-                    <tbody id="updateBody">
-                      <#list shoppingCart.items() as cartLine>
-                        <tr id="cartItemRow_${cartLine_index}">
-                          <td headers="editOrderItem">
-                            <#if cartLine.getProductId()?exists>
-                              <#if cartLine.getParentProductId()?exists>
-                                <#assign parentProductId = cartLine.getParentProductId() />
-                              <#else>
-                                <#assign parentProductId = cartLine.getProductId() />
-                              </#if>
-                              <#assign smallImageUrl = Static["org.ofbiz.product.product.ProductContentWrapper"].getProductContentAsText(cartLine.getProduct(), "SMALL_IMAGE_URL", locale, dispatcher)?if_exists />
-                              <#if !smallImageUrl?string?has_content><#assign smallImageUrl = "" /></#if>
-                              <#if smallImageUrl?string?has_content>
-                                <img src="<@ofbizContentUrl>${requestAttributes.contentPathPrefix?if_exists}${smallImageUrl}</@ofbizContentUrl>" alt="Product Image" />
-                              </#if>
-                            </#if>
-                          </td>
-                          <td headers="editDescription">${cartLine.getName()?if_exists}</td>
-                          <td headers="editUnitPrice" id="itemUnitPrice_${cartLine_index}"><@ofbizCurrency amount=cartLine.getDisplayPrice() isoCode=shoppingCart.getCurrency() /></td>
-                          <td headers="editQuantity">
-                            <#if cartLine.getIsPromo()>
-                              ${cartLine.getQuantity()?string.number}
-                            <#else>
-                              <input type="hidden" name="cartLineProductId" id="cartLineProductId_${cartLine_index}" value="${cartLine.getProductId()}" />
-                              <input type="text" name="update${cartLine_index}" id="qty_${cartLine_index}" value="${cartLine.getQuantity()?string.number}" class="required validate-number" />
-                              <span id="advice-required-qty_${cartLine_index}" style="display:none;" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
-                              <span id="advice-validate-number-qty_${cartLine_index}" style="display:none;" class="errorMessage"> (${uiLabelMap.CommonPleaseEnterValidNumberInThisField}) </span>
-                            </#if>
-                          </td>
-                          <#if !cartLine.getIsPromo()>
-                            <td headers="editAdjustment" id="addPromoCode_${cartLine_index}"><@ofbizCurrency amount=cartLine.getOtherAdjustments() isoCode=shoppingCart.getCurrency() /></td>
-                          <#else>
-                            <td headers="editAdjustment"><@ofbizCurrency amount=cartLine.getOtherAdjustments() isoCode=shoppingCart.getCurrency() /></td>
-                          </#if>
-                          <td headers="editItemTotal" id="displayItem_${cartLine_index}"><@ofbizCurrency amount=cartLine.getDisplayItemSubTotal() isoCode=shoppingCart.getCurrency() /></td>
-                          <#if !cartLine.getIsPromo()>
-                            <td><a id="removeItemLink_${cartLine_index}" href="javascript:void(0);"><img id="remove_${cartLine_index}" src="<@ofbizContentUrl>/ecommerce/images/remove.png</@ofbizContentUrl>" alt="Remove Item Image" /></a></td>
-                          </#if>
-                        </tr>
-                      </#list>
-                    </tbody>
-                  </table>
-                  </fieldset>
-                  <fieldset id="productPromoCodeFields">
-                    <div>
-                      <label for="productPromoCode">${uiLabelMap.EcommerceEnterPromoCode}</label>
-                      <input id="productPromoCode" name="productPromoCode" type="text" value="" />
-                    </div>
-                  </fieldset>
-                <fieldset>
-                  <a href="javascript:void(0);" class="button" id="updateShoppingCart" >${uiLabelMap.EcommerceContinueToStep} 2</a>
-                  <a style="display: none" class="button" href="javascript:void(0);" id="processingShipping">${uiLabelMap.EcommercePleaseWait}....</a>
-                </fieldset>
-            </form>
-          </div>
+          ${screens.render("component://ecommerce/widget/CartScreens.xml#UpdateCart")}
         </div>
 
 <#-- ========================================================================================================================== -->
@@ -223,19 +59,19 @@ under the License.
           <div id="editShippingPanel" style="display: none;">
             <form id="shippingForm" action="<@ofbizUrl>createUpdateShippingAddress</@ofbizUrl>" method="post">
                 <fieldset>
-                  <input type="hidden" id="shipToContactMechId" name="shipToContactMechId" value="${shipToContactMechId?if_exists}" />
-                  <input type="hidden" id="billToContactMechIdInShipingForm" name="billToContactMechId" value="${billToContactMechId?if_exists}" />
-                  <input type="hidden" id="shipToPartyId" name="partyId" value="${partyId?if_exists}" />
-                  <input type="hidden" id="shipToPhoneContactMechId" name="shipToPhoneContactMechId" value="${(shipToTelecomNumber.contactMechId)?if_exists}" />
-                  <input type="hidden" id="emailContactMechId" name="emailContactMechId" value="${emailContactMechId?if_exists}" />
-                  <input type="hidden" name="shipToName" value="${shipToName?if_exists}" />
-                  <input type="hidden" name="shipToAttnName" value="${shipToAttnName?if_exists}" />
-                  <#if userLogin?exists>
+                  <input type="hidden" id="shipToContactMechId" name="shipToContactMechId" value="${shipToContactMechId!}" />
+                  <input type="hidden" id="billToContactMechIdInShipingForm" name="billToContactMechId" value="${billToContactMechId!}" />
+                  <input type="hidden" id="shipToPartyId" name="partyId" value="${partyId!}" />
+                  <input type="hidden" id="shipToPhoneContactMechId" name="shipToPhoneContactMechId" value="${(shipToTelecomNumber.contactMechId)!}" />
+                  <input type="hidden" id="emailContactMechId" name="emailContactMechId" value="${emailContactMechId!}" />
+                  <input type="hidden" name="shipToName" value="${shipToName!}" />
+                  <input type="hidden" name="shipToAttnName" value="${shipToAttnName!}" />
+                  <#if userLogin??>
                     <input type="hidden" name="keepAddressBook" value="Y" />
                     <input type="hidden" name="setDefaultShipping" value="Y" />
-                    <input type="hidden" name="userLoginId" id="userLoginId" value="${userLogin.userLoginId?if_exists}" />
+                    <input type="hidden" name="userLoginId" id="userLoginId" value="${userLogin.userLoginId!}" />
                     <#assign productStoreId = Static["org.ofbiz.product.store.ProductStoreWorker"].getProductStoreId(request) />
-                    <input type="hidden" name="productStoreId" value="${productStoreId?if_exists}" />
+                    <input type="hidden" name="productStoreId" value="${productStoreId!}" />
                   <#else>
                     <input type="hidden" name="keepAddressBook" value="N" />
                   </#if>
@@ -245,61 +81,61 @@ under the License.
                         <label for="firstName">${uiLabelMap.PartyFirstName}*
                           <span id="advice-required-firstName" style="display: none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                         </label>
-                        <input id="firstName" name="firstName" class="required" type="text" value="${firstName?if_exists}" />
+                        <input id="firstName" name="firstName" class="required" type="text" value="${firstName!}" />
                       </span>
                       <span>
                         <label for="lastName">${uiLabelMap.PartyLastName}*
                           <span id="advice-required-lastName" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                         </label>
-                        <input id="lastName" name="lastName" class="required" type="text" value="${lastName?if_exists}" />
+                        <input id="lastName" name="lastName" class="required" type="text" value="${lastName!}" />
                       </span>
                   </div>
                   <div>
                   <#if shipToTelecomNumber?has_content>
                       <span>
-                          <label for="shipToCountryCode">${uiLabelMap.PartyCountry}*
+                          <label for="shipToCountryCode">${uiLabelMap.CommonCountry}*
                               <span id="advice-required-shipToCountryCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
-                          </label>    
-                          <input type="text" name="shipToCountryCode" class="required" id="shipToCountryCode" value="${shipToTelecomNumber.countryCode?if_exists}" size="5" maxlength="3" /> -
+                          </label>
+                          <input type="text" name="shipToCountryCode" class="required" id="shipToCountryCode" value="${shipToTelecomNumber.countryCode!}" size="5" maxlength="10" /> -
                       </span>
                       <span>
                           <label for="shipToAreaCode">${uiLabelMap.PartyAreaCode}*
                               <span id="advice-required-shipToAreaCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                           </label>
-                          <input type="text" name="shipToAreaCode" class="required" id="shipToAreaCode" value="${shipToTelecomNumber.areaCode?if_exists}" size="5" maxlength="3" /> -
+                          <input type="text" name="shipToAreaCode" class="required" id="shipToAreaCode" value="${shipToTelecomNumber.areaCode!}" size="5" maxlength="10" /> -
                       </span>
                       <span>
                           <label for="shipToContactNumber">${uiLabelMap.PartyContactNumber}*
                               <span id="advice-required-shipToContactNumber" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                           </label>
-                          <input type="text" name="shipToContactNumber" class="required" id="shipToContactNumber" value="${shipToTelecomNumber.contactNumber?if_exists}" size="10" maxlength="7" /> -
+                          <input type="text" name="shipToContactNumber" class="required" id="shipToContactNumber" value="${shipToTelecomNumber.contactNumber!}" size="10" maxlength="15" /> -
                       </span>
                       <span>
                           <label for="shipToExtension">${uiLabelMap.PartyExtension}</label>
-                          <input type="text" name="shipToExtension" id="shipToExtension" value="${shipToExtension?if_exists}" size="5" maxlength="3" />
+                          <input type="text" name="shipToExtension" id="shipToExtension" value="${shipToExtension!}" size="5" maxlength="10" />
                       </span>
                   <#else>
                       <span>
-                          <label for="shipToCountryCode">${uiLabelMap.PartyCountry}*
+                          <label for="shipToCountryCode">${uiLabelMap.CommonCountry}*
                               <span id="advice-required-shipToCountryCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                           </label>
-                          <input type="text" name="shipToCountryCode" class="required" id="shipToCountryCode" value="${parameters.shipToCountryCode?if_exists}" size="5" maxlength="3" /> -
+                          <input type="text" name="shipToCountryCode" class="required" id="shipToCountryCode" value="${parameters.shipToCountryCode!}" size="5" maxlength="10" /> -
                       </span>
                       <span>
                           <label for="shipToAreaCode">${uiLabelMap.PartyAreaCode}*
                               <span id="advice-required-shipToAreaCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                           </label>
-                          <input type="text" name="shipToAreaCode" class="required" id="shipToAreaCode" value="${parameters.shipToAreaCode?if_exists}" size="5" maxlength="3" /> -
+                          <input type="text" name="shipToAreaCode" class="required" id="shipToAreaCode" value="${parameters.shipToAreaCode!}" size="5" maxlength="10" /> -
                       </span>
                       <span>
                           <label for="shipToContactNumber">${uiLabelMap.PartyContactNumber}*
                               <span id="advice-required-shipToContactNumber" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                           </label>
-                          <input type="text" name="shipToContactNumber" class="required" id="shipToContactNumber" value="${parameters.shipToContactNumber?if_exists}" size="10" maxlength="7" /> -
+                          <input type="text" name="shipToContactNumber" class="required" id="shipToContactNumber" value="${parameters.shipToContactNumber!}" size="10" maxlength="15" /> -
                       </span>
                       <span>
                           <label for="shipToExtension">${uiLabelMap.PartyExtension}</label>
-                          <input type="text" name="shipToExtension" id="shipToExtension" value="${parameters.shipToExtension?if_exists}" size="5" maxlength="3" />
+                          <input type="text" name="shipToExtension" id="shipToExtension" value="${parameters.shipToExtension!}" size="5" maxlength="10" />
                       </span>
                   </#if>
                   </div>
@@ -308,7 +144,7 @@ under the License.
                           <label for="emailAddress">${uiLabelMap.PartyEmailAddress}*
                             <span id="advice-required-emailAddress" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                           </label>
-                          <input id="emailAddress" name="emailAddress" class="required validate-email" maxlength="255" size="40" type="text" value="${emailAddress?if_exists}" />
+                          <input id="emailAddress" name="emailAddress" class="required validate-email" maxlength="255" size="40" type="text" value="${emailAddress!}" />
                       </span>
                   </div>
                     <div>
@@ -316,13 +152,13 @@ under the License.
                             <label for="shipToAddress1">${uiLabelMap.PartyAddressLine1}*
                                 <span id="advice-required-shipToAddress1" class="custom-advice errorMessage" style="display:none"> (${uiLabelMap.CommonRequired})</span>
                             </label>
-                            <input id="shipToAddress1" name="shipToAddress1" class="required" type="text" value="${shipToAddress1?if_exists}" maxlength="255" size="40" />
+                            <input id="shipToAddress1" name="shipToAddress1" class="required" type="text" value="${shipToAddress1!}" maxlength="255" size="40" />
                         </span>
                     </div>
                     <div>
                         <span>
                           <label for="shipToAddress2">${uiLabelMap.PartyAddressLine2}</label>
-                          <input id="shipToAddress2" name="shipToAddress2" type="text" value="${shipToAddress2?if_exists}" maxlength="255" size="40" />
+                          <input id="shipToAddress2" name="shipToAddress2" type="text" value="${shipToAddress2!}" maxlength="255" size="40" />
                         </span>
                     </div>
                     <div>
@@ -330,7 +166,7 @@ under the License.
                             <label for="shipToCity">${uiLabelMap.CommonCity}*
                                 <span id="advice-required-shipToCity" class="custom-advice errorMessage" style="display:none"> (${uiLabelMap.CommonRequired})</span>
                             </label>
-                            <input id="shipToCity" name="shipToCity" class="required" type="text" value="${shipToCity?if_exists}" maxlength="255" size="40" />
+                            <input id="shipToCity" name="shipToCity" class="required" type="text" value="${shipToCity!}" maxlength="255" size="40" />
                         </span>
                     </div>
                     <div>
@@ -338,17 +174,17 @@ under the License.
                             <label for="shipToPostalCode">${uiLabelMap.PartyZipCode}*
                                 <span id="advice-required-shipToPostalCode" class="custom-advice errorMessage" style="display:none"> (${uiLabelMap.CommonRequired})</span>
                             </label>
-                            <input id="shipToPostalCode" name="shipToPostalCode" class="required" type="text" value="${shipToPostalCode?if_exists}" size="12" maxlength="10" />
+                            <input id="shipToPostalCode" name="shipToPostalCode" class="required" type="text" value="${shipToPostalCode!}" size="12" maxlength="10" />
                         </span>
                     </div>
                     <div>
                         <span>
-                            <label for="shipToCountryGeoId">${uiLabelMap.PartyCountry}*
+                            <label for="shipToCountryGeoId">${uiLabelMap.CommonCountry}*
                                 <span id="advice-required-shipToCountryGeo" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                             </label>
                             <select name="shipToCountryGeoId" id="shipToCountryGeoId">
-                              <#if shipToCountryGeoId?exists>
-                                <option value="${shipToCountryGeoId?if_exists}">${shipToCountryProvinceGeo?default(shipToCountryGeoId?if_exists)}</option>
+                              <#if shipToCountryGeoId??>
+                                <option value="${shipToCountryGeoId!}">${shipToCountryProvinceGeo?default(shipToCountryGeoId!)}</option>
                               </#if>
                               ${screens.render("component://common/widget/CommonScreens.xml#countries")}
                             </select>
@@ -361,7 +197,7 @@ under the License.
                             </label>
                             <select id="shipToStateProvinceGeoId" name="shipToStateProvinceGeoId">
                               <#if shipToStateProvinceGeoId?has_content>
-                                <option value='${shipToStateProvinceGeoId?if_exists}'>${shipToStateProvinceGeo?default(shipToStateProvinceGeoId?if_exists)}</option>
+                                <option value='${shipToStateProvinceGeoId!}'>${shipToStateProvinceGeo?default(shipToStateProvinceGeoId!)}</option>
                               <#else>
                                 <option value="_NA_">${uiLabelMap.PartyNoState}</option>
                               </#if>
@@ -447,20 +283,20 @@ under the License.
           <div id="editBillingPanel" class="screenlet-body" style="display: none;">
             <form id="billingForm" class="theform" action="<@ofbizUrl></@ofbizUrl>" method="post">
               <fieldset class="col">
-                  <input type="hidden" id ="billToContactMechId" name="billToContactMechId" value="${billToContactMechId?if_exists}" />
-                  <input type="hidden" id="shipToContactMechIdInBillingForm" name="shipToContactMechId" value="${shipToContactMechId?if_exists}" />
-                  <input type="hidden" id="paymentMethodId" name="paymentMethodId" value="${paymentMethodId?if_exists}" />
+                  <input type="hidden" id ="billToContactMechId" name="billToContactMechId" value="${billToContactMechId!}" />
+                  <input type="hidden" id="shipToContactMechIdInBillingForm" name="shipToContactMechId" value="${shipToContactMechId!}" />
+                  <input type="hidden" id="paymentMethodId" name="paymentMethodId" value="${paymentMethodId!}" />
                   <input type="hidden" id="paymentMethodTypeId" name="paymentMethodTypeId" value="${paymentMethodTypeId?default("CREDIT_CARD")}" />
-                  <input type="hidden" id="billToPartyId" name="partyId" value="${parameters.partyId?if_exists}" />
-                  <input type="hidden" name="expireDate" value="${expireDate?if_exists}" />
-                  <input type="hidden" id="billToPhoneContactMechId" name="billToPhoneContactMechId" value="${(billToTelecomNumber.contactMechId)?if_exists}" />
-                  <input type="hidden" name="billToName" value="${billToName?if_exists}" />
-                  <input type="hidden" name="billToAttnName" value="${billToAttnName?if_exists}" />
-                  <#if userLogin?exists>
+                  <input type="hidden" id="billToPartyId" name="partyId" value="${parameters.partyId!}" />
+                  <input type="hidden" name="expireDate" value="${expireDate!}" />
+                  <input type="hidden" id="billToPhoneContactMechId" name="billToPhoneContactMechId" value="${(billToTelecomNumber.contactMechId)!}" />
+                  <input type="hidden" name="billToName" value="${billToName!}" />
+                  <input type="hidden" name="billToAttnName" value="${billToAttnName!}" />
+                  <#if userLogin??>
                     <input type="hidden" name="keepAddressBook" value="Y" />
                     <input type="hidden" name="setDefaultBilling" value="Y" />
                     <#assign productStoreId = Static["org.ofbiz.product.store.ProductStoreWorker"].getProductStoreId(request) />
-                    <input type="hidden" name="productStoreId" value="${productStoreId?if_exists}" />
+                    <input type="hidden" name="productStoreId" value="${productStoreId!}" />
                   <#else>
                     <input type="hidden" name="keepAddressBook" value="N" />
                   </#if>
@@ -470,61 +306,61 @@ under the License.
                                 <label for="firstNameOnCard">${uiLabelMap.PartyFirstName}*
                                     <span id="advice-required-firstNameOnCard" style="display: none;" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input id="firstNameOnCard" name="firstNameOnCard" class="required" type="text" value="${firstNameOnCard?if_exists}" />
+                                <input id="firstNameOnCard" name="firstNameOnCard" class="required" type="text" value="${firstNameOnCard!}" />
                             </span>
                             <span>
                                 <label for="lastNameOnCard">${uiLabelMap.PartyLastName}*
                                     <span id="advice-required-lastNameOnCard" style="display: none;" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input id="lastNameOnCard" name="lastNameOnCard" class="required" type="text" value="${lastNameOnCard?if_exists}" />
+                                <input id="lastNameOnCard" name="lastNameOnCard" class="required" type="text" value="${lastNameOnCard!}" />
                             </span>
                         </div>
                         <div>  
                           <#if billToTelecomNumber?has_content>
                             <span>
-                                <label for="billToCountryCode">${uiLabelMap.PartyCountry}*
+                                <label for="billToCountryCode">${uiLabelMap.CommonCountry}*
                                     <span id="advice-required-billToCountryCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input type="text" name="billToCountryCode" class="required" id="billToCountryCode" value="${billToTelecomNumber.countryCode?if_exists}" size="5" maxlength="3" /> -
+                                <input type="text" name="billToCountryCode" class="required" id="billToCountryCode" value="${billToTelecomNumber.countryCode!}" size="5" maxlength="10" /> -
                             </span>
                             <span>
                                 <label for="billToAreaCode">${uiLabelMap.PartyAreaCode}*
                                     <span id="advice-required-billToAreaCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input type="text" name="billToAreaCode" class="required" id="billToAreaCode" value="${billToTelecomNumber.areaCode?if_exists}" size="5" maxlength="3" /> -
+                                <input type="text" name="billToAreaCode" class="required" id="billToAreaCode" value="${billToTelecomNumber.areaCode!}" size="5" maxlength="10" /> -
                             </span>
                             <span>
                                 <label for="billToContactNumber">${uiLabelMap.PartyContactNumber}*
                                     <span id="advice-required-billToContactNumber" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input type="text" name="billToContactNumber" class="required" id="billToContactNumber" value="${billToTelecomNumber.contactNumber?if_exists}" size="10" maxlength="7" /> -
+                                <input type="text" name="billToContactNumber" class="required" id="billToContactNumber" value="${billToTelecomNumber.contactNumber!}" size="10" maxlength="15" /> -
                             </span>
                             <span>
                                 <label for="billToExtension">${uiLabelMap.PartyExtension}</label>
-                                <input type="text" name="billToExtension" id="billToExtension" value="${billToExtension?if_exists}" size="5" maxlength="3" />
+                                <input type="text" name="billToExtension" id="billToExtension" value="${billToExtension!}" size="5" maxlength="10" />
                             </span>
                           <#else>
                             <span>
-                                <label for="billToCountryCode">${uiLabelMap.PartyCountry}*
+                                <label for="billToCountryCode">${uiLabelMap.CommonCountry}*
                                     <span id="advice-required-billToCountryCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input type="text" name="billToCountryCode" class="required" id="billToCountryCode" value="${parameters.billToCountryCode?if_exists}" size="5" maxlength="3" /> -
+                                <input type="text" name="billToCountryCode" class="required" id="billToCountryCode" value="${parameters.billToCountryCode!}" size="5" maxlength="10" /> -
                             </span>
                             <span>
                                 <label for="billToAreaCode">${uiLabelMap.PartyAreaCode}*
                                     <span id="advice-required-billToAreaCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input type="text" name="billToAreaCode" class="required" id="billToAreaCode" value="${parameters.billToAreaCode?if_exists}" size="5" maxlength="3" /> -
+                                <input type="text" name="billToAreaCode" class="required" id="billToAreaCode" value="${parameters.billToAreaCode!}" size="5" maxlength="10" /> -
                             </span>
                             <span>
                                 <label for="billToContactNumber">${uiLabelMap.PartyContactNumber}*
                                     <span id="advice-required-billToContactNumber" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input type="text" name="billToContactNumber" class="required" id="billToContactNumber" value="${parameters.billToContactNumber?if_exists}" size="10" maxlength="7" /> -
+                                <input type="text" name="billToContactNumber" class="required" id="billToContactNumber" value="${parameters.billToContactNumber!}" size="10" maxlength="15" /> -
                             </span>
                             <span>
                                 <label for="billToExtension">${uiLabelMap.PartyExtension}</label>
-                                <input type="text" name="billToExtension" id="billToExtension" value="${parameters.billToExtension?if_exists}" size="5" maxlength="3" />
+                                <input type="text" name="billToExtension" id="billToExtension" value="${parameters.billToExtension!}" size="5" maxlength="10" />
                             </span>
                           </#if>
                         </div>
@@ -533,7 +369,7 @@ under the License.
                                 <label for="cardType">${uiLabelMap.AccountingCardType}*<span id="advice-required-cardType" style="display: none;" class="errorMessage"> (${uiLabelMap.CommonRequired})</span></label>
                                 <select name="cardType" id="cardType">
                                   <#if cardType?has_content>
-                                    <option label="${cardType?if_exists}" value="${cardType?if_exists}">${cardType?if_exists}</option>
+                                    <option label="${cardType!}" value="${cardType!}">${cardType!}</option>
                                   </#if>
                                   ${screens.render("component://common/widget/CommonScreens.xml#cctypes")}
                                 </select>
@@ -544,7 +380,7 @@ under the License.
                                 <label for="cardNumber">${uiLabelMap.AccountingCardNumber}*
                                     <span id="advice-required-cardNumber" style="display: none;" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                                 </label>
-                                <input id="cardNumber" name="cardNumber" class="required" type="text" value="${cardNumber?if_exists}" size="30" maxlength="16" />
+                                <input id="cardNumber" name="cardNumber" class="required creditcard" type="text" value="${cardNumber!}" size="30" maxlength="16" />
                             </span>
                             <span>
                                 <label for="billToCardSecurityCode">CVV2</label>
@@ -558,7 +394,7 @@ under the License.
                             </label>
                             <select id="expMonth" name="expMonth" class="required">
                               <#if expMonth?has_content>
-                                <option label="${expMonth?if_exists}" value="${expMonth?if_exists}">${expMonth?if_exists}</option>
+                                <option label="${expMonth!}" value="${expMonth!}">${expMonth!}</option>
                               </#if>
                               ${screens.render("component://common/widget/CommonScreens.xml#ccmonths")}
                             </select>
@@ -569,7 +405,7 @@ under the License.
                             </label>
                             <select id="expYear" name="expYear" class="required">
                               <#if expYear?has_content>
-                                <option value="${expYear?if_exists}">${expYear?if_exists}</option>
+                                <option value="${expYear!}">${expYear!}</option>
                               </#if>
                               ${screens.render("component://common/widget/CommonScreens.xml#ccyears")}
                             </select>
@@ -585,31 +421,31 @@ under the License.
                               <label for="billToAddress1">${uiLabelMap.PartyAddressLine1}*
                                 <span id="advice-required-billToAddress1" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                               </label>
-                              <input id="billToAddress1" name="billToAddress1" class="required" size="30" type="text" value="${billToAddress1?if_exists}" />
+                              <input id="billToAddress1" name="billToAddress1" class="required" size="30" type="text" value="${billToAddress1!}" />
                           </div>
                           <div>
                               <label for="billToAddress2">${uiLabelMap.PartyAddressLine2}</label>
-                              <input id="billToAddress2" name="billToAddress2" type="text" value="${billToAddress2?if_exists}" size="30" />
+                              <input id="billToAddress2" name="billToAddress2" type="text" value="${billToAddress2!}" size="30" />
                           </div>
                           <div>
                               <label for="billToCity">${uiLabelMap.CommonCity}*
                                 <span id="advice-required-billToCity" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                               </label>
-                              <input id="billToCity" name="billToCity" class="required" type="text" value="${billToCity?if_exists}" />
+                              <input id="billToCity" name="billToCity" class="required" type="text" value="${billToCity!}" />
                           </div>
                           <div>
                               <label for="billToPostalCode">${uiLabelMap.PartyZipCode}*
                                 <span id="advice-required-billToPostalCode" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                               </label>
-                              <input id="billToPostalCode" name="billToPostalCode" class="required" type="text" value="${billToPostalCode?if_exists}" size="12" maxlength="10" />
+                              <input id="billToPostalCode" name="billToPostalCode" class="required" type="text" value="${billToPostalCode!}" size="12" maxlength="10" />
                           </div>
                           <div>
-                              <label for="billToCountryGeoId">${uiLabelMap.PartyCountry}*
+                              <label for="billToCountryGeoId">${uiLabelMap.CommonCountry}*
                                 <span id="advice-required-billToCountryGeoId" style="display:none" class="errorMessage"> (${uiLabelMap.CommonRequired})</span>
                               </label>
                               <select name="billToCountryGeoId" id="billToCountryGeoId">
-                                <#if billToCountryGeoId?exists>
-                                  <option value='${billToCountryGeoId?if_exists}'>${billToCountryProvinceGeo?default(billToCountryGeoId?if_exists)}</option>
+                                <#if billToCountryGeoId??>
+                                  <option value='${billToCountryGeoId!}'>${billToCountryProvinceGeo?default(billToCountryGeoId!)}</option>
                                 </#if>
                                 ${screens.render("component://common/widget/CommonScreens.xml#countries")}
                               </select>
@@ -620,7 +456,7 @@ under the License.
                               </label>
                               <select id="billToStateProvinceGeoId" name="billToStateProvinceGeoId">
                                 <#if billToStateProvinceGeoId?has_content>
-                                  <option value='${billToStateProvinceGeoId?if_exists}'>${billToStateProvinceGeo?default(billToStateProvinceGeoId?if_exists)}</option>
+                                  <option value='${billToStateProvinceGeoId!}'>${billToStateProvinceGeo?default(billToStateProvinceGeoId!)}</option>
                                 <#else>
                                   <option value="_NA_">${uiLabelMap.PartyNoState}</option>
                                 </#if>

@@ -74,7 +74,7 @@ public class SagePayPaymentServices {
 
                     GenericValue creditCard = (GenericValue) context.get("creditCard");
                     if (creditCard == null || !(opp.get("paymentMethodId").equals(creditCard.get("paymentMethodId")))) {
-                        creditCard = opp.getRelatedOne("CreditCard");
+                        creditCard = opp.getRelatedOne("CreditCard", false);
                     }
 
                     securityCode = opp.getString("securityCode");
@@ -99,16 +99,16 @@ public class SagePayPaymentServices {
                     nameOnCard = firstName + " " + middleName + " " + lastName;
                     cardType = creditCard.getString("cardType");
                     if (cardType != null) {
-                        if (cardType.equals("MasterCard")) {
+                        if ("CCT_MASTERCARD".equals(cardType)) {
                             cardType = "MC";
                         }
-                        if (cardType.equals("VisaElectron")) {
+                        if ("CCT_VISAELECTRON".equals(cardType)) {
                             cardType = "UKE";
                         }
-                        if (cardType.equals("DinersClub")) {
+                        if ("CCT_DINERSCLUB".equals(cardType)) {
                             cardType = "DC";
                         }
-                        if (cardType.equals("Switch")) {
+                        if ("CCT_SWITCH".equals(cardType)) {
                             cardType = "MAESTRO";
                         }
                     }
@@ -303,7 +303,7 @@ public class SagePayPaymentServices {
         Debug.logInfo("SagePay ccRefund captureTransaction : " + captureTransaction, module);
         GenericValue creditCard = null;
         try {
-            creditCard = delegator.getRelatedOne("CreditCard", orderPaymentPreference);
+            creditCard = orderPaymentPreference.getRelatedOne("CreditCard", false);
         } catch (GenericEntityException e) {
             Debug.logError(e, "Error getting CreditCard for OrderPaymentPreference : " + orderPaymentPreference, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, "AccountingPaymentUnableToGetCCInfo", locale) + " " + orderPaymentPreference);

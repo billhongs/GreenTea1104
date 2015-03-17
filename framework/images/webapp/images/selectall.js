@@ -240,6 +240,11 @@ function confirmActionFormLink(msg, formName) {
 */
 
 function ajaxUpdateArea(areaId, target, targetParams) {
+    if (areaId == "window") {
+        targetUrl = target + "?" + targetParams.replace('?','');
+        window.location.assign(targetUrl);
+        return;
+    }
     waitSpinnerShow();
     jQuery.ajax({
         url: target,
@@ -258,28 +263,17 @@ function ajaxUpdateArea(areaId, target, targetParams) {
   * form of: areaId, target, target parameters [, areaId, target, target parameters...].
 */
 function ajaxUpdateAreas(areaCsvString) {
-    waitSpinnerShow();
     var areaArray = areaCsvString.split(",");
     var numAreas = parseInt(areaArray.length / 3);
     for (var i = 0; i < numAreas * 3; i = i + 3) {
         var areaId = areaArray[i];
         var target = areaArray[i + 1];
         var targetParams = areaArray[i + 2];
-        // that was done by the prototype updater internally, remove the ? and the anchor flag from the parameters
+        // Remove the ? and the anchor flag from the parameters
         // not nice but works
         targetParams = targetParams.replace('#','');
         targetParams = targetParams.replace('?','');
-        jQuery.ajax({
-            url: target,
-            async: false,
-            type: "POST",
-            data: targetParams,
-            success: function(data) {
-                jQuery("#" + areaId).html(data);
-                waitSpinnerHide();
-            },
-            error: function(data) {waitSpinnerHide()}
-        });
+        ajaxUpdateArea(areaId, target, targetParams);
     }
 }
 
@@ -290,8 +284,9 @@ function ajaxUpdateAreas(areaCsvString) {
   * @param interval The update interval, in seconds.
 */
 function ajaxUpdateAreaPeriodic(areaId, target, targetParams, interval) {
+    var intervalMillis = interval * 1000;
     jQuery.fjTimer({
-        interval: interval,
+        interval: intervalMillis,
         repeat: true,
         tick: function(container, timerId){
             jQuery.ajax({
@@ -304,7 +299,7 @@ function ajaxUpdateAreaPeriodic(areaId, target, targetParams, interval) {
                 },
                 error: function(data) {waitSpinnerHide()}
             });
-            
+
         }
     });
 }
@@ -352,11 +347,12 @@ function submitFormInBackground(form, areaId, submitUrl) {
 function ajaxSubmitFormUpdateAreas(form, areaCsvString) {
    waitSpinnerShow();
    hideErrorContainer = function() {
+       jQuery('#content-messages').html('');
        jQuery('#content-messages').removeClass('errorMessage').fadeIn('fast');
    }
    updateFunction = function(data) {
        if (data._ERROR_MESSAGE_LIST_ != undefined || data._ERROR_MESSAGE_ != undefined) {
-           if(!jQuery('#content-messages')) {
+           if (!jQuery('#content-messages').length) {
               //add this div just after app-navigation
               if(jQuery('#content-main-section')){
                   jQuery('#content-main-section' ).before('<div id="content-messages" onclick="hideErrorContainer()"></div>');
@@ -371,8 +367,9 @@ function ajaxSubmitFormUpdateAreas(form, areaCsvString) {
               jQuery('#content-messages' ).html(data._ERROR_MESSAGE_);
           }
           jQuery('#content-messages').fadeIn('fast');
-       }else {
-           if(jQuery('#content-messages')) {
+       } else {
+           if (jQuery('#content-messages').length) {
+               jQuery('#content-messages').html('');
                jQuery('#content-messages').removeClass('errorMessage').fadeIn("fast");
            }
            ajaxUpdateAreas(areaCsvString);
@@ -390,33 +387,30 @@ function ajaxSubmitFormUpdateAreas(form, areaCsvString) {
    });
 }
 
-/** Enable auto-completion for text elements.
+/** Enable auto-completion for text elements, with a possible span of tooltip class showing description.
  * @param areaCsvString The area CSV string. The CSV string is a flat array in the
  * form of: areaId, target, target parameters [, areaId, target, target parameters...].
 */
 
-function ajaxAutoCompleter(areaCsvString, showDescription, defaultMinLength, formName){
+function ajaxAutoCompleter(areaCsvString, showDescription, defaultMinLength, defaultDelay, formName){
     var areaArray = areaCsvString.replace(/&amp;/g, '&').split(",");
     var numAreas = parseInt(areaArray.length / 3);
-    
-    if (typeof(showDescription) == "string") {
-      showDescription = showDescription == "false" ? false : true;
-    }            
-    
+
     for (var i = 0; i < numAreas * 3; i = i + 3) {
         var initUrl = areaArray[i + 1];
         if (initUrl.indexOf("?") > -1)
             var url = initUrl + "&" + areaArray[i + 2];
-        else 
+        else
             var url = initUrl + "?" + areaArray[i + 2];
         var div = areaArray[i];
         // create a separated div where the result JSON Opbject will be placed
         if ((jQuery("#" + div + "_auto")).length < 1) {
             jQuery("<div id='" + div + "_auto'></div>").insertBefore("#" + areaArray[i]);
         }
-        
+
         jQuery("#" + div).autocomplete({
             minLength: defaultMinLength,
+            delay: defaultDelay,
             source: function(request, response){
                 jQuery.ajax({
                     url: url,
@@ -433,33 +427,31 @@ function ajaxAutoCompleter(areaCsvString, showDescription, defaultMinLength, for
                         LAST_AUTOCOMP_REF= jqXHR;
                     },
                     success: function(data) {
-                    // reset the autocomp field
+                        // reset the autocomp field
                         autocomp = undefined;
 
-                        //update the result div
                         jQuery("#" + div + "_auto").html(data);
+
                         if (typeof autocomp != 'undefined') {
                             jQuery.each(autocomp, function(index, item){
                                 item.label = jQuery("<div>").html(item.label).text();
                             })
                             // autocomp is the JSON Object which will be used for the autocomplete box
                             response(autocomp);
-                        } else {
-                            response([]);
                         }
-                   },
+                    },
                     error: function(xhr, reason, exception) {
                         if(exception != 'abort') {
                             alert("An error occurred while communicating with the server:\n\n\nreason=" + reason + "\n\nexception=" + exception);
                         }
-                    },
+                    }
                 });
             },
             select: function(event, ui){
                 //jQuery("#" + areaArray[0]).html(ui.item);
-                jQuery("#" + areaArray[0]).val(ui.item.value); // setting a text field   
+                jQuery("#" + areaArray[0]).val(ui.item.value); // setting a text field
                 if (showDescription && (ui.item.value != undefined && ui.item.value != '')) {
-                    setLookDescription(areaArray[0], ui.item.label, areaArray[2], formName)
+                    setLookDescription(areaArray[0], ui.item.label, areaArray[2], formName, showDescription)
                 }
             }
         });
@@ -473,13 +465,13 @@ function ajaxAutoCompleter(areaCsvString, showDescription, defaultMinLength, for
     }
 }
 
-function setLookDescription(textFieldId, description, params, formName){
+function setLookDescription(textFieldId, description, params, formName, showDescription){
     if (description) {
         var start = description.lastIndexOf(' [');
         if (start != -1) {
             description = description.substring(0, start);
-            
-            // This sets a (possibly hidden) dependent field if a description-field-name is provided  
+
+            // This sets a (possibly hidden) dependent field if a description-field-name is provided
             var dependentField = params.substring(params.indexOf("searchValueFieldName"));
             dependentField = jQuery("#" + formName + "_" + dependentField.substring(dependentField.indexOf("=") + 1));
             var dependentFieldValue = description.substring(0, description.lastIndexOf(' '))
@@ -490,7 +482,7 @@ function setLookDescription(textFieldId, description, params, formName){
         }
         var lookupWrapperEl = jQuery("#" + textFieldId).closest('.field-lookup');
         if (lookupWrapperEl.length) {
-            if (start == -1) {
+            if (start == -1 && showDescription) {
                 var start = description.indexOf(' ');
                 if (start != -1 && description.indexOf('<script type="text/javascript">') == -1) {
                     description = description.substring(start);
@@ -532,14 +524,14 @@ function ajaxAutoCompleteDropDown() {
                                             "(?![^&;]+;)(?!<[^<>]*)(" +
                                             jQuery.ui.autocomplete.escapeRegex(request.term) +
                                             ")(?![^<>]*>)(?![^&;]+;)", "gi"
-                                        ), "<strong>$1</strong>" ),
+                                        ), "<b>$1</b>" ),
                                     value: text,
                                     option: this
                                 };
                         }) );
                     },
                     select: function( event, ui ) {
-                        ui.item.option.selected = true;                        
+                        ui.item.option.selected = true;
                         //select.val( ui.item.option.value );
                         self._trigger( "selected", event, {
                             item: ui.item.option
@@ -566,7 +558,7 @@ function ajaxAutoCompleteDropDown() {
                 })
                 //.addClass( "ui-widget ui-widget-content ui-corner-left" );
 
-            input.data( "autocomplete" )._renderItem = function( ul, item ) {
+            input.data( "ui-autocomplete" )._renderItem = function( ul, item ) {
                 return jQuery( "<li></li>" )
                     .data( "item.autocomplete", item )
                     .append( "<a>" + item.label + "</a>" )
@@ -633,19 +625,19 @@ function toggleCollapsiblePanel(link, areaId, expandTxt, collapseTxt){
 */
 function toggleScreenlet(link, areaId, saveCollapsed, expandTxt, collapseTxt){
    toggleCollapsiblePanel(link, areaId, expandTxt, collapseTxt);
-   var container = jQuery("#" + areaId);
-   var screenlet = jQuery(link).parents('div:first');;
-   if(container.is(':visible')){
-       var currentParam = screenlet.id + "_collapsed=false";
-       var newParam = screenlet.id + "_collapsed=true";
+   var screenlet = jQuery(link).parents('div:eq(1)').attr('id');
+   var title = jQuery(link).attr('title');
+   if(title == expandTxt){
+       var currentParam = screenlet + "_collapsed=false";
+       var newParam = screenlet + "_collapsed=true";
        if(saveCollapsed=='true'){
-           setUserLayoutPreferences('GLOBAL_PREFERENCES',screenlet.id+"_collapsed",'true');
+           setUserLayoutPreferences('GLOBAL_PREFERENCES',screenlet+"_collapsed",'true');
        }
    } else {
-       var currentParam = screenlet.id + "_collapsed=true";
-       var newParam = screenlet.id + "_collapsed=false";
+       var currentParam = screenlet + "_collapsed=true";
+       var newParam = screenlet + "_collapsed=false";
        if(saveCollapsed=='true'){
-           setUserLayoutPreferences('GLOBAL_PREFERENCES',screenlet.id+"_collapsed",'false');
+           setUserLayoutPreferences('GLOBAL_PREFERENCES',screenlet+"_collapsed",'false');
        }
    }
    var paginationMenus = jQuery('div.nav-pager');
@@ -672,6 +664,7 @@ function toggleScreenlet(link, areaId, saveCollapsed, expandTxt, collapseTxt){
   * @param element The id of the display field
   * @param url The request to be called to update the display field
   * @param options Options to be passed to Ajax.InPlaceEditor
+  * https://cwiki.apache.org/confluence/display/OFBIZ/Enhancing+Display+Widget+to+use+Ajax.InPlaceEditor
 */
 
 function ajaxInPlaceEditDisplayField(element, url, options) {
@@ -686,7 +679,8 @@ function ajaxInPlaceEditDisplayField(element, url, options) {
 
     jElement.editable(function(value, settings){
         // removes all line breaks from the value param, because the parseJSON Function can't work with line breaks
-    	value = value.replace(/\n/g, " ");
+        value = value.replace(/\n/g, " ");
+        value = value.replace(/\"/g,"&quot;");
 
         var resultField = jQuery.parseJSON('{"' + settings.name + '":"' + value + '"}');
         // merge both parameter objects together
@@ -754,26 +748,33 @@ function submitFormEnableButton(button) {
     button.value = button.value.substring(0, button.value.length - 1);
 }
 
-function expandAll(expanded) {
-  var divs,divs1,i,j,links,groupbody;
+/**
+ * Expands or collapses all groups of one portlet
+ *
+ * @param bool <code>true</code> to expand, <code>false</code> otherwise
+ * @param portalPortletId The id of the portlet
+ */
+function expandAllP(bool, portalPortletId) {
+    jQuery('#scrlt_'+portalPortletId+' .fieldgroup').each(function() {
+        var titleBar = $(this).children('.fieldgroup-title-bar'), body = $(this).children('.fieldgroup-body');
+        if (titleBar.children().length > 0 && body.is(':visible') != bool) {
+            toggleCollapsiblePanel(titleBar.find('a'), body.attr('id'), 'expand', 'collapse');
+        }
+    });
+}
 
-  divs=document.getElementsByTagName('div');
-  for(i=0;i<divs.length;i++) {
-    if(/fieldgroup$/.test(divs[i].className)) {
-      links=divs[i].getElementsByTagName('a');
-      if(links.length>0) {
-        divs1=divs[i].getElementsByTagName('div');
-        for(j=0;j<divs1.length;j++){
-          if(/fieldgroup-body/.test(divs1[j].className)) {
-            groupbody=divs1[j];
-          }
+/**
+ * Expands or collapses all groups of the page
+ *
+ * @param bool <code>true</code> to expand, <code>false</code> otherwise
+ */
+function expandAll(bool) {
+    jQuery('.fieldgroup').each(function() {
+        var titleBar = $(this).children('.fieldgroup-title-bar'), body = $(this).children('.fieldgroup-body');
+        if (titleBar.children().length > 0 && body.is(':visible') != bool) {
+            toggleCollapsiblePanel(titleBar.find('a'), body.attr('id'), 'expand', 'collapse');
         }
-        if(jQuery(groupbody).is(':visible') != expanded) {
-          toggleCollapsiblePanel(links[0], groupbody.id, 'expand', 'collapse');
-        }
-      }
-    }
-  }
+    });
 }
 
 //calls ajax request for storing user layout preferences
@@ -797,7 +798,7 @@ function waitSpinnerShow() {
     lookupTop = (scrollOffY + winHeight / 2) - (jSpinner.height() / 2);
 
     jSpinner.css("display", "block");
-    jSpinner.css("left", lookupLeft + "px"); 
+    jSpinner.css("left", lookupLeft + "px");
     jSpinner.css("top", lookupTop + "px");
     jSpinner.show();
 }
@@ -914,6 +915,8 @@ function showErrorAlertLoadUiLabel(errBoxTitleResource, errBoxTitleLabel, uiReso
                 }
             }
         });
+    } else {
+      alert(labels[uiResource][0]);
     }
 }
 
@@ -941,5 +944,47 @@ function showErrorAlert(errBoxTitle, errMessage) {
                 }
             }
         });
+    }
+}
+
+/**
+ * Submit the pagination request
+ * @param obj The DOM object of pagination anchor or select element
+ * @param url The pagination URL
+ */
+function submitPagination(obj, url) {
+    if (obj.getAttribute("data-lookupajax") == "true" && typeof window.lookupPaginationAjaxRequest == "function") {
+        lookupPaginationAjaxRequest(url, (obj.tagName == "SELECT" ? "select" : "link"));
+        return false;
+    }
+    if (url.length > 2000) {
+        var request = url.substring(0, url.indexOf("?"));
+        var params = url.substring(url.indexOf("?")+1, url.length);
+        var paramsArray = params.split("&");
+        var form = document.createElement("form");
+        form.setAttribute("method", "post");
+        form.setAttribute("action", request);
+        for (var i = 0; i < paramsArray.length; i ++) {
+            var param = paramsArray[i];
+            if (param!= "" && param.indexOf("=") > 0) {
+                var keyValue = param.split("=");
+                var hiddenField = document.createElement("input");
+                hiddenField.setAttribute("type", "hidden");
+                hiddenField.setAttribute("name", keyValue[0]);
+                hiddenField.setAttribute("value", keyValue[1]);
+                form.appendChild(hiddenField);
+            }
+        }
+        document.body.appendChild(form);
+        form.submit();
+        return false;
+    } else {
+        if (obj.tagName == "SELECT") {
+            location.href = url;
+            return false;
+        } else {
+            obj.href = url;
+            return true;
+        }
     }
 }

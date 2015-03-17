@@ -39,6 +39,7 @@ import org.ofbiz.base.util.GeneralException;
 import org.ofbiz.base.util.UtilJavaParse;
 import org.ofbiz.base.util.UtilMisc;
 import org.ofbiz.base.util.UtilPlist;
+import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.minilang.MiniLangException;
 import org.ofbiz.minilang.SimpleMethod;
 import org.ofbiz.service.ModelParam;
@@ -84,8 +85,7 @@ public class ServiceArtifactInfo extends ArtifactInfoBase {
             // we can do something with this!
             SimpleMethod simpleMethodToCall = null;
             try {
-                Map<String, SimpleMethod> simpleMethods = SimpleMethod.getSimpleMethods(this.modelService.location, null);
-                simpleMethodToCall = simpleMethods.get(this.modelService.invoke);
+                simpleMethodToCall = SimpleMethod.getSimpleMethod(this.modelService.location, this.modelService.invoke,null);
             } catch (MiniLangException e) {
                 Debug.logWarning("Error getting Simple-method [" + this.modelService.invoke + "] in [" + this.modelService.location + "] referenced in service [" + this.modelService.name + "]: " + e.toString(), module);
             }
@@ -122,7 +122,7 @@ public class ServiceArtifactInfo extends ArtifactInfoBase {
     }
     protected void populateEntitiesFromNameSet(Set<String> allEntityNameSet) throws GeneralException {
         for (String entityName: allEntityNameSet) {
-            if (entityName.contains("${")) {
+            if (UtilValidate.isEmpty(entityName) || entityName.contains("${")) {
                 continue;
             }
             // attempt to convert relation names to entity names
@@ -145,8 +145,7 @@ public class ServiceArtifactInfo extends ArtifactInfoBase {
             // we can do something with this!
             SimpleMethod simpleMethodToCall = null;
             try {
-                Map<String, SimpleMethod> simpleMethods = SimpleMethod.getSimpleMethods(this.modelService.location, null);
-                simpleMethodToCall = simpleMethods.get(this.modelService.invoke);
+                simpleMethodToCall = SimpleMethod.getSimpleMethod(this.modelService.location, this.modelService.invoke,null);
             } catch (MiniLangException e) {
                 Debug.logWarning("Error getting Simple-method [" + this.modelService.invoke + "] in [" + this.modelService.location + "] referenced in service [" + this.modelService.name + "]: " + e.toString(), module);
             }

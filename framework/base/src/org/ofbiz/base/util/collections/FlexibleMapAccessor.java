@@ -23,6 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 import javax.el.PropertyNotFoundException;
 
+import org.ofbiz.base.lang.IsEmpty;
 import org.ofbiz.base.lang.SourceMonitored;
 import org.ofbiz.base.util.Debug;
 import org.ofbiz.base.util.UtilGenerics;
@@ -39,27 +40,30 @@ import org.ofbiz.base.util.string.UelUtil;
  */
 @SourceMonitored
 @SuppressWarnings("serial")
-public class FlexibleMapAccessor<T> implements Serializable {
+public final class FlexibleMapAccessor<T> implements Serializable, IsEmpty {
     public static final String module = FlexibleMapAccessor.class.getName();
-    protected static final UtilCache<String, FlexibleMapAccessor<?>> fmaCache = UtilCache.createUtilCache("flexibleMapAccessor.ExpressionCache");
+    private static final UtilCache<String, FlexibleMapAccessor<?>> fmaCache = UtilCache.createUtilCache("flexibleMapAccessor.ExpressionCache");
     @SuppressWarnings("unchecked")
-    protected static final FlexibleMapAccessor nullFma = new FlexibleMapAccessor(null);
+    private static final FlexibleMapAccessor nullFma = new FlexibleMapAccessor("");
 
-    protected final String original;
-    protected final String bracketedOriginal;
-    protected final FlexibleStringExpander fse;
-    protected boolean isAscending = true;
+    private final boolean isEmpty;
+    private final String original;
+    private final String bracketedOriginal;
+    private final FlexibleStringExpander fse;
+    private final boolean isAscending;
 
-    protected FlexibleMapAccessor(String name) {
+    private FlexibleMapAccessor(String name) {
         this.original = name;
+        this.isEmpty = name.isEmpty();
         FlexibleStringExpander fse = null;
         String bracketedOriginal = null;
+        boolean isAscending = true;
         if (UtilValidate.isNotEmpty(name)) {
             if (name.charAt(0) == '-') {
-                this.isAscending = false;
+                isAscending = false;
                 name = name.substring(1);
             } else if (name.charAt(0) == '+') {
-                this.isAscending = true;
+                isAscending = true;
                 name = name.substring(1);
             }
             if (name.contains(FlexibleStringExpander.openBracket)) {
@@ -69,6 +73,7 @@ public class FlexibleMapAccessor<T> implements Serializable {
             }
         }
         this.bracketedOriginal = bracketedOriginal;
+        this.isAscending = isAscending;
         this.fse = fse;
         if (Debug.verboseOn()) {
             Debug.logVerbose("FlexibleMapAccessor created, original = " + this.original, module);
@@ -86,10 +91,18 @@ public class FlexibleMapAccessor<T> implements Serializable {
         }
         FlexibleMapAccessor fma = fmaCache.get(original);
         if (fma == null) {
-            fmaCache.put(original, new FlexibleMapAccessor(original));
+            fmaCache.putIfAbsent(original, new FlexibleMapAccessor(original));
             fma = fmaCache.get(original);
         }
         return fma;
+    }
+
+    /**
+     * Returns <code>true</code> if this <code>FlexibleMapAccessor</code> contains a nested expression.
+     * @return <code>true</code> if this <code>FlexibleMapAccessor</code> contains a nested expression
+     */
+    public boolean containsNestedExpression() {
+        return fse != null;
     }
 
     public String getOriginalName() {
@@ -101,7 +114,7 @@ public class FlexibleMapAccessor<T> implements Serializable {
     }
 
     public boolean isEmpty() {
-         return this.original == null;
+         return this.isEmpty;
     }
 
     /** Given the name based information in this accessor, get the value from the passed in Map.
@@ -120,26 +133,31 @@ public class FlexibleMapAccessor<T> implements Serializable {
      * @param locale Optional locale parameter, if null will see if the base Map contains a "locale" key
      * @return the found value
      */
+    @SuppressWarnings("unchecked")
     public T get(Map<String, ? extends Object> base, Locale locale) {
-        if (base == null || this.isEmpty()) {
+        if (base == null || this.isEmpty) {
             return null;
         }
-        if (!base.containsKey(UelUtil.localizedMapLocaleKey) && locale != null) {
-            Map<String, Object> writableMap = UtilGenerics.cast(base);
+        if (locale != null && !base.containsKey(UelUtil.localizedMapLocaleKey)) {
+            // This method is a hot spot, so placing the cast here instead of in another class.
+            // Map<String, Object> writableMap = UtilGenerics.cast(base);
+            Map<String, Object> writableMap = (Map<String, Object>) base;
             writableMap.put(UelUtil.localizedMapLocaleKey, locale);
         }
         Object obj = null;
         try {
             obj = UelUtil.evaluate(base, getExpression(base));
         } catch (PropertyNotFoundException e) {
-            // PropertyNotFound exceptions are common, so log verbose
+            // PropertyNotFound exceptions are common, so log verbose.
             if (Debug.verboseOn()) {
                 Debug.logVerbose("UEL exception while getting value: " + e + ", original = " + this.original, module);
             }
         } catch (Exception e) {
             Debug.logError("UEL exception while getting value: " + e + ", original = " + this.original, module);
         }
-        return UtilGenerics.<T>cast(obj);
+        // This method is a hot spot, so placing the cast here instead of in another class.
+        // return UtilGenerics.<T>cast(obj);
+        return (T) obj;
     }
 
     /** Given the name based information in this accessor, put the value in the passed in Map.
@@ -151,7 +169,7 @@ public class FlexibleMapAccessor<T> implements Serializable {
      * @param value
      */
     public void put(Map<String, Object> base, T value) {
-        if (this.isEmpty()) {
+        if (this.isEmpty) {
             return;
         }
         if (base == null) {
@@ -169,7 +187,7 @@ public class FlexibleMapAccessor<T> implements Serializable {
      * @return the object removed
      */
     public T remove(Map<String, ? extends Object> base) {
-        if (this.isEmpty()) {
+        if (this.isEmpty) {
             return null;
         }
         T object = get(base);
@@ -185,7 +203,7 @@ public class FlexibleMapAccessor<T> implements Serializable {
         return object;
     }
 
-    protected String getExpression(Map<String, ? extends Object> base) {
+    private String getExpression(Map<String, ? extends Object> base) {
         String expression = null;
         if (this.fse != null) {
             expression = FlexibleStringExpander.openBracket.concat(UelUtil.prepareExpression(this.fse.expandString(base)).concat(FlexibleStringExpander.closeBracket));
@@ -197,9 +215,6 @@ public class FlexibleMapAccessor<T> implements Serializable {
 
     @Override
     public String toString() {
-        if (this.isEmpty()) {
-            return super.toString();
-        }
         return this.original;
     }
 
@@ -218,6 +233,6 @@ public class FlexibleMapAccessor<T> implements Serializable {
 
     @Override
     public int hashCode() {
-        return this.original == null ? super.hashCode() : this.original.hashCode();
+        return this.original.hashCode();
     }
 }

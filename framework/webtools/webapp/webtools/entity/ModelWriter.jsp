@@ -62,7 +62,7 @@ if (security.hasPermission("ENTITY_MAINT", session) || request.getParameter("ori
   } else {
       String title = "Entity of an Apache Open For Business Project (Apache OFBiz) Component";
       String description = "None";
-      String copyright = "Copyright 2001-2009 The Apache Software Foundation";
+      String copyright = "Copyright 2001-2012 The Apache Software Foundation";
       String author = "None";
       String version = "1.0";
 %><?xml version="1.0" encoding="UTF-8"?>
@@ -99,7 +99,7 @@ under the License.
   String originalLoaderName = request.getParameter("originalLoaderName");
   String originalLocation = request.getParameter("originalLocation");
   if (originalLoaderName != null && originalLocation != null) {
-    ec = reader.getResourceHandlerEntities(new MainResourceHandler(EntityConfigUtil.ENTITY_ENGINE_XML_FILENAME, originalLoaderName, originalLocation));
+    ec = reader.getResourceHandlerEntities(new MainResourceHandler(EntityConfig.ENTITY_ENGINE_XML_FILENAME, originalLoaderName, originalLocation));
   } else {
     ec = reader.getEntityNames();
   }

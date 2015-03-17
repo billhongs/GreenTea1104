@@ -29,6 +29,7 @@ import org.ofbiz.base.util.UtilValidate;
 import org.ofbiz.entity.Delegator;
 import org.ofbiz.entity.GenericEntityException;
 import org.ofbiz.entity.GenericValue;
+import org.ofbiz.entity.util.EntityQuery;
 import org.ofbiz.service.DispatchContext;
 import org.ofbiz.service.ServiceUtil;
 
@@ -42,9 +43,9 @@ public class InventoryEventPlannedServices {
      *  Create an MrpEvent.
      *  Make an update if a record exist with same key,  (adding the event quantity to the exiting record)
      *
-     * @param ctx
-     * @param context: a map containing the parameters used to create an MrpEvent
-     * @return result: a map with service status
+     * @param ctx the dispatch context
+     * @param context a map containing the parameters used to create an MrpEvent
+     * @return result a map with service status
      */
     public static Map<String, Object> createMrpEvent(DispatchContext ctx, Map<String, ? extends Object> context) {
         Delegator delegator = ctx.getDelegator();
@@ -57,7 +58,7 @@ public class InventoryEventPlannedServices {
         try {
             createOrUpdateMrpEvent(parameters, quantity, (String)context.get("facilityId"), (String)context.get("eventName"), false, delegator);
         } catch (GenericEntityException e) {
-            Debug.logError(e,"Error : findByPrimaryKey(\"MrpEvent\", parameters =)"+parameters, module);
+            Debug.logError(e,"Error : findOne(\"MrpEvent\", parameters =)"+parameters, module);
             return ServiceUtil.returnError(UtilProperties.getMessage(resource, "ManufacturingMrpCreateOrUpdateEvent", UtilMisc.toMap("parameters", parameters), locale));
         }
         return ServiceUtil.returnSuccess();
@@ -66,7 +67,7 @@ public class InventoryEventPlannedServices {
     public static void createOrUpdateMrpEvent(Map<String, Object> mrpEventKeyMap, BigDecimal newQuantity, String facilityId,
             String eventName, boolean isLate, Delegator delegator) throws GenericEntityException {
         GenericValue mrpEvent = null;
-        mrpEvent = delegator.findByPrimaryKey("MrpEvent", mrpEventKeyMap);
+        mrpEvent = EntityQuery.use(delegator).from("MrpEvent").where(mrpEventKeyMap).queryOne();
         if (mrpEvent == null) {
             mrpEvent = delegator.makeValue("MrpEvent", mrpEventKeyMap);
             mrpEvent.put("quantity", newQuantity.doubleValue());

@@ -18,43 +18,53 @@
  *******************************************************************************/
 package org.ofbiz.minilang.method.entityops;
 
-import org.w3c.dom.*;
-
-import org.ofbiz.minilang.*;
-import org.ofbiz.minilang.method.*;
+import org.ofbiz.entity.Delegator;
+import org.ofbiz.minilang.MiniLangException;
+import org.ofbiz.minilang.MiniLangValidate;
+import org.ofbiz.minilang.SimpleMethod;
+import org.ofbiz.minilang.method.MethodContext;
+import org.w3c.dom.Element;
 
 /**
- * Clears all Entity Engine Caches
+ * Implements the &lt;clear-entity-caches&gt; element.
+ * 
+ * @see <a href="https://cwiki.apache.org/confluence/display/OFBADMIN/Mini-language+Reference#Mini-languageReference-{{%3Cclearentitycaches%3E}}">Mini-language Reference</a>
  */
-public class ClearEntityCaches extends MethodOperation {
-    public static final class ClearEntityCachesFactory implements Factory<ClearEntityCaches> {
-        public ClearEntityCaches createMethodOperation(Element element, SimpleMethod simpleMethod) {
-            return new ClearEntityCaches(element, simpleMethod);
-        }
+public final class ClearEntityCaches extends EntityOperation {
 
-        public String getName() {
-            return "clear-entity-caches";
-        }
-    }
-
-    public ClearEntityCaches(Element element, SimpleMethod simpleMethod) {
+    public ClearEntityCaches(Element element, SimpleMethod simpleMethod) throws MiniLangException {
         super(element, simpleMethod);
+        if (MiniLangValidate.validationOn()) {
+            MiniLangValidate.attributeNames(simpleMethod, element, "delegator-name");
+            MiniLangValidate.expressionAttributes(simpleMethod, element, "delegator-name");
+            MiniLangValidate.noChildElements(simpleMethod, element);
+        }
     }
 
     @Override
-    public boolean exec(MethodContext methodContext) {
-        methodContext.getDelegator().clearAllCaches();
+    public boolean exec(MethodContext methodContext) throws MiniLangException {
+        Delegator delegator = getDelegator(methodContext);
+        delegator.clearAllCaches();
         return true;
     }
 
     @Override
-    public String rawString() {
-        // TODO: something more than the empty tag
+    public String toString() {
         return "<clear-entity-caches/>";
     }
-    @Override
-    public String expandedString(MethodContext methodContext) {
-        // TODO: something more than a stub/dummy
-        return this.rawString();
+
+    /**
+     * A factory for the &lt;clear-entity-caches&gt; element.
+     */
+    public static final class ClearEntityCachesFactory implements Factory<ClearEntityCaches> {
+        @Override
+        public ClearEntityCaches createMethodOperation(Element element, SimpleMethod simpleMethod) throws MiniLangException {
+            return new ClearEntityCaches(element, simpleMethod);
+        }
+
+        @Override
+        public String getName() {
+            return "clear-entity-caches";
+        }
     }
 }
